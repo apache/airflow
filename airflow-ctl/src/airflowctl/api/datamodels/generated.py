@@ -49,6 +49,16 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetWatcherResponse(BaseModel):
+    """
+    Asset watcher serializer for responses.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    trigger_id: Annotated[int, Field(title="Trigger Id")]
+    created_date: Annotated[datetime, Field(title="Created Date")]
+
+
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
@@ -456,6 +466,7 @@ class EventLogResponse(BaseModel):
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
+    task_display_name: Annotated[str | None, Field(title="Task Display Name")] = None
 
 
 class ExternalLogUrlResponse(BaseModel):
@@ -1046,6 +1057,7 @@ class AssetResponse(BaseModel):
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
     last_asset_event: LastAssetEventResponse | None = None
 
 
@@ -1837,6 +1849,7 @@ class HITLDetail(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
     responded_by_user: HITLUser | None = None
     responded_at: Annotated[datetime | None, Field(title="Responded At")] = None
     chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None

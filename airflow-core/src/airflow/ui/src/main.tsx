@@ -25,6 +25,7 @@ import * as ReactDOM from "react-dom";
 import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
+import * as ReactRouterDOM from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
@@ -44,6 +45,7 @@ import { clearToken, tokenHandler } from "./utils/tokenHandler";
 Reflect.set(globalThis, "React", React);
 Reflect.set(globalThis, "ReactDOM", ReactDOM);
 Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
+Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
@@ -68,19 +70,10 @@ axios.interceptors.response.use(
 
 axios.interceptors.request.use(tokenHandler);
 
-const html = document.documentElement;
-const updateHtml = (lng: string) => {
-  html.setAttribute("dir", i18n.dir(lng));
-  html.setAttribute("lang", lng);
-};
-
-updateHtml(i18n.language);
-i18n.on("languageChanged", updateHtml);
-
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
-      <ChakraProvider i18nIsDynamicList={true} value={system}>
+      <ChakraProvider value={system}>
         <ColorModeProvider>
           <QueryClientProvider client={client}>
             <TimezoneProvider>

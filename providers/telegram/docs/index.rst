@@ -79,8 +79,6 @@ apache-airflow-providers-telegram package
 
 Release: 4.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

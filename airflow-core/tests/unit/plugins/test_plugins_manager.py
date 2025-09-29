@@ -94,7 +94,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert len(plugins_manager.plugins) == 9
+            assert len(plugins_manager.plugins) == 10
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert plugin.name == "postload"

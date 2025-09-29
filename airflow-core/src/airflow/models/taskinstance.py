@@ -25,7 +25,7 @@ import math
 import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
@@ -35,7 +35,6 @@ import dill
 import lazy_object_proxy
 import uuid6
 from sqlalchemy import (
-    Column,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -62,7 +61,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import lazyload, reconstructor, relationship
+from sqlalchemy.orm import Mapped, lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
@@ -70,9 +69,6 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowInactiveAssetInInletOrOutletException,
-)
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -96,7 +92,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -120,7 +116,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+    from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -377,59 +373,65 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    id = Column(
+    id: Mapped[str] = mapped_column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
         default=uuid7,
         nullable=False,
     )
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
 
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Float)
-    state = Column(String(20))
-    try_number = Column(Integer, default=0)
-    max_tries = Column(Integer, server_default=text("-1"))
-    hostname = Column(String(1000))
-    unixname = Column(String(1000))
-    pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False)
-    queue = Column(String(256))
-    priority_weight = Column(Integer)
-    operator = Column(String(1000))
-    custom_operator_name = Column(String(1000))
-    queued_dttm = Column(UtcDateTime)
-    scheduled_dttm = Column(UtcDateTime)
-    queued_by_job_id = Column(Integer)
+    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    duration: Mapped[float] = mapped_column(Float)
+    state: Mapped[str] = mapped_column(String(20))
+    try_number: Mapped[int] = mapped_column(Integer, default=0)
+    max_tries: Mapped[int] = mapped_column(Integer, server_default=text("-1"))
+    hostname: Mapped[str] = mapped_column(String(1000))
+    unixname: Mapped[str] = mapped_column(String(1000))
+    pool: Mapped[str] = mapped_column(String(256), nullable=False)
+    pool_slots: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    queue: Mapped[str] = mapped_column(String(256))
+    priority_weight: Mapped[int] = mapped_column(Integer)
+    operator: Mapped[str] = mapped_column(String(1000))
+    custom_operator_name: Mapped[str] = mapped_column(String(1000))
+    queued_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    scheduled_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    queued_by_job_id: Mapped[int] = mapped_column(Integer)
 
-    last_heartbeat_at = Column(UtcDateTime)
-    pid = Column(Integer)
-    executor = Column(String(1000))
-    executor_config = Column(ExecutorConfigType(pickler=dill))
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    _rendered_map_index = Column("rendered_map_index", String(250))
-    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
-    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
+    last_heartbeat_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    pid: Mapped[int] = mapped_column(Integer)
+    executor: Mapped[str] = mapped_column(String(1000))
+    executor_config: Mapped[dict] = mapped_column(ExecutorConfigType(pickler=dill))
+    updated_at: Mapped[UtcDateTime] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
+    _rendered_map_index: Mapped[str] = mapped_column("rendered_map_index", String(250))
+    context_carrier: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
+    span_status: Mapped[str] = mapped_column(
+        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
+    )
 
-    external_executor_id = Column(StringID())
+    external_executor_id: Mapped[str] = mapped_column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(Integer)
+    trigger_id: Mapped[int] = mapped_column(Integer)
 
     # Optional timeout utcdatetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(UtcDateTime)
+    trigger_timeout: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
-    next_method = Column(String(1000))
-    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    next_method: Mapped[str] = mapped_column(String(1000))
+    next_kwargs: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
 
-    _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
-    dag_version_id = Column(
+    _task_display_property_value: Mapped[str | None] = mapped_column(
+        "task_display_name", String(2000), nullable=True
+    )
+    dag_version_id: Mapped[str] = mapped_column(
         UUIDType(binary=False),
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
     )
@@ -622,7 +624,7 @@ class TaskInstance(Base, LoggingMixin):
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
         return _log_uri
 
@@ -1075,8 +1077,6 @@ class TaskInstance(Base, LoggingMixin):
 
         ti: TaskInstance = task_instance
         task = task_instance.task
-        if TYPE_CHECKING:
-            assert isinstance(task, Operator)  # TODO (GH-52141): This shouldn't be needed.
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -1276,9 +1276,16 @@ class TaskInstance(Base, LoggingMixin):
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 
-        taskrun_result = _run_task(ti=self, task=self.task)
-        if taskrun_result is not None and taskrun_result.error:
+        # TODO (TaskSDK): This is the old ti execution path. The only usage is
+        # in TI.run(...), someone needs to analyse if it's still actually used
+        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
+        # mechanism as Operator.test().
+        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
+        if taskrun_result is None:
+            return None
+        if taskrun_result.error:
             raise taskrun_result.error
+        self.task = taskrun_result.ti.task  # type: ignore[assignment]
         return None
 
     @staticmethod
@@ -1323,13 +1330,15 @@ class TaskInstance(Base, LoggingMixin):
             if "source_alias_name" not in event
         }
 
-        bad_asset_keys: set[AssetUniqueKey | AssetNameRef | AssetUriRef] = set()
-
         for key in asset_keys:
             try:
                 am = asset_models[key]
             except KeyError:
-                bad_asset_keys.add(key)
+                ti.log.warning(
+                    'Task has inactive assets "Asset(name=%s, uri=%s)" in inlets or outlets',
+                    key.name,
+                    key.uri,
+                )
                 continue
             ti.log.debug("register event for asset %s", am)
             asset_manager.register_asset_change(
@@ -1346,7 +1355,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_name[nref.name]
                 except KeyError:
-                    bad_asset_keys.add(nref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(name=%s)" in inlets or outlets', nref.name
+                    )
                     continue
                 ti.log.debug("register event for asset name ref %s", am)
                 asset_manager.register_asset_change(
@@ -1362,7 +1373,9 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     am = asset_models_by_uri[uref.uri]
                 except KeyError:
-                    bad_asset_keys.add(uref)
+                    ti.log.warning(
+                        'Task has inactive assets "Asset.ref(uri=%s)" in inlets or outlets', uref.uri
+                    )
                     continue
                 ti.log.debug("register event for asset uri ref %s", am)
                 asset_manager.register_asset_change(
@@ -1408,9 +1421,6 @@ class TaskInstance(Base, LoggingMixin):
                         extra=dict(extra_key),
                         session=session,
                     )
-
-        if bad_asset_keys:
-            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
 
     @provide_session
     def update_rtif(self, rendered_fields, session: Session = NEW_SESSION):
@@ -2197,15 +2207,17 @@ class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-    ti_id = Column(
+    ti_id: Mapped[str] = mapped_column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
         nullable=False,
     )
-    user_id = Column(String(128), nullable=True)
-    content = Column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    content: Mapped[str] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[UtcDateTime] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
     task_instance = relationship("TaskInstance", back_populates="task_instance_note", uselist=False)
 

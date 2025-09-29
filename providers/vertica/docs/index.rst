@@ -80,8 +80,6 @@ apache-airflow-providers-vertica package
 
 Release: 4.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
