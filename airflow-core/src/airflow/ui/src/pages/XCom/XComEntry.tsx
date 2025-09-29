@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Skeleton, Text, Link } from "@chakra-ui/react";
+import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
+import { urlRegex } from "src/constants/urlRegex";
 
-export type XComEntryProps = {
+type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
   readonly open?: boolean;
@@ -31,33 +33,21 @@ export type XComEntryProps = {
   readonly xcomKey: string;
 };
 
-const urlRegex = /(?:https?:\/\/|www\.)[^\s<>()]+(?:\([\w\d\-._~:/?#[\]@!$&'()*+,;=%]*\)|[^\s<>()])/giu;
-
 const renderTextWithLinks = (text: string) => {
-  if (!text) {
-    return undefined;
-  }
+  const urls = text.match(urlRegex);
   const parts = text.split(/\s+/u);
-  const urls: Array<string> = text.match(urlRegex) ?? [];
-  const seen = new Map<string, number>();
 
   return (
     <>
-      {parts.map((part) => {
-        const count = (seen.get(part) ?? 0) + 1;
+      {parts.map((part, index) => {
+        const isLastPart = index === parts.length - 1;
 
-        seen.set(part, count);
-        const key = `${part}-${count}`;
-        const isUrl = urls.includes(part);
-
-        if (isUrl) {
-          const href = part.startsWith("http") ? part : `https://${part}`;
-
+        if (urls?.includes(part)) {
           return (
             <Link
               color="fg.info"
-              href={href}
-              key={key}
+              href={part}
+              key={part}
               rel="noopener noreferrer"
               target="_blank"
               textDecoration="underline"
@@ -67,15 +57,11 @@ const renderTextWithLinks = (text: string) => {
           );
         }
 
-        return <span key={key}>{part} </span>;
+        return `${part}${isLastPart ? "" : " "}`;
       })}
     </>
   );
 };
-
-// Type guard without short identifier and without using null literals
-const isObjectLike = (valueCandidate: unknown): valueCandidate is object =>
-  Boolean(valueCandidate) && typeof valueCandidate === "object";
 
 export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
@@ -87,21 +73,34 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
     taskId,
     xcomKey,
   });
+  // When deserialize=true, the API returns a stringified representation
+  // so we don't need to JSON.stringify it again
+  const xcomValue = data?.value;
+  const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
+  const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
 
-  const value = data?.value;
-
-  const valueFormatted = value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value);
-
-  if (isLoading) {
-    return <Skeleton data-testid="skeleton" display="inline-block" height="10px" width={200} />;
-  }
-
-  return (
+  return isLoading ? (
+    <Skeleton
+      data-testid="skeleton"
+      display="inline-block"
+      height="10px"
+      width={200} // TODO: Make Skeleton take style from column definition
+    />
+  ) : (
     <HStack>
-      {isObjectLike(value) ? (
-        <RenderedJsonField content={value} jsonProps={{ collapsed: !open }} />
+      {isObjectOrArray ? (
+        <RenderedJsonField
+          content={xcomValue as object}
+          enableClipboard={false}
+          jsonProps={{ collapsed: !open }}
+        />
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
+      )}
+      {xcomValue === undefined || xcomValue === null ? undefined : (
+        <ClipboardRoot value={valueFormatted}>
+          <ClipboardIconButton />
+        </ClipboardRoot>
       )}
     </HStack>
   );
