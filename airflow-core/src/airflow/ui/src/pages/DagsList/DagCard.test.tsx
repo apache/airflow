@@ -22,12 +22,38 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
+import type { PropsWithChildren } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { TimezoneProvider } from "src/context/timezone";
+import { BaseWrapper } from "src/utils/Wrapper";
 
 import "../../i18n/config";
 import { DagCard } from "./DagCard";
+
+// Mock the timezone context to always return UTC/GMT
+vi.mock("src/context/timezone", async () => {
+  const actual = await vi.importActual("src/context/timezone");
+
+  return {
+    ...actual,
+    TimezoneProvider: ({ children }: PropsWithChildren) => children,
+    useTimezone: () => ({
+      selectedTimezone: "UTC",
+      setSelectedTimezone: vi.fn(),
+    }),
+  };
+});
+
+// Custom wrapper that uses GMT timezone
+const GMTWrapper = ({ children }: PropsWithChildren) => (
+  <BaseWrapper>
+    <MemoryRouter>
+      <TimezoneProvider>{children}</TimezoneProvider>
+    </MemoryRouter>
+  </BaseWrapper>
+);
 
 const mockDag = {
   asset_expression: null,
@@ -97,7 +123,7 @@ const mockDag = {
   next_dagrun_data_interval_end: "2024-08-23T00:00:00+00:00",
   next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
-  next_dagrun_run_after: "2024-08-23T00:00:00+00:00",
+  next_dagrun_run_after: "2024-08-22T19:00:00+00:00",
   owners: ["airflow"],
   pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
@@ -129,7 +155,7 @@ afterEach(() => {
 
 describe("DagCard", () => {
   it("DagCard should render without tags", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
@@ -147,7 +173,7 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.queryByText("tag3")).toBeInTheDocument();
@@ -169,14 +195,14 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 
   it("DagCard should render schedule section", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const scheduleElement = screen.getByTestId("schedule");
 
     expect(scheduleElement).toBeInTheDocument();
@@ -185,25 +211,25 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render latest run section with actual run data", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const latestRunElement = screen.getByTestId("latest-run");
 
     expect(latestRunElement).toBeInTheDocument();
-    // Should contain the formatted latest run timestamp (formatted for local timezone)
-    expect(latestRunElement).toHaveTextContent("2025-09-19 14:22:00");
+    // Should contain the formatted latest run timestamp (formatted for GMT timezone)
+    expect(latestRunElement).toHaveTextContent("2025-09-19 19:22:00");
   });
 
   it("DagCard should render next run section with timestamp", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const nextRunElement = screen.getByTestId("next-run");
 
     expect(nextRunElement).toBeInTheDocument();
-    // Should display the formatted next run timestamp (converted to local timezone)
+    // Should display the formatted next run timestamp (converted to GMT timezone)
     expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
   });
 
   it("DagCard should render StateBadge as success", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();
@@ -228,7 +254,7 @@ describe("DagCard", () => {
       ],
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: Wrapper });
+    render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: GMTWrapper });
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();
