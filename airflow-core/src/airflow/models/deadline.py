@@ -100,7 +100,9 @@ class Deadline(Base):
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
-    dagrun_id: Mapped[int] = mapped_column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
+    dagrun_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("dag_run.id", ondelete="CASCADE"), nullable=True
+    )
 
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
@@ -109,7 +111,7 @@ class Deadline(Base):
         "callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False
     )
     # The state of the deadline callback
-    callback_state: Mapped[str] = mapped_column(String(20))
+    callback_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 

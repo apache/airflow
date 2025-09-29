@@ -95,7 +95,7 @@ class HITLDetail(Base):
     subject: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
     defaults: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    multiple: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    multiple: Mapped[bool] = mapped_column(Boolean, unique=False, default=False, nullable=False)
     params: Mapped[dict] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
     )

@@ -73,7 +73,7 @@ class XComModel(TaskInstanceDependencies):
     dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True)
     timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
