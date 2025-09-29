@@ -43,8 +43,6 @@ Misc
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -62,8 +60,6 @@ Misc
 2.7.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

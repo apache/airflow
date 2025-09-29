@@ -66,7 +66,7 @@ class TestCliRoles:
                     self.clear_users_and_roles()
 
     def clear_users_and_roles(self):
-        session = self.appbuilder.get_session
+        session = self.appbuilder.session
         for user in self.appbuilder.sm.get_all_users():
             session.delete(user)
         for role_name in ["FakeTeamA", "FakeTeamB", "FakeTeamC"]:
