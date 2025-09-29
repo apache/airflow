@@ -2057,12 +2057,13 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         for k, v in OPERATOR_DEFAULTS.items():
             if k not in cls.get_serialized_fields():
                 continue
-            # Exclude values that are the same as the schema defaults
-            if k in schema_defaults and schema_defaults[k] == v:
-                continue
 
             # Exclude values that are None or empty collections
             if v is None or v in [[], (), set(), {}]:
+                continue
+
+            # Check schema defaults first with raw value comparison (fast path)
+            if k in schema_defaults and schema_defaults[k] == v:
                 continue
 
             # Use the existing serialize method to ensure consistent format
@@ -2070,6 +2071,12 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             # Extract just the value part, consistent with serialize_to_json behavior
             if isinstance(serialized_value, dict) and Encoding.TYPE in serialized_value:
                 serialized_value = serialized_value[Encoding.VAR]
+
+            # For cases where raw comparison failed but serialized values might match
+            # (e.g., timedelta vs float), check again with serialized value
+            if k in schema_defaults and schema_defaults[k] == serialized_value:
+                continue
+
             client_defaults[k] = serialized_value
 
         return client_defaults
