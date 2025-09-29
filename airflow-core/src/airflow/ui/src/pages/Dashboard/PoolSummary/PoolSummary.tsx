@@ -30,7 +30,7 @@ import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
   const { t: translate } = useTranslation("dashboard");
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const hasPoolsAccess = authLinks?.authorized_menu_items.includes("Pools");
 

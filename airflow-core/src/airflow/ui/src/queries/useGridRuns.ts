@@ -33,7 +33,7 @@ export const useGridRuns = ({
 }) => {
   const { dagId = "" } = useParams();
 
-  const defaultRefetchInterval = useAutoRefresh({ dagId });
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: GridRuns, ...rest } = useGridServiceGetGridRuns(
     {
@@ -47,7 +47,7 @@ export const useGridRuns = ({
     {
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.some((run) => isStatePending(run.state)) && defaultRefetchInterval,
+        query.state.data?.some((run) => isStatePending(run.state)) && refetchInterval,
     },
   );
 
