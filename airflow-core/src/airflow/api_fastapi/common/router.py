@@ -83,21 +83,12 @@ class _AirflowRoute(APIRoute):
                 async with create_session_async() as async_session:
                     setattr(request.state, "__airflow_async_db_session", async_session)
                     response = await default_handler(request)
-                    await async_session.commit()
-                    try:
-                        delattr(request.state, "__airflow_async_db_session")
-                    except Exception:
-                        pass
-                    return response
+                    delattr(request.state, "__airflow_async_db_session")
             else:
                 with create_session(scoped=False) as session:
                     setattr(request.state, "__airflow_db_session", session)
                     response = await default_handler(request)
-                    session.commit()
-                    try:
-                        delattr(request.state, "__airflow_db_session")
-                    except Exception:
-                        pass
-                    return response
+                    delattr(request.state, "__airflow_db_session")
+            return response
 
         return handler
