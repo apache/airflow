@@ -121,7 +121,7 @@ dev = [
     "apache-airflow-devel-common",
 ]
 codegen = [
-    "datamodel-code-generator[http]==0.32.0",
+    "datamodel-code-generator[http]==0.34.0",
     "apache-airflow-devel-common"
 ]
 
