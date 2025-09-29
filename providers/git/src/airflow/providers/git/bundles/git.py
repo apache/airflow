@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import os
+import shutil
 from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
 import structlog
 from git import Repo
-from git.exc import BadName, GitCommandError, NoSuchPathError
+from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
@@ -131,18 +132,40 @@ class GitDagBundle(BaseDagBundle):
     def _clone_bare_repo_if_required(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
-        if not os.path.exists(self.bare_repo_path):
-            self._log.info("Cloning bare repository", bare_repo_path=self.bare_repo_path)
+
+        max_retries = 1
+        for attempt in range(max_retries + 1):
             try:
-                Repo.clone_from(
-                    url=self.repo_url,
-                    to_path=self.bare_repo_path,
-                    bare=True,
-                    env=self.hook.env if self.hook else None,
-                )
-            except GitCommandError as e:
-                raise AirflowException("Error cloning repository") from e
-        self.bare_repo = Repo(self.bare_repo_path)
+                if not os.path.exists(self.bare_repo_path):
+                    self._log.info("Cloning bare repository", bare_repo_path=self.bare_repo_path)
+                    try:
+                        Repo.clone_from(
+                            url=self.repo_url,
+                            to_path=self.bare_repo_path,
+                            bare=True,
+                            env=self.hook.env if self.hook else None,
+                        )
+                    except GitCommandError as e:
+                        raise AirflowException("Error cloning repository") from e
+                self.bare_repo = Repo(self.bare_repo_path)
+                break
+            except InvalidGitRepositoryError as e:
+                if attempt < max_retries:
+                    self._log.warning(
+                        "Bare repository appears to be corrupted, cleaning up and retrying",
+                        bare_repo_path=self.bare_repo_path,
+                        attempt=attempt + 1,
+                        exc=e,
+                    )
+                    if os.path.exists(self.bare_repo_path):
+                        shutil.rmtree(self.bare_repo_path)
+                else:
+                    self._log.error(
+                        "Bare repository is corrupted and retry failed",
+                        bare_repo_path=self.bare_repo_path,
+                        exc=e,
+                    )
+                    raise AirflowException(f"Invalid git repository at {self.bare_repo_path}") from e
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:
