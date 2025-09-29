@@ -25,12 +25,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, overload
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow.utils.db import get_query_count, get_query_count_async
-from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -38,9 +38,12 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.core_api.base import OrmClause
 
 
-def _get_session() -> Session:
-    with create_session(scoped=False) as session:
+def _get_session(request: Request) -> Session:
+    session: Session | None = getattr(request.state, "__airflow_db_session", None)
+    if session is not None:
         yield session
+        return
+    raise RuntimeError("Session not set in request.state")
 
 
 SessionDep = Annotated[Session, Depends(_get_session)]

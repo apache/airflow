@@ -485,6 +485,7 @@ delim
 delitem
 deltalake
 dep
+dependant
 DependencyMixin
 deployable
 deploymentUrl
