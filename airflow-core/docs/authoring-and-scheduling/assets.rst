@@ -106,6 +106,33 @@ This can be used to supply custom description to the asset, such as who has owne
 
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
 
+Information template on asset events
+------------------------------------
+
+Airflow also supports attaching dynamic information to individual asset events using the ``event_extra_template`` parameter.
+
+This dictionary supports Jinja templating, allowing runtime values such as execution dates, run IDs, or task-specific information to be rendered when the asset event is emitted.
+
+.. code-block::
+
+    templated_asset = Asset(
+        "s3://asset/example.csv",
+        event_extra_template={
+            "dag_id": "{{ dag.dag_id }}",
+            "run_id": "{{ run_id }}",
+            "execution_date": "{{ ds }}",
+        },
+    )
+
+At runtime, the templates are rendered in the task's execution context, and the resulting dictionary is attached to the emitted asset event's ``extra``. This allows metadata such as row counts, partitions, or execution identifiers to be recorded for each specific event.
+
+Distinction between ``Asset.extra`` and ``Asset.event_extra_template``
+
+    extra: static description of the asset itself. Not attached to each events.
+
+    event_extra_template: a template dictionary defined on the Asset. It is rendered at runtime into a concrete dictionary, which is attached to the emitted AssetEvent and stored in the asset_event table (as AssetEvent.extra). The raw template itself is not persisted.
+
+
 Creating a task to emit asset events
 ------------------------------------
 
