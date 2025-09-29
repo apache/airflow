@@ -59,11 +59,7 @@ const BackfillBanner = ({ dagId }: Props) => {
     undefined,
     {
       refetchInterval: (query) =>
-        Boolean(
-          query.state.data?.backfills.some(
-            (bf: BackfillResponse) => bf.completed_at === null && !bf.is_paused,
-          ),
-        )
+        query.state.data?.backfills.some((bf: BackfillResponse) => bf.completed_at === null && !bf.is_paused)
           ? refetchInterval
           : false,
     },
@@ -77,16 +73,9 @@ const BackfillBanner = ({ dagId }: Props) => {
     });
   };
 
-  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({
-    onSuccess,
-  });
-  const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
-    onSuccess,
-  });
-
-  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({
-    onSuccess,
-  });
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({ onSuccess });
+  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
   const togglePause = () => {
     if (backfill === undefined) {
