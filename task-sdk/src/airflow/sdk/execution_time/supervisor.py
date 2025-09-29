@@ -1156,14 +1156,13 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
 
-        if self._is_signal_retryable() and self._should_retry:
+        # Any negative exit code indicates a signal kill
+        # We consider all signal kills as potentially retryable
+        # since they're often transient issues that could succeed on retry
+        if self._exit_code < 0 and self._should_retry:
             return TaskInstanceState.UP_FOR_RETRY
 
         return TaskInstanceState.FAILED
-
-    def _is_signal_retryable(self) -> bool:
-        """Check if the exit code signal can be retried."""
-        return self._exit_code in (-signal.SIGKILL, -signal.SIGTERM, -signal.SIGSEGV)
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
         if isinstance(msg, MaskSecret):

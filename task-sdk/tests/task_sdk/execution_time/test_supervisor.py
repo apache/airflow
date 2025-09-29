@@ -2433,15 +2433,15 @@ class TestSignalRetryLogic:
     """Test signal based retry logic in ActivitySubprocess."""
 
     @pytest.mark.parametrize(
-        "signal, expected_state",
+        "signal",
         [
-            (signal.SIGKILL, TaskInstanceState.UP_FOR_RETRY),
-            (signal.SIGTERM, TaskInstanceState.UP_FOR_RETRY),
-            (signal.SIGSEGV, TaskInstanceState.UP_FOR_RETRY),
-            (signal.SIGABRT, TaskInstanceState.FAILED),
+            signal.SIGTERM,
+            signal.SIGKILL,
+            signal.SIGABRT,
+            signal.SIGSEGV,
         ],
     )
-    def test_signals_with_retry(self, mocker, signal, expected_state):
+    def test_signals_with_retry(self, mocker, signal):
         """Test that signals with task retries."""
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -2456,7 +2456,7 @@ class TestSignalRetryLogic:
         mock_watched_subprocess._should_retry = True
 
         result = mock_watched_subprocess.final_state
-        assert result == expected_state
+        assert result == TaskInstanceState.UP_FOR_RETRY
 
     @pytest.mark.parametrize(
         "signal",
