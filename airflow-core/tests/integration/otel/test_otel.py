@@ -28,9 +28,10 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
-from airflow.models import DAG, DagBag, DagRun
+from airflow.models import DAG, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -747,7 +748,9 @@ class TestOtelIntegration:
             module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             alias="CeleryExecutor",
         )
-        monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
+        monkeypatch.setattr(
+            executor_loader, "_alias_to_executors_per_team", {None: {"CeleryExecutor": executor_name}}
+        )
 
     @pytest.fixture(autouse=True)
     def cleanup_control_file_if_needed(self):

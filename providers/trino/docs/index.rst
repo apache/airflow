@@ -80,8 +80,6 @@ apache-airflow-providers-trino package
 
 Release: 6.3.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

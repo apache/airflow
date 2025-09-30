@@ -27,6 +27,7 @@ import {
   FiGlobe,
   FiEye,
   FiChevronRight,
+  FiChevronLeft,
   FiMonitor,
 } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
@@ -52,7 +53,7 @@ const COLOR_MODES = {
 type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
 
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { selectedTheme, setColorMode } = useColorMode();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
@@ -60,6 +61,8 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
   const theme = selectedTheme ?? COLOR_MODES.SYSTEM;
+
+  const isRTL = i18n.dir() === "rtl";
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
@@ -75,7 +78,11 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
           <Menu.TriggerItem>
             <FiEye size="1.25rem" style={{ marginRight: "8px" }} />
             {translate("appearance.appearance")}
-            <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+            {isRTL ? (
+              <FiChevronLeft size="1.25rem" style={{ marginRight: "auto" }} />
+            ) : (
+              <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+            )}
           </Menu.TriggerItem>
           <Menu.Content>
             <Menu.RadioItemGroup
@@ -121,7 +128,10 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
           <PluginMenuItem {...view} key={view.name} />
         ))}
         <Menu.Item onClick={onOpenLogout} value="logout">
-          <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
+          <FiLogOut
+            size="1.25rem"
+            style={{ marginRight: "8px", transform: isRTL ? "rotate(180deg)" : undefined }}
+          />
           {translate("logout")}
         </Menu.Item>
       </Menu.Content>

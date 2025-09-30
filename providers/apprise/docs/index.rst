@@ -66,8 +66,6 @@ apache-airflow-providers-apprise package
 
 Release: 2.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

@@ -89,6 +89,7 @@ export default defineConfig(({ command }) => {
       environment: "happy-dom",
       globals: true,
       mockReset: true,
+      passWithNoTests: true,
       restoreMocks: true,
       setupFiles: "./testsSetup.ts",
     },

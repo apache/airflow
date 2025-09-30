@@ -1108,7 +1108,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         if sla is not None:
             warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                "The SLA feature is removed in Airflow 3.0, replaced with Deadline Alerts in >=3.1",
                 stacklevel=2,
             )
 
@@ -1309,12 +1309,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return dag
 
         if not isinstance(dag, DAG):
-            raise TypeError(f"Expected Dag; received {dag.__class__.__name__}")
+            raise TypeError(f"Expected dag; received {dag.__class__.__name__}")
         if self._dag is not None and self._dag is not dag:
-            raise ValueError(f"The Dag assigned to {self} can not be changed.")
+            raise ValueError(f"The dag assigned to {self} can not be changed.")
 
         if self.__from_mapped:
-            pass  # Don't add to Dag -- the mapped task takes the place.
+            pass  # Don't add to dag -- the mapped task takes the place.
         elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
         return dag

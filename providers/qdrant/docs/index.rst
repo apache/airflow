@@ -72,8 +72,6 @@ apache-airflow-providers-qdrant package
 
 Release: 1.4.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

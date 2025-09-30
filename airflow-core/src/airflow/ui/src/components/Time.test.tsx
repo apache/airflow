@@ -22,8 +22,9 @@ import { describe, it, expect, vi } from "vitest";
 
 import { TimezoneContext } from "src/context/timezone";
 import { Wrapper } from "src/utils/Wrapper";
+import { DEFAULT_DATETIME_FORMAT, DEFAULT_DATETIME_FORMAT_WITH_TZ } from "src/utils/datetimeUtils";
 
-import Time, { defaultFormat, defaultFormatWithTZ } from "./Time";
+import Time from "./Time";
 
 describe("Test Time and TimezoneProvider", () => {
   it("Displays a UTC time correctly", () => {
@@ -38,7 +39,7 @@ describe("Test Time and TimezoneProvider", () => {
       },
     );
 
-    const utcTime = screen.getByText(dayjs.utc(now).format(defaultFormat));
+    const utcTime = screen.getByText(dayjs.utc(now).format(DEFAULT_DATETIME_FORMAT));
 
     expect(utcTime).toBeDefined();
     expect(utcTime.title).toBeFalsy();
@@ -58,9 +59,9 @@ describe("Test Time and TimezoneProvider", () => {
     );
 
     const nowTime = dayjs(now);
-    const samoaTime = screen.getByText(nowTime.tz(tz).format(defaultFormat));
+    const samoaTime = screen.getByText(nowTime.tz(tz).format(DEFAULT_DATETIME_FORMAT));
 
     expect(samoaTime).toBeDefined();
-    expect(samoaTime.title).toEqual(nowTime.tz("UTC").format(defaultFormatWithTZ));
+    expect(samoaTime.title).toEqual(nowTime.tz("UTC").format(DEFAULT_DATETIME_FORMAT_WITH_TZ));
   });
 });

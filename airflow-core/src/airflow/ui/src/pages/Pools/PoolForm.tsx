@@ -41,7 +41,7 @@ type PoolFormProps = {
 };
 
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -109,7 +109,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange} size="sm">
+            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
               {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
@@ -122,12 +122,12 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

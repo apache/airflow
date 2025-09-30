@@ -78,8 +78,6 @@ apache-airflow-providers-apache-drill package
 
 Release: 3.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

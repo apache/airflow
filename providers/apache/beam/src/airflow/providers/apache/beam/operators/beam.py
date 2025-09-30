@@ -399,6 +399,10 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
 
+        if self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
+            # Links are rendered only for dataflow runner
+            self.operator_extra_links = ()
+
         if self.deferrable and not self.is_dataflow:
             self.defer(
                 trigger=BeamPythonPipelineTrigger(
@@ -577,6 +581,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         ) = self._init_pipeline_options()
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
+        if self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
+            # Links are rendered only for dataflow runner
+            self.operator_extra_links = ()
 
         if self.deferrable and not self.is_dataflow:
             self.defer(
@@ -620,6 +627,16 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 variables=self.pipeline_options,
                 location=self.dataflow_config.location,
             )
+            if is_running and self.pipeline_options.get("streaming"):
+                self.log.warning(
+                    "Stop execution, as dataflow streaming job name: %s is found in a state: RUNNING. "
+                    "If you want to submit a new job, please pass the dataflow config option"
+                    " check_if_running=False or another unique job_name.",
+                    self.dataflow_job_name,
+                )
+                # Since there is no way to get job_id, skip link construction.
+                self.operator_extra_links = ()
+                return {"dataflow_job_id": None}
 
         if not is_running:
             self.pipeline_options["jobName"] = self.dataflow_job_name

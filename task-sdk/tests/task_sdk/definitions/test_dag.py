@@ -212,7 +212,11 @@ class TestDag:
         """
         params = {"param1": Param(type="string")}
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Dag 'my-dag' is not allowed to define a Schedule, "
+            "as there are required params without default values, or the default values are not valid.",
+        ):
             DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
 
     def test_roots(self):
@@ -419,7 +423,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         DAG("test-dag", schedule=None, tags=tags)
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="tag cannot be longer than 100 characters"):
             DAG("test-dag", schedule=None, tags=tags)
 
 

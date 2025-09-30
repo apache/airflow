@@ -192,6 +192,19 @@ class TestBeamRunPythonPipelineOperator:
             py_system_site_packages=False,
         )
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_direct_runner_no_op_extra_links(self, gcs_hook, beam_hook_mock, py_options):
+        """Test there is no operator_extra_links when running pipeline with direct runner type."""
+        start_python_hook = beam_hook_mock.return_value.start_python_pipeline
+        op = BeamRunPythonPipelineOperator(**self.default_op_kwargs)
+        op.execute({})
+
+        beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
+        start_python_hook.assert_called_once()
+
+        assert not op.operator_extra_links
+
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -403,6 +416,21 @@ class TestBeamRunJavaPipelineOperator:
             job_class=JOB_CLASS,
         )
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_direct_runner_no_op_extra_links(
+        self, gcs_hook, beam_hook_mock, default_options, pipeline_options
+    ):
+        """Test there is no operator_extra_links when running pipeline with direct runner type."""
+        start_java_hook = beam_hook_mock.return_value.start_java_pipeline
+        op = BeamRunJavaPipelineOperator(**self.default_op_kwargs)
+
+        op.execute({})
+
+        beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
+        start_java_hook.assert_called_once()
+        assert not op.operator_extra_links
+
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -493,6 +521,29 @@ class TestBeamRunJavaPipelineOperator:
         op.on_kill()
 
         dataflow_cancel_job.assert_not_called()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_dataflow_streaming_not_stuck(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """Check that start java streaming pipeline does not enter infinite loop,
+        when streaming pipeline with the same prefix is already running and check_is_running=True"""
+        dataflow_config = DataflowConfiguration()
+        op_kwargs = copy.deepcopy(self.default_op_kwargs)
+        op_kwargs["pipeline_options"]["streaming"] = True
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = True
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
+
+        op = BeamRunJavaPipelineOperator(
+            **op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        res = op.execute({})
+
+        start_java_mock.assert_not_called()
+        assert res == {"dataflow_job_id": None}
 
 
 class TestBeamRunGoPipelineOperator:

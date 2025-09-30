@@ -71,8 +71,6 @@ apache-airflow-providers-atlassian-jira package
 
 Release: 3.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

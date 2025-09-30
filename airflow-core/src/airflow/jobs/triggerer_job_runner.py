@@ -883,8 +883,10 @@ class TriggerRunner:
                 await asyncio.sleep(1)
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
-                    count = len(self.triggers)
-                    self.log.info("%i triggers currently running", count)
+                    watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
+                    triggers = len(self.triggers) - watchers
+                    self.log.info("%i triggers currently running", triggers)
+                    self.log.info("%i watchers currently running", watchers)
                     last_status = now
 
         except Exception:
@@ -969,6 +971,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance), name=trigger_name
                 ),
+                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }
@@ -1103,6 +1106,11 @@ class TriggerRunner:
 
     async def run_trigger(self, trigger_id, trigger):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
+            import greenback
+
+            await greenback.ensure_portal()
+
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]

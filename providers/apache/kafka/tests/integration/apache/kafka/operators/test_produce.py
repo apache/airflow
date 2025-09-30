@@ -22,9 +22,8 @@ import logging
 import pytest
 from confluent_kafka import Consumer
 
+from airflow.models.connection import Connection
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
-
-from tests_common.test_utils.config import conf_vars
 
 log = logging.getLogger(__name__)
 
@@ -34,19 +33,25 @@ def _producer_function():
         yield (json.dumps(i), json.dumps(i + 1))
 
 
+@pytest.fixture(autouse=True)
+def kafka_connections(create_connection_without_db):
+    """Create Kafka producer connections for testing purpose."""
+    connections = [
+        Connection(
+            conn_id="kafka_default_test_1",
+            uri="kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_1",
+        ),
+        Connection(
+            conn_id="kafka_default_test_2",
+            uri="kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_2",
+        ),
+    ]
+
+    for conn in connections:
+        create_connection_without_db(conn)
+
+
 @pytest.mark.integration("kafka")
-@conf_vars(
-    {
-        (
-            "connections",
-            "kafka_default_test_1",
-        ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_1",
-        (
-            "connections",
-            "kafka_default_test_2",
-        ): "kafka://broker:29092?socket.timeout.ms=10&message.timeout.ms=10&group.id=operator.producer.test.integration.test_2",
-    }
-)
 class TestProduceToTopic:
     """
     test ProduceToTopicOperator

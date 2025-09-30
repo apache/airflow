@@ -148,7 +148,7 @@ class TestSqlToSlackApiFileOperator:
         op = SqlToSlackApiFileOperator(
             task_id="test_send_file", slack_filename=filename, **self.default_op_kwargs
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unsupported file format"):
             op.execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")

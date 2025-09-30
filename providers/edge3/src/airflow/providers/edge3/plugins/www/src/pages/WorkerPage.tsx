@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Table } from "@chakra-ui/react";
+import { Box, Code, Link, List, Table, Text } from "@chakra-ui/react";
 import { useUiServiceWorker } from "openapi/queries";
+import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -39,7 +40,7 @@ export const WorkerPage = () => {
   // Add links with filter to see jobs on worker
   // Add time zone support for time display
   // Translation?
-  if (data)
+  if (data?.workers && data.workers.length > 0)
     return (
       <Box p={2}>
         <Table.Root size="sm" interactive stickyHeader striped>
@@ -64,13 +65,13 @@ export const WorkerPage = () => {
                 </Table.Cell>
                 <Table.Cell>
                   {worker.queues ? (
-                    <ul>
+                    <List.Root>
                       {worker.queues.map((queue) => (
-                        <li key={queue}>{queue}</li>
+                        <List.Item key={queue}>{queue}</List.Item>
                       ))}
-                    </ul>
+                    </List.Root>
                   ) : (
-                    "(default)"
+                    "(all queues)"
                   )}
                 </Table.Cell>
                 <Table.Cell>
@@ -82,13 +83,13 @@ export const WorkerPage = () => {
                 <Table.Cell>{worker.jobs_active}</Table.Cell>
                 <Table.Cell>
                   {worker.sysinfo ? (
-                    <ul>
+                    <List.Root>
                       {Object.entries(worker.sysinfo).map(([key, value]) => (
-                        <li key={key}>
+                        <List.Item key={key}>
                           {key}: {value}
-                        </li>
+                        </List.Item>
                       ))}
-                    </ul>
+                    </List.Root>
                   ) : (
                     "N/A"
                   )}
@@ -103,13 +104,32 @@ export const WorkerPage = () => {
         <ScrollToAnchor />
       </Box>
     );
-  if (error) {
+  if (data) {
     return (
-      <Box p={2}>
-        <p>Unable to load data:</p>
-        <ErrorAlert error={error} />
-      </Box>
+      <Text as="div" pl={4} pt={1}>
+        No known workers. Start one via <Code>airflow edge worker [...]</Code>. See{" "}
+        <Link
+          target="_blank"
+          variant="underline"
+          color="fg.info"
+          href="https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/deployment.html"
+        >
+          Edge Worker Deployment docs <LuExternalLink />
+        </Link>{" "}
+        how to deploy a new worker.
+      </Text>
     );
   }
-  return <Box p={2}>Loading...</Box>;
+  if (error) {
+    return (
+      <Text as="div" pl={4} pt={1}>
+        <ErrorAlert error={error} />
+      </Text>
+    );
+  }
+  return (
+    <Text as="div" pl={4} pt={1}>
+      Loading...
+    </Text>
+  );
 };

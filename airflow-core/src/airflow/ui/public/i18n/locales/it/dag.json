@@ -1,0 +1,162 @@
+{
+  "allRuns": "Tutti i Run",
+  "blockingDeps": {
+    "dependency": "Dipendenza",
+    "reason": "Motivo",
+    "title": "Dipendenze che bloccano la Task da essere pianificata"
+  },
+  "calendar": {
+    "daily": "Giornaliero",
+    "hourly": "Orario",
+    "legend": {
+      "less": "Meno",
+      "more": "Più"
+    },
+    "navigation": {
+      "nextMonth": "Mese successivo",
+      "nextYear": "Anno successivo",
+      "previousMonth": "Mese precedente",
+      "previousYear": "Anno precedente"
+    },
+    "noData": "Nessun dato disponibile",
+    "noRuns": "Nessun run",
+    "totalRuns": "Run Totali",
+    "week": "Settimana {{weekNumber}}",
+    "weekdays": {
+      "friday": "Ven",
+      "monday": "Lun",
+      "saturday": "Sab",
+      "sunday": "Dom",
+      "thursday": "Gio",
+      "tuesday": "Mar",
+      "wednesday": "Mer"
+    }
+  },
+  "code": {
+    "bundleUrl": "URL del Bundle",
+    "noCode": "Nessun Codice Trovato",
+    "parseDuration": "Durata del parsing",
+    "parsedAt": "Parsato il:"
+  },
+  "extraLinks": "Extra Links",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Resetta al più recente",
+      "toggleGroup": "Attiva/Disattiva gruppo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Avanzato",
+      "dagDocs": "Documentazione sul Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "Tutti i Livelli di Log",
+    "allSources": "Tutte le Fonti",
+    "critical": "CRITICO",
+    "debug": "DEBUG",
+    "error": "ERRORE",
+    "fullscreen": {
+      "button": "Schermo Intero",
+      "tooltip": "Premi {{hotkey}} per schermo intero"
+    },
+    "info": "INFO",
+    "noTryNumber": "Nessun numero di tentativo",
+    "settings": "Impostazioni Log",
+    "viewInExternal": "Visualizza i logs in {{name}} (tentativo {{attempt}})",
+    "warning": "AVVISO"
+  },
+  "navigation": {
+    "navigation": "Navigazione: Shift+{{arrow}}",
+    "toggleGroup": "Attiva/Disattiva gruppo: Spazio"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_many": "Run falliti",
+      "failedRun_one": "Run fallito",
+      "failedRun_other": "Run falliti",
+      "failedRun_zero": "Nessun Run fallito",
+      "failedTask_many": "Task falliti",
+      "failedTask_one": "Task fallito",
+      "failedTask_other": "Task falliti",
+      "failedTask_zero": "Nessun Task fallito",
+      "failedTaskInstance_many": "Istanze di Task fallite",
+      "failedTaskInstance_one": "Istanza di Task fallita",
+      "failedTaskInstance_other": "Istanze di Task fallite",
+      "failedTaskInstance_zero": "Nessuna istanza di Task fallita"
+    },
+    "charts": {
+      "assetEvent_many": "Eventi di Asset Creati",
+      "assetEvent_one": "Evento di Asset Creato",
+      "assetEvent_other": "Eventi di Asset Creati",
+      "assetEvent_zero": "Nessun evento di asset creato"
+    },
+    "failedLogs": {
+      "hideLogs": "Nascondi Logs",
+      "showLogs": "Mostra Logs",
+      "title": "Logs delle Task fallite recenti",
+      "viewFullLogs": "Visualizza i logs completi"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opzioni",
+      "showGantt": "Mostra Gantt",
+      "showGraphShortcut": "Mostra Grafico (Premi g)",
+      "showGridShortcut": "Mostra Griglia (Premi g)"
+    },
+    "dagRuns": {
+      "label": "Numero di Runs del Dag"
+    },
+    "dependencies": {
+      "label": "Dipendenze",
+      "options": {
+        "allDagDependencies": "Tutte le Dipendenze del Dag",
+        "externalConditions": "Condizioni Esterne",
+        "onlyTasks": "Solo le Task"
+      },
+      "placeholder": "Dipendenze"
+    },
+    "graphDirection": {
+      "label": "Direzione del Grafico"
+    }
+  },
+  "paramsFailed": "Impossibile caricare i parametri",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "La richiesta di parsing del Dag è fallita. Potrebbero esserci richieste di parsing in sospeso da processare.",
+        "title": "Parsing del Dag fallito"
+      },
+      "success": {
+        "description": "Il Dag dovrebbe essere riparsat presto.",
+        "title": "Richiesta di riparsing inviata con successo"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Eventi di Asset",
+    "auditLog": "Registro di Controllo (Logs)",
+    "backfills": "Backfills",
+    "calendar": "Calendario",
+    "code": "Codice",
+    "details": "Dettagli",
+    "logs": "Logs",
+    "mappedTaskInstances_many": "Istanze di Task [{{count}}]",
+    "mappedTaskInstances_one": "Istanza di Task [{{count}}]",
+    "mappedTaskInstances_other": "Istanze di Task [{{count}}]",
+    "mappedTaskInstances_zero": "Nessuna istanza di task mappata",
+    "overview": "Panoramica",
+    "renderedTemplates": "Template Renderizzato",
+    "requiredActions": "Azioni Richieste",
+    "runs": "Run",
+    "taskInstances": "Istanze di Task",
+    "tasks": "Tasks",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Collassa tutti i gruppi di task",
+    "expandAll": "Espandi tutti i gruppi di task"
+  }
+}

@@ -6,8 +6,6 @@
     "allRuns": "Alle Läufe",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
-    "dateRangeFrom": "Von",
-    "dateRangeTo": "Bis",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",

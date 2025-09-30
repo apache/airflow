@@ -7,10 +7,20 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "allOperators": "Tous les opérateurs",
+  "appearance": {
+    "appearance": "Apparence",
+    "darkMode": "Mode sombre",
+    "lightMode": "Mode clair",
+    "systemMode": "Suivre les paramètres du système"
+  },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Événements d'Asset",
   "assetEvent_one": "Événement d'Asset",
   "assetEvent_other": "Événements d'Asset",
+  "backfill_many": "Rattrapages",
   "backfill_one": "Rattrapage",
   "backfill_other": "Rattrapages",
   "browse": {
@@ -19,8 +29,10 @@
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "Replier le panneau des détails",
+  "createdAssetEvent_many": "Événements d'Asset créés",
   "createdAssetEvent_one": "Événement d'Asset créé",
   "createdAssetEvent_other": "Événements d'Asset créés",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -32,6 +44,7 @@
     "fileLocation": "Emplacement du fichier",
     "hasTaskConcurrencyLimits": "Limites de concurrence par tâche",
     "lastExpired": "Date d'expiration",
+    "lastParseDuration": "Dernière durée d'analyse",
     "lastParsed": "Dernière analyse",
     "latestDagVersion": "Dernière version du Dag",
     "latestRun": "Dernière exécution",
@@ -58,6 +71,7 @@
     "triggeredBy": "Déclenché par",
     "triggeringUser": "Nom de l'utilisateur déclencheur"
   },
+  "dagRun_many": "Exécutions de Dag",
   "dagRun_one": "Exécution de Dag",
   "dagRun_other": "Exécutions de Dag",
   "dagRunId": "ID d'exécution du Dag",
@@ -91,16 +105,12 @@
     "any": "N'importe lequel",
     "or": "Ou"
   },
+  "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtrer par Dag",
-    "keyPlaceholder": "Filtrer par clé XCom",
-    "logicalDateFromPlaceholder": "Date logique de début",
-    "logicalDateToPlaceholder": "Date logique de fin",
-    "mapIndexPlaceholder": "Filtrer par Map Index",
-    "runAfterFromPlaceholder": "Exécuté après - de",
-    "runAfterToPlaceholder": "Exécuté après - à",
-    "runIdPlaceholder": "Filtrer par ID d'exécution",
-    "taskIdPlaceholder": "Filtrer par ID de tâche"
+    "logicalDateFrom": "Date logique de début",
+    "logicalDateTo": "Date logique de fin",
+    "runAfterFrom": "Exécuté après - de",
+    "runAfterTo": "Exécuté après - à"
   },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
@@ -136,12 +146,14 @@
   "pools": {
     "deferred": "Différé",
     "open": "Libre",
+    "pools_many": "Pools",
     "pools_one": "Pool",
     "pools_other": "Pools",
     "queued": "En file",
     "running": "En cours",
     "scheduled": "Planifié"
   },
+  "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
     "asset_triggered": "Déclenché par Asset",
@@ -171,6 +183,7 @@
     "hotkey": "s",
     "show": "Afficher la source"
   },
+  "sourceAssetEvent_many": "Événements sources",
   "sourceAssetEvent_one": "Événement source",
   "sourceAssetEvent_other": "Événements sources",
   "startDate": "Date de début",
@@ -180,6 +193,7 @@
     "failed": "Échoué",
     "no_status": "Aucun statut",
     "none": "Aucun statut",
+    "planned": "Planifié",
     "queued": "En file",
     "removed": "Supprimé",
     "restarting": "Redémarrage",
@@ -196,6 +210,7 @@
     "createdAt": "Créé à",
     "filterByTag": "Filtrer les Dags par tag",
     "filterColumns": "Filtrer les colonnes du tableau",
+    "filterReset_many": "Réinitialiser les filtres",
     "filterReset_one": "Réinitialiser le filtre",
     "filterReset_other": "Réinitialiser les filtres",
     "from": "De",
@@ -214,6 +229,7 @@
     "operator": "Opérateur",
     "triggerRule": "Règle de déclenchement"
   },
+  "task_many": "Tâches",
   "task_one": "Tâche",
   "task_other": "Tâches",
   "taskGroup": "Groupe de tâches",
@@ -241,6 +257,7 @@
     },
     "unixname": "Nom Unix"
   },
+  "taskInstance_many": "Instances de tâche",
   "taskInstance_one": "Instance de tâche",
   "taskInstance_other": "Instances de tâche",
   "timeRange": {

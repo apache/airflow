@@ -78,8 +78,6 @@ apache-airflow-providers-microsoft-winrm package
 
 Release: 3.11.0
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

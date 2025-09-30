@@ -111,6 +111,8 @@ looks like:
         # A list of dictionaries containing external views and some metadata. See the example below.
         external_views = []
         # A list of dictionaries containing react apps and some metadata. See the example below.
+        # Note: React apps are only supported in Airflow 3.1 and later.
+        # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
@@ -218,6 +220,7 @@ definitions in Airflow.
         "category": "browse",
     }
 
+    # Note: The React app integration is experimental and interfaces might change in future versions.
     react_app_with_metadata = {
         # Name of the React app, this will be displayed in the UI.
         "name": "Name of the React App",

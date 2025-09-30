@@ -81,8 +81,6 @@ apache-airflow-providers-pgvector package
 
 Release: 1.5.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

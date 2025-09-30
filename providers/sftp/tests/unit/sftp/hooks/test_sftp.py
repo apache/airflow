@@ -814,10 +814,8 @@ class TestSFTPHookAsync:
         )
 
         hook = SFTPHookAsync()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
             await hook._get_conn()
-
-        assert str(exc.value) == "Host key check was skipped, but `host_key` value was given"
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")

@@ -27,11 +27,80 @@
 Changelog
 ---------
 
-17.2.0
+18.0.0
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove GoogleDisplayVideo360CreateQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DeleteReportOperator. Reports were replaced with SDF export task in v4 of API``
+  * ``Remove GoogleDisplayVideo360DownloadReportV2Operator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+  * ``Remove GoogleDisplayVideo360RunQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DownloadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360UploadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+
+* Hooks
+
+  * ``Remove GoogleDisplayVideo360Hook.get_conn use airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video instead``
+  * ``Remove GoogleDisplayVideo360Hook.create_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.delete_query``
+  * ``Remove GoogleDisplayVideo360Hook.get_query use airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.list_queries``
+  * ``Remove GoogleDisplayVideo360Hook.run_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.get_report``
+  * ``Remove GoogleDisplayVideo360Hook.upload_line_items use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.download_line_items use airflow.providers.google.marketing_platform.hooks.display_video.download_media instead``
+  * ``Remove AutoMLHook.create_auto_ml_text_training_job. AutoMLText API was deprecated.``
+
+* Sensors
+
+  * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
+
+
+* ``Remove deprecated from google provider scheduled for September 2025 except 30 September 2025. (#55683)``
+
+
+
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for BigQueryToPostgresOperator (#55392)``
+* ``Add OpenLineage support for BigQueryToMySqlOperator (#55219)``
+* ``Add range partitioning option to bigquery operators (#55247)``
+* ``Add CloudComposerTriggerDAGRunOperator for Cloud Composer service (#55256)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Add conversion to timedelta type for self.timeout value for CloudComposerDAGRunSensor (#55570)``
+* ``Fix Cloud Run Async hooks (#55321)``
+* ``Fix CloudComposerAsyncHook to work correctly with Airflow 3 (#54976)``
+* ``Fix: Use GoogleBaseAsyncHook (#55316)``
+
+Misc
+~~~~
+
+* ``Restrict google-ads 28.0.0.post2 (#55640)``
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump mypy to 1.18.1 (#55596)``
+   * ``Fix dataflow java streaming infinite run (#55209)``
+
+17.2.0
+......
+
 
 Features
 ~~~~~~~~

@@ -107,7 +107,7 @@ class TestCommands:
                 ("keycloak_auth_manager", "client_id"): "test_client_id",
             }
         ):
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Client with ID='test_client_id' not found in realm"):
                 create_scopes_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()

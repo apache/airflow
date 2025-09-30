@@ -144,5 +144,6 @@ def get_provider_info():
                 "class-name": "airflow.providers.standard.decorators.short_circuit.short_circuit_task",
                 "name": "short_circuit",
             },
+            {"class-name": "airflow.providers.standard.decorators.stub.stub", "name": "stub"},
         ],
     }

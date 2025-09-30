@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
@@ -44,6 +46,7 @@ import { TaskInstancesFilter } from "./TaskInstancesFilter";
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
 const {
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   POOL: POOL_PARAM,
@@ -67,6 +70,13 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "dag_display_name",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.dag_id}`}>
+                <TruncatedText text={original.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("dagId"),
         },
@@ -153,6 +163,21 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
+    accessorKey: "queue",
+    enableSorting: false,
+    header: translate("taskInstance.queue"),
+  },
+  {
+    accessorKey: "executor",
+    enableSorting: false,
+    header: translate("taskInstance.executor"),
+  },
+  {
+    accessorKey: "hostname",
+    enableSorting: false,
+    header: translate("taskInstance.hostname"),
+  },
+  {
     accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
@@ -189,7 +214,16 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    columnVisibility: {
+      dag_version: false,
+      end_date: false,
+      executor: false,
+      hostname: false,
+      pool: false,
+      queue: false,
+    },
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
@@ -198,6 +232,7 @@ export const TaskInstances = () => {
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const pool = searchParams.getAll(POOL_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
 
@@ -210,6 +245,7 @@ export const TaskInstances = () => {
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId: dagId ?? "~",
+      dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,

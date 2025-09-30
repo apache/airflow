@@ -56,6 +56,14 @@ class Log(Base):
         primaryjoin="Log.dag_id == DagModel.dag_id",
     )
 
+    task_instance = relationship(
+        "TaskInstance",
+        viewonly=True,
+        foreign_keys=[task_id],
+        primaryjoin="Log.task_id == TaskInstance.task_id",
+        lazy="noload",
+    )
+
     __table_args__ = (
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
