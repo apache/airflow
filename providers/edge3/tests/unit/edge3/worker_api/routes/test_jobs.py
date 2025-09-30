@@ -26,6 +26,11 @@ from airflow.providers.edge3.worker_api.routes.jobs import state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+try:
+    from airflow.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -44,7 +49,7 @@ class TestJobsApiRoutes:
         session.query(EdgeJobModel).delete()
         session.commit()
 
-    @patch("airflow.observability.stats.Stats.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(

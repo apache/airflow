@@ -21,7 +21,6 @@ from typing import Annotated
 
 from sqlalchemy import select, update
 
-from airflow.observability.stats import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -42,8 +41,10 @@ from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")

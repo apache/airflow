@@ -35,8 +35,10 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
@@ -90,7 +92,7 @@ class TestEdgeExecutor:
         assert jobs[0].task_id == "test_task"
         assert jobs[0].concurrency_slots == expected_concurrency
 
-    @patch("airflow.observability.stats.Stats.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 
