@@ -57,8 +57,10 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
+    "dag_version_number": 1,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_mixed_versions": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
     "run_type": "scheduled",
@@ -68,8 +70,10 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
+    "dag_version_number": 1,
     "duration": 0,
     "end_date": "2024-12-31T00:00:00Z",
+    "has_mixed_versions": False,
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
     "run_type": "manual",
@@ -273,10 +277,7 @@ class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
         response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
-        assert response.json() == [
-            GRID_RUN_1,
-            GRID_RUN_2,
-        ]
+        assert response.json() == [GRID_RUN_1, GRID_RUN_2]
 
     @pytest.mark.parametrize(
         "order_by,expected",
@@ -473,28 +474,7 @@ class TestGetGridDataEndpoint:
         session.commit()
         response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
-        assert response.json() == [
-            {
-                "dag_id": "test_dag",
-                "duration": 0,
-                "end_date": "2024-12-31T00:00:00Z",
-                "run_after": "2024-11-30T00:00:00Z",
-                "run_id": "run_1",
-                "run_type": "scheduled",
-                "start_date": "2016-01-01T00:00:00Z",
-                "state": "success",
-            },
-            {
-                "dag_id": "test_dag",
-                "duration": 0,
-                "end_date": "2024-12-31T00:00:00Z",
-                "run_after": "2024-11-30T00:00:00Z",
-                "run_id": "run_2",
-                "run_type": "manual",
-                "start_date": "2016-01-01T00:00:00Z",
-                "state": "failed",
-            },
-        ]
+        assert response.json() == [GRID_RUN_1, GRID_RUN_2]
 
     @pytest.mark.parametrize(
         "endpoint,run_type,expected",
@@ -560,6 +540,7 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t1",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -567,6 +548,7 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t2",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -574,6 +556,7 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "t7",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -584,10 +567,12 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
                     "task_id": "task_group-1",
+                    "dag_version_number": 1,
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.t6",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -598,10 +583,12 @@ class TestGetGridDataEndpoint:
                     "min_start_date": "2025-03-02T00:00:06Z",
                     "state": "success",
                     "task_id": "task_group-1.task_group-2",
+                    "dag_version_number": 1,
                 },
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t3",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -609,6 +596,7 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t4",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -616,6 +604,7 @@ class TestGetGridDataEndpoint:
                 {
                     "state": "success",
                     "task_id": "task_group-1.task_group-2.t5",
+                    "dag_version_number": 1,
                     "child_states": None,
                     "max_end_date": None,
                     "min_start_date": None,
@@ -647,6 +636,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 1},
                 "task_id": "mapped_task_2",
+                "dag_version_number": 1,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -657,10 +647,12 @@ class TestGetGridDataEndpoint:
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
                 "task_id": "mapped_task_group",
+                "dag_version_number": 1,
             },
             {
                 "state": "running",
                 "task_id": "mapped_task_group.subtask",
+                "dag_version_number": 1,
                 "child_states": None,
                 "max_end_date": None,
                 "min_start_date": None,
@@ -668,6 +660,7 @@ class TestGetGridDataEndpoint:
             {
                 "state": "success",
                 "task_id": "task",
+                "dag_version_number": 1,
                 "child_states": None,
                 "max_end_date": None,
                 "min_start_date": None,
@@ -675,6 +668,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group",
+                "dag_version_number": 1,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -682,6 +676,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 1},
                 "task_id": "task_group.inner_task_group",
+                "dag_version_number": 1,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -689,6 +684,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
+                "dag_version_number": 1,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -696,6 +692,7 @@ class TestGetGridDataEndpoint:
             {
                 "child_states": {"None": 4},
                 "task_id": "task_group.mapped_task",
+                "dag_version_number": 1,
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
@@ -704,3 +701,21 @@ class TestGetGridDataEndpoint:
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
+
+    def test_dag_version_fields_have_values(self, session, test_client):
+        """Test that dag_version_number have actual values instead of None"""
+        session.commit()
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/run_4-1")
+        assert response.status_code == 200
+
+        data = response.json()
+        task_instances = data["task_instances"]
+
+        # Verify at least one task instance exists
+        assert len(task_instances) > 0
+
+        # Check that all task instances have non-None dag_version_number values
+        for ti in task_instances:
+            assert ti["dag_version_number"] is not None
+            assert isinstance(ti["dag_version_number"], int)
+            assert ti["dag_version_number"] >= 1
