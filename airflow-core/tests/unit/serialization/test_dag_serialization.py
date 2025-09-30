@@ -155,14 +155,13 @@ TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 3,
-    "client_defaults": {"tasks": {"retry_delay": 300.0}},
     "dag": {
         "default_args": {
             "__type": "dict",
             "__var": {
                 "depends_on_past": False,
                 "retries": 1,
-                "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                "retry_delay": {"__type": "timedelta", "__var": 240.0},
                 "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
             },
         },
@@ -203,7 +202,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "bash_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "ui_color": "#f0ede4",
                     "template_ext": [".sh", ".bash"],
@@ -262,7 +261,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "custom_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "template_fields": ["bash_command"],
@@ -332,7 +331,7 @@ def make_simple_dag():
         schedule=timedelta(days=1),
         default_args={
             "retries": 1,
-            "retry_delay": timedelta(minutes=5),
+            "retry_delay": timedelta(minutes=4),
             "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
         },
@@ -3110,7 +3109,7 @@ def test_handle_v1_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                     "sla": {"__type": "timedelta", "__var": 100.0},
                 },
@@ -3148,7 +3147,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3211,7 +3210,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3421,7 +3420,7 @@ def test_handle_v2_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                 },
             },
@@ -3463,7 +3462,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "ui_color": "#f0ede4",
@@ -3529,7 +3528,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
