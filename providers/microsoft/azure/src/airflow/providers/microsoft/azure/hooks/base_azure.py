@@ -191,7 +191,12 @@ class AzureBaseHook(BaseHook):
         )
 
     def get_token(self, *scopes, **kwargs) -> AccessToken:
-        """Request an access token for `scopes`."""
+        """
+        Request an access token for `scopes`.
+
+        To use this method, set `use_azure_identity_object: True` in the connection extra field.
+        ServicePrincipalCredentials and AzureIdentityCredentialAdapter don't support `get_token` method.
+        """
         credential = self.get_credential()
         if isinstance(credential, ServicePrincipalCredentials) or isinstance(
             credential, AzureIdentityCredentialAdapter
