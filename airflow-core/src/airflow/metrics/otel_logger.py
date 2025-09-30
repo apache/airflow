@@ -371,14 +371,29 @@ class MetricsMap:
 
 
 def get_otel_logger(cls) -> SafeOtelLogger:
-    otel_config = load_metrics_config()
+    # Check Airflow config.
+    host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
+    port = conf.getint("metrics", "otel_port")  # ex: 4318
+
+    # If the host or the port hasn't been provided, then check the regular OTel env vars.
+    if host != "-" and port != "0":
+        ssl_active = conf.getboolean("metrics", "otel_ssl_active")
+        # PeriodicExportingMetricReader will default to an interval of 60000 millis.
+        interval_ms = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
+        debug = conf.getboolean("metrics", "otel_debugging_on")
+        service_name = conf.get("metrics", "otel_service")
+
+        protocol = "https" if ssl_active else "http"
+        endpoint = f"{protocol}://{host}:{port}/v1/metrics"
+    else:
+        otel_config = load_metrics_config()
+        # PeriodicExportingMetricReader will default to an interval of 60000 millis.
+        interval_ms = otel_config.interval_ms
+        debug = otel_config.exporter == "console"
+        service_name = otel_config.service_name
+        endpoint = otel_config.endpoint
 
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
-    # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    interval_ms = otel_config.interval_ms
-    debug = otel_config.exporter == "console"
-    service_name = otel_config.service_name
-    endpoint = otel_config.endpoint
 
     resource = Resource.create(attributes={SERVICE_NAME: service_name})
 

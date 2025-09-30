@@ -66,9 +66,13 @@ class OtelConfig:
     resource_attributes_kv_str: str
     resource_attributes: dict[str, str]
     interval_ms: int
+    validate: bool  # true by default
 
     def __post_init__(self):
         """Validate the environment variables where necessary."""
+        if self.validate is False:
+            return
+
         endpoint_type_specific = (
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
             if self.data_type == OtelDataType.TRACES
@@ -131,7 +135,9 @@ def _env_vars_snapshot(data_type: OtelDataType) -> tuple[str | None, ...]:
 
 
 @lru_cache(maxsize=3)
-def load_otel_config(data_type: OtelDataType, vars_snapshot: tuple | None = None) -> OtelConfig:
+def load_otel_config(
+    data_type: OtelDataType, vars_snapshot: tuple | None = None, validate: bool = True
+) -> OtelConfig:
     """
     Read and validate OTel config env vars once per unique snapshot.
 
@@ -171,12 +177,13 @@ def load_otel_config(data_type: OtelDataType, vars_snapshot: tuple | None = None
         resource_attributes_kv_str=resource_attributes_kv_str,
         resource_attributes=_parse_kv_str_to_dict(resource_attributes_kv_str),
         interval_ms=interval_ms,
+        validate=validate,
     )
 
 
-def load_traces_config() -> OtelConfig:
-    return load_otel_config(OtelDataType.TRACES, _env_vars_snapshot(OtelDataType.TRACES))
+def load_traces_config(validate: bool | None = None) -> OtelConfig:
+    return load_otel_config(OtelDataType.TRACES, _env_vars_snapshot(OtelDataType.TRACES), validate)
 
 
-def load_metrics_config() -> OtelConfig:
-    return load_otel_config(OtelDataType.METRICS, _env_vars_snapshot(OtelDataType.METRICS))
+def load_metrics_config(validate: bool | None = None) -> OtelConfig:
+    return load_otel_config(OtelDataType.METRICS, _env_vars_snapshot(OtelDataType.METRICS), validate)
