@@ -34,6 +34,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.traces.utils import (
     parse_traceparent,
     parse_tracestate,
@@ -62,8 +63,6 @@ class OtelTrace:
         use_simple_processor: bool,
         tag_string: str | None = None,
     ):
-        self.otel_config = load_traces_config()
-
         self.span_exporter = span_exporter
         self.use_simple_processor = use_simple_processor
         if self.use_simple_processor:
@@ -78,7 +77,14 @@ class OtelTrace:
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
 
-        service = self.otel_config.service_name
+        service = conf.get("traces", "otel_service")
+
+        # If a value hasn't been provided, then check the regular OTel env var.
+        if service == "-":
+            # Validation happens on the endpoint URL which isn't needed here.
+            self.otel_config = load_traces_config(validate=False)
+            service = self.otel_config.service_name
+
         self.resource = Resource.create(attributes={SERVICE_NAME: service})
 
     def get_otel_tracer_provider(
@@ -329,10 +335,20 @@ def gen_link_from_traceparent(traceparent: str):
 
 def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     """Get OTEL tracer from airflow configuration."""
-    tag_string = cls.get_constant_tags()
+    host = conf.get("traces", "otel_host")
+    port = conf.getint("traces", "otel_port")
 
-    otel_config = load_traces_config()
-    endpoint = otel_config.endpoint
+    # If the host or the port hasn't been provided, then check the regular OTel env vars.
+    if host != "-" and port != "0":
+        ssl_active = conf.getboolean("traces", "otel_ssl_active")
+
+        protocol = "https" if ssl_active else "http"
+        endpoint = f"{protocol}://{host}:{port}/v1/traces"
+    else:
+        otel_config = load_traces_config()
+        endpoint = otel_config.endpoint
+
+    tag_string = cls.get_constant_tags()
 
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     log.info("Should use simple processor: %s", use_simple_processor)
