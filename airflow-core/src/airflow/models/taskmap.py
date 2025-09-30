@@ -25,6 +25,7 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy.orm import Mapped  # noqa: TC002
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
@@ -33,7 +34,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped, Session
+    from sqlalchemy.orm import Session
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance

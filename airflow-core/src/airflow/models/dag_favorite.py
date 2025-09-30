@@ -17,15 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped  # noqa: TC002
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import mapped_column
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
 
 
 class DagFavorite(Base):
