@@ -20,7 +20,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+import { useHitlDetails } from "src/queries/useHitlDetails";
 
 export type HITLQueryParams = {
   dagId: string;
@@ -49,10 +49,9 @@ export const useRequiredActionTabs = (
   const { autoRedirect = false, refetchInterval } = options;
   const location = useLocation();
   const navigate = useNavigate();
+  const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
 
   const redirectPath = (() => {
-    const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
-
     if (Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)) {
       return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`;
     }
@@ -70,16 +69,14 @@ export const useRequiredActionTabs = (
     return location.pathname.replace("/required_actions", "");
   })();
 
-  const { data: hitlData, isLoading: isLoadingHitl } = useTaskInstanceServiceGetHitlDetails(
+  const { data: hitlData, isLoading: isLoadingHitl } = useHitlDetails(
     {
-      dagId: hitlParams.dagId,
-      dagRunId: hitlParams.dagRunId ?? "~",
-      taskId: hitlParams.taskId,
-      taskIdPattern: hitlParams.taskIdPattern,
+      dagId,
+      dagRunId,
+      taskId,
+      taskIdPattern,
     },
-    undefined,
     {
-      enabled: Boolean(hitlParams.dagId),
       refetchInterval,
     },
   );

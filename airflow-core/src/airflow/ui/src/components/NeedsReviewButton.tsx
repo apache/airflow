@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
-import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+import { useHitlDetails } from "src/queries/useHitlDetails";
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -34,23 +34,23 @@ export const NeedsReviewButton = ({
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
+  // check pending runs if we don't have a dagId
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: dagId === undefined, dagId });
 
-  const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
+  const { data: hitlData, isLoading } = useHitlDetails(
     {
-      dagId: dagId ?? "~",
-      dagRunId: runId ?? "~",
+      dagId,
+      dagRunId: runId,
       responseReceived: false,
       state: ["deferred"],
       taskId,
     },
-    undefined,
     {
       refetchInterval,
     },
   );
 
-  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
+  const hitlTIsCount = hitlData?.hitl_details.length ?? 0;
   const { i18n, t: translate } = useTranslation("hitl");
 
   const isRTL = i18n.dir() === "rtl";
