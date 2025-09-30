@@ -128,10 +128,10 @@ class TestOtelConfig:
             }
         ):
             if type_lower == "metrics":
-                with pytest.raises(OSError) as endpointExc:
+                with pytest.raises(ValueError) as endpointExc:
                     load_metrics_config()
             else:
-                with pytest.raises(OSError) as endpointExc:
+                with pytest.raises(ValueError) as endpointExc:
                     load_traces_config()
 
             assert f"OTEL_EXPORTER_OTLP_{type_upper}_ENDPOINT" in str(endpointExc.value)

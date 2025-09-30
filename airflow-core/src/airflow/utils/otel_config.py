@@ -18,13 +18,14 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 
-log = logging.getLogger(__name__)
+import structlog
+
+log = structlog.getLogger(__name__)
 
 
 def _parse_kv_str_to_dict(str_var: str) -> dict[str, str]:
@@ -75,7 +76,7 @@ class OtelConfig:
         )
 
         if not self.endpoint:
-            raise OSError(
+            raise ValueError(
                 f"Missing required environment variable: 'OTEL_EXPORTER_OTLP_ENDPOINT' or {endpoint_type_specific}"
             )
 

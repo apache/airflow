@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import datetime
-import logging
 import random
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+import structlog
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
     from airflow.metrics.protocols import DeltaType
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 GaugeValues = int | float
 

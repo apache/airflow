@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import random
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
+import structlog
 from opentelemetry import trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -44,7 +44,7 @@ from airflow.utils.otel_config import load_traces_config
 if TYPE_CHECKING:
     from opentelemetry.context.context import Context
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 _NEXT_ID = create_key("next_id")
 
