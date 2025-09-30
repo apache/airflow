@@ -43,7 +43,6 @@ import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.observability.stats import Stats
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -51,8 +50,10 @@ from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 
 log = logging.getLogger(__name__)

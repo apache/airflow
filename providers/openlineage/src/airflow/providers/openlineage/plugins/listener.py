@@ -55,6 +55,11 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
 
+try:
+    from airflow.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 

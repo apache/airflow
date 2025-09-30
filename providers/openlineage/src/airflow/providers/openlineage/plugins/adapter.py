@@ -37,7 +37,6 @@ from openlineage.client.facet_v2 import (
 from openlineage.client.uuid import generate_static_uuid
 
 from airflow.configuration import conf as airflow_conf
-from airflow.observability.stats import Stats
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
@@ -46,6 +45,11 @@ from airflow.providers.openlineage.utils.utils import (
     get_processing_engine_facet,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime

@@ -31,7 +31,6 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.observability.stats import Stats
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
     exponential_backoff_retry,
@@ -40,8 +39,10 @@ from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 

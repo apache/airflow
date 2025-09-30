@@ -34,7 +34,6 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.observability.stats import Stats
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
@@ -52,8 +51,10 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
