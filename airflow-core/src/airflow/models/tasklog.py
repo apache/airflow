@@ -17,16 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import Integer, Text
+from sqlalchemy.orm import Mapped  # noqa: TC002
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
 
 
 class LogTemplate(Base):

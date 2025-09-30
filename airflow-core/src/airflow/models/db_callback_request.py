@@ -21,14 +21,13 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped  # noqa: TC002
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
-
     from airflow.callbacks.callback_requests import CallbackRequest
 
 
