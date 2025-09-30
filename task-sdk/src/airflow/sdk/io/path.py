@@ -294,7 +294,7 @@ class ObjectStoragePath(CloudPath):
             # make use of system dependent buffer size
             shutil.copyfileobj(f1, f2, **kwargs)
 
-    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
         """
         Copy file(s) from this path to another location.
 
@@ -413,5 +413,5 @@ class ObjectStoragePath(CloudPath):
     def __str__(self):
         conn_id = self.storage_options.get("conn_id")
         if self._protocol and conn_id:
-            return f"{self._protocol}://{conn_id}@{self.path}"
+            return f"{self._protocol}://{conn_id}@{self.parser.join(*self._raw_urlpaths)}"
         return super().__str__()

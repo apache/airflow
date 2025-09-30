@@ -102,7 +102,7 @@ class _FakeRemoteFileSystem(MemoryFileSystem):
 class TestAttach:
     FAKE = "ffs:///fake"
     MNT = "ffs:///mnt/warehouse"
-    FOO = "ffs:///mnt/warehouse/foo"
+    FOO = "ffs://fake@/mnt/warehouse/foo"
     BAR = FOO
 
     @pytest.fixture(autouse=True)
@@ -253,7 +253,7 @@ class TestLocalPath:
         o1 = ObjectStoragePath(f"file://{target}")
         o2 = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
         o3 = ObjectStoragePath(f"file:///{uuid.uuid4()}")
-        assert o1.relative_to(o2) == o1
+        assert o1.is_relative_to(o2)
         with pytest.raises(ValueError, match="is not in the subpath of"):
             o1.relative_to(o3)
 
