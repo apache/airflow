@@ -89,7 +89,12 @@ class BaseGoogleLink(BaseOperatorLink):
     def get_config(self, operator, ti_key):
         conf = {}
         conf.update(getattr(operator, "extra_links_params", {}))
-        conf.update(XCom.get_value(key=self.key, ti_key=ti_key) or {})
+
+        xcom_value = XCom.get_value(key=self.key, ti_key=ti_key) or {}
+        if isinstance(xcom_value, str):
+            xcom_value = {self.key: xcom_value}
+
+        conf.update(xcom_value)
 
         # if the config did not define, return None to stop URL formatting
         if not conf:

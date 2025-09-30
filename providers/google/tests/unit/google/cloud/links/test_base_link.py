@@ -128,3 +128,35 @@ class TestOperatorWithBaseGoogleLink:
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
+
+    def test_get_config_with_string_xcom_value(self):
+        link = GoogleLink()
+
+        mock_operator = mock.MagicMock()
+        mock_operator.extra_links_params = {}
+
+        mock_ti_key = mock.MagicMock()
+
+        test_string_value = "some_string_value"
+
+        with mock.patch("airflow.providers.google.cloud.links.base.XCom.get_value") as mock_get_value:
+            # Test case 1: XCom returns a string
+            mock_get_value.return_value = test_string_value
+            config = link.get_config(mock_operator, mock_ti_key)
+
+            expected_config = {link.key: test_string_value, "namespace": "default"}
+            assert config == expected_config
+
+            # Test case 2: XCom returns a dictionary (normal case)
+            test_dict_value = {"key1": "value1", "key2": "value2"}
+            mock_get_value.return_value = test_dict_value
+            config = link.get_config(mock_operator, mock_ti_key)
+
+            expected_config = {**test_dict_value, "namespace": "default"}
+            assert config == expected_config
+
+            # Test case 3: XCom returns None
+            mock_get_value.return_value = None
+            config = link.get_config(mock_operator, mock_ti_key)
+
+            assert config is None
