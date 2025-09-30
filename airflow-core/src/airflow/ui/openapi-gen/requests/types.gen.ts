@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**
@@ -1856,7 +1866,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -1978,6 +1988,9 @@ export type GetAssetsData = {
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1994,6 +2007,9 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2013,6 +2029,9 @@ export type GetAssetEventsData = {
      */
     namePattern?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
+     */
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
@@ -2100,6 +2119,9 @@ export type ListBackfillsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2146,6 +2168,9 @@ export type ListBackfillsUiData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2178,6 +2203,9 @@ export type GetConnectionsData = {
     connectionIdPattern?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2245,6 +2273,10 @@ export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunRespons
 
 export type GetDagRunsData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
     endDateGt?: string | null;
     endDateGte?: string | null;
@@ -2256,6 +2288,9 @@ export type GetDagRunsData = {
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
@@ -2353,6 +2388,9 @@ export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
+     */
     orderBy?: Array<(string)>;
     warningType?: DagWarningType | null;
 };
@@ -2396,6 +2434,9 @@ export type GetDagsData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
@@ -2464,6 +2505,9 @@ export type UnfavoriteDagResponse = void;
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2504,6 +2548,9 @@ export type GetDagsUiData = {
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
@@ -2543,6 +2590,9 @@ export type GetEventLogsData = {
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra`
+     */
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
@@ -2599,7 +2649,7 @@ export type DeleteTaskInstanceData = {
     taskId: string;
 };
 
-export type DeleteTaskInstanceResponse = null;
+export type DeleteTaskInstanceResponse = unknown;
 
 export type GetMappedTaskInstancesData = {
     dagId: string;
@@ -2621,6 +2671,9 @@ export type GetMappedTaskInstancesData = {
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
@@ -2702,6 +2755,10 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2720,6 +2777,9 @@ export type GetTaskInstancesData = {
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
@@ -2872,6 +2932,9 @@ export type GetHitlDetailsData = {
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name`
+     */
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
     respondedByUserName?: Array<(string)>;
@@ -2903,6 +2966,9 @@ export type GetImportErrorsData = {
     filenamePattern?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2920,6 +2986,9 @@ export type GetJobsData = {
     jobType?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
+     */
     orderBy?: Array<(string)>;
     startDateGt?: string | null;
     startDateGte?: string | null;
@@ -2961,6 +3030,9 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -3094,6 +3166,9 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -3119,7 +3194,7 @@ export type ReparseDagFileData = {
     fileToken: string;
 };
 
-export type ReparseDagFileResponse = null;
+export type ReparseDagFileResponse = unknown;
 
 export type GetDagVersionData = {
     dagId: string;
@@ -3134,6 +3209,9 @@ export type GetDagVersionsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
+     */
     orderBy?: Array<(string)>;
     versionNumber?: number;
 };
@@ -3194,12 +3272,16 @@ export type GetDagStructureData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -3212,12 +3294,16 @@ export type GetGridRunsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     runType?: Array<(string)>;
+    state?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -4918,7 +5004,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Unauthorized
                  */
@@ -6126,7 +6212,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: null;
+                201: unknown;
                 /**
                  * Unauthorized
                  */

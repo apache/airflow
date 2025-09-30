@@ -39,7 +39,11 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.version import version
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -364,18 +368,17 @@ class TestGCSHook:
         destination_bucket = "test-source-bucket"
         destination_object = "test-source-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError,
+            match="Either source/destination bucket or source/destination object must be different, "
+            f"not both the same: bucket={source_bucket}, object={source_object}",
+        ):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == (
-            "Either source/destination bucket or source/destination object must be different, "
-            f"not both the same: bucket={source_bucket}, object={source_object}"
-        )
 
     def test_copy_empty_source_bucket(self):
         source_bucket = None
@@ -383,15 +386,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     def test_copy_empty_source_object(self):
         source_bucket = "test-source-object"
@@ -399,15 +400,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     @mock.patch("google.cloud.storage.Bucket.copy_blob")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -478,15 +477,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     def test_rewrite_empty_source_object(self):
         source_bucket = "test-source-object"
@@ -494,15 +491,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_rewrite_exposes_lineage(self, mock_service, hook_lineage_collector):
@@ -771,14 +766,12 @@ class TestGCSHook:
         test_source_objects = []
         test_destination_object = "test_object_composed"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_objects cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "source_objects cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_without_bucket(self, mock_service):
@@ -786,14 +779,12 @@ class TestGCSHook:
         test_source_objects = ["test_object_1", "test_object_2", "test_object_3"]
         test_destination_object = "test_object_composed"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="bucket_name and destination_object cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "bucket_name and destination_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_without_destination_object(self, mock_service):
@@ -801,14 +792,12 @@ class TestGCSHook:
         test_source_objects = ["test_object_1", "test_object_2", "test_object_3"]
         test_destination_object = None
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="bucket_name and destination_object cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "bucket_name and destination_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_exposes_lineage(self, mock_service, hook_lineage_collector):
