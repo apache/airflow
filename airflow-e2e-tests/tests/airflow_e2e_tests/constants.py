@@ -27,7 +27,9 @@ DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 os.environ["AIRFLOW_UID"] = str(os.getuid())
 
-DEFAULT_DOCKER_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose.yaml"
+DEFAULT_DOCKER_COMPOSE_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+)
 
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
