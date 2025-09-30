@@ -68,7 +68,7 @@ export const LimitedItemsList = ({
               <Popover.Trigger asChild>
                 <Button
                   _hover={{ color: "blue.600", textDecoration: "underline" }}
-                  color="blue.500"
+                  colorPalette="brand"
                   cursor="pointer"
                   fontSize="sm"
                   minH="auto"
