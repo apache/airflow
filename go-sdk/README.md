@@ -99,7 +99,6 @@ This SDK currently will:
 A non-exhaustive list of features we have yet to implement
 
 - Support for putting tasks into state other than success or failed/up-for-retry (deferred, failed-without-retries etc.)
-- HTTP Log server to view logs from in-progress tasks
 - Remote task logs (i.e. S3/GCS etc)
 - XCom reading/writing from API server
 - XCom reading/writing from other XCom backends

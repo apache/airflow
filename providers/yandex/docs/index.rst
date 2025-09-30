@@ -83,8 +83,6 @@ This package is for Yandex, including:
 
 Release: 4.2.0
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

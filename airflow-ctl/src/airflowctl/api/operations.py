@@ -475,7 +475,7 @@ class DagsOperations(BaseOperations):
         """List DAGs."""
         return super().execute_list(path="dags", data_model=DAGCollectionResponse)
 
-    def patch(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
+    def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         try:
             self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump(mode="json"))
             return DAGResponse.model_validate_json(self.response.content)

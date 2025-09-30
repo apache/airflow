@@ -175,6 +175,10 @@ func (h *heartbeater) Run(
 }
 
 func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error {
+	if hostname := viper.GetString("hostname"); hostname != "" {
+		Hostname = hostname
+	}
+
 	// Store the workload in the context so we can get at task id, etc, variables
 	taskContext, cancelTaskCtx := context.WithCancelCause(
 		context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload),
@@ -445,7 +449,7 @@ func (w *worker) setupTaskLogger(
 		return supervisorLogger, nil
 	}
 
-	base := viper.GetString("logging.base_log_path")
+	base := viper.GetString("logging.base_log_folder")
 	filename := path.Join(base, *workload.LogPath)
 	dir := path.Dir(filename)
 

@@ -37,9 +37,9 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-if AIRFLOW_V_3_1_PLUS:
+if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
     from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]

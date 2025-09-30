@@ -73,8 +73,6 @@ apache-airflow-providers-tableau package
 
 Release: 5.2.0
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

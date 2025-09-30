@@ -347,8 +347,6 @@ Running ``ruff`` will produce:
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
 
-For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
-
 .. _best_practices/dynamic_dag_generation:
 
 Dynamic Dag Generation

@@ -23,8 +23,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -36,8 +34,6 @@ Bug Fixes
 0.0.7
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
