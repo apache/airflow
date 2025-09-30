@@ -23,10 +23,12 @@ import itertools
 import logging
 import os
 import sys
+import traceback
 import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
@@ -1534,3 +1536,39 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
         return wrapper(dag_id_or_func)
 
     return wrapper
+
+
+@contextmanager
+def safe_dag():
+    """
+    Context manager for safe DAG creation blocks with individual error handling.
+
+    Wraps an entire DAG creation block (DAG + tasks) to catch ANY exceptions,
+    storing them in a module-level variable for DagBag to collect. This allows
+    other DAG blocks in the same file to still be processed even if some fail.
+
+    Usage::
+
+        # Each DAG creation is wrapped individually
+        with safe_dag():
+            dag1 = DAG("dag1", start_date=datetime(2024, 1, 1))
+            task1 = BashOperator(task_id="task1", bash_command="echo hello", dag=dag1)
+
+        # Catches dynamic naming errors too
+        for i in range(10):
+            with safe_dag():
+                dag_name = f"dynamic_dag_{some_complex_function(i)}"  # This can fail safely
+                dag = DAG(dag_name, start_date=datetime(2024, 1, 1))
+                task = BashOperator(task_id="task", bash_command=f"echo {i}", dag=dag)
+    """
+    frame = sys._getframe(1)
+    module = sys.modules[frame.f_globals["__name__"]]
+
+    if not hasattr(module, "__airflow_dag_parsing_errors"):
+        module.__airflow_dag_parsing_errors = []
+
+    try:
+        yield
+    except Exception as e:
+        error_msg = f"DAG creation block: {str(e)}\n{traceback.format_exc()}"
+        module.__airflow_dag_parsing_errors.append(error_msg)
