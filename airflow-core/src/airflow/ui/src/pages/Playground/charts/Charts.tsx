@@ -4,7 +4,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+ 
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
@@ -46,8 +46,10 @@ import {
   Title,
   Tooltip,
   Legend,
+  TimeScale,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
+import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 
 import { getComputedCSSVariableValue } from "src/theme";
 
@@ -64,6 +66,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  TimeScale,
 );
 
 // Helper function to add alpha transparency to any color format
@@ -82,12 +85,12 @@ const addAlpha = (color: string, alpha: number = 0.2) => {
   return `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`;
 };
 
-type ChartsGanttSectionProps = {
+type ChartsProps = {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 };
 
-export const ChartsGanttSection = ({ isOpen, onToggle }: ChartsGanttSectionProps) => {
+export const Charts = ({ isOpen, onToggle }: ChartsProps) => {
   // const { colorMode } = useColorMode();
 
   // Get semantic token references
@@ -227,63 +230,70 @@ export const ChartsGanttSection = ({ isOpen, onToggle }: ChartsGanttSectionProps
     ],
   };
 
-  // Mock data for Gantt-style chart
+  // Mock data for Gantt chart following the same pattern as the real Gantt component
+  const ganttDataItems = [
+    // Data extraction tasks
+    { x: ["2024-01-01 08:00:00", "2024-01-01 08:12:00"], y: "extract_user_data", state: "success" },
+    { x: ["2024-01-01 08:15:00", "2024-01-01 08:18:00"], y: "extract_product_catalog", state: "success" },
+    
+    // Data validation tasks
+    { x: ["2024-01-01 08:12:00", "2024-01-01 08:20:00"], y: "validate_data_quality", state: "running" },
+    { x: ["2024-01-01 08:18:00", "2024-01-01 08:25:00"], y: "validate_api_responses", state: "running" },
+    
+    // Data transformation tasks
+    { x: ["2024-01-01 08:20:00", "2024-01-01 08:35:00"], y: "transform_customer_info", state: "success" },
+    { x: ["2024-01-01 08:25:00", "2024-01-01 08:40:00"], y: "process_payments", state: "success" },
+    
+    // Loading tasks
+    { x: ["2024-01-01 08:35:00", "2024-01-01 08:50:00"], y: "load_to_warehouse", state: "success" },
+    { x: ["2024-01-01 08:40:00", "2024-01-01 08:55:00"], y: "update_inventory", state: "success" },
+    
+    // Reporting tasks
+    { x: ["2024-01-01 08:50:00", "2024-01-01 09:05:00"], y: "generate_reports", state: "success" },
+    { x: ["2024-01-01 08:55:00", "2024-01-01 09:00:00"], y: "send_notifications", state: "success" },
+    
+    // System maintenance tasks
+    { x: ["2024-01-01 09:00:00", "2024-01-01 09:08:00"], y: "cleanup_temp_files", state: "skipped" },
+    { x: ["2024-01-01 09:05:00", "2024-01-01 09:12:00"], y: "update_metrics", state: "skipped" },
+    { x: ["2024-01-01 09:08:00", "2024-01-01 09:20:00"], y: "backup_database", state: "skipped" },
+    
+    // Integration tasks
+    { x: ["2024-01-01 09:12:00", "2024-01-01 09:25:00"], y: "sync_with_crm", state: "success" },
+    { x: ["2024-01-01 09:20:00", "2024-01-01 09:30:00"], y: "monitor_system_health", state: "success" },
+    
+    // Cleanup tasks
+    { x: ["2024-01-01 09:25:00", "2024-01-01 09:28:00"], y: "archive_old_logs", state: "failed" },
+    { x: ["2024-01-01 09:28:00", "2024-01-01 09:35:00"], y: "refresh_materialized_views", state: "failed" },
+    { x: ["2024-01-01 09:30:00", "2024-01-01 09:33:00"], y: "process_webhooks", state: "failed" },
+    { x: ["2024-01-01 09:33:00", "2024-01-01 09:38:00"], y: "update_cache", state: "failed" },
+    
+    // Scheduling task
+    { x: ["2024-01-01 09:35:00", "2024-01-01 09:37:00"], y: "schedule_next_run", state: "success" },
+  ];
+
+  // Get all unique states and their colors
+  const states = [...new Set(ganttDataItems.map((item) => item.state))];
+  const stateColorTokens = useToken(
+    "colors",
+    states.map((state) => `${state}.solid`),
+  );
+  const stateColorMap = Object.fromEntries(
+    states.map((state, index) => [
+      state,
+      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
+    ]),
+  );
+
   const ganttData = {
-    labels: [
-      "success_task",
-      "running_task",
-      "failed_task",
-      "queued_task",
-      "skipped_task",
-      "upstream_failed_task",
-      "up_for_retry_task",
-      "scheduled_task",
-      "deferred_task",
-      "removed_task",
-    ],
     datasets: [
       {
-        label: "Task Timeline",
-        data: [
-          { x: ["2024-01-01 09:00", "2024-01-01 09:15"], y: "success_task" },
-          { x: ["2024-01-01 09:15", "2024-01-01 10:30"], y: "running_task" },
-          { x: ["2024-01-01 10:30", "2024-01-01 11:45"], y: "failed_task" },
-          { x: ["2024-01-01 11:45", "2024-01-01 12:30"], y: "queued_task" },
-          { x: ["2024-01-01 12:30", "2024-01-01 12:45"], y: "skipped_task" },
-          { x: ["2024-01-01 12:45", "2024-01-01 13:00"], y: "upstream_failed_task" },
-          { x: ["2024-01-01 13:00", "2024-01-01 13:15"], y: "up_for_retry_task" },
-          { x: ["2024-01-01 13:15", "2024-01-01 13:30"], y: "scheduled_task" },
-          { x: ["2024-01-01 13:30", "2024-01-01 13:45"], y: "deferred_task" },
-          { x: ["2024-01-01 13:45", "2024-01-01 13:50"], y: "removed_task" },
-        ],
-        backgroundColor: [
-          success,
-          running,
-          failed,
-          queued,
-          skipped,
-          upstreamFailed,
-          upForRetry,
-          scheduled,
-          deferred,
-          removed,
-        ],
-        borderColor: [
-          success,
-          running,
-          failed,
-          queued,
-          skipped,
-          upstreamFailed,
-          upForRetry,
-          scheduled,
-          deferred,
-          removed,
-        ],
-        borderWidth: 1,
+        backgroundColor: ganttDataItems.map((dataItem) => stateColorMap[dataItem.state]),
+        data: ganttDataItems,
         maxBarThickness: 20,
+        minBarLength: 10,
       },
     ],
+    labels: ganttDataItems.map((item) => item.y),
   };
 
   const chartOptions = {
@@ -314,10 +324,17 @@ export const ChartsGanttSection = ({ isOpen, onToggle }: ChartsGanttSectionProps
       },
       tooltip: {
         callbacks: {
-          title: (context: any) => `Task: ${context[0].label}`,
           label: (context: any) => {
-            const data = context.raw;
-            return `Duration: ${data.x[0]} to ${data.x[1]}`;
+            const taskInstance = ganttDataItems.find((dataItem) => dataItem.y === context.label);
+            const startTime = new Date(taskInstance?.x[0] ?? "");
+            const endTime = new Date(taskInstance?.x[1] ?? "");
+            const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+            return [
+              `State: ${taskInstance?.state}`,
+              `Start: ${startTime.toLocaleTimeString()}`,
+              `End: ${endTime.toLocaleTimeString()}`,
+              `Duration: ${duration} minutes`
+            ];
           },
         },
       },
@@ -325,10 +342,28 @@ export const ChartsGanttSection = ({ isOpen, onToggle }: ChartsGanttSectionProps
     scales: {
       x: {
         type: "time" as const,
-        time: {
-          displayFormats: {
-            hour: "HH:mm",
-          },
+        position: "top" as const,
+        stacked: true,
+        min: Math.min(...ganttDataItems.map((item) => new Date(item.x[0] ?? "").getTime())),
+        max: Math.max(...ganttDataItems.map((item) => new Date(item.x[1] ?? "").getTime())),
+        ticks: {
+          align: "start" as const,
+          callback: (value: number | string) => new Date(value).toLocaleTimeString(),
+          maxRotation: 8,
+          maxTicksLimit: 8,
+          minRotation: 8,
+        },
+        grid: {
+          display: true,
+        },
+      },
+      y: {
+        stacked: true,
+        ticks: {
+          display: false,
+        },
+        grid: {
+          display: true,
         },
       },
     },
@@ -425,15 +460,15 @@ export const ChartsGanttSection = ({ isOpen, onToggle }: ChartsGanttSectionProps
                   <VStack align="stretch" gap={1}>
                     <Heading size="lg">Gantt Chart</Heading>
                     <Text color="fg.muted" fontSize="sm">
-                      Timeline visualization of task execution
+                      Timeline visualization showing task execution with start/end times
                     </Text>
                   </VStack>
                   <Box height="250px" width="100%">
                     <Bar data={ganttData} options={ganttOptions} />
                   </Box>
                   <Text color="fg.muted" fontSize="sm">
-                    Horizontal bar chart showing task timelines and dependencies. Each bar represents task
-                    start/end times with state colors.
+                    True Gantt chart showing task timelines with start/end times. Displays parallel execution,
+                    task dependencies, and realistic DAG workflow from 8:00 AM to 9:38 AM.
                   </Text>
                 </VStack>
 

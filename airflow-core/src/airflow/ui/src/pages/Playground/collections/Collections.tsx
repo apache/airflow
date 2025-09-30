@@ -22,16 +22,19 @@
  */
 import { Avatar, Badge, Box, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 
-type BadgesAvatarsSectionProps = {
+import { Tag } from "src/components/ui";
+import { Lists } from "./Lists";
+
+type CollectionsProps = {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 };
 
-export const BadgesAvatarsSection = ({ isOpen, onToggle }: BadgesAvatarsSectionProps) => {
+export const Collections = ({ isOpen, onToggle }: CollectionsProps) => {
   const colorPalettes = ["brand", "gray", "red", "green", "blue", "yellow", "purple"];
 
   return (
-    <Box id="badges">
+    <Box id="collections">
       <Collapsible.Root onOpenChange={onToggle} open={isOpen}>
         <Collapsible.Trigger
           _hover={{ bg: "bg.subtle" }}
@@ -45,9 +48,9 @@ export const BadgesAvatarsSection = ({ isOpen, onToggle }: BadgesAvatarsSectionP
         >
           <HStack justify="space-between" width="full">
             <VStack align="flex-start" gap="1">
-              <Heading size="xl">Badges & Avatars</Heading>
+              <Heading size="xl">Collections</Heading>
               <Text color="fg.muted" fontSize="sm">
-                Status indicators and user representations
+                Badges, avatars, tags, and other collection components
               </Text>
             </VStack>
             <Text color="brand.solid" fontSize="lg">
@@ -156,7 +159,61 @@ export const BadgesAvatarsSection = ({ isOpen, onToggle }: BadgesAvatarsSectionP
                   </Box>
                 </VStack>
               </VStack>
+
+              {/* Tags */}
+              <VStack align="stretch" gap={4}>
+                <Heading size="lg">Tags</Heading>
+                <VStack align="stretch" gap={4}>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      Basic Tags
+                    </Text>
+                    <HStack gap={3} wrap="wrap">
+                      <Tag colorPalette="blue">Python</Tag>
+                      <Tag colorPalette="green">Data Pipeline</Tag>
+                      <Tag colorPalette="orange">ETL</Tag>
+                      <Tag colorPalette="purple">Analytics</Tag>
+                      <Tag colorPalette="red">Production</Tag>
+                      <Tag colorPalette="gray">Development</Tag>
+                    </HStack>
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      Closable Tags
+                    </Text>
+                    <HStack gap={3} wrap="wrap">
+                      <Tag closable colorPalette="red" onClose={() => console.log("Removed")}>
+                        Removable Tag
+                      </Tag>
+                      <Tag closable colorPalette="gray" onClose={() => console.log("Removed")}>
+                        Another Tag
+                      </Tag>
+                    </HStack>
+                  </Box>
+
+                  <Box>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      Tags with Icons (like DAG tags)
+                    </Text>
+                    <HStack gap={3} wrap="wrap">
+                      <Tag colorPalette="blue" startElement={<span>📊</span>}>
+                        Dashboard
+                      </Tag>
+                      <Tag colorPalette="green" startElement={<span>⚡</span>}>
+                        Fast
+                      </Tag>
+                      <Tag colorPalette="orange" startElement={<span>🔒</span>}>
+                        Secure
+                      </Tag>
+                    </HStack>
+                  </Box>
+                </VStack>
+              </VStack>
             </VStack>
+
+            {/* Lists */}
+            <Lists />
           </Box>
         </Collapsible.Content>
       </Collapsible.Root>

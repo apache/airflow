@@ -8,9 +8,9 @@
 
 /* eslint-disable max-lines */
 
-/* eslint-disable react/no-unescaped-entities */
+ 
 
-/* eslint-disable @stylistic/spaced-comment */
+ 
 
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -40,12 +40,13 @@ import {
   Spinner,
   Text,
   VStack,
+  Alert,
 } from "@chakra-ui/react";
 
 import { StateBadge } from "src/components/StateBadge";
 import { StateIcon } from "src/components/StateIcon";
 
-type ProgressTaskStatesSectionProps = {
+type FeedbackProps = {
   readonly isProgressOpen: boolean;
   readonly isStatesOpen: boolean;
   readonly onProgressToggle: () => void;
@@ -54,13 +55,13 @@ type ProgressTaskStatesSectionProps = {
   readonly setProgressValue: (value: number) => void;
 };
 
-export const ProgressTaskStatesSection = ({
+export const Feedback = ({
   isProgressOpen,
   isStatesOpen,
   onProgressToggle,
   onStatesToggle,
   progressValue,
-}: ProgressTaskStatesSectionProps) => {
+}: FeedbackProps) => {
   const taskStates = [
     { count: 150, label: "Success", state: "success" },
     { count: 25, label: "Running", state: "running" },
@@ -77,7 +78,7 @@ export const ProgressTaskStatesSection = ({
 
   return (
     <VStack align="stretch" gap={8}>
-      {/* Progress Section */}
+      {/* Progress & Alerts Section */}
       <Box id="progress">
         <Collapsible.Root onOpenChange={onProgressToggle} open={isProgressOpen}>
           <Collapsible.Trigger
@@ -92,9 +93,9 @@ export const ProgressTaskStatesSection = ({
           >
             <HStack justify="space-between" width="full">
               <VStack align="flex-start" gap="1">
-                <Heading size="xl">Progress</Heading>
+                <Heading size="xl">Progress & Alerts</Heading>
                 <Text color="fg.muted" fontSize="sm">
-                  Progress indicators and loading states
+                  Progress indicators, loading states, and alert messages
                 </Text>
               </VStack>
               <Text color="brand.solid" fontSize="lg">
@@ -104,7 +105,7 @@ export const ProgressTaskStatesSection = ({
           </Collapsible.Trigger>
           <Collapsible.Content>
             <Box borderColor="border.muted" borderTop="none" borderWidth="1px" padding="6">
-              <VStack align="stretch" gap={6}>
+              <VStack align="stretch" gap={8}>
                 {/* Linear Progress */}
                 <VStack align="stretch" gap={4}>
                   <Heading size="lg">Linear Progress</Heading>
@@ -144,45 +145,46 @@ export const ProgressTaskStatesSection = ({
                     </Box>
                   </VStack>
                 </VStack>
-              </VStack>
 
-              {/* Circular Progress */}
-              <VStack align="stretch" gap={4}>
-                <Heading size="lg">Circular Progress</Heading>
-                <HStack gap={6} wrap="wrap">
-                  <VStack gap={2}>
-                    <ProgressCircle.Root size="lg" value={progressValue}>
-                      <ProgressCircle.Circle>
-                        <ProgressCircle.Track />
-                        <ProgressCircle.Range />
-                      </ProgressCircle.Circle>
-                      <ProgressCircle.ValueText />
-                    </ProgressCircle.Root>
-                    <Text fontSize="sm">Default</Text>
-                  </VStack>
+                {/* Circular Progress */}
+                <VStack align="stretch" gap={4}>
+                  <Heading size="lg">Circular Progress</Heading>
+                  <HStack gap={6} wrap="wrap">
+                    <VStack gap={2}>
+                      <ProgressCircle.Root size="lg" value={progressValue}>
+                        <ProgressCircle.Circle>
+                          <ProgressCircle.Track />
+                          <ProgressCircle.Range />
+                        </ProgressCircle.Circle>
+                        <ProgressCircle.ValueText />
+                      </ProgressCircle.Root>
+                      <Text fontSize="sm">Default</Text>
+                    </VStack>
 
-                  <VStack gap={2}>
-                    <ProgressCircle.Root colorPalette="green" size="lg" value={85}>
-                      <ProgressCircle.Circle>
-                        <ProgressCircle.Track />
-                        <ProgressCircle.Range />
-                      </ProgressCircle.Circle>
-                      <ProgressCircle.ValueText />
-                    </ProgressCircle.Root>
-                    <Text fontSize="sm">Success</Text>
-                  </VStack>
+                    <VStack gap={2}>
+                      <ProgressCircle.Root colorPalette="green" size="lg" value={85}>
+                        <ProgressCircle.Circle>
+                          <ProgressCircle.Track />
+                          <ProgressCircle.Range />
+                        </ProgressCircle.Circle>
+                        <ProgressCircle.ValueText />
+                      </ProgressCircle.Root>
+                      <Text fontSize="sm">Success</Text>
+                    </VStack>
 
-                  <VStack gap={2}>
-                    <ProgressCircle.Root colorPalette="red" size="lg" value={30}>
-                      <ProgressCircle.Circle>
-                        <ProgressCircle.Track />
-                        <ProgressCircle.Range />
-                      </ProgressCircle.Circle>
-                      <ProgressCircle.ValueText />
-                    </ProgressCircle.Root>
-                    <Text fontSize="sm">Error</Text>
-                  </VStack>
-                </HStack>
+                    <VStack gap={2}>
+                      <ProgressCircle.Root colorPalette="red" size="lg" value={30}>
+                        <ProgressCircle.Circle>
+                          <ProgressCircle.Track />
+                          <ProgressCircle.Range />
+                        </ProgressCircle.Circle>
+                        <ProgressCircle.ValueText />
+                      </ProgressCircle.Root>
+                      <Text fontSize="sm">Error</Text>
+                    </VStack>
+                  </HStack>
+                </VStack>
+
                 {/* Spinners */}
                 <VStack align="stretch" gap={4}>
                   <Heading size="lg">Loading Spinners</Heading>
@@ -209,86 +211,56 @@ export const ProgressTaskStatesSection = ({
                     </VStack>
                   </HStack>
                 </VStack>
-              </VStack>
-            </Box>
-          </Collapsible.Content>
-        </Collapsible.Root>
-      </Box>
 
-      {/* Task Instance States Section */}
-      <Box id="states">
-        <Collapsible.Root onOpenChange={onStatesToggle} open={isStatesOpen}>
-          <Collapsible.Trigger
-            _hover={{ bg: "bg.subtle" }}
-            borderColor={isStatesOpen ? "brand.emphasized" : "border.muted"}
-            borderWidth="1px"
-            cursor="pointer"
-            paddingX="6"
-            paddingY="4"
-            transition="all 0.2s"
-            width="full"
-          >
-            <HStack justify="space-between" width="full">
-              <VStack align="flex-start" gap="1">
-                <Heading size="xl">Task Instance States</Heading>
-                <Text color="fg.muted" fontSize="sm">
-                  All possible task execution states
-                </Text>
-              </VStack>
-              <Text color="brand.solid" fontSize="lg">
-                {isStatesOpen ? "−" : "+"}
-              </Text>
-            </HStack>
-          </Collapsible.Trigger>
-          <Collapsible.Content>
-            <Box borderColor="border.muted" borderTop="none" borderWidth="1px" padding="6">
-              <VStack align="stretch" gap={4}>
-                {taskStates.map(({ count, label, state }) => {
-                  const totalCount = taskStates.reduce((sum, item) => sum + item.count, 0);
-                  const percentage = totalCount === 0 ? 0 : ((count / totalCount) * 100).toFixed(1);
-                  const barWidth = totalCount === 0 ? 0 : (count / totalCount) * 100;
-                  const remainingWidth = 100 - barWidth;
+                {/* Alerts */}
+                <VStack align="stretch" gap={4}>
+                  <Heading size="lg">Alerts & Notifications</Heading>
+                  <VStack align="stretch" gap={4}>
+                    {/* Success Alert */}
+                    <Alert.Root colorPalette="green">
+                      <Alert.Indicator />
+                      <VStack align="flex-start" gap={1}>
+                        <Alert.Title>Success!</Alert.Title>
+                        <Alert.Description>
+                          Your DAG has been successfully deployed and is now running.
+                        </Alert.Description>
+                      </VStack>
+                    </Alert.Root>
 
-                  return (
-                    <VStack align="stretch" bg="bg.subtle" gap={2} key={state} p={3}>
-                      {/* Top row: State info and count */}
-                      <HStack justify="space-between">
-                        <HStack gap={3}>
-                          <StateIcon state={state as any} />
-                          <StateBadge state={state as any} />
-                          <Text fontSize="sm">{label}</Text>
-                        </HStack>
-                        <HStack gap={2}>
-                          <Text color="fg.muted" fontSize="sm" fontWeight="semibold">
-                            {count}
-                          </Text>
-                          <Text color="fg.muted" fontSize="xs">
-                            ({percentage}%)
-                          </Text>
-                        </HStack>
-                      </HStack>
+                    {/* Warning Alert */}
+                    <Alert.Root colorPalette="yellow">
+                      <Alert.Indicator />
+                      <VStack align="flex-start" gap={1}>
+                        <Alert.Title>Warning</Alert.Title>
+                        <Alert.Description>
+                          This DAG has been running for more than 24 hours. Consider checking for issues.
+                        </Alert.Description>
+                      </VStack>
+                    </Alert.Root>
 
-                      {/* Bottom row: Progress bar */}
-                      <HStack gap={0} height="8px" width="100%">
-                        <Box
-                          bg={`${state}.solid`}
-                          borderLeftRadius="md"
-                          borderRightRadius={count === totalCount ? "md" : "none"}
-                          height="100%"
-                          minWidth={count > 0 ? "2px" : "0px"}
-                          width={`${barWidth}%`}
-                        />
-                        <Box
-                          bg="bg.emphasized"
-                          borderLeftRadius={count === 0 ? "md" : "none"}
-                          borderRightRadius="md"
-                          height="100%"
-                          width={`${remainingWidth}%`}
-                        />
-                      </HStack>
-                    </VStack>
-                  );
-                })}
+                    {/* Error Alert */}
+                    <Alert.Root colorPalette="red">
+                      <Alert.Indicator />
+                      <VStack align="flex-start" gap={1}>
+                        <Alert.Title>Error</Alert.Title>
+                        <Alert.Description>
+                          Failed to connect to the database. Please check your connection settings.
+                        </Alert.Description>
+                      </VStack>
+                    </Alert.Root>
+
+                    {/* Info Alert */}
+                    <Alert.Root colorPalette="blue">
+                      <Alert.Indicator />
+                      <VStack align="flex-start" gap={1}>
+                        <Alert.Title>Information</Alert.Title>
+                        <Alert.Description>
+                          New features are available in the latest version. Consider updating your installation.
+                        </Alert.Description>
+                      </VStack>
+                    </Alert.Root>
+                  </VStack>
+                </VStack>
               </VStack>
             </Box>
           </Collapsible.Content>

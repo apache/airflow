@@ -33,12 +33,12 @@ import { useColorMode } from "src/context/colorMode";
 import { OpenGroupsContext } from "src/context/openGroups/Context";
 import { getReactFlowThemeStyle } from "src/theme";
 
-type GraphSectionProps = {
+type GraphProps = {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 };
 
-export const GraphSection = ({ isOpen, onToggle }: GraphSectionProps) => {
+export const Graph = ({ isOpen, onToggle }: GraphProps) => {
   const { colorMode = "light" } = useColorMode();
 
   // Mock OpenGroups context for playground

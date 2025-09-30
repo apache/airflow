@@ -24,15 +24,19 @@ import { Box, Container, Heading, HStack, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 
 import {
-  BadgesAvatarsSection,
-  ButtonsCodeSection,
-  ChartsGanttSection,
-  ColorPaletteSection,
-  FormsInputsSection,
-  GraphSection,
+  AirflowComponents,
+  Buttons,
+  Charts,
+  Collections,
+  Colors,
+  Forms,
+  Graph,
+  Layout,
   ModalDialog,
-  ProgressTaskStatesSection,
+  Overlays,
+  Feedback,
   TableOfContents,
+  Typography,
 } from "./index";
 
 /**
@@ -50,21 +54,28 @@ export const Playground = () => {
   // Form state
   const [formState, setFormState] = useState({
     currentPage: 1,
+    multipleSegmented: ["option1", "option2"],
     progress: 75,
     radio: "option1",
+    radioCard: "option1",
+    segmented: ["option1"],
     slider: [50],
     switch: false,
   });
 
   // Section visibility state - all open by default for better UX
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    badges: true,
+    airflow: true,
     buttons: true,
     charts: true,
+    collections: true,
     colors: true,
     forms: true,
     graphs: true,
+    layout: true,
+    overlays: true,
     progress: true,
+    typography: true,
   });
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -94,58 +105,56 @@ export const Playground = () => {
           {/* Main Content */}
           <Box flex="1">
             <VStack align="stretch" gap={8}>
-              {/* Color Palette Section */}
-              <ColorPaletteSection
-                isOpen={openSections.colors ?? true}
-                onToggle={() => toggleSection("colors")}
+              {/* Colors Section */}
+              <Colors isOpen={openSections.colors ?? true} onToggle={() => toggleSection("colors")} />
+
+              {/* Airflow Components Section */}
+              <AirflowComponents isOpen={openSections.airflow ?? true} onToggle={() => toggleSection("airflow")} />
+
+              {/* Layout Section */}
+              <Layout isOpen={openSections.layout ?? true} onToggle={() => toggleSection("layout")} />
+
+              {/* Typography Section */}
+              <Typography
+                isOpen={openSections.typography ?? true}
+                onToggle={() => toggleSection("typography")}
               />
 
-              {/* Components Section */}
-              <Box id="components">
-                <VStack align="stretch" gap={8}>
-                  {/* Buttons & Code Section */}
-                  <ButtonsCodeSection
-                    isOpen={openSections.buttons ?? true}
-                    onToggle={() => toggleSection("buttons")}
-                  />
+              {/* Buttons Section */}
+              <Buttons isOpen={openSections.buttons ?? true} onToggle={() => toggleSection("buttons")} />
 
-                  {/* Badges & Avatars Section */}
-                  <BadgesAvatarsSection
-                    isOpen={openSections.badges ?? true}
-                    onToggle={() => toggleSection("badges")}
-                  />
+              {/* Forms Section */}
+              <Forms
+                formState={formState}
+                isOpen={openSections.forms ?? true}
+                onToggle={() => toggleSection("forms")}
+                updateFormState={updateFormState}
+              />
 
-                  {/* Forms & Inputs Section */}
-                  <FormsInputsSection
-                    formState={formState}
-                    isOpen={openSections.forms ?? true}
-                    onToggle={() => toggleSection("forms")}
-                    updateFormState={updateFormState}
-                  />
+              {/* Collections Section */}
+              <Collections
+                isOpen={openSections.collections ?? true}
+                onToggle={() => toggleSection("collections")}
+              />
 
-                  {/* Progress & Task States Section */}
-                  <ProgressTaskStatesSection
-                    isProgressOpen={openSections.progress ?? true}
-                    isStatesOpen={openSections.states ?? true}
-                    onProgressToggle={() => toggleSection("progress")}
-                    onStatesToggle={() => toggleSection("states")}
-                    progressValue={formState.progress}
-                    setProgressValue={(value: number) => updateFormState({ progress: value })}
-                  />
+              {/* Progress & Alerts Section */}
+              <Feedback
+                isProgressOpen={openSections.progress ?? true}
+                isStatesOpen={false}
+                onProgressToggle={() => toggleSection("progress")}
+                onStatesToggle={() => {}}
+                progressValue={formState.progress}
+                setProgressValue={(value: number) => updateFormState({ progress: value })}
+              />
 
-                  {/* Graph Components Section */}
-                  <GraphSection
-                    isOpen={openSections.graphs ?? true}
-                    onToggle={() => toggleSection("graphs")}
-                  />
+              {/* Graph Components Section */}
+              <Graph isOpen={openSections.graphs ?? true} onToggle={() => toggleSection("graphs")} />
 
-                  {/* Charts & Gantt Section */}
-                  <ChartsGanttSection
-                    isOpen={openSections.charts ?? true}
-                    onToggle={() => toggleSection("charts")}
-                  />
-                </VStack>
-              </Box>
+              {/* Charts & Gantt Section */}
+              <Charts isOpen={openSections.charts ?? true} onToggle={() => toggleSection("charts")} />
+
+              {/* Overlays Section */}
+              <Overlays isOpen={openSections.overlays ?? true} onToggle={() => toggleSection("overlays")} />
             </VStack>
           </Box>
 

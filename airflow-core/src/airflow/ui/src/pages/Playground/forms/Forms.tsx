@@ -20,32 +20,31 @@
  */
 import { Box, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 
+import { AdvancedControls } from "src/pages/Playground/forms/AdvancedControls";
 import { NavigationControls } from "src/pages/Playground/forms/NavigationControls";
 import { NumberRangeControls } from "src/pages/Playground/forms/NumberRangeControls";
-import { SelectionControls } from "src/pages/Playground/forms/SelectionControls";
+import { Controls } from "src/pages/Playground/forms/SelectionControls";
 import { TextInputs } from "src/pages/Playground/forms/TextInputs";
 
 type FormState = {
   readonly currentPage: number;
+  readonly multipleSegmented: Array<string>;
   readonly progress: number;
   readonly radio: string;
+  readonly radioCard: string;
+  readonly segmented: Array<string>;
   readonly slider: Array<number>;
   readonly switch: boolean;
 };
 
-type FormsInputsSectionProps = {
+type FormsProps = {
   readonly formState: FormState;
   readonly isOpen: boolean;
   readonly onToggle: () => void;
   readonly updateFormState: (updates: Partial<FormState>) => void;
 };
 
-export const FormsInputsSection = ({
-  formState,
-  isOpen,
-  onToggle,
-  updateFormState,
-}: FormsInputsSectionProps) => (
+export const Forms = ({ formState, isOpen, onToggle, updateFormState }: FormsProps) => (
   <Box id="forms">
     <Collapsible.Root onOpenChange={onToggle} open={isOpen}>
       <Collapsible.Trigger
@@ -60,9 +59,9 @@ export const FormsInputsSection = ({
       >
         <HStack justify="space-between" width="full">
           <VStack align="flex-start" gap="1">
-            <Heading size="xl">Forms & Inputs</Heading>
+            <Heading size="xl">Forms</Heading>
             <Text color="fg.muted" fontSize="sm">
-              Interactive form controls and input components
+              Form controls, inputs, and interactive components
             </Text>
           </VStack>
           <Text color="brand.solid" fontSize="lg">
@@ -73,10 +72,10 @@ export const FormsInputsSection = ({
       <Collapsible.Content>
         <Box borderColor="border.muted" borderTop="none" borderWidth="1px" padding="6">
           <VStack align="stretch" gap={6}>
-            {/* Form Controls Row */}
+            {/* Basic Form Controls Row */}
             <HStack align="flex-start" flexWrap="wrap" gap={6}>
               <TextInputs />
-              <SelectionControls
+              <Controls
                 radioValue={formState.radio}
                 setRadioValue={(value) => updateFormState({ radio: value })}
               />
@@ -95,6 +94,9 @@ export const FormsInputsSection = ({
                 setCurrentPage={(value) => updateFormState({ currentPage: value })}
               />
             </HStack>
+
+            {/* Advanced Form Controls */}
+            <AdvancedControls />
           </VStack>
         </Box>
       </Collapsible.Content>

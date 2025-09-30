@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Dialog, Heading, Text } from "@chakra-ui/react";
+import { Dialog, Heading, Text, Button } from "@chakra-ui/react";
 
 type ModalDialogProps = {
   readonly isOpen: boolean;

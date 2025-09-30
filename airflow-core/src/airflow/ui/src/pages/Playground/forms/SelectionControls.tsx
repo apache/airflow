@@ -22,7 +22,6 @@
  */
 import {
   Card,
-  Checkbox,
   Field,
   Fieldset,
   Heading,
@@ -34,21 +33,26 @@ import {
 } from "@chakra-ui/react";
 import { useState } from "react";
 
-type SelectionControlsProps = {
+import { Checkbox, RadioCardItem, RadioCardLabel, RadioCardRoot, SegmentedControl } from "src/components/ui";
+
+type ControlsProps = {
   readonly radioValue: string;
   readonly setRadioValue: (value: string) => void;
 };
 
-export const SelectionControls = ({ radioValue, setRadioValue }: SelectionControlsProps) => {
+export const Controls = ({ radioValue, setRadioValue }: ControlsProps) => {
   const [selectValue, setSelectValue] = useState("option1");
   const [checkboxChecked, setCheckboxChecked] = useState(false);
+  const [radioCardValue, setRadioCardValue] = useState("option1");
+  const [segmentedValue, setSegmentedValue] = useState<Array<string>>(["option1"]);
+  const [multipleSegmentedValue, setMultipleSegmentedValue] = useState<Array<string>>(["option1", "option2"]);
 
   return (
     <Card.Root flex="1" minWidth="300px">
       <Card.Header>
-        <Heading size="lg">Selection Controls</Heading>
+        <Heading size="lg">Controls</Heading>
         <Text color="fg.muted" fontSize="sm">
-          Dropdowns, radios, and checkboxes
+          All form controls including dropdowns, radios, checkboxes, RadioCard, and SegmentedControl
         </Text>
       </Card.Header>
       <Card.Body>
@@ -108,32 +112,128 @@ export const SelectionControls = ({ radioValue, setRadioValue }: SelectionContro
                 <Fieldset.Legend>Checkboxes</Fieldset.Legend>
                 <Fieldset.Content>
                   <VStack align="flex-start" gap={3}>
-                    <Checkbox.Root
+                    <Checkbox
                       checked={checkboxChecked}
                       onCheckedChange={(details) => setCheckboxChecked(Boolean(details.checked))}
                       size="sm"
                     >
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control />
-                      <Checkbox.Label>Checkbox option</Checkbox.Label>
-                    </Checkbox.Root>
+                      Checkbox option
+                    </Checkbox>
 
-                    <Checkbox.Root defaultChecked size="sm">
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control />
-                      <Checkbox.Label>Pre-checked option</Checkbox.Label>
-                    </Checkbox.Root>
+                    <Checkbox defaultChecked size="sm">
+                      Pre-checked option
+                    </Checkbox>
 
-                    <Checkbox.Root disabled size="sm">
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control />
-                      <Checkbox.Label>Disabled option</Checkbox.Label>
-                    </Checkbox.Root>
+                    <Checkbox disabled size="sm">
+                      Disabled option
+                    </Checkbox>
                   </VStack>
                 </Fieldset.Content>
               </Fieldset.Root>
             </VStack>
           </HStack>
+
+          {/* RadioCard Component */}
+          <Fieldset.Root>
+            <Fieldset.Legend>RadioCard Component</Fieldset.Legend>
+            <Fieldset.Content>
+              <RadioCardRoot
+                defaultValue="option1"
+                onValueChange={(details) => setRadioCardValue(details.value ?? "option1")}
+                value={radioCardValue}
+              >
+                <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
+                  Choose deployment strategy
+                </RadioCardLabel>
+                <RadioCardItem
+                  description="Deploy immediately to production"
+                  label="Immediate"
+                  value="option1"
+                />
+                <RadioCardItem
+                  description="Deploy to staging first, then production"
+                  label="Staged"
+                  value="option2"
+                />
+                <RadioCardItem
+                  description="Deploy with blue-green strategy"
+                  label="Blue-Green"
+                  value="option3"
+                />
+              </RadioCardRoot>
+            </Fieldset.Content>
+          </Fieldset.Root>
+
+          {/* SegmentedControl Components */}
+          <Fieldset.Root>
+            <Fieldset.Legend>SegmentedControl Components</Fieldset.Legend>
+            <Fieldset.Content>
+              <VStack align="stretch" gap={4}>
+                <VStack align="stretch" gap={2}>
+                  <Text fontSize="sm" fontWeight="semibold">
+                    Single Selection
+                  </Text>
+                  <SegmentedControl
+                    defaultValues={["option1"]}
+                    multiple={false}
+                    onChange={(value) => {
+                      setSegmentedValue(value);
+                      console.log("Single selection changed:", value);
+                    }}
+                    options={[
+                      { label: "All", value: "option1" },
+                      { label: "Active", value: "option2" },
+                      { label: "Paused", value: "option3" },
+                    ]}
+                  />
+                  <Text color="fg.muted" fontSize="xs">
+                    Selected: {segmentedValue.join(", ")}
+                  </Text>
+                </VStack>
+
+                <VStack align="stretch" gap={2}>
+                  <Text fontSize="sm" fontWeight="semibold">
+                    Multiple Selection
+                  </Text>
+                  <SegmentedControl
+                    defaultValues={["option1", "option2"]}
+                    multiple
+                    onChange={(value) => {
+                      setMultipleSegmentedValue(value);
+                      console.log("Multiple selection changed:", value);
+                    }}
+                    options={[
+                      { label: "Past", value: "option1" },
+                      { label: "Future", value: "option2" },
+                      { label: "Upstream", value: "option3" },
+                      { label: "Downstream", value: "option4" },
+                    ]}
+                  />
+                  <Text color="fg.muted" fontSize="xs">
+                    Selected: {multipleSegmentedValue.join(", ")}
+                  </Text>
+                </VStack>
+
+                <VStack align="stretch" gap={2}>
+                  <Text fontSize="sm" fontWeight="semibold">
+                    With Disabled Options
+                  </Text>
+                  <SegmentedControl
+                    defaultValues={["enabled"]}
+                    multiple={false}
+                    onChange={() => {
+                      // Handle segmented control change
+                    }}
+                    options={[
+                      { label: "Enabled", value: "enabled" },
+                      { disabled: true, label: "Disabled", value: "disabled" },
+                      { label: "Another", value: "another" },
+                    ]}
+                  />
+                </VStack>
+              </VStack>
+            </Fieldset.Content>
+          </Fieldset.Root>
         </VStack>
       </Card.Body>
     </Card.Root>

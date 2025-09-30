@@ -2,9 +2,9 @@
 
 /* eslint-disable react/jsx-max-depth */
 
-/* eslint-disable @stylistic/spaced-comment */
+ 
 
-/* eslint-disable react/no-unescaped-entities */
+ 
 
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -26,12 +26,12 @@
  */
 import { Box, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 
-type ColorPaletteSectionProps = {
+type ColorsProps = {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 };
 
-export const ColorPaletteSection = ({ isOpen, onToggle }: ColorPaletteSectionProps) => {
+export const Colors = ({ isOpen, onToggle }: ColorsProps) => {
   // Color palettes available in the theme
   const colorPalettes = [
     { key: "brand", name: "Brand" },

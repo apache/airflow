@@ -1,6 +1,6 @@
 /* eslint-disable i18next/no-literal-string */
 
-/* eslint-disable react/no-array-index-key */
+
 
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -20,7 +20,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Card, Field, Heading, Pagination, Text, VStack } from "@chakra-ui/react";
+import { Card, Field, Heading, Text, VStack } from "@chakra-ui/react";
+
+import { Pagination } from "src/components/ui";
 
 type NavigationControlsProps = {
   readonly currentPage: number;
@@ -47,21 +49,7 @@ export const NavigationControls = ({ currentPage, setCurrentPage }: NavigationCo
             siblingCount={1}
           >
             <Pagination.PrevTrigger />
-            <Pagination.Context>
-              {(api) =>
-                api.pages.map((page, index) => {
-                  if (page.type === "ellipsis") {
-                    return <Pagination.Ellipsis index={index} key={`ellipsis-${index}`} />;
-                  }
-
-                  return (
-                    <Pagination.Item key={`page-${page.value}`} type="page" value={page.value}>
-                      {page.value}
-                    </Pagination.Item>
-                  );
-                })
-              }
-            </Pagination.Context>
+            <Pagination.Items />
             <Pagination.NextTrigger />
           </Pagination.Root>
           <Field.HelperText>Page {currentPage} of 10</Field.HelperText>

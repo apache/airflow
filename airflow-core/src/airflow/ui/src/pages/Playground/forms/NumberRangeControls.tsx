@@ -18,8 +18,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Card, Field, Heading, NumberInput, PinInput, Slider, Switch, Text, VStack } from "@chakra-ui/react";
+import { Card, Field, Heading, PinInput, Slider, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { NumberInputField, NumberInputRoot, Switch } from "src/components/ui";
 
 type NumberRangeControlsProps = {
   readonly setSliderValue: (value: Array<number>) => void;
@@ -49,18 +51,14 @@ export const NumberRangeControls = ({
         <VStack align="stretch" gap={4}>
           <Field.Root>
             <Field.Label>Number Input</Field.Label>
-            <NumberInput.Root
+            <NumberInputRoot
               max={100}
               min={0}
               onValueChange={(details) => setNumberValue(details.value)}
               value={numberValue}
             >
-              <NumberInput.Input />
-              <NumberInput.Control>
-                <NumberInput.IncrementTrigger />
-                <NumberInput.DecrementTrigger />
-              </NumberInput.Control>
-            </NumberInput.Root>
+              <NumberInputField />
+            </NumberInputRoot>
           </Field.Root>
 
           <Field.Root>
@@ -99,15 +97,12 @@ export const NumberRangeControls = ({
 
           <Field.Root>
             <Field.Label>Switch Control</Field.Label>
-            <Switch.Root
+            <Switch
               checked={switchValue}
               onCheckedChange={(details) => setSwitchValue(Boolean(details.checked))}
             >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-              <Switch.Label>Toggle setting</Switch.Label>
-            </Switch.Root>
+              Toggle setting
+            </Switch>
           </Field.Root>
         </VStack>
       </Card.Body>

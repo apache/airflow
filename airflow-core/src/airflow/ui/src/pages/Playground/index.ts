@@ -18,12 +18,16 @@
  */
 
 export { Playground } from "./Playground";
-export { ColorPaletteSection } from "./ColorPaletteSection";
-export { ButtonsCodeSection } from "./ButtonsCodeSection";
-export { BadgesAvatarsSection } from "./BadgesAvatarsSection";
-export { FormsInputsSection } from "./FormsInputsSection";
-export { ProgressTaskStatesSection } from "./ProgressTaskStatesSection";
-export { GraphSection } from "./GraphSection";
-export { ChartsGanttSection } from "./ChartsGanttSection";
+export { AirflowComponents } from "./airflow/AirflowComponents";
+export { Colors } from "./colors/Colors";
+export { Layout } from "./layout/Layout";
+export { Typography } from "./typography/Typography";
+export { Buttons } from "./buttons/Buttons";
+export { Collections } from "./collections/Collections";
+export { Forms } from "./forms/Forms";
+export { Feedback } from "./feedback/Feedback";
+export { Graph } from "./graphs/Graph";
+export { Charts } from "./charts/Charts";
+export { Overlays } from "./overlays/Overlays";
 export { TableOfContents } from "./TableOfContents";
-export { ModalDialog } from "./ModalDialog";
+export { ModalDialog } from "./overlays/ModalDialog";

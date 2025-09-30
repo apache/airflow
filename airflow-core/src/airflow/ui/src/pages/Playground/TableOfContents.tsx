@@ -29,14 +29,17 @@ type TableOfContentsProps = {
 };
 
 const sections = [
-  { id: "colors", title: "Color Palette" },
-  { id: "forms", title: "Forms & Inputs" },
-  { id: "buttons", title: "Buttons & Code" },
-  { id: "badges", title: "Badges & Avatars" },
-  { id: "progress", title: "Progress" },
-  { id: "states", title: "Task States" },
-  { id: "graphs", title: "Graph Components" },
-  { id: "charts", title: "Charts & Gantt" },
+  { id: "colors", title: "Colors" },
+  { id: "airflow", title: "Airflow Components" },
+  { id: "layout", title: "Layout" },
+  { id: "typography", title: "Typography" },
+  { id: "buttons", title: "Buttons" },
+  { id: "forms", title: "Forms" },
+  { id: "collections", title: "Collections" },
+  { id: "progress", title: "Progress & Alerts" },
+  { id: "graphs", title: "Graph" },
+  { id: "charts", title: "Charts" },
+  { id: "overlays", title: "Overlays" },
 ];
 
 export const TableOfContents = ({ openSections, scrollToSection, setOpenSections }: TableOfContentsProps) => (

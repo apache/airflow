@@ -24,14 +24,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Code, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, Code, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 
-type ButtonsCodeSectionProps = {
+import { Button } from "src/components/ui";
+
+type ButtonsProps = {
   readonly isOpen: boolean;
   readonly onToggle: () => void;
 };
 
-export const ButtonsCodeSection = ({ isOpen, onToggle }: ButtonsCodeSectionProps) => {
+export const Buttons = ({ isOpen, onToggle }: ButtonsProps) => {
   const colorPalettes = ["brand", "gray", "red", "green", "blue", "yellow", "purple"];
 
   return (
