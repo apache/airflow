@@ -20,6 +20,16 @@
 Changelog
 ---------
 
+main
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
+  Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
+  Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+
 2.4.4
 .....
 
@@ -47,8 +57,6 @@ Doc-only
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -68,8 +76,6 @@ Misc
 2.4.2
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
