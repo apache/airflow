@@ -1922,7 +1922,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     msg="timed_out",
                 )
 
-                dag_run.notify_dagrun_state_changed()
+                dag_run.notify_dagrun_state_changed(msg="timed_out")
                 duration = dag_run.end_date - dag_run.start_date
                 Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
                 Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
