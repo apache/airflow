@@ -233,15 +233,13 @@ export const renderStructuredLog = ({
           marginInlineEnd: "10px",
           paddingInlineEnd: "5px",
           textAlign: "end",
-          userSelect: "none",
-          WebkitUserSelect: "none",
           width: "3em",
         }}
         to={`${logLink}#${index}`}
       >
         {index}
       </RouterLink>
-      <chakra.span overflow="auto" whiteSpace="pre-wrap" width="100%">
+      <chakra.span overflow="auto" whiteSpace="pre-wrap" width="100%" userSelect="text">
         {elements}
       </chakra.span>
     </chakra.div>
