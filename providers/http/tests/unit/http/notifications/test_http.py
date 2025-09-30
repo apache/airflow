@@ -34,7 +34,7 @@ class TestHttpNotifier:
             http_conn_id="test_conn_id",
             endpoint="/test",
             method="POST",
-            json={"message": "test"},
+            json={"message": "testing"},
             headers={"Content-Type": "application/json"},
         )
         notifier.notify({})
@@ -44,7 +44,7 @@ class TestHttpNotifier:
             data=None,
             headers={"Content-Type": "application/json"},
             extra_options={},
-            json={"message": "test"},
+            json={"message": "testing"},
         )
         mock_http_hook.assert_called_once_with(method="POST", http_conn_id="test_conn_id")
 
