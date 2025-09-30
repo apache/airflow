@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy.orm import Mapped  # noqa: TC002
 from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -32,7 +33,6 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
     from sqlalchemy.orm.session import Session
 
 

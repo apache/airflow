@@ -17,16 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import Integer, String, Text
+from sqlalchemy.orm import Mapped  # noqa: TC002
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
 
 
 class ParseImportError(Base):
