@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 import attrs
 import structlog
 
-from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -54,10 +53,10 @@ if TYPE_CHECKING:
         AssetEventResult,
         AssetEventsResult,
         AssetResult,
+        ConnectionResult,
         OKResponse,
         PrevSuccessfulDagRunResponse,
         ReceiveMsgType,
-        ToSupervisor,
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -103,15 +102,12 @@ log = structlog.get_logger(logger_name="task")
 T = TypeVar("T")
 
 
-def _process_connection_result_conn(conn_result: ReceiveMsgType | ConnectionResponse | None) -> Connection:
+def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Connection:
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
+    from airflow.sdk.execution_time.comms import ErrorResponse
 
     if isinstance(conn_result, ErrorResponse):
         raise AirflowRuntimeError(conn_result)
-
-    if isinstance(conn_result, ConnectionResponse):
-        conn_result = ConnectionResult.from_conn_response(conn_result)
 
     if TYPE_CHECKING:
         assert isinstance(conn_result, ConnectionResult)
@@ -472,6 +468,7 @@ class _AssetRefResolutionMixin:
             ErrorResponse,
             GetAssetByName,
             GetAssetByUri,
+            ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -623,6 +620,7 @@ class InletEventsAccessors(
             ErrorResponse,
             GetAssetEventByAsset,
             GetAssetEventByAssetAlias,
+            ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
