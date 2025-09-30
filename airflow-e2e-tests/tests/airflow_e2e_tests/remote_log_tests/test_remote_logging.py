@@ -56,7 +56,9 @@ class TestRemoteLogging:
             run_id=resp["dag_run_id"],
         )
 
-        task_log_sources = task_logs.get("content", [{}])[0].get("sources", [])
+        task_log_sources = [
+            source for content in task_logs.get("content", [{}]) for source in content.get("sources", [])
+        ]
 
         s3_client = boto3.client(
             "s3",

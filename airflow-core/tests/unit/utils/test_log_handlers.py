@@ -72,6 +72,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.file_task_handler import (
     convert_list_to_stream,
     extract_events,
@@ -99,6 +100,37 @@ class TestFileTaskLogHandler:
 
     def teardown_method(self):
         self.clean_up()
+
+    @skip_if_force_lowest_dependencies_marker
+    @pytest.fixture(autouse=True)
+    def s3_mock_setup(self, session):
+        """Set up mock AWS environment and create real AWS connection in database."""
+        from moto import mock_aws
+
+        clear_db_runs()
+        clear_db_connections()
+        with mock_aws():
+            # Create S3 client and bucket for testing
+            import boto3
+
+            from airflow.models.connection import Connection
+
+            s3_client = boto3.client("s3", region_name="us-east-1")
+            s3_client.create_bucket(Bucket="test-airflow-logs")
+
+            aws_conn = Connection(
+                conn_id="aws_s3_conn",
+                conn_type="aws",
+                login="test_access_key",
+                password="test_secret_key",
+                extra='{"region_name": "us-east-1"}',
+            )
+            session.add(aws_conn)
+            session.commit()
+
+            yield s3_client
+            clear_db_runs()
+            clear_db_connections()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
@@ -602,6 +634,49 @@ class TestFileTaskLogHandler:
             expected += f".trigger.{job.id}.log"
         actual = h.handler.baseFilename
         assert actual == os.fspath(tmp_path / expected)
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_read_remote_logs_with_real_s3_remote_log_io(self, create_task_instance, s3_mock_setup, session):
+        """Test _read_remote_logs method using real S3RemoteLogIO with mock AWS"""
+        import tempfile
+
+        from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
+
+        ti = create_task_instance(
+            dag_id="test_dag_s3_remote_logs",
+            task_id="test_task_s3_remote_logs",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        ti.try_number = 1
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            s3_remote_log_io = S3RemoteLogIO(
+                remote_base="s3://test-airflow-logs/logs", base_log_folder=temp_dir, delete_local_copy=False
+            )
+
+            with conf_vars({("logging", "REMOTE_LOG_CONN_ID"): "aws_s3_conn"}):
+                fth = FileTaskHandler("")
+                log_relative_path = fth._render_filename(ti, 1)
+
+                log_content = "Log line 1 from S3\nLog line 2 from S3\nLog line 3 from S3"
+
+                s3_mock_setup.put_object(
+                    Bucket="test-airflow-logs",
+                    Key=f"logs/{log_relative_path}",
+                    Body=log_content.encode("utf-8"),
+                )
+
+                import airflow.logging_config
+
+                airflow.logging_config.REMOTE_TASK_LOG = s3_remote_log_io
+
+                sources, logs = fth._read_remote_logs(ti, try_number=1)
+
+                assert len(sources) > 0, f"Expected sources but got: {sources}"
+                assert len(logs) > 0, f"Expected logs but got: {logs}"
+                assert logs[0] == log_content
+                assert f"s3://test-airflow-logs/logs/{log_relative_path}" in sources[0]
 
 
 @pytest.mark.parametrize("logical_date", ((None), (DEFAULT_DATE)))
