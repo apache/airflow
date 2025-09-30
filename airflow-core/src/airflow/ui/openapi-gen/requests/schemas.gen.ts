@@ -2837,6 +2837,61 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lt'
+        },
+        duration_gte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gte'
+        },
+        duration_gt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gt'
+        },
+        duration_lte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lte'
+        },
+        duration_lt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lt'
+        },
+        conf_contains: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conf Contains'
         }
     },
     additionalProperties: false,

@@ -1420,6 +1420,11 @@ class DAGRunsBatchBody(BaseModel):
     end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
     end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
+    duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
+    duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
+    conf_contains: Annotated[str | None, Field(title="Conf Contains")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):

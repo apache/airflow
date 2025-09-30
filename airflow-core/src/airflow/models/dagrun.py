@@ -399,9 +399,15 @@ class DagRun(Base, LoggingMixin):
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
 
+        if dialect_name == "sqlite":
+            duration_expr = (func.julianday(cls.end_date) - func.julianday(cls.start_date)) * 86400
+
+        else:
+            duration_expr = func.extract("epoch", cls.end_date - cls.start_date)
+
         when_condition = (
             (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
-            func.extract("epoch", cls.end_date - cls.start_date),
+            duration_expr,
         )
 
         return case(when_condition, else_=None)
