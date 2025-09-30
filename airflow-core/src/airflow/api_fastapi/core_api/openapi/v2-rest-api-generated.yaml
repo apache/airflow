@@ -2177,6 +2177,38 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2213,6 +2245,12 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lt
+      - name: conf_contains
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Conf Contains
       - name: run_type
         in: query
         required: false
@@ -10514,6 +10552,31 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lt
+        duration_gte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+        duration_lte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
+        conf_contains:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conf Contains
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody

@@ -707,6 +707,11 @@ export type DAGRunsBatchBody = {
     end_date_gt?: string | null;
     end_date_lte?: string | null;
     end_date_lt?: string | null;
+    duration_gte?: number | null;
+    duration_gt?: number | null;
+    duration_lte?: number | null;
+    duration_lt?: number | null;
+    conf_contains?: string | null;
 };
 
 /**
@@ -2288,12 +2293,17 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
+    confContains?: string;
     dagId: string;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     dagIdPattern?: string | null;
     dagVersion?: Array<(number)>;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
