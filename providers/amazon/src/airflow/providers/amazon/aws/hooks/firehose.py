@@ -19,13 +19,12 @@
 
 from __future__ import annotations
 
-import warnings
+from collections.abc import Iterable
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.firehose import FirehoseHook as _FirehoseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class FirehoseHook(_FirehoseHook):
+class FirehoseHook(AwsBaseHook):
     """
     Interact with Amazon Kinesis Firehose.
 
@@ -38,18 +37,20 @@ class FirehoseHook(_FirehoseHook):
 
     .. seealso::
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-    ..deprecated::
-        This hook was moved. Import from
-       :class:`airflow.providers.amazon.aws.hooks.firehose.FirehoseHook`
-       instead of kinesis.py
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        warnings.warn(
-            "Importing FirehoseHook from kinesis.py is deprecated "
-            "and will be removed in a future release. "
-            "Please import it from firehose.py instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+    def __init__(self, delivery_stream: str, *args, **kwargs) -> None:
+        self.delivery_stream = delivery_stream
+        kwargs["client_type"] = "firehose"
         super().__init__(*args, **kwargs)
+
+    def put_records(self, records: Iterable):
+        """
+        Write batch records to Kinesis Firehose.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Firehose.Client.put_record_batch`
+
+        :param records: list of records
+        """
+        return self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)

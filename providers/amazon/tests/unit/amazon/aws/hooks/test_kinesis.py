@@ -22,7 +22,7 @@ import uuid
 import boto3
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.kinesis import FirehoseHook
+from airflow.providers.amazon.aws.hooks.firehose import FirehoseHook
 
 
 @mock_aws
