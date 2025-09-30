@@ -98,6 +98,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
+from airflow.stats import Stats
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -1416,6 +1417,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
+        if isinstance(self._weight_rule, PriorityWeightStrategy):
+            return self._weight_rule
         return validate_and_load_priority_weight_strategy(self._weight_rule)
 
     def __getattr__(self, name):
@@ -2899,6 +2902,10 @@ class SerializedDAG(BaseSerialization):
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
@@ -3268,18 +3275,21 @@ class SerializedDAG(BaseSerialization):
         if self.deadline:
             for deadline in cast("list", self.deadline):
                 if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                    session.add(
-                        Deadline(
-                            deadline_time=deadline.reference.evaluate_with(
-                                session=session,
-                                interval=deadline.interval,
-                                dag_id=self.dag_id,
-                                run_id=run_id,
-                            ),
-                            callback=deadline.callback,
-                            dagrun_id=orm_dagrun.id,
-                        )
+                    deadline_time = deadline.reference.evaluate_with(
+                        session=session,
+                        interval=deadline.interval,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
                     )
+                    if deadline_time is not None:
+                        session.add(
+                            Deadline(
+                                deadline_time=deadline_time,
+                                callback=deadline.callback,
+                                dagrun_id=orm_dagrun.id,
+                            )
+                        )
+                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
         return orm_dagrun
 

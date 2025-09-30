@@ -238,17 +238,30 @@ class TestEmrCreateJobFlowOperator:
     def test_create_job_flow_deferrable(self, mocked_hook_client):
         """
         Test to make sure that the operator raises a TaskDeferred exception
-        if run in deferrable mode.
+        if run in deferrable mode and wait_policy is set.
         """
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True
+        self.operator.wait_policy = WaitPolicy.WAIT_FOR_COMPLETION
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
         assert isinstance(exc.value.trigger, EmrCreateJobFlowTrigger), (
             "Trigger is not a EmrCreateJobFlowTrigger"
         )
+
+    def test_create_job_flow_deferrable_no_wait(self, mocked_hook_client):
+        """
+        Test to make sure that the operator does NOT raise a TaskDeferred exception
+        if run in deferrable mode but wait_policy is not set.
+        """
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True
+        # wait_policy is None by default
+        result = self.operator.execute(self.mock_context)
+        assert result == JOB_FLOW_ID
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

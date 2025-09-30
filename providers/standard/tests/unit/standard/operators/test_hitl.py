@@ -316,7 +316,7 @@ class TestHITLOperator:
             params={"input": 1},
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="not exists"):
             hitl_op.execute_complete(
                 context={},
                 event={
@@ -335,7 +335,7 @@ class TestHITLOperator:
             params={"input": 1},
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="no such key"):
             hitl_op.execute_complete(
                 context={},
                 event={
@@ -442,7 +442,7 @@ class TestHITLOperator:
 
 class TestApprovalOperator:
     def test_init_with_options(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Passing options to ApprovalOperator is not allowed."):
             ApprovalOperator(
                 task_id="hitl_test",
                 subject="This is subject",
