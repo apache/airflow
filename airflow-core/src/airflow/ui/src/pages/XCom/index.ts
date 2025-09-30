@@ -18,4 +18,3 @@
  */
 
 export { XCom } from "./XCom";
-export { XComEntry } from "./XComEntry";
