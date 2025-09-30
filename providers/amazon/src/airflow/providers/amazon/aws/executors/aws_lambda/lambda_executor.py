@@ -29,7 +29,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.observability.stats import Stats
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
     CONFIG_GROUP_NAME,
     INVALID_CREDENTIALS_EXCEPTIONS,
@@ -45,8 +44,10 @@ from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 try:
+    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
