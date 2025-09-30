@@ -124,6 +124,9 @@ images:
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
+    # NOTE:
+    # - If the tag is "v3.x.x" or any version < 4.0.0 - use GIT_SYNC_* env variables
+    # - If the tag is "v4.x.x" or "latest" - use GITSYNC_* env variables
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
