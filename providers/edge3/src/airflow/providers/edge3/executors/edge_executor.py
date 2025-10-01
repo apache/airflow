@@ -426,7 +426,6 @@ class EdgeExecutor(BaseExecutor):
                 EdgeJobModel.try_number == ti.try_number,
             )
         )
-        session.commit()
         self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
