@@ -7,15 +7,15 @@
   },
   "group": "Ομάδα",
   "health": {
-  "dagProcessor": "Επεξεργαστής Dag",
-  "health": "Κατάσταση",
-  "healthy": "Υγιές",
-  "lastHeartbeat": "Τελευταίος Παλμός",
-  "metaDatabase": "Μετα-Βάση Δεδομένων",
-  "scheduler": "Προγραμματιστής",
-  "status": "Κατάσταση",
-  "triggerer": "Ενεργοποιητής",
-  "unhealthy": "Μη υγιές"
+    "dagProcessor": "Επεξεργαστής Dag",
+    "health": "Κατάσταση",
+    "healthy": "Υγιές",
+    "lastHeartbeat": "Τελευταίος Παλμός",
+    "metaDatabase": "Μετα-Βάση Δεδομένων",
+    "scheduler": "Προγραμματιστής",
+    "status": "Κατάσταση",
+    "triggerer": "Ενεργοποιητής",
+    "unhealthy": "Μη υγιές"
   },
   "history": "Ιστορικό",
   "importErrors": {

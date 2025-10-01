@@ -23,7 +23,7 @@
     "totalRuns": "Σύνολο Εκτελέσεων",
     "week": "Εβδομάδα {{weekNumber}}",
     "weekdays": {
-    "friday": "Παρ",
+      "friday": "Παρ",
       "monday": "Δευ",
       "saturday": "Σαβ",
       "sunday": "Κυρ",
