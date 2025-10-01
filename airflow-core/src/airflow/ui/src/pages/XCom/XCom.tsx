@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Heading, Link, Flex, ButtonGroup, IconButton, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
+import { MdCompress, MdExpand } from "react-icons/md";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
@@ -41,7 +42,7 @@ const {
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const columns = (translate: (key: string) => string): Array<ColumnDef<XComResponse>> => [
+const columns = (translate: (key: string) => string, open: boolean): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -98,6 +99,7 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
       <XComEntry
         dagId={original.dag_id}
         mapIndex={original.map_index}
+        open={open}
         runId={original.run_id}
         taskId={original.task_id}
         xcomKey={original.key}
@@ -114,6 +116,7 @@ export const XCom = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
   const [searchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
 
   const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
   const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
@@ -122,7 +125,6 @@ export const XCom = () => {
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
 
   const { LOGICAL_DATE_GTE, LOGICAL_DATE_LTE, RUN_AFTER_GTE, RUN_AFTER_LTE } = SearchParamsKeys;
-
   const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE);
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE);
@@ -158,11 +160,29 @@ export const XCom = () => {
         <Heading size="md">{translate("xcom.title")}</Heading>
       ) : undefined}
 
-      <XComFilters />
+      <Flex alignItems="center" justifyContent="space-between">
+        <XComFilters />
+        <ButtonGroup attached mt="1" size="sm" variant="surface">
+          <IconButton
+            aria-label={translate("auditLog.actions.expandAllExtra")}
+            onClick={onOpen}
+            title={translate("auditLog.actions.expandAllExtra")}
+          >
+            <MdExpand />
+          </IconButton>
+          <IconButton
+            aria-label={translate("auditLog.actions.collapseAllExtra")}
+            onClick={onClose}
+            title={translate("auditLog.actions.collapseAllExtra")}
+          >
+            <MdCompress />
+          </IconButton>
+        </ButtonGroup>
+      </Flex>
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={columns(translate)}
+        columns={columns(translate, open)}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}
