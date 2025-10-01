@@ -375,8 +375,8 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
 
-    # If the host or the port hasn't been provided, then check the regular OTel env vars.
-    if host != "-" and port != "0":
+    # If there isn't a value for both the host and the port, then check the regular OTel env vars.
+    if host != "-" and str(port) != "0":
         ssl_active = conf.getboolean("metrics", "otel_ssl_active")
         # PeriodicExportingMetricReader will default to an interval of 60000 millis.
         interval_ms = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000

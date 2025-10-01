@@ -337,8 +337,8 @@ def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     host = conf.get("traces", "otel_host")
     port = conf.getint("traces", "otel_port")
 
-    # If the host or the port hasn't been provided, then check the regular OTel env vars.
-    if host != "-" and port != "0":
+    # If there isn't a value for both the host and the port, then check the regular OTel env vars.
+    if host != "-" and str(port) != "0":
         ssl_active = conf.getboolean("traces", "otel_ssl_active")
 
         protocol = "https" if ssl_active else "http"
