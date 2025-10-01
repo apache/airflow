@@ -24,6 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -51,8 +52,6 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
