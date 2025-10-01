@@ -14,33 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+# yamllint disable rule:line-length
+overlay: 1.0.0
+info:
+  title: OpenAPI Overlay
+  version: 0.0.0
+actions:
+  - description: |-
+      Remove Authorization param
 
-# Main Justfile for Airflow Go SDK
-set shell := ["bash", "-uc", "-O", "globstar"]
-
-# Default recipe to show help
-default:
-  @just --list
-
-# Build all components
-build: build-celery build-edge build-examples
-
-# Build the worker binary
-build-celery:
-  go build -o bin/airflow-go-celery ./celery/cmd
-
-build-edge:
-  go build -o bin/airflow-go-edge ./edge/cmd
-
-# Build all example bundles
-build-examples:
-  @just example/bundle/build
-
-# Run unit tests
-test:
-  @echo "Running unit tests..."
-  go run gotest.tools/gotestsum@v1.13.0 -f dots-v2 ./...
-
-# Generate protocol buffers
-protoc:
-  @prek run -a protoc
+      We handle it separately, we don't want it in the params object
+    target: $.paths.*.*.parameters[?(@.name == "authorization" && @.in == "header")]
+    remove: true
