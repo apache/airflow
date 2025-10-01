@@ -101,6 +101,7 @@ class TestOtelTrace:
 
         tracer = otel_tracer.get_otel_tracer(Trace)
         assert otel_conf.called
+        otel_conf.assert_called_once()
         with tracer.start_span(span_name="span1") as s1:
             with tracer.start_span(span_name="span2") as s2:
                 s2.set_attribute("attr2", "val2")
