@@ -81,8 +81,7 @@ class OtelTrace:
 
         # If a value hasn't been provided, then check the regular OTel env var.
         if service == "-":
-            # Validation happens on the endpoint URL which isn't needed here.
-            self.otel_config = load_traces_config(validate=False)
+            self.otel_config = load_traces_config()
             service = self.otel_config.service_name
 
         self.resource = Resource.create(attributes={SERVICE_NAME: service})
