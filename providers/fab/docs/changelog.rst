@@ -20,15 +20,32 @@
 Changelog
 ---------
 
-main
+3.0.0
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
-  Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
-  Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
+Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
+Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+
+* ``Upgrade flask-appbuilder to version 5 (#50960)``
+
+Features
+~~~~~~~~
+
+* ``Support nested groups resolution for LDAP authentication in Fab auth manager``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'if_not_exists=True' to FAB migration (#56100)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix static check error resulting from not rebased change in FAB5 (#56178)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
 
 2.4.4
 .....
