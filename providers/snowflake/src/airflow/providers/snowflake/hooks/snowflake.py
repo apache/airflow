@@ -275,7 +275,7 @@ class SnowflakeHook(DbApiHook):
         session_parameters = extra_dict.get("session_parameters")
 
         # Add Workload Identity Federation (WIF) support variable
-        workload_identity_provider = extra.get("workload_identity_provider")
+        workload_identity_provider = extra_dict.get("workload_identity_provider")
 
 
 
