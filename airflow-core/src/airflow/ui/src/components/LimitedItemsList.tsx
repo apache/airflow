@@ -113,7 +113,7 @@ export const LimitedItemsList = ({
                     )}
                   </Box>
 
-                  <Text color="gray.500" fontSize="xs" mt={3}>
+                  <Text fontSize="xs" mt={3}>
                     {interactive
                       ? translate("limitedList.clickToInteract")
                       : translate("limitedList.copyPasteText")}
