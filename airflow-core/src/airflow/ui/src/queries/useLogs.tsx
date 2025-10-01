@@ -20,12 +20,16 @@ import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
+import { type MouseEvent, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import type {
+  StructuredLogMessage,
+  TaskInstanceResponse,
+  TaskInstancesLogResponse,
+} from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -108,36 +112,83 @@ const parseLogs = ({
   }
 
   parsedLines = (() => {
-    type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
+    type Group = { level: number; lines: Array<JSX.Element | "">; name: string; timestamp?: string };
     const groupStack: Array<Group> = [];
     const result: Array<JSX.Element | ""> = [];
 
-    parsedLines.forEach((line) => {
-      const text = innerText(line);
+    parsedLines.forEach((line, idx) => {
+      const log = data[idx];
 
-      if (text.includes("::group::")) {
-        const groupName = text.split("::group::")[1] as string;
-
-        groupStack.push({ level: groupStack.length, lines: [], name: groupName });
-
+      if (log === undefined) {
         return;
       }
 
-      if (text.includes("::endgroup::")) {
+      const [structured, event]: [StructuredLogMessage | undefined, string] =
+        typeof log === "string" ? [undefined, log] : [log, log.event];
+
+      if (event.includes("::group::")) {
+        const groupName = event.split("::group::")[1] as string;
+
+        const group: Group = { level: groupStack.length, lines: [], name: groupName };
+
+        if (structured !== undefined && Object.hasOwn(structured, "timestamp")) {
+          group.timestamp = structured.timestamp;
+        }
+        groupStack.push(group);
+      }
+
+      if (event.includes("::endgroup::")) {
         const finishedGroup = groupStack.pop();
+        const elements: Array<JSX.Element | string> = [];
 
         if (finishedGroup) {
+          if (Boolean(finishedGroup.timestamp) && showTimestamp) {
+            elements.push("[", <Time datetime={finishedGroup.timestamp} key={0} />, "] ");
+          }
+          elements.push(finishedGroup.name);
+
+          // If there is only a few lines in the group, don't show the end group
+          if (finishedGroup.lines.length > 3) {
+            const handleClick = (evt: MouseEvent<HTMLElement>) => {
+              // Close the details when the End of Group line is clicked
+              const details = evt.currentTarget.closest("details");
+
+              if (details) {
+                details.open = false;
+              }
+            };
+
+            const endTimestamp =
+              Boolean(structured?.timestamp) && showTimestamp
+                ? ["[", <Time datetime={structured?.timestamp} key={0} />, "] "]
+                : undefined;
+
+            finishedGroup.lines.push(
+              <Box key={finishedGroup.name} ml={3} pl={finishedGroup.level * 2}>
+                <chakra.span color="fg.info" cursor="pointer" onClick={handleClick}>
+                  {endTimestamp}
+                  {translate("components:logs.endGroup", { group: finishedGroup.name })}
+                </chakra.span>
+              </Box>,
+            );
+          }
+
           const groupElement = (
-            <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
-              <chakra.details open={open} w="100%">
-                <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
-                  <chakra.span color="fg.info" cursor="pointer">
-                    {finishedGroup.name}
-                  </chakra.span>
-                </chakra.summary>
-                {finishedGroup.lines}
-              </chakra.details>
-            </Box>
+            <chakra.details
+              css={{ "&[open]": { "margin-bottom": 0 } }}
+              key={finishedGroup.name}
+              mb={2}
+              open={open}
+              pl={finishedGroup.level * 2}
+              w="100%"
+            >
+              <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
+                <chakra.span color="fg.info" cursor="pointer">
+                  {elements}
+                </chakra.span>
+              </chakra.summary>
+              {finishedGroup.lines}
+            </chakra.details>
           );
 
           const lastGroup = groupStack[groupStack.length - 1];
