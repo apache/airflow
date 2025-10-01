@@ -144,9 +144,8 @@ class OtelTrace:
         start_time=None,
     ):
         """Start a span."""
-        if component is None:
-            # Common practice is to use the module name.
-            component = __name__
+        # Common practice is to use the module name.
+        component = component or __name__
 
         trace_id = self.get_current_span().get_span_context().trace_id
         tracer = self.get_tracer(component=component, trace_id=trace_id, span_id=span_id)
@@ -255,9 +254,8 @@ class OtelTrace:
         start_time=None,
         start_as_current: bool = True,
     ) -> AbstractContextManager[trace.span.Span] | trace.span.Span:
-        if component is None:
-            # Common practice is to use the module name.
-            component = __name__
+        # Common practice is to use the module name.
+        component = component or __name__
 
         tracer = self.get_tracer(component=component)
 
