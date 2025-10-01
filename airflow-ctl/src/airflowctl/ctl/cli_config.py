@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
@@ -36,7 +37,6 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -289,6 +289,14 @@ ARG_CONFIG_VERBOSE = Arg(
     action="store_true",
 )
 
+# Version Command Args
+ARG_REMOTE = Arg(
+    flags=("--remote",),
+    help="Fetch the Airflow version in remote server, otherwise only shows the local airflowctl version",
+    default=False,
+    action="store_true",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -467,7 +475,7 @@ class CommandFactory:
             "dict": dict,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": parsedate,
+            "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
@@ -849,7 +857,10 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(),
+        args=(
+            ARG_AUTH_ENVIRONMENT,
+            ARG_REMOTE,
+        ),
     ),
     GroupCommand(
         name="variables",

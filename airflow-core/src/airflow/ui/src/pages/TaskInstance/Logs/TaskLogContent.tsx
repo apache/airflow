@@ -114,11 +114,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Code
-        css={{
-          "& *::selection": {
-            bg: "brand.subtle",
-          },
-        }}
         data-testid="virtualized-list"
         flexGrow={1}
         h="auto"

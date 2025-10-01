@@ -121,6 +121,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=250), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("ab_view_menu_pkey")),
         sa.UniqueConstraint("name", name=op.f("ab_view_menu_name_uq")),
+        if_not_exists=True,
     )
     op.create_table(
         "ab_group_role",

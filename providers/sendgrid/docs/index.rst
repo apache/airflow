@@ -63,8 +63,6 @@ apache-airflow-providers-sendgrid package
 
 Release: 4.1.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

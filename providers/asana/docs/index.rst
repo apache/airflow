@@ -79,8 +79,6 @@ apache-airflow-providers-asana package
 
 Release: 2.10.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
