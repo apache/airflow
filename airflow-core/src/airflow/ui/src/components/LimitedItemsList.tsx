@@ -67,7 +67,6 @@ export const LimitedItemsList = ({
             <Popover.Root lazyMount unmountOnExit>
               <Popover.Trigger asChild>
                 <Button
-                  _hover={{ color: "blue.600", textDecoration: "underline" }}
                   colorPalette="brand"
                   cursor="pointer"
                   fontSize="sm"
