@@ -151,16 +151,16 @@ export const Nav = () => {
             <AirflowPin height="35px" width="35px" />
           </NavLink>
         </Box>
-        <NavButton icon={<FiHome size={28} />} title={translate("nav.home")} to="/" />
+        <NavButton icon={<FiHome size="28px" />} title={translate("nav.home")} to="/" />
         <NavButton
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
-          icon={<DagIcon height={28} width={28} />}
+          icon={<DagIcon height="28px" width="28px" />}
           title={translate("nav.dags")}
           to="dags"
         />
         <NavButton
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
-          icon={<FiDatabase size={28} />}
+          icon={<FiDatabase size="28px" />}
           title={translate("nav.assets")}
           to="assets"
         />

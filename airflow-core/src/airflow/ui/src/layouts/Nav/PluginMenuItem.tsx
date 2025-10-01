@@ -46,11 +46,11 @@ export const PluginMenuItem = ({
   const displayIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
   const pluginIcon =
     typeof displayIcon === "string" ? (
-      <Image height={20} mr={topLevel ? 0 : 2} src={displayIcon} width={20} />
+      <Image height="20px" mr={topLevel ? 0 : 2} src={displayIcon} width="20px" />
     ) : urlRoute === "legacy-fab-views" ? (
-      <RiArchiveStackLine size={20} style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <RiArchiveStackLine size="20px" style={{ marginRight: topLevel ? 0 : "8px" }} />
     ) : (
-      <LuPlug size={20} style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <LuPlug size="20px" style={{ marginRight: topLevel ? 0 : "8px" }} />
     );
 
   const isExternal = urlRoute === undefined || urlRoute === null;
