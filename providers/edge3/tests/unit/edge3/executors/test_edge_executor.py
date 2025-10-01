@@ -66,7 +66,7 @@ class TestEdgeExecutor:
     def test__process_tasks_bad_command(self):
         executor, key = self.get_test_executor()
         task_tuple = (key, ["hello", "world"], None, None)
-        with pytest.raises(ValueError, match="Command should start with "):
+        with pytest.raises(ValueError, match=r"The command must start with \['airflow', 'tasks', 'run'\]."):
             executor._process_tasks([task_tuple])
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
