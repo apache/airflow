@@ -150,7 +150,7 @@ class DagRun(Base, LoggingMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     queued_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
     end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
     _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)

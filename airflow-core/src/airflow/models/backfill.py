@@ -131,7 +131,7 @@ class Backfill(Base):
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    completed_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
     updated_at: Mapped[UtcDateTime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
