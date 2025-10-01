@@ -435,3 +435,86 @@ class TestEdgeExecutor:
             job = jobs[0]
             assert job.queue == "updated-queue"
             assert job.command != "old-command"
+
+    def test_revoke_task(self):
+        """Test that revoke_task removes task from executor and database."""
+        executor = EdgeExecutor()
+        key = TaskInstanceKey(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+        )
+
+        # Create a mock task instance
+        ti = MagicMock()
+        ti.key = key
+        ti.dag_id = "test_dag"
+        ti.task_id = "test_task"
+        ti.run_id = "test_run"
+        ti.map_index = -1
+        ti.try_number = 1
+
+        # Add task to executor's internal state
+        executor.running.add(key)
+        executor.queued_tasks[key] = [None, None, None, ti]
+        executor.last_reported_state[key] = TaskInstanceState.QUEUED
+
+        # Add corresponding job to database
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id="test_dag",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                    try_number=1,
+                    state=TaskInstanceState.QUEUED,
+                    queue="default",
+                    command="mock",
+                    concurrency_slots=1,
+                )
+            )
+            session.commit()
+
+        # Verify job exists before revoke
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+
+        # Revoke the task
+        executor.revoke_task(ti=ti)
+
+        # Verify task is removed from executor's internal state
+        assert key not in executor.running
+        assert key not in executor.queued_tasks
+        assert key not in executor.last_reported_state
+
+        # Verify job is removed from database
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 0
+
+    def test_revoke_task_nonexistent(self):
+        """Test that revoke_task handles non-existent tasks gracefully."""
+        executor = EdgeExecutor()
+        key = TaskInstanceKey(
+            dag_id="nonexistent_dag",
+            run_id="nonexistent_run",
+            task_id="nonexistent_task",
+            map_index=-1,
+            try_number=1,
+        )
+
+        # Create a mock task instance
+        ti = MagicMock()
+        ti.key = key
+        ti.dag_id = "nonexistent_dag"
+        ti.task_id = "nonexistent_task"
+        ti.run_id = "nonexistent_run"
+        ti.map_index = -1
+        ti.try_number = 1
+
+        # Revoke a task that doesn't exist (should not raise error)
+        executor.revoke_task(ti=ti)
+
+        # Verify nothing breaks
+        assert key not in executor.running
+        assert key not in executor.queued_tasks
