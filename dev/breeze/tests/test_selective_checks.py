@@ -687,7 +687,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira dbt.cloud dingding discord google http",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -708,7 +708,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,dbt.cloud,dingding,discord,http] Providers[google]",
                             }
                         ]
                     ),
@@ -719,10 +719,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
-                                "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                                "description": "atlassian.jir...dbt.cloud",
+                                "test_types": "Providers[atlassian.jira] Providers[dbt.cloud]",
                             },
-                            {"description": "discord", "test_types": "Providers[discord]"},
+                            {
+                                "description": "dingding...discord",
+                                "test_types": "Providers[dingding] Providers[discord]",
+                            },
                             {"description": "google", "test_types": "Providers[google]"},
                             {"description": "http", "test_types": "Providers[http]"},
                         ]
