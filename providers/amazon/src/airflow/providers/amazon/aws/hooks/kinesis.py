@@ -39,7 +39,7 @@ class FirehoseHook(_FirehoseHook):
 
     .. seealso::
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-    ..deprecated::
+    .. deprecated::
         This hook was moved. Import from
        :class:`airflow.providers.amazon.aws.hooks.firehose.FirehoseHook`
        instead of kinesis.py
