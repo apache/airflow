@@ -92,7 +92,7 @@ export const Dag = () => {
   );
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval: isStatePending(latestRun?.state) ? refetchInterval : false,
+    refetchInterval,
   });
 
   const displayTabs = processedTabs.filter((tab) => {

@@ -80,9 +80,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name,
+            uri, created_at, updated_at`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name, uri, created_at,
+          updated_at`'
       responses:
         '200':
           description: Successful Response
@@ -160,9 +166,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name`'
       responses:
         '200':
           description: Successful Response
@@ -275,9 +285,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `source_task_id,
+            source_dag_id, source_run_id, source_map_index, timestamp`'
           default:
           - timestamp
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `source_task_id, source_dag_id,
+          source_run_id, source_map_index, timestamp`'
       - name: asset_id
         in: query
         required: false
@@ -928,9 +944,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       responses:
         '200':
           description: Successful Response
@@ -1463,9 +1483,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `conn_id,
+            conn_type, description, host, port, id`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `conn_id, conn_type,
+          description, host, port, id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -2151,6 +2177,38 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
       - name: updated_at_gte
         in: query
         required: false
@@ -2187,6 +2245,12 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lt
+      - name: conf_contains
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Conf Contains
       - name: run_type
         in: query
         required: false
@@ -2218,9 +2282,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
+            conf, duration`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, dag_id,
+          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
+          duration`'
       - name: run_id_pattern
         in: query
         required: false
@@ -2892,9 +2964,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type,
+            message, timestamp`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, warning_type,
+          message, timestamp`'
       responses:
         '200':
           description: Successful Response
@@ -3156,9 +3234,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date`'
           default:
           - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -3729,9 +3813,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dttm,
+            dag_id, task_id, run_id, event, logical_date, owner, extra`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dttm, dag_id,
+          task_id, run_id, event, logical_date, owner, extra`'
       - name: dag_id
         in: query
         required: false
@@ -4061,9 +4151,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, timestamp,
+            filename, bundle_name, stacktrace`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, timestamp, filename,
+          bundle_name, stacktrace`'
       - name: filename_pattern
         in: query
         required: false
@@ -4215,9 +4311,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, dag_id,
+            state, job_type, start_date, end_date, latest_heartbeat, executor_class,
+            hostname, unixname`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, dag_id, state,
+          job_type, start_date, end_date, latest_heartbeat, executor_class, hostname,
+          unixname`'
       - name: job_state
         in: query
         required: false
@@ -4560,9 +4664,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, pool`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, pool`'
       - name: pool_name_pattern
         in: query
         required: false
@@ -5768,9 +5876,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -6588,9 +6704,17 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, state,
+            duration, start_date, end_date, map_index, try_number, logical_date, run_after,
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, state, duration,
+          start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -7429,9 +7553,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, id,
+            _val, description, is_encrypted`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, id, _val, description,
+          is_encrypted`'
       - name: variable_key_pattern
         in: query
         required: false
@@ -7824,9 +7954,13 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
           - name
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `name`'
       - name: tag_name_pattern
         in: query
         required: false
@@ -7982,9 +8116,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, version_number,
+            bundle_name, bundle_version`'
           default:
           - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, version_number,
+          bundle_name, bundle_version`'
       responses:
         '200':
           description: Successful Response
@@ -8205,9 +8345,15 @@ paths:
           type: array
           items:
             type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
+            responded_at, created_at, responded_by_user_id, responded_by_user_name`'
           default:
           - ti_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
+          created_at, responded_by_user_id, responded_by_user_name`'
       - name: dag_id_pattern
         in: query
         required: false
@@ -9268,6 +9414,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -9290,6 +9446,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -9312,6 +9478,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -9334,6 +9510,16 @@ components:
           type: array
           title: Entities
           description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
@@ -10366,6 +10552,31 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lt
+        duration_gte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+        duration_gt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+        duration_lte:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+        duration_lt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
+        conf_contains:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conf Contains
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody

@@ -396,3 +396,35 @@ def remove_queue(args):
     queues = args.queues.split(",")
     for queue in queues:
         celery_app.control.cancel_consumer(queue, destination=[args.celery_hostname])
+
+
+@cli_utils.action_cli(check_db=False)
+@_providers_configuration_loaded
+def remove_all_queues(args):
+    """Unsubscribe a Celery worker from all its active queues."""
+    _check_if_active_celery_worker(hostname=args.celery_hostname)
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    inspect = celery_app.control.inspect()
+    active_workers = inspect.active_queues()
+
+    if not active_workers or args.celery_hostname not in active_workers:
+        print(f"No active queues found for worker: {args.celery_hostname}")
+        return
+
+    worker_queues = active_workers[args.celery_hostname]
+    queue_names = [queue["name"] for queue in worker_queues if "name" in queue]
+
+    if not queue_names:
+        print(f"No queues to remove for worker: {args.celery_hostname}")
+        return
+
+    print(
+        f"Removing {len(queue_names)} queue(s) from worker {args.celery_hostname}: {', '.join(queue_names)}"
+    )
+
+    for queue_name in queue_names:
+        celery_app.control.cancel_consumer(queue_name, destination=[args.celery_hostname])
+
+    print(f"Successfully removed all queues from worker: {args.celery_hostname}")

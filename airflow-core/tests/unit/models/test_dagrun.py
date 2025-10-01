@@ -2169,14 +2169,20 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
 
     dr = dag_maker.create_dagrun()
 
-    ti = dr.get_task_instance("do_something_else", session=session)
-    ti.map_index = 0
-    task = ti.task
-    for map_index in range(1, 5):
-        ti = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
-        session.add(ti)
-        ti.dag_run = dr
+    tis = dr.get_task_instances()
+    for ti in tis:
+        if ti.task_id == "do_something_else":
+            ti.map_index = 0
+            task = ti.task
+            for map_index in range(1, 5):
+                ti = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
+                session.add(ti)
+                ti.dag_run = dr
+        else:
+            # run tasks "do_something" to get XCOMs for correct downstream length
+            ti.run()
     session.flush()
+
     tis = dr.get_task_instances()
     for ti in tis:
         if ti.task_id == "do_something":
@@ -2188,7 +2194,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     session.commit()
     # The Upstream is done with 2 removed tis and 3 success tis
     (tis, _) = dr.update_state()
-    assert len(tis)
+    assert len(tis) == 3
     assert dr.state != DagRunState.FAILED
 
 

@@ -65,7 +65,7 @@ dependencies = [
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
     "pytest>=8.3.3",
-    "pyyaml>=6.0.2",
+    "pyyaml>=6.0.3",
     "requests>=2.32.0",
     "restructuredtext-lint>=1.4.0",
     # Temporarily pinned to fix for changes in https://github.com/ewels/rich-click/releases/tag/v1.9.0
