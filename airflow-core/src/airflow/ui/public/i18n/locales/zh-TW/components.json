@@ -2,7 +2,7 @@
   "backfill": {
     "affected_one": "將會觸發 1 次執行。",
     "affected_other": "將會觸發 {{count}} 次執行。",
-    "affectedNone": "沒有符合條件的執行。",
+    "affectedNone": "無符合條件的執行。",
     "allRuns": "所有執行",
     "backwards": "反向執行",
     "dateRange": "日期範圍",
