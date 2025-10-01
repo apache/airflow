@@ -677,7 +677,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
+$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "[VOTE]" || echo "[ACCELERATED VOTE]") Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
 EOF
 ```
 

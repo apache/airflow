@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,19 +16,26 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped  # noqa: TC002
+from airflow.timetables._cron import CronMixin
 
-from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import mapped_column
+SAMPLE_TZ = "UTC"
 
 
-class DagFavorite(Base):
-    """Association table model linking users to their favorite DAGs."""
+def test_valid_cron_expression():
+    cm = CronMixin("* * 1 * *", SAMPLE_TZ)  # every day at midnight
+    assert isinstance(cm.description, str)
+    assert "Every minute" in cm.description or "month" in cm.description
 
-    __tablename__ = "dag_favorite"
 
-    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    dag_id: Mapped[str] = mapped_column(
-        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
-    )
+def test_invalid_cron_expression():
+    cm = CronMixin("invalid cron", SAMPLE_TZ)
+    assert cm.description == ""
+
+
+def test_dom_and_dow_conflict():
+    cm = CronMixin("* * 1 * 1", SAMPLE_TZ)  # 1st of month or Monday
+    desc = cm.description
+
+    assert "(or)" in desc
+    assert "Every minute, on day 1 of the month" in desc
+    assert "Every minute, only on Monday" in desc
