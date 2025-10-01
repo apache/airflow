@@ -40,8 +40,13 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
     create_openapi_http_exception_doc,
     status,
 )
-from airflow.stats import Stats
-from airflow.utils import timezone
+
+try:
+    from airflow.observability.stats import Stats
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 worker_router = AirflowRouter(
     tags=["Worker"],
