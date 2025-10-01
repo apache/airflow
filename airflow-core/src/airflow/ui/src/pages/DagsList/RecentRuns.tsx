@@ -88,7 +88,7 @@ export const RecentRuns = ({
               <Box
                 bg={`${run.state}.solid`}
                 borderRadius="4px"
-                height={`${(run.duration ?? 0 / max) * BAR_HEIGHT}px`}
+                height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
                 minHeight={1}
                 width="4px"
               />
