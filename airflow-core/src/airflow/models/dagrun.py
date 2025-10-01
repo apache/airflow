@@ -22,6 +22,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 import structlog
@@ -88,7 +89,6 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from typing import Literal, TypeAlias
 
     from opentelemetry.sdk.trace import Span
