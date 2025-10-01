@@ -22,16 +22,38 @@ import { MdCompress, MdExpand } from "react-icons/md";
 type Props = {
   readonly collapseLabel: string;
   readonly expandLabel: string;
+  readonly isCollapseDisabled?: boolean;
+  readonly isExpandDisabled?: boolean;
   readonly onCollapse: () => void;
   readonly onExpand: () => void;
 };
 
-export const ExpandCollapseButtons = ({ collapseLabel, expandLabel, onCollapse, onExpand }: Props) => (
-  <ButtonGroup attached mt="1" size="sm" variant="surface">
-    <IconButton aria-label={expandLabel} onClick={onExpand} size="sm" title={expandLabel}>
+export const ExpandCollapseButtons = ({
+  collapseLabel,
+  expandLabel,
+  isCollapseDisabled,
+  isExpandDisabled,
+  onCollapse,
+  onExpand,
+  ...rest
+}: Props) => (
+  <ButtonGroup attached size="sm" variant="surface" {...rest}>
+    <IconButton
+      aria-label={expandLabel}
+      disabled={isExpandDisabled}
+      onClick={onExpand}
+      size="sm"
+      title={expandLabel}
+    >
       <MdExpand />
     </IconButton>
-    <IconButton aria-label={collapseLabel} onClick={onCollapse} size="sm" title={collapseLabel}>
+    <IconButton
+      aria-label={collapseLabel}
+      disabled={isCollapseDisabled}
+      onClick={onCollapse}
+      size="sm"
+      title={collapseLabel}
+    >
       <MdCompress />
     </IconButton>
   </ButtonGroup>
