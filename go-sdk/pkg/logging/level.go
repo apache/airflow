@@ -15,19 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package main
+package logging
 
-import (
-	"fmt"
-	"os"
+import "log/slog"
 
-	"github.com/apache/airflow/go-sdk/celery/commands"
-)
-
-func main() {
-	if os.Getenv("AIRFLOW_BUNDLE_MAGIC_COOKIE") != "" {
-		fmt.Println("(We're not a bundle plugin)")
-		os.Exit(0)
-	}
-	commands.Execute()
-}
+// LevelTrace is for log messages even lower than debug
+const LevelTrace = slog.LevelDebug - (slog.LevelInfo - slog.LevelDebug)

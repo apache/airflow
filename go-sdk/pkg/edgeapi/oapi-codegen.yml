@@ -15,32 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Main Justfile for Airflow Go SDK
-set shell := ["bash", "-uc", "-O", "globstar"]
-
-# Default recipe to show help
-default:
-  @just --list
-
-# Build all components
-build: build-celery build-edge build-examples
-
-# Build the worker binary
-build-celery:
-  go build -o bin/airflow-go-celery ./celery/cmd
-
-build-edge:
-  go build -o bin/airflow-go-edge ./edge/cmd
-
-# Build all example bundles
-build-examples:
-  @just example/bundle/build
-
-# Run unit tests
-test:
-  @echo "Running unit tests..."
-  go run gotest.tools/gotestsum@v1.13.0 -f dots-v2 ./...
-
-# Generate protocol buffers
-protoc:
-  @prek run -a protoc
+# yamllint disable rule:line-length
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+# yamllint enable
+---
+package: edgeapi
+output: client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  exclude-tags: [Health, UI, Monitor]
+  # Include the unreferenced schemas/models, such as `TaskInstance`
+  skip-prune: true
+  overlay:
+    path: overlay.yml
+downgrade-options:
+  anyOf-to-oneOf: true
