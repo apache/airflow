@@ -49,7 +49,6 @@ class OtelDataType(str, Enum):
 
     TRACES = "traces"
     METRICS = "metrics"
-    LOGS = "logs"
 
 
 @dataclass(frozen=True)
@@ -58,7 +57,7 @@ class OtelConfig:
 
     data_type: OtelDataType  # traces | metrics
     endpoint: str  # url
-    protocol: str  # "grpc" or "http/protobuf"
+    protocol: str  # "grpc" | "http/protobuf"
     exporter: str  # OTEL_TRACES_EXPORTER | OTEL_METRICS_EXPORTER
     service_name: str  # default "Airflow"
     headers_kv_str: str
@@ -69,11 +68,7 @@ class OtelConfig:
 
     def __post_init__(self):
         """Validate the environment variables where necessary."""
-        endpoint_type_specific = (
-            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
-            if self.data_type == OtelDataType.TRACES
-            else "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
-        )
+        endpoint_type_specific = f"OTEL_EXPORTER_OTLP_{self.data_type.name.upper()}_ENDPOINT"
 
         if not self.endpoint:
             raise ValueError(
