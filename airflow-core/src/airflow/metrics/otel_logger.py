@@ -387,7 +387,6 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         endpoint = f"{protocol}://{host}:{port}/v1/metrics"
     else:
         otel_config = load_metrics_config()
-        # PeriodicExportingMetricReader will default to an interval of 60000 millis.
         interval_ms = otel_config.interval_ms
         debug = otel_config.exporter == "console"
         service_name = otel_config.service_name
