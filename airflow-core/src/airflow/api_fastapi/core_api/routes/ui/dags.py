@@ -102,15 +102,18 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                # expose the available orderable keys
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date", "last_run_run_after"],
                 DagModel,
                 {
                     "last_run_state": DagRun.state,
-                    "start_date": func.coalesce(DagRun.run_after, DagRun.start_date),
-                    "last_run_start_date": func.coalesce(DagRun.run_after, DagRun.start_date),
-                    "last_run_after": DagRun.run_after,
+                    # keep start_date semantics intact
+                    "start_date": DagRun.start_date,
+                    "last_run_start_date": DagRun.start_date,   # alias, same behavior
+                    # new explicit key that sorts by run_after
+                    "last_run_run_after": DagRun.run_after,
                 },
-            ).dynamic_depends()
+            ).dynamic_depends(default="last_run_run_after")  # default to run_after for the UI list
         ),
     ],
     is_favorite: QueryFavoriteFilter,
