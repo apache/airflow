@@ -55,7 +55,29 @@ class TestBaseHook:
 
         hook = BaseHook(logger_name="")
         hook.get_connection(conn_id="test_conn")
-        mock_supervisor_comms.send.assert_called_once_with(
+        mock_supervisor_comms.send.assert_any_call(
+            msg=GetConnection(conn_id="test_conn"),
+        )
+
+    @pytest.mark.asyncio
+    async def test_aget_connection(self, mock_supervisor_comms):
+        """Test async connection retrieval in task sdk context."""
+        conn = ConnectionResult(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="mysql",
+            schema="airflow",
+            login="login",
+            password="password",
+            port=1234,
+            extra='{"extra_key": "extra_value"}',
+        )
+
+        mock_supervisor_comms.asend.return_value = conn
+
+        hook = BaseHook(logger_name="")
+        await hook.aget_connection(conn_id="test_conn")
+        mock_supervisor_comms.asend.assert_called_once_with(
             msg=GetConnection(conn_id="test_conn"),
         )
 
@@ -66,6 +88,16 @@ class TestBaseHook:
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             hook.get_connection(conn_id=conn_id)
+
+    @pytest.mark.asyncio
+    async def test_aget_connection_not_found(self, sdk_connection_not_found):
+        """Test async connection not found error."""
+        conn_id = "test_conn"
+        hook = BaseHook()
+        sdk_connection_not_found
+
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
+            await hook.aget_connection(conn_id=conn_id)
 
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):
         path = tmp_path / "conn.env"

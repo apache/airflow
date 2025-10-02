@@ -28,7 +28,6 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
@@ -38,6 +37,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -62,15 +62,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.dagbundle import DagBundleModel
-
-        with create_session() as session:
-            bundle_name = "testing"
-            orm_dag_bundle = DagBundleModel(name=bundle_name)
-            session.add(orm_dag_bundle)
-            session.commit()
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        sync_dag_to_db(dag)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE

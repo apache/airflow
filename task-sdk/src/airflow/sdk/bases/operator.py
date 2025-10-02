@@ -213,6 +213,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
+    "email_on_failure": True,
+    "email_on_retry": True,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -315,7 +317,7 @@ else:
         if task_group:
             task_id = task_group.child_id(task_id)
 
-        # Merge DAG and task group level defaults into user-supplied values.
+        # Merge Dag and task group level defaults into user-supplied values.
         dag_default_args, partial_params = get_merged_defaults(
             dag=dag,
             task_group=task_group,
@@ -331,7 +333,7 @@ else:
             **kwargs,
         }
 
-        # Inject DAG-level default args into args provided to this function.
+        # Inject Dag-level default args into args provided to this function.
         # Most of the default args will be retrieved during unmapping; here we
         # only ensure base properties are correctly set for the scheduler.
         partial_kwargs.update(
@@ -613,8 +615,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     r"""
     Abstract base class for all operators.
 
-    Since operators create objects that become nodes in the DAG, BaseOperator
-    contains many recursive methods for DAG crawling behavior. To derive from
+    Since operators create objects that become nodes in the Dag, BaseOperator
+    contains many recursive methods for Dag crawling behavior. To derive from
     this class, you are expected to override the constructor and the 'execute'
     method.
 
@@ -628,7 +630,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     This class is abstract and shouldn't be instantiated. Instantiating a
     class derived from this one results in the creation of a task object,
-    which ultimately becomes a node in DAG objects. Task dependencies should
+    which ultimately becomes a node in Dag objects. Task dependencies should
     be set by using the set_upstream and/or set_downstream methods.
 
     :param task_id: a unique, meaningful id for the task
@@ -654,7 +656,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param start_date: The ``start_date`` for the task, determines
         the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
-        to your DAG's ``schedule_interval``. Daily jobs have their start_date
+        to your Dag's ``schedule_interval``. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
         ``logical_date`` and adds the ``schedule_interval`` to determine
@@ -709,7 +711,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         you know exactly what priority weight each task should have.
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
-        DAGs. Options can be set as string or using the constants defined in
+        Dags. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``.
         Irrespective of the weight rule, resulting priority values are capped with 32-bit.
         |experimental|
@@ -744,7 +746,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param on_skipped_callback: much like the ``on_failure_callback`` except
         that it is executed when skipped occur; this callback will be called only if AirflowSkipException get raised.
         Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
-        decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+        decision in the Dag or a trigger rule which causes execution to skip so that the task execution
         is never scheduled.
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
@@ -769,7 +771,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across logical_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
-        task instances per DAG run.
+        task instances per Dag run.
     :param executor: Which executor to target when running this task. NOT YET SUPPORTED
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
@@ -916,11 +918,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "wait_for_downstream",
         "priority_weight",
         "execution_timeout",
-        "on_execute_callback",
-        "on_failure_callback",
-        "on_success_callback",
-        "on_retry_callback",
-        "on_skipped_callback",
+        "has_on_execute_callback",
+        "has_on_failure_callback",
+        "has_on_success_callback",
+        "has_on_retry_callback",
+        "has_on_skipped_callback",
         "do_xcom_push",
         "multiple_outputs",
         "allow_nested_operators",
@@ -1031,7 +1033,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         allow_nested_operators: bool = True,
         **kwargs: Any,
     ):
-        # Note: Metaclass handles passing in the DAG/TaskGroup from active context manager, if any
+        # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
 
         # Only apply task_group prefix if this operator was not created from a mapped operator
         # Mapped operators already have the prefix applied during their creation
@@ -1106,7 +1108,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         if sla is not None:
             warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                "The SLA feature is removed in Airflow 3.0, replaced with Deadline Alerts in >=3.1",
                 stacklevel=2,
             )
 
@@ -1289,14 +1291,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def dag(self) -> DAG:
-        """Returns the Operator's DAG if set, otherwise raises an error."""
+        """Returns the Operator's Dag if set, otherwise raises an error."""
         if dag := self._dag:
             return dag
-        raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+        raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
 
     @dag.setter
     def dag(self, dag: DAG | None) -> None:
-        """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
+        """Operators can be assigned to one Dag, one time. Repeat assignments to that same Dag are ok."""
         self._dag = dag
 
     def _convert__dag(self, dag: DAG | None) -> DAG | None:
@@ -1307,12 +1309,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return dag
 
         if not isinstance(dag, DAG):
-            raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
+            raise TypeError(f"Expected dag; received {dag.__class__.__name__}")
         if self._dag is not None and self._dag is not dag:
-            raise ValueError(f"The DAG assigned to {self} can not be changed.")
+            raise ValueError(f"The dag assigned to {self} can not be changed.")
 
         if self.__from_mapped:
-            pass  # Don't add to DAG -- the mapped task takes the place.
+            pass  # Don't add to dag -- the mapped task takes the place.
         elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
         return dag
@@ -1370,7 +1372,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self._task_display_name or self.task_id
 
     def has_dag(self):
-        """Return True if the Operator has been assigned to a DAG."""
+        """Return True if the Operator has been assigned to a Dag."""
         return self._dag is not None
 
     def _set_xcomargs_dependencies(self) -> None:
@@ -1456,7 +1458,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
+        """Stringified Dags and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             from airflow.sdk.definitions._internal.contextmanager import DagContext
 
@@ -1479,6 +1481,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_failure_fail_dagrun",
                     "task_group",
                     "_task_type",
+                    "operator_extra_links",
+                    "on_execute_callback",
+                    "on_failure_callback",
+                    "on_success_callback",
+                    "on_retry_callback",
+                    "on_skipped_callback",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
@@ -1498,6 +1506,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_needs_expansion",
                     "start_from_trigger",
                     "max_retry_delay",
+                    "has_on_execute_callback",
+                    "has_on_failure_callback",
+                    "has_on_success_callback",
+                    "has_on_retry_callback",
+                    "has_on_skipped_callback",
                 }
             )
             DagContext.pop()
@@ -1633,6 +1646,31 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if content and isinstance(content, str):
                 self.log.info("Rendering template for %s", f)
                 self.log.info(content)
+
+    @property
+    def has_on_execute_callback(self) -> bool:
+        """Return True if the task has execute callbacks."""
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        """Return True if the task has failure callbacks."""
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        """Return True if the task has success callbacks."""
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        """Return True if the task has retry callbacks."""
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        """Return True if the task has skipped callbacks."""
+        return bool(self.on_skipped_callback)
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

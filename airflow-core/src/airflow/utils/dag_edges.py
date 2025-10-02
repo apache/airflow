@@ -18,19 +18,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias, cast
 
+from airflow.models.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
-def dag_edges(dag: DAG):
+def dag_edges(dag: DAG | SerializedDAG):
     """
     Create the list of edges needed to construct the Graph view.
 
@@ -65,7 +65,7 @@ def dag_edges(dag: DAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator)):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, MappedOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:

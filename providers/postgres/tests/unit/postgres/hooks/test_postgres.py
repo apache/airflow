@@ -30,7 +30,7 @@ import sqlalchemy
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
-from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
@@ -65,7 +65,7 @@ def postgres_hook_setup():
     """Set up mock PostgresHook for testing."""
     table = "test_postgres_hook_table"
     cur = mock.MagicMock(rowcount=0)
-    conn = mock.MagicMock()
+    conn = mock.MagicMock(spec=CompatConnection)
     conn.cursor.return_value = cur
 
     class UnitTestPostgresHook(PostgresHook):
@@ -209,7 +209,7 @@ class TestPostgresHookConn:
     @pytest.mark.usefixtures("mock_connect")
     def test_get_conn_with_invalid_cursor(self):
         self.connection.extra = '{"cursor": "mycursor"}'
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid cursor passed mycursor."):
             self.db_hook.get_conn()
 
     def test_get_conn_from_connection(self, mock_connect):
@@ -812,6 +812,30 @@ class TestPostgresHookPPG2:
         sql = f"INSERT INTO {table}  VALUES (%s)"
         setup.cur.executemany.assert_any_call(sql, rows)
 
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
+    def test_insert_rows_fast_executemany(self, mock_execute_batch, postgres_hook_setup):
+        setup = postgres_hook_setup
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        setup.db_hook.insert_rows(table, rows, fast_executemany=True)
+
+        assert setup.conn.close.call_count == 1
+        assert setup.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        assert setup.conn.commit.call_count == commit_count
+
+        mock_execute_batch.assert_called_once_with(
+            setup.cur,
+            f"INSERT INTO {table}  VALUES (%s)",  # expected SQL
+            [("hello",), ("world",)],  # expected values
+            page_size=1000,
+        )
+
+        # executemany should NOT be called in this mode
+        setup.cur.executemany.assert_not_called()
+
     def test_insert_rows_replace(self, postgres_hook_setup):
         setup = postgres_hook_setup
         table = "table"
@@ -855,10 +879,8 @@ class TestPostgresHookPPG2:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires column names"):
             setup.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
 
     def test_insert_rows_replace_missing_replace_index_arg(self, postgres_hook_setup):
         setup = postgres_hook_setup
@@ -874,10 +896,8 @@ class TestPostgresHookPPG2:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires an unique index"):
             setup.db_hook.insert_rows(table, rows, fields, replace=True)
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     def test_insert_rows_replace_all_index(self, postgres_hook_setup):
         setup = postgres_hook_setup
@@ -1121,10 +1141,8 @@ class TestPostgresHookPPG3:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires column names"):
             self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
 
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
@@ -1139,10 +1157,8 @@ class TestPostgresHookPPG3:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires an unique index"):
             self.db_hook.insert_rows(table, rows, fields, replace=True)
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     def test_insert_rows_replace_all_index(self):
         table = "table"

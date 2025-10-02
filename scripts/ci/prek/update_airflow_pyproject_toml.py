@@ -16,6 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "packaging>=25",
+#   "rich>=13.6.0",
+#   "tomli>=2.0.1",
+# ]
+# ///
 """
 Test for an order of dependencies in setup.py
 """
@@ -66,7 +74,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "fab": parse_version("2.2.0"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
-    "common.messaging": parse_version("1.0.3"),
+    "common.messaging": parse_version("2.0.0"),
 }
 
 

@@ -232,6 +232,20 @@ class TestGetConnections(TestConnectionEndpoint):
         response = unauthorized_test_client.get("/connections", params={})
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_connections"
+    )
+    def test_should_call_get_authorized_connections(self, mock_get_authorized_connections, test_client):
+        self.create_connections()
+        mock_get_authorized_connections.return_value = {TEST_CONN_ID}
+        response = test_client.get("/connections")
+        mock_get_authorized_connections.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 1
+        assert [connection["connection_id"] for connection in body["connections"]] == [TEST_CONN_ID]
+
 
 class TestPostConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
@@ -1128,6 +1142,26 @@ class TestBulkConnections(TestConnectionEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": [TEST_CONN_ID], "errors": []}},
+                id="test_connection_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": [TEST_CONN_ID],
                         }
@@ -1229,6 +1263,34 @@ class TestBulkConnections(TestConnectionEndpoint):
                 },
                 id="test_create_update_delete",
             ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": [TEST_CONN_ID],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "update": {"success": [TEST_CONN_ID], "errors": []},
+                    "delete": {"success": [TEST_CONN_ID], "errors": []},
+                },
+                id="test_connection_create_update_delete_with_update_mask",
+            ),
         ],
     )
     def test_bulk_connections(self, test_client, actions, expected_results, session):
@@ -1244,7 +1306,19 @@ class TestBulkConnections(TestConnectionEndpoint):
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/connections", json={})
+        response = unauthorized_test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test1", "conn_type": "test1"},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403
 
 

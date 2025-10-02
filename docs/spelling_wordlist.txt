@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -224,6 +225,7 @@ bytestring
 cacert
 Cadwyn
 callables
+callsite
 camelCase
 Cancelled
 cancelled
@@ -605,6 +607,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
@@ -1574,6 +1577,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1966,6 +1970,7 @@ utilise
 Utils
 utils
 uuid
+uv
 V1JobList
 validator
 validators

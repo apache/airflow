@@ -21,22 +21,22 @@ from unittest import mock
 
 import pytest
 
-from airflow import DAG
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.logs import check_last_log
 
@@ -50,11 +50,13 @@ TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 TEST_DAG_ID = "test-dag-id"
 TEST_DAG_DISPLAY_NAME = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
+TEST_TASK_DISPLAY_NAME = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
 TEST_DAG_ID_2 = "test-dag-id-2"
 TEST_DAG_DISPLAY_NAME_2 = "test-dag-id-2"
 TEST_TASK_ID_2 = "test-task-id-2"
+TEST_TASK_DISPLAY_NAME_2 = "test-task-id-2"
 
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 logical_date_formatted = logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -133,6 +135,7 @@ class TestGetXComEntry(TestXComEndpoint):
             "run_id": run_id,
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
+            "task_display_name": TEST_TASK_DISPLAY_NAME,
             "map_index": -1,
             "timestamp": current_data["timestamp"],
             "value": json.dumps(TEST_XCOM_VALUE),
@@ -191,6 +194,22 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 200
         assert response.json()["value"] == expected_value
 
+    @pytest.mark.parametrize(
+        "xcom_value, expected_return",
+        [
+            pytest.param(42, 42, id="jsonable"),
+            pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
+            pytest.param([42, AssetAlias("x")], [42, "AssetAlias(name='x', group='asset')"], id="nested"),
+        ],
+    )
+    def test_stringify_false(self, test_client, xcom_value, expected_return):
+        XComModel.set(TEST_XCOM_KEY, xcom_value, dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=run_id)
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True, "stringify": False})
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_return
+
 
 class TestGetXComEntries(TestXComEndpoint):
     @pytest.fixture(autouse=True)
@@ -216,6 +235,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -226,6 +246,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -253,6 +274,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -263,6 +285,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -273,6 +296,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME_2,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -283,6 +307,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME_2,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -311,6 +336,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": idx,
                 }
@@ -325,6 +351,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "run_id": run_id,
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
+                    "task_display_name": TEST_TASK_DISPLAY_NAME,
                     "timestamp": "TIMESTAMP",
                     "map_index": map_index,
                 }
@@ -349,6 +376,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
+                        "task_display_name": TEST_TASK_DISPLAY_NAME,
                         "timestamp": "TIMESTAMP",
                         "map_index": 0,
                     },
@@ -359,6 +387,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "run_id": run_id,
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
+                        "task_display_name": TEST_TASK_DISPLAY_NAME,
                         "timestamp": "TIMESTAMP",
                         "map_index": 1,
                     },
@@ -391,8 +420,7 @@ class TestGetXComEntries(TestXComEndpoint):
         session.flush()
 
         dag = DAG(dag_id=dag_id)
-        DAG.bulk_write_to_db(bundle_name, None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+        sync_dag_to_db(dag)
         dagrun = DagRun(
             dag_id=dag_id,
             run_id=run_id,

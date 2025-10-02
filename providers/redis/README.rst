@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-redis``
 
-Release: ``4.3.0``
+Release: ``4.3.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Redis <https://redis.io/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``redis`` provider. All classes for this provider
 are in ``airflow.providers.redis`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-redis``
 
@@ -77,5 +76,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 ========================================================================================================================  ====================
 
+Optional dependencies
+----------------------
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.1/changelog.html>`_.

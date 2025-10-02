@@ -35,6 +35,110 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DagBag imports in Airflow 3.2+ (#56109)``
+
+Misc
+~~~~
+
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bash_decorator' DAG (#56020)``
+   * ``Enable pt011 rule 2 (#55749)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 3rd ad-hoc wave of providers (#56007)``
+
+1.8.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+* ``feat(hitl): add fail_on_reject to ApprovalOperator (#55255)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hitl): make the user model in HITLDetail consistent with airflow user model (#55463)``
+* ``fix(hitl): Resolve Conflict 409 in API server when user actions at nearly timeout (#55243)``
+* ``fix(hitl): fix HITL timeout error handling (#55760)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename response_at to responded_at (#55535)``
+* ``refactor(hitl): remove AirflowException from HITLTriggerEventError inheritance (#55763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK dependency from SerializedDAG (#55538)``
+   * ``Introduce e2e testing with testcontainers (#54072)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
+1.7.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add options_mapping support to HITLBranchOperator (#55093)``
+* ``feat(hitl): update url generating utility (#55022)``
+* ``feat(hitl): add utility functions for generating the url to required actions page  (#54827)``
+* ``Display a more friendly error when invalid branches are provided to branch operators (#54273)``
+* ``Add owners/actors/respondents to HITLOperators (#54308)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''BranchPythonOperator'' failure when callable returns None (#54991)``
+* ``Fix external_python task failure when ''expect_airflow=False'' (#54809)``
+* ``Fix typos in HITL-related code and comments (#54670)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename HITLDetail.user_id as HITLDetail.responded_user_id and add HITLDetail.responded_user_name (#55019)``
+* ``Revert "Fix rendering of template fields with start from trigger" (#55037)``
+* ``Change StartTriggerArgs imports (#54856)``
+* ``Do not use HITLDetailResponse from core in sdk (#54358)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+* ``Remove MappedOperator inheritance (#53696)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Fix test_external_python tests setup (#55145)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Import documentation with screenshots for HITL (#54618)``
+   * ``Move filesystem sensor tests to standard provider (#54635)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``docs(hitl): fix typo in example_hitl_operator (#54537)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Remove SDK BaseOperator in TaskInstance (#53223)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 1.6.0
 .....
 

@@ -106,7 +106,7 @@ with DAG(
     task_2 = PythonOperator(
         task_id="task_2",
         python_callable=do_nothing,
-        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt")],
+        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt"), Asset(uri="s3://bucket2/dir2/file3.txt")],
         max_retry_delay=42,
         doc="text doc",
         doc_md="should be skipped",

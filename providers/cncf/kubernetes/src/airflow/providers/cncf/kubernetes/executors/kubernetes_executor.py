@@ -66,6 +66,8 @@ from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookExceptio
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
+    KubernetesJob,
+    KubernetesResults,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
@@ -85,10 +87,6 @@ if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        KubernetesJobType,
-        KubernetesResultsType,
-    )
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
@@ -156,8 +154,8 @@ class KubernetesExecutor(BaseExecutor):
     def __init__(self):
         self.kube_config = KubeConfig()
         self._manager = multiprocessing.Manager()
-        self.task_queue: Queue[KubernetesJobType] = self._manager.Queue()
-        self.result_queue: Queue[KubernetesResultsType] = self._manager.Queue()
+        self.task_queue: Queue[KubernetesJob] = self._manager.Queue()
+        self.result_queue: Queue[KubernetesResults] = self._manager.Queue()
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
@@ -279,7 +277,7 @@ class KubernetesExecutor(BaseExecutor):
         else:
             pod_template_file = None
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.task_queue.put((key, command, kube_executor_config, pod_template_file))
+        self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
@@ -330,17 +328,16 @@ class KubernetesExecutor(BaseExecutor):
             while True:
                 results = self.result_queue.get_nowait()
                 try:
-                    key, state, pod_name, namespace, resource_version = results
-                    last_resource_version[namespace] = resource_version
-                    self.log.info("Changing state of %s to %s", results, state)
+                    last_resource_version[results.namespace] = results.resource_version
+                    self.log.info("Changing state of %s to %s", results, results.state)
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(results)
                     except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
                             e,
                             results,
-                            state,
+                            results.state,
                         )
                         self.result_queue.put(results)
                 finally:
@@ -361,7 +358,7 @@ class KubernetesExecutor(BaseExecutor):
                 task = self.task_queue.get_nowait()
 
                 try:
-                    key, command, kube_executor_config, pod_template_file = task
+                    key = task.key
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
@@ -371,31 +368,41 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-                    body = json.loads(e.body)
+                    try:
+                        if e.body:
+                            body = json.loads(e.body)
+                        else:
+                            # If no body content, use reason as the message
+                            body = {"message": e.reason}
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
+                        # Use the body directly as the message instead.
+                        body = {"message": e.body}
+
                     retries = self.task_publish_retries[key]
-                    # In case of exceeded quota errors, requeue the task as per the task_publish_max_retries
+                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    message = body.get("message", "")
                     if (
-                        str(e.status) == "403"
-                        and "exceeded quota" in body["message"]
-                        and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries)
-                    ):
+                        (str(e.status) == "403" and "exceeded quota" in message)
+                        or (str(e.status) == "409" and "object has been modified" in message)
+                    ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
                             self.task_publish_max_retries,
                             key,
                             e.reason,
-                            body["message"],
+                            message,
                         )
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
                     else:
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
-                        key, _, _, _ = task
+                        key = task.key
                         self.fail(key, e)
                         self.task_publish_retries.pop(key, None)
                 except PodMutationHookException as e:
-                    key, _, _, _ = task
+                    key = task.key
                     self.log.error(
                         "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
                         key,
@@ -408,14 +415,55 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def _change_state(
         self,
-        key: TaskInstanceKey,
-        state: TaskInstanceState | str | None,
-        pod_name: str,
-        namespace: str,
+        results: KubernetesResults,
         session: Session = NEW_SESSION,
     ) -> None:
+        """Change state of the task based on KubernetesResults."""
         if TYPE_CHECKING:
             assert self.kube_scheduler
+
+        key = results.key
+        state = results.state
+        pod_name = results.pod_name
+        namespace = results.namespace
+        failure_details = results.failure_details
+
+        if state == TaskInstanceState.FAILED:
+            # Use pre-collected failure details from the watcher to avoid additional API calls
+            if failure_details:
+                pod_status = failure_details.get("pod_status")
+                pod_reason = failure_details.get("pod_reason")
+                pod_message = failure_details.get("pod_message")
+                container_state = failure_details.get("container_state")
+                container_reason = failure_details.get("container_reason")
+                container_message = failure_details.get("container_message")
+                exit_code = failure_details.get("exit_code")
+                container_type = failure_details.get("container_type")
+                container_name = failure_details.get("container_name")
+
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s. Pod phase: %s, reason: %s, message: %s, "
+                    "container_type: %s, container_name: %s, container_state: %s, container_reason: %s, "
+                    "container_message: %s, exit_code: %s",
+                    task_key_str,
+                    namespace,
+                    pod_name,
+                    pod_status,
+                    pod_reason,
+                    pod_message,
+                    container_type,
+                    container_name,
+                    container_state,
+                    container_reason,
+                    container_message,
+                    exit_code,
+                )
+            else:
+                task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                self.log.warning(
+                    "Task %s failed in pod %s/%s (no details available)", task_key_str, namespace, pod_name
+                )
 
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
@@ -696,18 +744,20 @@ class KubernetesExecutor(BaseExecutor):
                 results = self.result_queue.get_nowait()
                 self.log.warning("Executor shutting down, flushing results=%s", results)
                 try:
-                    key, state, pod_name, namespace, resource_version = results
                     self.log.info(
-                        "Changing state of %s to %s : resource_version=%d", results, state, resource_version
+                        "Changing state of %s to %s : resource_version=%s",
+                        results,
+                        results.state,
+                        results.resource_version,
                     )
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(results)
                     except Exception as e:
                         self.log.exception(
                             "Ignoring exception: %s when attempting to change state of %s to %s.",
                             e,
                             results,
-                            state,
+                            results.state,
                         )
                 finally:
                     self.result_queue.task_done()

@@ -26,7 +26,7 @@ from sqlalchemy.orm import make_transient
 
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
-from airflow.utils import timezone
+from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.session import create_session
 from airflow.version import version
 
@@ -197,6 +197,7 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
     render_k8s_pod_yaml.assert_called_once()
 
 
+@pytest.mark.enable_redact
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
 def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
@@ -204,46 +205,37 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     Test that k8s_pod_yaml is rendered correctly, stored in the Database,
     and are correctly fetched using RTIF.get_k8s_pod_yaml
     """
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    with dag_maker("test_get_k8s_pod_yaml") as dag:
+        task = BashOperator(task_id="test", bash_command="echo hi")
+    dr = dag_maker.create_dagrun()
+    dag.fileloc = "/test_get_k8s_pod_yaml.py"
 
-    target = (
-        "airflow.sdk.execution_time.secrets_masker.redact"
-        if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.redact"
-    )
-    with mock.patch(target, autospec=True, side_effect=lambda d, _=None: d) as redact:
-        with dag_maker("test_get_k8s_pod_yaml") as dag:
-            task = BashOperator(task_id="test", bash_command="echo hi")
-        dr = dag_maker.create_dagrun()
-        dag.fileloc = "/test_get_k8s_pod_yaml.py"
+    ti = dr.task_instances[0]
+    ti.task = task
 
-        ti = dr.task_instances[0]
-        ti.task = task
+    render_k8s_pod_yaml.return_value = {"I'm a": "pod", "secret": "password123"}
 
-        render_k8s_pod_yaml.return_value = {"I'm a": "pod"}
+    rtif = RTIF(ti=ti)
 
-        rtif = RTIF(ti=ti)
+    assert ti.dag_id == rtif.dag_id
+    assert ti.task_id == rtif.task_id
+    assert ti.run_id == rtif.run_id
 
-        assert ti.dag_id == rtif.dag_id
-        assert ti.task_id == rtif.task_id
-        assert ti.run_id == rtif.run_id
+    # Expect redacted version
+    expected_pod_yaml = {"I'm a": "pod", "secret": "***"}
 
-        expected_pod_yaml = {"I'm a": "pod"}
+    assert rtif.k8s_pod_yaml == expected_pod_yaml
 
-        assert rtif.k8s_pod_yaml == render_k8s_pod_yaml.return_value
-        # K8s pod spec dict was passed to redact
-        redact.assert_any_call(rtif.k8s_pod_yaml)
+    with create_session() as session:
+        session.add(rtif)
+        session.flush()
 
-        with create_session() as session:
-            session.add(rtif)
-            session.flush()
+        assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti, session=session)
+        make_transient(ti)
+        # "Delete" it from the DB
+        session.rollback()
 
-            assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti, session=session)
-            make_transient(ti)
-            # "Delete" it from the DB
-            session.rollback()
-
-            # Test the else part of get_k8s_pod_yaml
-            # i.e. for the TIs that are not stored in RTIF table
-            # Fetching them will return None
-            assert RTIF.get_k8s_pod_yaml(ti=ti, session=session) is None
+        # Test the else part of get_k8s_pod_yaml
+        # i.e. for the TIs that are not stored in RTIF table
+        # Fetching them will return None
+        assert RTIF.get_k8s_pod_yaml(ti=ti, session=session) is None

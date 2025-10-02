@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-snowflake/|version|/providers/snowflake/tests/system/snowflake>
+    Example Dags <https://github.com/apache/airflow/tree/providers-snowflake/|version|/providers/snowflake/tests/system/snowflake>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-snowflake/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,9 +78,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 6.5.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 6.5.4
 
 Provider package
 ----------------
@@ -91,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.snowflake``
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-snowflake``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -105,7 +103,7 @@ PIP package                                 Version required
 ==========================================  ========================================================================
 ``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
-``apache-airflow-providers-common-sql``     ``>=1.21.0``
+``apache-airflow-providers-common-sql``     ``>=1.27.5``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
@@ -143,5 +141,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 6.5.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 6.5.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.5.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.5.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl.sha512>`__)

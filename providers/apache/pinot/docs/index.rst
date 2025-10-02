@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: References
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/providers/apache/pinot/tests/system/apache/pinot>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/providers/apache/pinot/tests/system/apache/pinot>
     Python API <_api/airflow/providers/apache/pinot/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pinot/>
     Installing from sources <installing-providers-from-sources>
@@ -72,8 +72,6 @@ apache-airflow-providers-apache-pinot package
 
 Release: 4.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
@@ -83,7 +81,7 @@ All classes for this package are included in the ``airflow.providers.apache.pino
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-apache-pinot``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

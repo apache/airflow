@@ -55,7 +55,7 @@ log = logging.getLogger(__name__)
 
 
 @router.get(
-    "/{variable_key}",
+    "/{variable_key:path}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
@@ -63,6 +63,9 @@ log = logging.getLogger(__name__)
 )
 def get_variable(variable_key: str) -> VariableResponse:
     """Get an Airflow Variable."""
+    if not variable_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+
     try:
         variable_value = Variable.get(variable_key)
     except KeyError:
@@ -78,7 +81,7 @@ def get_variable(variable_key: str) -> VariableResponse:
 
 
 @router.put(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -87,12 +90,15 @@ def get_variable(variable_key: str) -> VariableResponse:
 )
 def put_variable(variable_key: str, body: VariablePostBody):
     """Set an Airflow Variable."""
+    if not variable_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+
     Variable.set(key=variable_key, value=body.value, description=body.description)
     return {"message": "Variable successfully set"}
 
 
 @router.delete(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -101,4 +107,7 @@ def put_variable(variable_key: str, body: VariablePostBody):
 )
 def delete_variable(variable_key: str):
     """Delete an Airflow Variable."""
+    if not variable_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+
     Variable.delete(key=variable_key)

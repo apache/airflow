@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -48,8 +47,6 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
@@ -193,8 +190,7 @@ class LocalExecutor(BaseExecutor):
         # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
-        need_more_workers = len(self.workers) < num_outstanding
-        if need_more_workers and (self.parallelism == 0 or len(self.workers) < self.parallelism):
+        if num_outstanding and (self.parallelism == 0 or len(self.workers) < self.parallelism):
             # This only creates one worker, which is fine as we call this directly after putting a message on
             # activity_queue in execute_async
             self._spawn_worker()
@@ -254,9 +250,10 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    @provide_session
-    def queue_workload(self, workload: workloads.All, session: Session = NEW_SESSION):
-        self.activity_queue.put(workload)
+    def _process_workloads(self, workloads):
+        for workload in workloads:
+            self.activity_queue.put(workload)
+            del self.queued_tasks[workload.ti.key]
         with self._unread_messages:
-            self._unread_messages.value += 1
+            self._unread_messages.value += len(workloads)
         self._check_workers()

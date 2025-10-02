@@ -53,6 +53,7 @@ def test_airflow_sdk_no_unexpected_exports():
         "log",
         "exceptions",
         "timezone",
+        "secrets_masker",
         "module_loading",
     }
     unexpected = actual - public - ignore

@@ -19,8 +19,6 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -33,15 +31,18 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
-    BasePool,
     PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_pool
-from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
+from airflow.api_fastapi.core_api.security import (
+    ReadablePoolsFilterDep,
+    requires_access_pool,
+    requires_access_pool_bulk,
+)
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService, update_orm_from_pydantic
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
@@ -103,12 +104,13 @@ def get_pools(
         Depends(SortParam(["id", "pool"], Pool, to_replace={"name": "pool"}).dynamic_depends()),
     ],
     pool_name_pattern: QueryPoolNamePatternSearch,
+    readable_pools_filter: ReadablePoolsFilterDep,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
-        filters=[pool_name_pattern],
+        filters=[pool_name_pattern, readable_pools_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -145,35 +147,8 @@ def patch_pool(
             status.HTTP_400_BAD_REQUEST,
             "Invalid body, pool name from request body doesn't match uri parameter",
         )
-    # Only slots and include_deferred can be modified in 'default_pool'
-    if pool_name == Pool.DEFAULT_POOL_NAME:
-        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
-            pass
-        else:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                "Only slots and included_deferred can be modified on Default Pool",
-            )
-    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
-    if not pool:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
-        )
 
-    fields_to_update = patch_body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
-    else:
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
-        try:
-            BasePool.model_validate(data)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    for key, value in data.items():
-        setattr(pool, key, value)
-
+    pool = update_orm_from_pydantic(pool_name, patch_body, update_mask, session)
     return pool
 
 
@@ -197,7 +172,7 @@ def post_pool(
 
 @pools_router.patch(
     "",
-    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
+    dependencies=[Depends(requires_access_pool_bulk()), Depends(action_logging())],
 )
 def bulk_pools(
     request: BulkBody[PoolBody],

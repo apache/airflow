@@ -27,10 +27,10 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import logging
 import traceback
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
+import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
@@ -48,12 +48,15 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
+from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag, get_run_data_interval
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
+from airflow.sdk import Asset, AssetAlias
+from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef, BaseAsset
+from airflow.serialization.enums import Encoding
+from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
@@ -66,14 +69,18 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Self
 
-log = logging.getLogger(__name__)
+AssetT = TypeVar("AssetT", bound=BaseAsset)
+
+log = structlog.get_logger(__name__)
 
 
 def _create_orm_dags(
-    bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
+    bundle_name: str,
+    dags: Iterable[LazyDeserializedDAG],
+    *,
+    session: Session,
 ) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
@@ -129,7 +136,7 @@ class _RunInfo(NamedTuple):
     num_active_runs: dict[str, int]
 
     @classmethod
-    def calculate(cls, dags: dict[str, MaybeSerializedDAG], *, session: Session) -> Self:
+    def calculate(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> Self:
         """
         Query the the run counts from the db.
 
@@ -175,7 +182,7 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: MaybeSerializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: LazyDeserializedDAG, bundle_name, session: Session, bundle_version: str | None
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -216,7 +223,7 @@ def _serialize_dag_capturing_errors(
         ]
 
 
-def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
+def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
     """Sync DAG specific permissions."""
     dag_id = dag.dag_id
 
@@ -334,8 +341,9 @@ def _update_import_errors(
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
-    dags: Collection[MaybeSerializedDAG],
+    dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
+    parse_duration: float | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -371,12 +379,17 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
+                SerializedDAG.bulk_write_to_db(
+                    bundle_name, bundle_version, dags, parse_duration, session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
                         _serialize_dag_capturing_errors(
-                            dag=dag, bundle_name=bundle_name, bundle_version=bundle_version, session=session
+                            dag=dag,
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            session=session,
                         )
                     )
             except OperationalError:
@@ -384,7 +397,7 @@ def update_dag_parsing_results_in_db(
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
-            import_errors.update(dict(serialize_errors))
+            import_errors.update(serialize_errors)
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
         # TODO: This won't clear errors for files that exist that no longer contain DAGs. Do we need to pass
@@ -416,7 +429,7 @@ def update_dag_parsing_results_in_db(
 class DagModelOperation(NamedTuple):
     """Collect DAG objects and perform database operations for them."""
 
-    dags: dict[str, MaybeSerializedDAG]
+    dags: dict[str, LazyDeserializedDAG]
     bundle_name: str
     bundle_version: str | None
 
@@ -448,17 +461,14 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
+        parse_duration: float | None,
         *,
         session: Session,
     ) -> None:
         from airflow.configuration import conf
 
         # we exclude backfill from active run counts since their concurrency is separate
-        run_info = _RunInfo.calculate(
-            dags=self.dags,
-            session=session,
-        )
-
+        run_info = _RunInfo.calculate(dags=self.dags, session=session)
         for dag_id, dm in sorted(orm_dags.items()):
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
@@ -467,6 +477,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
+            dm.last_parse_duration = parse_duration
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
@@ -516,7 +527,7 @@ class DagModelOperation(NamedTuple):
             if last_automated_run is None:
                 last_automated_data_interval = None
             else:
-                last_automated_data_interval = dag.get_run_data_interval(last_automated_run)
+                last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
             if run_info.num_active_runs.get(dag.dag_id, 0) >= dm.max_active_runs:
                 dm.next_dagrun_create_after = None
             else:
@@ -590,19 +601,41 @@ class DagModelOperation(NamedTuple):
             dm.asset_expression = asset_expression
 
 
-def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
+def _get_task_ports(data: dict, inlets: bool, outlets: bool) -> Iterable[str]:
+    if inlets:
+        yield from data.get("inlets") or ()
+    if outlets:
+        yield from data.get("outlets") or ()
+
+
+def _get_dag_assets(
+    dag: LazyDeserializedDAG,
+    of: type[AssetT],
+    *,
+    inlets: bool = True,
+    outlets: bool = True,
+) -> Iterable[tuple[str, AssetT]]:
+    for task in dag.data["dag"]["tasks"]:
+        task = task[Encoding.VAR]
+        ports = _get_task_ports(task["partial_kwargs"] if task.get("_is_mapped") else task, inlets, outlets)
+        for port in ports:
+            if isinstance(obj := BaseSerialization.deserialize(port), of):
+                yield task["task_id"], obj
+
+
+def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Asset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for _, asset in dag.get_task_assets(of_type=Asset):
+        for _, asset in _get_dag_assets(dag, of=Asset):
             yield asset
 
 
-def _find_all_asset_aliases(dags: Iterable[MaybeSerializedDAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[AssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
-        for _, alias in dag.get_task_assets(of_type=AssetAlias):
+        for _, alias in _get_dag_assets(dag, of=AssetAlias):
             yield alias
 
 
@@ -633,7 +666,7 @@ class AssetModelOperation(NamedTuple):
     asset_aliases: dict[str, AssetAlias]
 
     @classmethod
-    def collect(cls, dags: dict[str, MaybeSerializedDAG]) -> Self:
+    def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
         coll = cls(
             schedule_asset_references={
                 dag_id: [asset for _, asset in dag.timetable.asset_condition.iter_assets()]
@@ -656,10 +689,12 @@ class AssetModelOperation(NamedTuple):
                 if isinstance(ref, AssetUriRef)
             },
             inlet_references={
-                dag_id: list(dag.get_task_assets(inlets=True, outlets=False)) for dag_id, dag in dags.items()
+                dag_id: list(_get_dag_assets(dag, Asset, inlets=True, outlets=False))
+                for dag_id, dag in dags.items()
             },
             outlet_references={
-                dag_id: list(dag.get_task_assets(inlets=False, outlets=True)) for dag_id, dag in dags.items()
+                dag_id: list(_get_dag_assets(dag, Asset, inlets=False, outlets=True))
+                for dag_id, dag in dags.items()
             },
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
@@ -890,7 +925,10 @@ class AssetModelOperation(NamedTuple):
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
-                [_encode_trigger(watcher.trigger) for watcher in asset.watchers]
+                [
+                    {**_encode_trigger(watcher.trigger), "watcher_name": watcher.name}
+                    for watcher in asset.watchers
+                ]
                 if name_uri in active_assets
                 else []
             )
@@ -951,6 +989,7 @@ class AssetModelOperation(NamedTuple):
                 ]
             ]
             session.add_all(new_trigger_models)
+            session.flush()  # Flush to get the IDs assigned
             orm_triggers.update(
                 (BaseEventTrigger.hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
@@ -959,18 +998,22 @@ class AssetModelOperation(NamedTuple):
             # Add new references
             for name_uri, trigger_hashes in refs_to_add.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers.extend(
-                    [orm_triggers.get(trigger_hash) for trigger_hash in trigger_hashes]
-                )
+
+                for trigger_hash in trigger_hashes:
+                    trigger = triggers.get(trigger_hash)
+                    orm_trigger = orm_triggers.get(trigger_hash)
+                    if orm_trigger and trigger:
+                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
 
         if refs_to_remove:
             # Remove old references
             for name_uri, trigger_hashes in refs_to_remove.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers = [
-                    trigger
-                    for trigger in asset_model.triggers
-                    if BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
+                asset_model.watchers = [
+                    watcher
+                    for watcher in asset_model.watchers
+                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -979,4 +1022,5 @@ class AssetModelOperation(NamedTuple):
         )
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
-                asset_model.triggers = []
+                # Delete all watchers for this orphaned asset
+                asset_model.watchers = []
