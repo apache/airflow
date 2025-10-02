@@ -53,12 +53,12 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
       {iconOnly ? (
         <StateBadge
           as={Button}
-          colorPalette="failed"
+          colorPalette="danger"
           height={7}
           onClick={onOpen}
           title={translate("plugins.importError", { count: importErrorsCount })}
         >
-          <LuPlug size="0.5rem" />
+          <LuPlug size={8} />
           {importErrorsCount}
         </StateBadge>
       ) : (
@@ -70,7 +70,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           onClick={onOpen}
           variant="outline"
         >
-          <StateBadge colorPalette="failed">
+          <StateBadge colorPalette="red">
             <LuPlug />
             {importErrorsCount}
           </StateBadge>

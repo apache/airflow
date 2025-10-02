@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, useToken } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,7 +35,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
-import { getComputedCSSVariableValue } from "src/theme";
+import { getChartColors } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 ChartJS.register(
@@ -68,27 +68,16 @@ export const DurationChart = ({
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
-  const [queuedColorToken] = useToken("colors", ["queued.solid"]);
-
-  // Get states and create color tokens for them
-  const states = entries?.map((entry) => entry.state).filter(Boolean) ?? [];
-  const stateColorTokens = useToken(
-    "colors",
-    states.map((state) => `${state}.solid`),
-  );
+  
+  // Get chart colors using the new helper function
+  const chartColors = getChartColors();
 
   if (!entries) {
     return undefined;
   }
 
-  // Create a mapping of state to color for easy lookup
-  const stateColorMap: Record<string, string> = {};
-
-  states.forEach((state, index) => {
-    if (state) {
-      stateColorMap[state] = getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
-    }
-  });
+  // Get unique states from entries
+  const states = [...new Set(entries.map((entry) => entry.state).filter(Boolean))];
 
   const runAnnotation = {
     borderColor: "grey",
@@ -125,7 +114,7 @@ export const DurationChart = ({
         data={{
           datasets: [
             {
-              backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
+              backgroundColor: chartColors.queued,
               data: entries.map((entry: RunResponse) => {
                 switch (kind) {
                   case "Dag Run": {
@@ -153,7 +142,7 @@ export const DurationChart = ({
             {
               backgroundColor: entries.map(
                 (entry: RunResponse) =>
-                  (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
+                  (entry.state ? chartColors[entry.state] : undefined) ?? chartColors.none,
               ),
               data: entries.map((entry: RunResponse) =>
                 entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),

@@ -70,7 +70,7 @@ const addLinks = (line: string) => {
 
     elements.push(
       <Link
-        color="fg.info"
+        color="fg.state.info"
         href={match[0]}
         key={match[0]}
         rel="noopener noreferrer"
@@ -160,7 +160,7 @@ export const renderStructuredLog = ({
       const errorLines = error.frames.map((frame) => (
         <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
           {translate("components:logs.file")}{" "}
-          <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
+          <chakra.span color="fg.state.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
           {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
         </chakra.p>
       ));
@@ -168,7 +168,7 @@ export const renderStructuredLog = ({
       return (
         <chakra.details key={error.exc_type} ms="20em" open={true}>
           <chakra.summary data-testid={`summary-${error.exc_type}`}>
-            <chakra.span color="fg.info" cursor="pointer">
+            <chakra.span color="fg.state.info" cursor="pointer">
               {error.exc_type}: {error.exc_value}
             </chakra.span>
           </chakra.summary>

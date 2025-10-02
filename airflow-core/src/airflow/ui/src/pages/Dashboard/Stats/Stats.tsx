@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
@@ -51,11 +51,11 @@ export const Stats = () => {
         </Heading>
       </Flex>
 
-      <HStack gap={4}>
+      <Flex flexWrap="wrap" gap={4}>
         <NeedsReviewButton />
 
         <StatsCard
-          colorScheme="failed"
+          colorPalette="danger"
           count={failedDagsCount}
           isLoading={isStatsLoading}
           isRTL={isRTL}
@@ -70,7 +70,7 @@ export const Stats = () => {
 
         {queuedDagsCount > 0 ? (
           <StatsCard
-            colorScheme="queued"
+            colorPalette="stone"
             count={queuedDagsCount}
             isLoading={isStatsLoading}
             isRTL={isRTL}
@@ -81,7 +81,7 @@ export const Stats = () => {
         ) : undefined}
 
         <StatsCard
-          colorScheme="running"
+          colorPalette="cyan"
           count={runningDagsCount}
           isLoading={isStatsLoading}
           isRTL={isRTL}
@@ -91,7 +91,7 @@ export const Stats = () => {
         />
 
         <StatsCard
-          colorScheme="active"
+          colorPalette="blue"
           count={activeDagsCount}
           icon={<FiZap />}
           isLoading={isStatsLoading}
@@ -99,7 +99,7 @@ export const Stats = () => {
           label={translate("stats.activeDags")}
           link="dags?paused=false"
         />
-      </HStack>
+      </Flex>
     </Box>
   );
 };

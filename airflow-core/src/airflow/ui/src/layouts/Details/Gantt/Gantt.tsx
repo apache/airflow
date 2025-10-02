@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useToken } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -49,7 +49,7 @@ import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
-import { getComputedCSSVariableValue } from "src/theme";
+import { getChartColors } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
@@ -91,17 +91,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [
-    lightGridColor,
-    darkGridColor,
-    lightSelectedColor,
-    darkSelectedColor,
-    lightHoverColor,
-    darkHoverColor,
-  ] = useToken("colors", ["gray.200", "gray.800", "blue.200", "blue.800", "blue.100", "blue.900"]);
-  const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
-  const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
-  const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
+  // Get chart colors using the new helper function
+  const chartColors = getChartColors();
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
@@ -204,14 +195,10 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
-  const stateColorTokens = useToken(
-    "colors",
-    states.map((state) => `${state}.solid`),
-  );
   const stateColorMap = Object.fromEntries(
-    states.map((state, index) => [
+    states.map((state) => [
       state,
-      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
+      chartColors[state] ?? chartColors.none,
     ]),
   );
 
@@ -247,13 +234,13 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     () =>
       createChartOptions({
         data,
-        gridColor,
+        gridColor: colorMode === "light" ? "{colors.gray.200}" : "{colors.gray.800}",
         handleBarClick,
         handleBarHover,
         hoveredId: hoveredTaskId,
-        hoveredItemColor,
+        hoveredItemColor: colorMode === "light" ? "{colors.blue.100}" : "{colors.blue.900}",
         selectedId,
-        selectedItemColor,
+        selectedItemColor: colorMode === "light" ? "{colors.blue.200}" : "{colors.blue.800}",
         selectedRun,
         selectedTimezone,
         translate,
@@ -261,10 +248,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     [
       data,
       hoveredTaskId,
-      hoveredItemColor,
+      colorMode,
       selectedId,
-      selectedItemColor,
-      gridColor,
       selectedRun,
       selectedTimezone,
       translate,

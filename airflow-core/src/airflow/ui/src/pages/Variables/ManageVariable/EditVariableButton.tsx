@@ -53,6 +53,10 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
   return (
     <>
       <ActionButton
+        _hover={{ 
+          bg: "brand.emphasized",
+          color: "brand.contrast"
+        }}
         actionName={translate("variables.edit")}
         disabled={disabled}
         icon={<FiEdit />}

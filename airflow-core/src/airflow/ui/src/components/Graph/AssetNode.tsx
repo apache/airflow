@@ -55,7 +55,7 @@ export const AssetNode = ({
   return (
     <NodeWrapper>
       <Flex
-        bg="bg"
+        bg="graph.node.background"
         borderColor={isSelected ? "border.inverted" : "border"}
         borderRadius={5}
         borderWidth={isSelected ? 4 : 2}

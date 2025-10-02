@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useToken } from "@chakra-ui/react";
+import { useColorMode } from "src/context/colorMode";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
@@ -28,7 +29,6 @@ import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
-import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
@@ -46,7 +46,7 @@ const nodeColor = (
   }
 
   if (taskInstance?.state !== undefined && !isOpen) {
-    return `var(--chakra-colors-${taskInstance.state}-solid)`;
+    return `var(--chakra-colors-taskState-${taskInstance.state}-solid)`;
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {
@@ -64,14 +64,11 @@ export const Graph = () => {
 
   const selectedVersion = useSelectedVersion();
 
-  // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
-  const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "bg",
-    "fg",
-    "bg.muted",
-    "bg.emphasized",
-    "bg.muted",
-    "bg.emphasized",
+  // Minimap node colors using simplified semantic tokens
+  const [nodeOddColor, nodeEvenColor, nodeSelectedColor] = useToken("colors", [
+    "graph.minimap.nodeOdd",
+    "graph.minimap.nodeEven", 
+    "graph.minimap.nodeSelected",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
@@ -79,7 +76,6 @@ export const Graph = () => {
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
-  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
@@ -153,7 +149,6 @@ export const Graph = () => {
 
   return (
     <ReactFlow
-      colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
       edges={edges}
       edgeTypes={edgeTypes}
@@ -173,12 +168,12 @@ export const Graph = () => {
         nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
           nodeColor(
             node,
-            colorMode === "dark" ? evenDark : evenLight,
-            colorMode === "dark" ? oddDark : oddLight,
+            nodeEvenColor,
+            nodeOddColor,
           )
         }
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+          node.data.isSelected && nodeSelectedColor !== undefined ? nodeSelectedColor : ""
         }
         nodeStrokeWidth={15}
         pannable

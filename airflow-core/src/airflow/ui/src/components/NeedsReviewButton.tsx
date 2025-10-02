@@ -58,7 +58,7 @@ export const NeedsReviewButton = ({
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
       <StatsCard
-        colorScheme="deferred"
+        colorPalette="deferred"
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}

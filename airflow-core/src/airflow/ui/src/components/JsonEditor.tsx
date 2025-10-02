@@ -38,7 +38,7 @@ export const JsonEditor = forwardRef<ReactCodeMirrorRef, ReactCodeMirrorProps>((
       height="200px"
       ref={ref}
       style={{
-        border: "1px solid var(--chakra-colors-border-emphasized)",
+        border: "1px solid var(--chakra-colors-border-default)",
         borderRadius: "8px",
         outline: "none",
         padding: "2px",

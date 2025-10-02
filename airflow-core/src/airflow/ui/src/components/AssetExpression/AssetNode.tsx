@@ -34,7 +34,7 @@ export const AssetNode = ({
   <Box
     bg="bg.muted"
     border="1px solid"
-    borderColor={Boolean(event?.lastUpdate) ? "success.solid" : "border.emphasized"}
+    borderColor={Boolean(event?.lastUpdate) ? "success.solid" : undefined}
     borderRadius="md"
     borderWidth={Boolean(event?.lastUpdate) ? 3 : 1}
     display="inline-block"

@@ -20,13 +20,12 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import String, inspect, select
-from sqlalchemy.orm import Mapped, joinedload
+from sqlalchemy import Column, String, inspect, select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -116,16 +115,14 @@ class DagPriorityParsingRequest(Base):
     # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
     # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
-    id: Mapped[str] = mapped_column(
-        String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash
-    )
+    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
 
-    bundle_name: Mapped[str] = mapped_column(StringID(), nullable=False)
+    bundle_name = Column(StringID(), nullable=False)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    relative_fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
+    relative_fileloc = Column(String(2000), nullable=False)
 
     def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()

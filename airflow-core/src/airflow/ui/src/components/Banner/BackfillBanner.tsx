@@ -38,9 +38,9 @@ type Props = {
 };
 
 const buttonProps = {
-  _hover: { bg: "info.contrast", color: "info.muted" },
-  borderColor: "info.contrast",
-  color: "info.contrast",
+  _hover: { bg: "brand.solid", color: "brand.contrast" },
+  borderColor: "brand.solid",
+  color: "brand.solid",
   rounded: "full",
   size: "xs",
   variant: "outline",
@@ -90,7 +90,7 @@ const BackfillBanner = ({ dagId }: Props) => {
   }
 
   return (
-    <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
+    <Box bg="info.subtle" borderRadius="full" color="fg" my="1" px="2" py="1">
       <HStack alignItems="center" ml={3}>
         <RiArrowGoBackFill />
         <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>

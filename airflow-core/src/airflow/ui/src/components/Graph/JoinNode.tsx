@@ -23,12 +23,12 @@ import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>) => (
-  <NodeWrapper>
-    <Box
-      bg="border.inverted"
-      borderRadius={`${data.width}px`}
-      height={`${data.height}px`}
-      width={`${data.width}px`}
-    />
-  </NodeWrapper>
-);
+    <NodeWrapper>
+      <Box
+        bg="graph.joinNode.background"
+        borderRadius={`${data.width}px`}
+        height={`${data.height}px`}
+        width={`${data.width}px`}
+      />
+    </NodeWrapper>
+  );

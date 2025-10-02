@@ -392,6 +392,206 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
+        // COMPONENT-SPECIFIC SEMANTIC TOKENS
+        // Navigation tokens
+        navigation: {
+          sidebar: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.900}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            item: {
+              active: {
+                bg: { value: { _light: "{colors.brand.100}", _dark: "{colors.brand.800}" } },
+                text: { value: { _light: "{colors.brand.800}", _dark: "{colors.brand.200}" } }
+              },
+              inactive: {
+                text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } }
+              }
+            }
+          },
+          breadcrumb: {
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } },
+            active: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
+          }
+        },
+        // Data table tokens
+        dataTable: {
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } }
+          },
+          row: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            hover: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.800}" } }
+          },
+          cell: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            muted: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          }
+        },
+        // Graph visualization tokens
+        graph: {
+          node: {
+            success: { value: "{colors.green.500}" },
+            failed: { value: "{colors.red.500}" },
+            running: { value: "{colors.cyan.500}" },
+            queued: { value: "{colors.yellow.500}" },
+            skipped: { value: "{colors.gray.400}" },
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } }
+          },
+          edge: {
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            active: { value: "{colors.brand.600}" }
+          },
+          background: {
+            value: { _light: "{colors.gray.50}", _dark: "{colors.gray.900}" }
+          }
+        },
+        // Form tokens
+        form: {
+          input: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" },
+            error: { value: "{colors.red.500}" },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            placeholder: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          label: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            required: { value: "{colors.red.500}" }
+          },
+          help: {
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } }
+          }
+        },
+        // Alert tokens
+        alert: {
+          success: {
+            bg: { value: { _light: "{colors.green.50}", _dark: "{colors.green.900/20}" } },
+            border: { value: { _light: "{colors.green.200}", _dark: "{colors.green.800/40}" } },
+            text: { value: { _light: "{colors.green.700}", _dark: "{colors.green.300}" } },
+            icon: { value: "{colors.green.500}" }
+          },
+          error: {
+            bg: { value: { _light: "{colors.red.50}", _dark: "{colors.red.900/20}" } },
+            border: { value: { _light: "{colors.red.200}", _dark: "{colors.red.800/40}" } },
+            text: { value: { _light: "{colors.red.700}", _dark: "{colors.red.300}" } },
+            icon: { value: "{colors.red.500}" }
+          },
+          warning: {
+            bg: { value: { _light: "{colors.yellow.50}", _dark: "{colors.yellow.900/20}" } },
+            border: { value: { _light: "{colors.yellow.200}", _dark: "{colors.yellow.800/40}" } },
+            text: { value: { _light: "{colors.yellow.700}", _dark: "{colors.yellow.300}" } },
+            icon: { value: "{colors.yellow.500}" }
+          },
+          info: {
+            bg: { value: { _light: "{colors.blue.50}", _dark: "{colors.blue.900/20}" } },
+            border: { value: { _light: "{colors.blue.200}", _dark: "{colors.blue.800/40}" } },
+            text: { value: { _light: "{colors.blue.700}", _dark: "{colors.blue.300}" } },
+            icon: { value: "{colors.blue.500}" }
+          }
+        },
+        // Search bar tokens
+        searchBar: {
+          container: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" }
+          },
+          input: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            placeholder: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          button: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          kbd: {
+            bg: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } },
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
+          }
+        },
+        // Code editor tokens
+        codeEditor: {
+          container: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" }
+          },
+          lineNumbers: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            text: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          selection: {
+            bg: { value: { _light: "{colors.brand.100}", _dark: "{colors.brand.800/30}" } }
+          },
+          syntax: {
+            keyword: { value: { _light: "{colors.purple.600}", _dark: "{colors.purple.400}" } },
+            string: { value: { _light: "{colors.green.600}", _dark: "{colors.green.400}" } },
+            number: { value: { _light: "{colors.blue.600}", _dark: "{colors.blue.400}" } },
+            comment: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          }
+        },
+        // Action button tokens
+        actionButton: {
+          primary: {
+            bg: { value: "{colors.brand.600}" },
+            text: { value: "white" },
+            hover: { value: "{colors.brand.700}" },
+            focus: { value: "{colors.brand.600}" }
+          },
+          secondary: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          ghost: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          danger: {
+            bg: { value: "{colors.red.600}" },
+            text: { value: "white" },
+            hover: { value: "{colors.red.700}" }
+          }
+        },
+        // Card tokens
+        card: {
+          default: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 1px 3px rgba(0, 0, 0, 0.1)", _dark: "0 1px 3px rgba(0, 0, 0, 0.3)" } }
+          },
+          elevated: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 4px 6px rgba(0, 0, 0, 0.1)", _dark: "0 4px 6px rgba(0, 0, 0, 0.3)" } }
+          },
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.700}" } },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
+          }
+        },
+        // Tooltip tokens
+        tooltip: {
+          container: {
+            bg: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            text: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            border: { value: "transparent" },
+            shadow: { value: "0 4px 6px rgba(0, 0, 0, 0.1)" }
+          },
+          arrow: {
+            bg: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
+          }
+        },
       },
     },
   },
@@ -424,3 +624,20 @@ export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperti
     // MiniMap
     "--xy-minimap-background-color": "var(--chakra-colors-bg)",
   }) as CSSProperties;
+
+// Helper function specifically for chart components that need CSS values
+export const getChartColors = (): Record<string, string> => ({
+    success: getComputedCSSVariableValue('var(--chakra-colors-success-solid)'),
+    failed: getComputedCSSVariableValue('var(--chakra-colors-failed-solid)'),
+    running: getComputedCSSVariableValue('var(--chakra-colors-running-solid)'),
+    queued: getComputedCSSVariableValue('var(--chakra-colors-queued-solid)'),
+    scheduled: getComputedCSSVariableValue('var(--chakra-colors-scheduled-solid)'),
+    skipped: getComputedCSSVariableValue('var(--chakra-colors-skipped-solid)'),
+    up_for_retry: getComputedCSSVariableValue('var(--chakra-colors-up_for_retry-solid)'),
+    up_for_reschedule: getComputedCSSVariableValue('var(--chakra-colors-up_for_reschedule-solid)'),
+    upstream_failed: getComputedCSSVariableValue('var(--chakra-colors-upstream_failed-solid)'),
+    restarting: getComputedCSSVariableValue('var(--chakra-colors-restarting-solid)'),
+    deferred: getComputedCSSVariableValue('var(--chakra-colors-deferred-solid)'),
+    removed: getComputedCSSVariableValue('var(--chakra-colors-removed-solid)'),
+    none: getComputedCSSVariableValue('var(--chakra-colors-none-solid)')
+  });

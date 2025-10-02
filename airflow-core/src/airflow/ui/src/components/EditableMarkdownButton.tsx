@@ -70,7 +70,7 @@ const EditableMarkdownButton = ({
         />
         {Boolean(mdContent?.trim()) && (
           <Box
-            bg="brand.500"
+            bg="brand.solid"
             borderRadius="full"
             height={2.5}
             position="absolute"
@@ -89,7 +89,7 @@ const EditableMarkdownButton = ({
         unmountOnExit={true}
       >
         <Dialog.Content backdrop>
-          <Dialog.Header bg="brand.muted">
+          <Dialog.Header bg="bg.panel">
             <Heading size="xl">{header}</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>

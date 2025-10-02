@@ -37,7 +37,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
@@ -89,7 +89,7 @@ const taskInstanceColumns = ({
           // If we don't show the taskId column, make the dag run a link to the task instance
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
+              <Link asChild color="fg.state.info" fontWeight="bold">
                 <RouterLink to={getTaskInstanceLink(original)}>
                   <Time datetime={original.run_after} />
                 </RouterLink>
@@ -106,7 +106,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
+            <Link asChild color="fg.state.info" fontWeight="bold">
               <RouterLink to={getTaskInstanceLink(original)}>
                 <TruncatedText text={original.task_display_name} />
               </RouterLink>
@@ -137,7 +137,7 @@ const taskInstanceColumns = ({
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
-        <Link asChild color="fg.info" fontWeight="bold">
+        <Link asChild color="fg.state.info" fontWeight="bold">
           <RouterLink to={getTaskInstanceLink(original)}>
             <Time datetime={original.start_date} />
           </RouterLink>
@@ -183,8 +183,8 @@ const taskInstanceColumns = ({
     header: translate("task.operator"),
   },
   {
-    cell: ({ row: { original } }) =>
-      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
     header: translate("duration"),
   },
   {

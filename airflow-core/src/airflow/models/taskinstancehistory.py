@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 import dill
 from sqlalchemy import (
+    Column,
     DateTime,
     Float,
     ForeignKeyConstraint,
@@ -34,7 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
@@ -45,7 +46,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
     UtcDateTime,
-    mapped_column,
 )
 from airflow.utils.state import State, TaskInstanceState
 
@@ -64,52 +64,48 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    task_instance_id: Mapped[str] = mapped_column(
+    task_instance_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
         primary_key=True,
     )
-    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
-    try_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    duration: Mapped[float] = mapped_column(Float)
-    state: Mapped[str] = mapped_column(String(20))
-    max_tries: Mapped[int] = mapped_column(Integer, server_default=text("-1"))
-    hostname: Mapped[str] = mapped_column(String(1000))
-    unixname: Mapped[str] = mapped_column(String(1000))
-    pool: Mapped[str] = mapped_column(String(256), nullable=False)
-    pool_slots: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    queue: Mapped[str] = mapped_column(String(256))
-    priority_weight: Mapped[int] = mapped_column(Integer)
-    operator: Mapped[str] = mapped_column(String(1000))
-    custom_operator_name: Mapped[str] = mapped_column(String(1000))
-    queued_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    scheduled_dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    queued_by_job_id: Mapped[int] = mapped_column(Integer)
-    pid: Mapped[int] = mapped_column(Integer)
-    executor: Mapped[str] = mapped_column(String(1000))
-    executor_config: Mapped[dict] = mapped_column(ExecutorConfigType(pickler=dill))
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
-    )
-    rendered_map_index: Mapped[str] = mapped_column(String(250))
-    context_carrier: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    try_number = Column(Integer, nullable=False)
+    start_date = Column(UtcDateTime)
+    end_date = Column(UtcDateTime)
+    duration = Column(Float)
+    state = Column(String(20))
+    max_tries = Column(Integer, server_default=text("-1"))
+    hostname = Column(String(1000))
+    unixname = Column(String(1000))
+    pool = Column(String(256), nullable=False)
+    pool_slots = Column(Integer, default=1, nullable=False)
+    queue = Column(String(256))
+    priority_weight = Column(Integer)
+    operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
+    queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
+    queued_by_job_id = Column(Integer)
+    pid = Column(Integer)
+    executor = Column(String(1000))
+    executor_config = Column(ExecutorConfigType(pickler=dill))
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index = Column(String(250))
+    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
-    external_executor_id: Mapped[str] = mapped_column(StringID())
-    trigger_id: Mapped[int] = mapped_column(Integer)
-    trigger_timeout: Mapped[DateTime] = mapped_column(DateTime)
-    next_method: Mapped[str] = mapped_column(String(1000))
-    next_kwargs: Mapped[dict] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
+    external_executor_id = Column(StringID())
+    trigger_id = Column(Integer)
+    trigger_timeout = Column(DateTime)
+    next_method = Column(String(1000))
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    task_display_name: Mapped[str] = mapped_column(String(2000), nullable=True)
-    dag_version_id: Mapped[str] = mapped_column(UUIDType(binary=False))
+    task_display_name = Column(String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False))
 
     dag_version = relationship(
         "DagVersion",

@@ -30,7 +30,7 @@ export const AssetConditionNode = ({ data }: NodeProps<NodeType<CustomNodeProps,
   return (
     <NodeWrapper>
       <Box
-        bg="bg"
+        bg="graph.node.background"
         borderRadius={4}
         borderWidth={1}
         height={`${data.height}px`}

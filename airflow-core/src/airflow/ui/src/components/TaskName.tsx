@@ -48,7 +48,24 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: TaskNameProps) => {
+  
+  // Parse the label to separate the main name from the "+ X tasks" part
+  const parseLabel = (label: string) => {
+    const tasksMatch = /^(.+?)( \+ \d+ tasks)$/.exec(label);
+
+    if (tasksMatch) {
+      return {
+        mainName: tasksMatch[1],
+        tasksText: tasksMatch[2]
+      };
+    }
+
+    return { mainName: label, tasksText: "" };
+  };
+
   if (isGroup) {
+    const { mainName, tasksText } = parseLabel(label);
+    
     return (
       <Text
         fontSize="md"
@@ -59,7 +76,10 @@ export const TaskName = ({
         whiteSpace="nowrap"
         {...rest}
       >
-        {label}
+        {mainName}
+        {tasksText ? <Text as="span" color="taskName.textMuted" fontWeight="normal">
+            {tasksText}
+          </Text> : null}
         {isMapped ? " [ ]" : undefined}
       </Text>
     );

@@ -27,7 +27,7 @@ import type { EdgeData } from "./reactflowUtils";
 type Props = EdgeType<EdgeData>;
 
 const CustomEdge = ({ data }: Props) => {
-  const [strokeColor] = useToken("colors", ["border.inverted"]);
+  const [strokeColor] = useToken("colors", ["graph.edge.stroke"]);
 
   if (data === undefined) {
     return undefined;
@@ -51,7 +51,7 @@ const CustomEdge = ({ data }: Props) => {
             width={width}
           >
             <foreignObject height={(height ?? 0) + 2} width={width}>
-              <Text>{text}</Text>
+              <Text color="graph.edge.text">{text}</Text>
             </foreignObject>
           </Group>
         );

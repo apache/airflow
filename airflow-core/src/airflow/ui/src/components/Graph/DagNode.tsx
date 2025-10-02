@@ -35,7 +35,7 @@ export const DagNode = ({
   return (
     <NodeWrapper>
       <Flex
-        bg={isOpen ? "bg.muted" : "bg"}
+        bg={isOpen ? "graph.node.backgroundMuted" : "graph.node.background"}
         borderColor={isSelected ? "border.inverted" : "border"}
         borderRadius={5}
         borderWidth={isSelected ? 4 : 2}

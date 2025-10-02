@@ -115,7 +115,7 @@ export const HourlyCalendarView = ({
               return (
                 <Box key={day.day} marginRight={index % 7 === 6 ? "8px" : "0"} width="14px">
                   <Text
-                    color={isWeekend ? "red.400" : "gray.600"}
+                    color={isWeekend ? "red.400" : "calendar.text"}
                     fontSize={dateFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
@@ -124,7 +124,7 @@ export const HourlyCalendarView = ({
                     {dayjs(day.day).format("D")}
                   </Text>
                   <Text
-                    color={isWeekend ? "red.400" : "gray.500"}
+                    color={isWeekend ? "red.400" : "calendar.textMuted"}
                     fontSize={dayNameFontSize}
                     fontWeight={isWeekend ? "bold" : "normal"}
                     lineHeight="1"
@@ -145,7 +145,7 @@ export const HourlyCalendarView = ({
           {Array.from({ length: 24 }, (_, hour) => (
             <Box
               alignItems="center"
-              color="gray.500"
+              color="calendar.textSecondary"
               display="flex"
               fontSize="xs"
               height="14px"

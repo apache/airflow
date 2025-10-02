@@ -25,7 +25,7 @@ import type { CustomNodeProps } from "./reactflowUtils";
 export const DefaultNode = ({ data: { height, label, width } }: NodeProps<NodeType<CustomNodeProps>>) => (
   <NodeWrapper>
     <Flex
-      bg="bg"
+      bg="graph.node.background"
       borderRadius={5}
       borderWidth={2}
       cursor="auto"

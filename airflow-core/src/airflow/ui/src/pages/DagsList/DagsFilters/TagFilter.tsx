@@ -53,7 +53,7 @@ export const TagFilter = ({
           chakraStyles={{
             clearIndicator: (provided) => ({
               ...provided,
-              color: "gray.fg",
+              color: "fg.muted",
             }),
             container: (provided) => ({
               ...provided,
