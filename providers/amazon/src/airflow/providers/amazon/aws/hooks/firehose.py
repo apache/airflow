@@ -44,7 +44,7 @@ class FirehoseHook(AwsBaseHook):
         kwargs["client_type"] = "firehose"
         super().__init__(*args, **kwargs)
 
-    def put_records(self, records: Iterable):
+    def put_records(self, records: Iterable) -> dict:
         """
         Write batch records to Kinesis Firehose.
 
