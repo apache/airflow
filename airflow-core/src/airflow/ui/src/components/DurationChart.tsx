@@ -35,7 +35,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
-import { getComputedCSSVariableValue } from "src/theme";
+import { resolveTokenValue } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 ChartJS.register(
@@ -86,7 +86,7 @@ export const DurationChart = ({
 
   states.forEach((state, index) => {
     if (state) {
-      stateColorMap[state] = getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
+      stateColorMap[state] = resolveTokenValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
     }
   });
 
@@ -125,7 +125,7 @@ export const DurationChart = ({
         data={{
           datasets: [
             {
-              backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
+              backgroundColor: resolveTokenValue(queuedColorToken ?? "oklch(0.5 0 0)"),
               data: entries.map((entry: RunResponse) => {
                 switch (kind) {
                   case "Dag Run": {
