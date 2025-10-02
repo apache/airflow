@@ -168,7 +168,7 @@ class TestFTPFileTransmitOperator:
             task_1.execute(None)
 
     def test_unequal_local_remote_file_paths(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="1 paths in local_filepath != 2 paths in remote_filepath"):
             FTPFileTransmitOperator(
                 task_id="test_ftp_unequal_paths",
                 ftp_conn_id=DEFAULT_CONN_ID,
@@ -176,7 +176,7 @@ class TestFTPFileTransmitOperator:
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
             ).execute(None)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="2 paths in local_filepath != 1 paths in remote_filepath"):
             FTPFileTransmitOperator(
                 task_id="test_ftp_unequal_paths",
                 ftp_conn_id=DEFAULT_CONN_ID,

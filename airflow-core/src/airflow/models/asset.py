@@ -35,12 +35,12 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.settings import json
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -140,7 +140,7 @@ asset_alias_asset_event_association_table = Table(
 class AssetWatcherModel(Base):
     """A table to store asset watchers."""
 
-    name: Mapped[str] = mapped_column(
+    name = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -152,8 +152,8 @@ class AssetWatcherModel(Base):
         ),
         nullable=False,
     )
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    trigger_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    trigger_id = Column(Integer, primary_key=True, nullable=False)
 
     asset = relationship("AssetModel", back_populates="watchers")
     trigger = relationship("Trigger", back_populates="asset_watchers")
@@ -187,8 +187,8 @@ class AssetAliasModel(Base):
     :param uri: a string that uniquely identifies the asset alias
     """
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -200,7 +200,7 @@ class AssetAliasModel(Base):
         ),
         nullable=False,
     )
-    group: Mapped[str] = mapped_column(
+    group = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -263,8 +263,8 @@ class AssetModel(Base):
     :param extra: JSON field for arbitrary extra info
     """
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -276,7 +276,7 @@ class AssetModel(Base):
         ),
         nullable=False,
     )
-    uri: Mapped[str] = mapped_column(
+    uri = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -288,7 +288,7 @@ class AssetModel(Base):
         ),
         nullable=False,
     )
-    group: Mapped[str] = mapped_column(
+    group = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -301,12 +301,10 @@ class AssetModel(Base):
         default=str,
         nullable=False,
     )
-    extra: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     active = relationship("AssetActive", uselist=False, viewonly=True, back_populates="asset")
 
@@ -376,7 +374,7 @@ class AssetActive(Base):
     *name and URI are each unique* within active assets.
     """
 
-    name: Mapped[str] = mapped_column(
+    name = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -388,7 +386,7 @@ class AssetActive(Base):
         ),
         nullable=False,
     )
-    uri: Mapped[str] = mapped_column(
+    uri = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -424,7 +422,7 @@ class AssetActive(Base):
 class DagScheduleAssetNameReference(Base):
     """Reference from a DAG to an asset name reference of which it is a consumer."""
 
-    name: Mapped[str] = mapped_column(
+    name = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -437,8 +435,8 @@ class DagScheduleAssetNameReference(Base):
         primary_key=True,
         nullable=False,
     )
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     dag = relationship("DagModel", back_populates="schedule_asset_name_references")
 
@@ -470,7 +468,7 @@ class DagScheduleAssetNameReference(Base):
 class DagScheduleAssetUriReference(Base):
     """Reference from a DAG to an asset URI reference of which it is a consumer."""
 
-    uri: Mapped[str] = mapped_column(
+    uri = Column(
         String(length=1500).with_variant(
             String(
                 length=1500,
@@ -483,8 +481,8 @@ class DagScheduleAssetUriReference(Base):
         primary_key=True,
         nullable=False,
     )
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     dag = relationship("DagModel", back_populates="schedule_asset_uri_references")
 
@@ -516,12 +514,10 @@ class DagScheduleAssetUriReference(Base):
 class DagScheduleAssetAliasReference(Base):
     """References from a DAG to an asset alias of which it is a consumer."""
 
-    alias_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    alias_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     asset_alias = relationship("AssetAliasModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_alias_references")
@@ -560,12 +556,10 @@ class DagScheduleAssetAliasReference(Base):
 class DagScheduleAssetReference(Base):
     """References from a DAG to an asset of which it is a consumer."""
 
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
@@ -613,13 +607,11 @@ class DagScheduleAssetReference(Base):
 class TaskOutletAssetReference(Base):
     """References from a task to an asset that it updates / produces."""
 
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     asset = relationship("AssetModel", back_populates="producing_tasks")
 
@@ -664,13 +656,11 @@ class TaskOutletAssetReference(Base):
 class TaskInletAssetReference(Base):
     """References from a task to an asset that it references as an inlet."""
 
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     asset = relationship("AssetModel", back_populates="consuming_tasks")
 
@@ -710,9 +700,9 @@ class TaskInletAssetReference(Base):
 class AssetDagRunQueue(Base):
     """Model for storing asset events that need processing."""
 
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    target_dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    asset_id = Column(Integer, primary_key=True, nullable=False)
+    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     asset = relationship("AssetModel", viewonly=True)
     dag_model = relationship("DagModel", viewonly=True)
 
@@ -775,14 +765,14 @@ class AssetEvent(Base):
     if the foreign key object is.
     """
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    extra: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
-    source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
-    timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    asset_id = Column(Integer, nullable=False)
+    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    source_task_id = Column(StringID(), nullable=True)
+    source_dag_id = Column(StringID(), nullable=True)
+    source_run_id = Column(StringID(), nullable=True)
+    source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "asset_event"
     __table_args__ = (

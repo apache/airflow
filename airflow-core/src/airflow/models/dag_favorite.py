@@ -17,11 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped  # noqa: TC002
+from sqlalchemy import Column, ForeignKey
 
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import mapped_column
 
 
 class DagFavorite(Base):
@@ -29,7 +27,5 @@ class DagFavorite(Base):
 
     __tablename__ = "dag_favorite"
 
-    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    dag_id: Mapped[str] = mapped_column(
-        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
-    )
+    user_id = Column(StringID(), primary_key=True)
+    dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True)

@@ -18,38 +18,28 @@
 package commands
 
 import (
-	"context"
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/apache/airflow/go-sdk/pkg/config"
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "airflow-go-celery",
-	Short: "Airflow worker for running Go workloads sent via Celery.",
-	Long: `Airflow worker for running Go workloads sent via Celery.
+// Root represents the base command when called without any subcommands
+var Root = &cobra.Command{
+	Use:   "airflow-go-edge",
+	Short: "Airflow worker for running Go workloads sent via Edge Worker API.",
+	Long: `Airflow worker for running Go workloads sent via Edge Worker API.
 
 All options (other than ` + "`--config`" + `) can be specified in the config file using
 the same name as the CLI argument but without the ` + "`--`" + ` prefix.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return config.Configure(cmd)
 	},
-}
-
-// Execute is the main entrypoint, and runs the Celery broker app and listens for Celery Tasks
-func Execute() {
-	err := rootCmd.ExecuteContext(context.Background())
-	if err != nil {
-		os.Exit(1)
-	}
+	SilenceUsage: true,
 }
 
 func init() {
-	config.InitColor(rootCmd)
-	rootCmd.PersistentFlags().
+	Root.PersistentFlags().
 		String("config", "", "config file (default is $HOME/airflow/go-sdk.yaml)")
-	rootCmd.AddCommand(runCmd)
+	Root.AddCommand(runCmd)
+	config.InitColor(Root)
 }

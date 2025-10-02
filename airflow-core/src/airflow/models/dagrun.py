@@ -29,6 +29,7 @@ import structlog
 from natsort import natsorted
 from sqlalchemy import (
     JSON,
+    Column,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -51,7 +52,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
@@ -79,7 +80,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -147,61 +148,57 @@ class DagRun(Base, LoggingMixin):
 
     __tablename__ = "dag_run"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    queued_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)
-    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    creating_job_id: Mapped[int] = mapped_column(Integer)
-    run_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    triggered_by: Mapped[DagRunTriggeredByType] = mapped_column(
+    id = Column(Integer, primary_key=True)
+    dag_id = Column(StringID(), nullable=False)
+    queued_at = Column(UtcDateTime)
+    logical_date = Column(UtcDateTime, nullable=True)
+    start_date = Column(UtcDateTime)
+    end_date = Column(UtcDateTime)
+    _state = Column("state", String(50), default=DagRunState.QUEUED)
+    run_id = Column(StringID(), nullable=False)
+    creating_job_id = Column(Integer)
+    run_type = Column(String(50), nullable=False)
+    triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
-    triggering_user_name: Mapped[str | None] = mapped_column(
+    triggering_user_name = Column(
         String(512),
         nullable=True,
     )  # The user that triggered the DagRun, if applicable
-    conf: Mapped[dict[str, Any]] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    conf = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
     # These two must be either both NULL or both datetime.
-    data_interval_start: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    data_interval_end: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    data_interval_start = Column(UtcDateTime)
+    data_interval_end = Column(UtcDateTime)
     # Earliest time when this DagRun can start running.
-    run_after: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
+    run_after = Column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    last_scheduling_decision = Column(UtcDateTime)
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
-    log_template_id: Mapped[int] = mapped_column(
+    log_template_id = Column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
-    )
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
-    clear_number: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
-    backfill_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("backfill.id"), nullable=True)
+    clear_number = Column(Integer, default=0, nullable=False, server_default="0")
+    backfill_id = Column(Integer, ForeignKey("backfill.id"), nullable=True)
     """
     The backfill this DagRun is currently associated with.
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
-    bundle_version: Mapped[str] = mapped_column(StringID())
+    bundle_version = Column(StringID())
 
-    scheduled_by_job_id: Mapped[int] = mapped_column(Integer)
+    scheduled_by_job_id = Column(Integer)
     # Span context carrier, used for context propagation.
-    context_carrier: Mapped[dict[str, Any]] = mapped_column(MutableDict.as_mutable(ExtendedJSON))
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
-    created_dag_version_id: Mapped[str | None] = mapped_column(
+    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
+    created_dag_version_id = Column(
         UUIDType(binary=False),
         ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
         nullable=True,
@@ -2113,13 +2110,11 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    dag_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    content: Mapped[str] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
-    )
+    user_id = Column(String(128), nullable=True)
+    dag_run_id = Column(Integer, primary_key=True, nullable=False)
+    content = Column(String(1000).with_variant(Text(1000), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     dag_run = relationship("DagRun", back_populates="dag_run_note")
 

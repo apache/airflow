@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
+    Column,
     ForeignKeyConstraint,
     Integer,
     PrimaryKeyConstraint,
@@ -33,7 +34,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
@@ -41,7 +42,6 @@ from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -69,14 +69,12 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     __tablename__ = "rendered_task_instance_fields"
 
-    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default=text("-1"))
-    rendered_fields: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    k8s_pod_yaml: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
+    dag_id = Column(StringID(), primary_key=True)
+    task_id = Column(StringID(), primary_key=True)
+    run_id = Column(StringID(), primary_key=True)
+    map_index = Column(Integer, primary_key=True, server_default=text("-1"))
+    rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint(
