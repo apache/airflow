@@ -782,9 +782,7 @@ def post_clear_task_instances(
                 prevent_running_task=body.prevent_running_task,
             )
         except AirflowClearRunningTaskException as e:
-            print(str(e))
-            if (str(e) == "Task is running, stopping attempt to clear."):
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

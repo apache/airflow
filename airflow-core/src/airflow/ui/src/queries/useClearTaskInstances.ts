@@ -105,6 +105,6 @@ export const useClearTaskInstances = ({
     onSuccess,
     // This function uses the mutation function of React
     // For showing the error toast immediately, set retry to 0
-    // retry: 0
+    retry: 0
   });
 };

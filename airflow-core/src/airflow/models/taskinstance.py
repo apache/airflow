@@ -226,7 +226,6 @@ def clear_task_instances(
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
                 raise AirflowClearRunningTaskException("Task is running, stopping attempt to clear.")
-                # raise ValueError("Task is running, stopping attempt to clear.")
                 # Prevents the task from re-running and clearing when prevent_running_task is True.
 
             else:
