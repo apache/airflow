@@ -31,7 +31,8 @@
         "success": {
           "description": "{{count}} task instances deleted successfully. Keys: {{keys}}",
           "title": "Delete Task Instances Request Successful"
-        }
+        },
+        "warning": "This will remove all metadata related to the Task Instances, including task instance history and audit record."
       }
     }
   },
