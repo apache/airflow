@@ -19,6 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -34,7 +35,6 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
-import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -151,6 +151,14 @@ export const Graph = () => {
     },
   }));
 
+  const reactFlowStyle: CSSProperties = {
+    "--xy-background-color": "var(--chakra-colors-graph-bg)",
+    "--xy-background-pattern-color": "var(--chakra-colors-graph-pattern)",
+    "--xy-controls-button-background-color": "var(--chakra-colors-graph-controls-bg)",
+    "--xy-controls-button-background-color-hover": "var(--chakra-colors-graph-controls-hover)",
+    "--xy-minimap-background-color": "var(--chakra-colors-graph-minimap-bg)",
+  } as CSSProperties;
+
   return (
     <ReactFlow
       colorMode={colorMode}
@@ -165,7 +173,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
-      style={getReactFlowThemeStyle(colorMode)}
+      style={reactFlowStyle}
     >
       <Background />
       <Controls showInteractive={false} />

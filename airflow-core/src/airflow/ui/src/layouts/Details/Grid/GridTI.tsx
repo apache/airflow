@@ -139,7 +139,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
           <Badge
             alignItems="center"
             borderRadius={4}
-            colorPalette={instance.state ?? "none"}
+            colorPalette={instance.state ? instance.state : "none"}
             display="flex"
             height="14px"
             justifyContent="center"

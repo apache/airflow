@@ -165,7 +165,7 @@ export const FilterBar = ({
         </Menu.Root>
       )}
       {filters.length > 0 && (
-        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
+        <Button borderRadius="full" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />
           {translate("common:reset")}
         </Button>
