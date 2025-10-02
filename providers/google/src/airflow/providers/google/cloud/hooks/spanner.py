@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from google.cloud.spanner_v1.instance import Instance
     from google.cloud.spanner_v1.transaction import Transaction
     from google.longrunning.operations_grpc_pb2 import Operation
+    from airflow.models.connection import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 class SpannerConnectionParams(NamedTuple):
@@ -427,3 +429,46 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
             rc = transaction.execute_update(sql)
             counts[sql] = rc
         return counts
+
+    def _get_openlineage_authority_part(self, connection):
+        """
+        Build Spanner-specific authority part for OpenLineage.
+        Returns {project}/{instance}.
+        """
+        extras = connection.extra_dejson
+        project_id = extras.get("project_id")
+        instance_id = extras.get("instance_id")
+
+        if not project_id or not instance_id:
+            return None
+
+        return f"{project_id}/{instance_id}"
+
+    def get_openlineage_database_dialect(self, connection: Connection) -> str:
+        """Return database dialect for OpenLineage."""
+        return "spanner"
+
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Spanner specific information for OpenLineage."""
+        extras = connection.extra_dejson
+        database_id = extras.get("database_id")
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=self._get_openlineage_authority_part(connection),
+            database=database_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "spanner_type",
+            ],
+        )
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """
+        Spanner may or may not expose 'public' schema depending on dialect, but SQLAlchemy doesn't return
+        it at all, so this method is following the same approach.
+        """
+        return None
