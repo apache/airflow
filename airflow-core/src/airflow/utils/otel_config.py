@@ -75,7 +75,7 @@ class OtelConfig:
                 f"Missing required environment variable: 'OTEL_EXPORTER_OTLP_ENDPOINT' or {endpoint_type_specific}"
             )
 
-        if self.protocol not in ("grpc", "http/protobuf"):
+        if "grpc" not in self.protocol and "http/protobuf" not in self.protocol:
             raise ValueError(f"Invalid value for OTEL_EXPORTER_OTLP_PROTOCOL: {self.protocol}")
 
         # If the protocol is http, then the endpoint url should end with '/v1/<traces|metrics>'.
