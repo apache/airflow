@@ -229,6 +229,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
+            self.log.exception(e)
             if self.run_id:
                 try:
                     await hook.cancel_pipeline_run(
