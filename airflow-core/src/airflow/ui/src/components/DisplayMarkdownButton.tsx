@@ -18,12 +18,13 @@
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
-import { ResizableBox } from "react-resizable";
-import "react-resizable/css/styles.css";
 
 import { Button, Dialog } from "src/components/ui";
+import { ResizableWrapper } from "src/components/ui/ResizableWrapper";
 
 import ReactMarkdown from "./ReactMarkdown";
+
+const STORAGE_KEY = "airflow-markdown-dialog-size";
 
 const DisplayMarkdownButton = ({
   header,
@@ -59,31 +60,7 @@ const DisplayMarkdownButton = ({
             width: "auto",
           }}
         >
-          <ResizableBox
-            height={600}
-            maxConstraints={[1200, 800]}
-            minConstraints={[512, 600]}
-            resizeHandles={["se"]}
-            style={{
-              backgroundColor: "inherit",
-              borderRadius: "inherit",
-              overflow: "hidden",
-              position: "relative",
-            }}
-            width={512}
-          >
-            <style>
-              {`
-                .react-resizable-handle-se {
-                  width: 20px !important;
-                  height: 20px !important;
-                  bottom: 0 !important;
-                  right: 0 !important;
-                  background: linear-gradient(-45deg, transparent 6px, #ccc 6px, #ccc 8px, transparent 8px, transparent 12px, #ccc 12px, #ccc 14px, transparent 14px) !important;
-                  cursor: se-resize !important;
-                }
-              `}
-            </style>
+          <ResizableWrapper storageKey={STORAGE_KEY}>
             <Dialog.Header bg="brand.muted" flexShrink={0}>
               <Heading size="xl">{header}</Heading>
               <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
@@ -91,7 +68,7 @@ const DisplayMarkdownButton = ({
             <Dialog.Body alignItems="flex-start" as={VStack} flex="1" gap="0" overflow="auto">
               <ReactMarkdown>{mdContent}</ReactMarkdown>
             </Dialog.Body>
-          </ResizableBox>
+          </ResizableWrapper>
         </Dialog.Content>
       </Dialog.Root>
     </Box>
