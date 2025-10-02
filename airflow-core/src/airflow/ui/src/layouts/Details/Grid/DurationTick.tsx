@@ -19,16 +19,34 @@
 import { Text, type TextProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
 type Props = {
   readonly duration: number;
+  readonly fullInstance?: TaskInstanceResponse;
+  /**
+   * The lightweight or full task instance for this tick.
+   * If both are available, pass fullInstance; otherwise pass instance.
+   */
+  readonly instance?: LightGridTaskInstanceSummary;
 } & TextProps;
 
-export const DurationTick = ({ duration, ...rest }: Props) => {
+export const DurationTick = ({ duration, fullInstance, instance, ...rest }: Props) => {
   const { t: translate } = useTranslation();
 
-  return (
+  // Prefer the full instance when available
+  const taskInstance = fullInstance ?? instance;
+
+  const tickLabel = (
     <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
       {translate("seconds", { count: Math.floor(duration) })}
     </Text>
+  );
+
+  return taskInstance ? (
+    <TaskInstanceTooltip taskInstance={taskInstance}>{tickLabel}</TaskInstanceTooltip>
+  ) : (
+    tickLabel
   );
 };
