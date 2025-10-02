@@ -790,24 +790,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         current_app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
         current_app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
-        from packaging.version import Version
-        from werkzeug import __version__ as werkzeug_version
-
-        parsed_werkzeug_version = Version(werkzeug_version)
-        if parsed_werkzeug_version < Version("3.0.0"):
-            current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
-            current_app.config.setdefault(
-                "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
-                "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
-                "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
-            )
-        else:
+        try:
+            _ = generate_password_hash("test", method="scrypt")
             current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             current_app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
                 "8350189ffc4bcc71286edf1b8ad94a442c00f890224bf2b32153d0750c89ee9"
                 "401e62f9dcee5399065e4e5",
+            )
+        except (ValueError, TypeError):
+            current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
+            current_app.config.setdefault(
+                "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
+                "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
+                "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
 
         # LDAP Config
