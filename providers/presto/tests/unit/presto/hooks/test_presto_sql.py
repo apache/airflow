@@ -88,7 +88,7 @@ def mock_cursor(mock_get_conn: Union[MagicMock, mock.AsyncMock]):
 
 
 @pytest.mark.parametrize(
-    "custom_extra, expected_catalog, expected_protocol, expected_source, conn_schema_override","expected_query_schema",
+    "custom_extra, expected_catalog, expected_protocol, expected_source, conn_schema_override, expected_query_schema",
     [
         pytest.param(
             {"catalog": "reporting_db", "protocol": "https"},
