@@ -432,7 +432,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         return counts
 
     def _get_openlineage_authority_part(self, connection):
-        """ Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
+        """Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
         extras = connection.extra_dejson
         project_id = extras.get("project_id")
         instance_id = extras.get("instance_id")
