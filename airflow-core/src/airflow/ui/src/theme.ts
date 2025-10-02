@@ -21,7 +21,6 @@
 
 /* eslint-disable max-lines */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
-import type { CSSProperties } from "react";
 
 const generateSemanticTokens = (color: string, darkContrast: string = "white") => ({
   solid: { value: `{colors.${color}.600}` },
@@ -32,6 +31,13 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   emphasized: { value: { _light: `{colors.${color}.300}`, _dark: `{colors.${color}.700}` } },
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
+
+// Utility function to resolve CSS variables to their computed values
+// See: https://github.com/chakra-ui/panda/discussions/2200
+export const resolveTokenValue = (variable: string): string =>
+  getComputedStyle(document.documentElement)
+    .getPropertyValue(variable.slice(4, variable.length - 1))
+    .trim();
 
 export const customConfig = defineConfig({
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
@@ -392,35 +398,232 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
+        
+        // COMPONENT-SPECIFIC SEMANTIC TOKENS
+        
+        // components/DataTable/DataTable.tsx
+        "data-table": {
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } }
+          },
+          row: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            hover: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.800}" } }
+          },
+          cell: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            muted: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          }
+        },
+        
+        // components/JsonEditor.tsx
+        "json-editor": {
+          container: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" }
+          },
+          lineNumbers: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            text: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          selection: {
+            bg: { value: { _light: "{colors.brand.100}", _dark: "{colors.brand.800/30}" } }
+          },
+          syntax: {
+            keyword: { value: { _light: "{colors.purple.600}", _dark: "{colors.purple.400}" } },
+            string: { value: { _light: "{colors.green.600}", _dark: "{colors.green.400}" } },
+            number: { value: { _light: "{colors.blue.600}", _dark: "{colors.blue.400}" } },
+            comment: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          }
+        },
+        
+        // components/SearchBar.tsx
+        "search-bar": {
+          container: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" }
+          },
+          input: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            placeholder: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          button: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          kbd: {
+            bg: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } },
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
+          }
+        },
+        
+        // components/ui/ActionButton.tsx
+        "action-button": {
+          primary: {
+            bg: { value: "{colors.brand.600}" },
+            text: { value: "white" },
+            hover: { value: "{colors.brand.700}" },
+            focus: { value: "{colors.brand.600}" }
+          },
+          secondary: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          ghost: {
+            bg: { value: "transparent" },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          danger: {
+            bg: { value: "{colors.red.600}" },
+            text: { value: "white" },
+            hover: { value: "{colors.red.700}" }
+          }
+        },
+        
+        // components/ui/Alert.tsx
+        alert: {
+          success: {
+            bg: { value: { _light: "{colors.green.50}", _dark: "{colors.green.900/20}" } },
+            border: { value: { _light: "{colors.green.200}", _dark: "{colors.green.800/40}" } },
+            text: { value: { _light: "{colors.green.700}", _dark: "{colors.green.300}" } },
+            icon: { value: "{colors.green.500}" }
+          },
+          error: {
+            bg: { value: { _light: "{colors.red.50}", _dark: "{colors.red.900/20}" } },
+            border: { value: { _light: "{colors.red.200}", _dark: "{colors.red.800/40}" } },
+            text: { value: { _light: "{colors.red.700}", _dark: "{colors.red.300}" } },
+            icon: { value: "{colors.red.500}" }
+          },
+          warning: {
+            bg: { value: { _light: "{colors.yellow.50}", _dark: "{colors.yellow.900/20}" } },
+            border: { value: { _light: "{colors.yellow.200}", _dark: "{colors.yellow.800/40}" } },
+            text: { value: { _light: "{colors.yellow.700}", _dark: "{colors.yellow.300}" } },
+            icon: { value: "{colors.yellow.500}" }
+          },
+          info: {
+            bg: { value: { _light: "{colors.blue.50}", _dark: "{colors.blue.900/20}" } },
+            border: { value: { _light: "{colors.blue.200}", _dark: "{colors.blue.800/40}" } },
+            text: { value: { _light: "{colors.blue.700}", _dark: "{colors.blue.300}" } },
+            icon: { value: "{colors.blue.500}" }
+          }
+        },
+        
+        // components/ui/Tooltip.tsx
+        tooltip: {
+          container: {
+            bg: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            text: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+            border: { value: "transparent" },
+            shadow: { value: "0 4px 6px rgba(0, 0, 0, 0.1)" }
+          },
+          arrow: {
+            bg: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
+          }
+        },
+        
+        // layouts/Details/Gantt/Gantt.tsx
+        gantt: {
+          grid: {
+            color: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.800}" } }
+          },
+          selected: {
+            bg: { value: { _light: "{colors.blue.200}", _dark: "{colors.blue.800}" } }
+          },
+          hover: {
+            bg: { value: { _light: "{colors.blue.100}", _dark: "{colors.blue.900}" } }
+          }
+        },
+        
+        // layouts/Details/Graph/Graph.tsx
+        graph: {
+          node: {
+            success: { value: "{colors.green.500}" },
+            failed: { value: "{colors.red.500}" },
+            running: { value: "{colors.cyan.500}" },
+            queued: { value: "{colors.yellow.500}" },
+            skipped: { value: "{colors.gray.400}" },
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } }
+          },
+          edge: {
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            active: { value: "{colors.brand.600}" }
+          },
+          background: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.900}" } },
+          bg: { value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" } },
+          pattern: { value: { _light: "{colors.gray.800}", _dark: "{colors.gray.200}" } },
+          controls: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          minimap: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } }
+          }
+        },
+        
+        // pages/Asset/AssetGraph.tsx
+        "asset-graph": {
+          bg: { value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" } },
+          pattern: { value: { _light: "{colors.gray.800}", _dark: "{colors.gray.200}" } },
+          controls: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+          },
+          minimap: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } }
+          }
+        },
+        
+        // Generic tokens (used by HeaderCard, StatsCard, etc.)
+        card: {
+          default: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 1px 3px rgba(0, 0, 0, 0.1)", _dark: "0 1px 3px rgba(0, 0, 0, 0.3)" } }
+          },
+          elevated: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 4px 6px rgba(0, 0, 0, 0.1)", _dark: "0 4px 6px rgba(0, 0, 0, 0.3)" } }
+          },
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.700}" } },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
+          }
+        },
+        
+        // Generic tokens (used by FlexibleForm and other forms)
+        form: {
+          input: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" },
+            error: { value: "{colors.red.500}" },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            placeholder: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          label: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            required: { value: "{colors.red.500}" }
+          },
+          help: {
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } }
+          }
+        },
       },
     },
   },
 });
 
 export const system = createSystem(defaultConfig, customConfig);
-
-// Utility function to resolve CSS variables to their computed values
-// See: https://github.com/chakra-ui/panda/discussions/2200
-export const getComputedCSSVariableValue = (variable: string): string =>
-  getComputedStyle(document.documentElement)
-    .getPropertyValue(variable.slice(4, variable.length - 1))
-    .trim();
-
-// Returns ReactFlow style props using Chakra UI CSS variables
-export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperties =>
-  ({
-    // Background
-    "--xy-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-brand-950)" : "var(--chakra-colors-brand-50)",
-    "--xy-background-pattern-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
-
-    // Controls
-    "--xy-controls-button-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-800)" : "var(--chakra-colors-white)",
-    "--xy-controls-button-background-color-hover":
-      colorMode === "dark" ? "var(--chakra-colors-gray-700)" : "var(--chakra-colors-gray-100)",
-
-    // MiniMap
-    "--xy-minimap-background-color": "var(--chakra-colors-bg)",
-  }) as CSSProperties;

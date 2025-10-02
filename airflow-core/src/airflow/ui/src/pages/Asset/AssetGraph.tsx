@@ -19,6 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -28,7 +29,6 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
-import { getReactFlowThemeStyle } from "src/theme";
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { assetId } = useParams();
@@ -61,6 +61,14 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     },
   }));
 
+  const reactFlowStyle: CSSProperties = {
+    "--xy-background-color": "var(--chakra-colors-asset-graph-bg)",
+    "--xy-background-pattern-color": "var(--chakra-colors-asset-graph-pattern)",
+    "--xy-controls-button-background-color": "var(--chakra-colors-asset-graph-controls-bg)",
+    "--xy-controls-button-background-color-hover": "var(--chakra-colors-asset-graph-controls-hover)",
+    "--xy-minimap-background-color": "var(--chakra-colors-asset-graph-minimap-bg)",
+  } as CSSProperties;
+
   return (
     <ReactFlow
       colorMode={colorMode}
@@ -75,7 +83,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
-      style={getReactFlowThemeStyle(colorMode)}
+      style={reactFlowStyle}
     >
       <Background />
       <Controls showInteractive={false} />

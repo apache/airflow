@@ -41,7 +41,6 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
-import { useColorMode } from "src/context/colorMode";
 import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
@@ -49,7 +48,7 @@ import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries";
-import { getComputedCSSVariableValue } from "src/theme";
+import { resolveTokenValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
 
@@ -86,22 +85,15 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
-  const { colorMode } = useColorMode();
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [
-    lightGridColor,
-    darkGridColor,
-    lightSelectedColor,
-    darkSelectedColor,
-    lightHoverColor,
-    darkHoverColor,
-  ] = useToken("colors", ["gray.200", "gray.800", "blue.200", "blue.800", "blue.100", "blue.900"]);
-  const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
-  const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
-  const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
+  const [gridColor, selectedItemColor, hoveredItemColor] = useToken("colors", [
+    "gantt.grid.color",
+    "gantt.selected.bg",
+    "gantt.hover.bg",
+  ]);
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
@@ -202,18 +194,23 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
       .filter((item) => item !== undefined);
   }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
-  // Get all unique states and their colors
+  // Get all unique states from the data
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
+  
+  // Use Chakra's useToken hook to get color tokens for each state
   const stateColorTokens = useToken(
     "colors",
     states.map((state) => `${state}.solid`),
   );
-  const stateColorMap = Object.fromEntries(
-    states.map((state, index) => [
-      state,
-      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
-    ]),
-  );
+
+  // Create a mapping of state to computed color values for ChartJS
+  const stateColorMap: Record<string, string> = {};
+
+  states.forEach((state, index) => {
+    if (state) {
+      stateColorMap[state] = resolveTokenValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
+    }
+  });
 
   const chartData = useMemo(
     () => ({
