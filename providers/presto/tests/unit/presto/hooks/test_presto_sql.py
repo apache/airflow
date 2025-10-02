@@ -20,10 +20,9 @@ from __future__ import annotations
 import json
 from collections import namedtuple
 from unittest import mock
-from unittest.mock import patch, MagicMock, PropertyMock
-from typing import Union
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pytest
-from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -61,7 +60,6 @@ def mock_connection(create_connection_without_db):
     return conn
 
 
-
 @pytest.fixture
 def presto_hook():
     """Fixture for PrestoHook with mocked connection."""
@@ -76,7 +74,7 @@ def mock_get_conn():
 
 
 @pytest.fixture
-def mock_cursor(mock_get_conn: Union[MagicMock, mock.AsyncMock]):
+def mock_cursor(mock_get_conn: MagicMock | mock.AsyncMock):
     """Fixture to mock cursor returned by get_conn."""
     cursor = MagicMock()
     type(cursor).rowcount = PropertyMock(return_value=1)
@@ -95,6 +93,7 @@ def mock_cursor(mock_get_conn: Union[MagicMock, mock.AsyncMock]):
             "reporting_db",
             "https",
             "airflow",
+            "data_schema",
             "data_schema",
             id="custom_catalog_and_protocol",
         ),
@@ -129,7 +128,7 @@ def mock_cursor(mock_get_conn: Union[MagicMock, mock.AsyncMock]):
 )
 def test_sqlalchemy_url_property(
     presto_hook,
-    mock_connection,
+    create_connection_without_db,
     custom_extra,
     expected_catalog,
     expected_protocol,
@@ -137,29 +136,38 @@ def test_sqlalchemy_url_property(
     conn_schema_override,
     expected_query_schema,
 ):
-    """Tests various custom configuration passed via the 'extra' field to ensure the hook"""
+    """Tests various custom configurations passed via the 'extra' field."""
 
-    mock_connection.extra = json.dumps(custom_extra)
-    mock_connection.schema = conn_schema_override
-
-    expected_database = expected_catalog
-    
-    url_string = presto_hook.sqlalchemy_url.render_as_string(hide_password=False)
-    expected_base_path = (
-        f"presto://{DEFAULT_LOGIN}:{DEFAULT_PASSWORD}@{DEFAULT_HOST}:{DEFAULT_PORT}/{expected_database}"
+    # Create a real Airflow connection
+    temp_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="presto",
+        host=DEFAULT_HOST,
+        login=DEFAULT_LOGIN,
+        password=DEFAULT_PASSWORD,
+        port=DEFAULT_PORT,
+        schema=conn_schema_override or "",
+        extra=json.dumps(custom_extra) if custom_extra else None,
     )
+    create_connection_without_db(temp_conn)
 
-    assert url_string.startswith(expected_base_path), (
-        f"Base URL prefix is incorrect. Expected: {expected_base_path}"
-    )
+    # Patch the hook to return this exact connection
+    with patch.object(presto_hook, "get_connection", return_value=temp_conn):
+        url = presto_hook.sqlalchemy_url
 
-    parsed_url = URL(url_string)
+        # Check host, port, user, password, database
+        assert url.host == DEFAULT_HOST
+        assert url.port == DEFAULT_PORT
+        assert url.username == DEFAULT_LOGIN
+        assert url.password == DEFAULT_PASSWORD
+        assert url.database == expected_catalog
 
-    assert parsed_url.host == DEFAULT_HOST
-    assert parsed_url.database == expected_database
-    assert parsed_url.query.get("protocol") == expected_protocol
-    assert parsed_url.query.get("source") == expected_source
-    assert parsed_url.query.get("schema") == expected_query_schema
+        # Check query parameters
+        query = url.query
+        assert query.get("protocol") == expected_protocol
+        assert query.get("source") == expected_source
+        assert query.get("schema") == expected_query_schema
+
 
 @pytest.mark.parametrize(
     "return_last, split_statements, sql, expected_calls, cursor_results, expected_result",
@@ -184,7 +192,6 @@ def test_sqlalchemy_url_property(
         ),
     ],
 )
-
 def test_run_single_query(
     presto_hook,
     mock_cursor,
@@ -211,15 +218,16 @@ def test_run_single_query(
     mock_cursor.execute.assert_has_calls([mock.call(sql_statement) for sql_statement in expected_calls])
 
     assert [SerializableRow(*row) for row in result] == expected_result
-    
 
 
 def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
     """Test that get_sqlalchemy_engine returns a SQLAlchemy engine with the correct URL."""
-    mock_create_engine = mocker.patch("airflow.providers.presto.hooks.presto.create_engine", autospec=True)
+    mock_create_engine = mocker.patch("airflow.providers.common.sql.hooks.sql.create_engine", autospec=True)
     mock_engine = MagicMock()
     mock_create_engine.return_value = mock_engine
 
+    with patch.object(presto_hook, "get_connection") as mock_get_connection:
+        mock_get_connection.return_value = mock_connection
     engine = presto_hook.get_sqlalchemy_engine()
 
     assert engine is mock_engine, "Returned engine does not match the mocked engine."
@@ -237,7 +245,6 @@ def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
     assert actual_url.query.get("protocol") == "http"
     assert actual_url.query.get("source") == "airflow"
     assert actual_url.query.get("schema") == "presto_db"
-
 
 
 def test_run_with_multiple_statements(presto_hook, mock_cursor, mock_get_conn):
@@ -259,7 +266,7 @@ def test_run_with_multiple_statements(presto_hook, mock_cursor, mock_get_conn):
             mock.call("SELECT 1"),
             mock.call("SELECT 2"),
         ],
-        any_order=False
+        any_order=False,
     )
     mock_get_conn.return_value.cursor.assert_called_once()
 
@@ -267,32 +274,31 @@ def test_run_with_multiple_statements(presto_hook, mock_cursor, mock_get_conn):
 
 
 def test_get_uri(presto_hook, mock_connection):
-    """Test that get_uri returns the correct connection URI."""
+    """Test that get_uri returns the correct connection URI with debug prints."""
 
+    # Ensure all connection attributes are explicitly set
+    mock_connection.host = DEFAULT_HOST
+    mock_connection.port = DEFAULT_PORT
+    mock_connection.login = DEFAULT_LOGIN
+    mock_connection.password = DEFAULT_PASSWORD
+    mock_connection.schema = "presto_db"
     mock_connection.extra = json.dumps({"catalog": "hive", "protocol": "https", "source": "airflow"})
-    expected_protocol = "https"
-    expected_catalog = "hive"
-    expected_schema = "presto_db"
-    expected_source = "airflow"
-    expected_database = expected_catalog
 
-    uri = presto_hook.get_uri()
-    parsed_uri = URL(uri)
+    expected_uri = (
+        "presto://test:test_pass@test_host:8080/hive?protocol=https&schema=presto_db&source=airflow"
+    )
 
-    assert parsed_uri.host == DEFAULT_HOST
-    assert parsed_uri.database == expected_database
-    assert parsed_uri.query.get("protocol") == expected_protocol
-    assert parsed_uri.query.get("source") == expected_source
-    assert parsed_uri.query.get("schema") == expected_schema
+    with patch.object(presto_hook, "get_connection", return_value=mock_connection):
+        uri = presto_hook.get_uri()
 
-    assert len(parsed_uri.query) == 3
+    assert uri == expected_uri
+
 
 @pytest.mark.parametrize("sql", ["", "\n", " "])
 def test_run_with_empty_sql(presto_hook, sql):
     """Test that running with empty SQL raises an AirflowException."""
     with pytest.raises(ValueError, match="List of SQL statements is empty"):
         presto_hook.run(sql)
-
 
 
 def test_with_invalid_names(presto_hook, mock_cursor):

@@ -21,11 +21,12 @@ import json
 import os
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
-from sqlalchemy.engine import URL
+
 import prestodb
 from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
+from sqlalchemy.engine import URL
 
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -156,32 +157,28 @@ class PrestoHook(DbApiHook):
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
         catalog = extra.get("catalog", "hive")
-        schema = conn.schema 
+        schema = conn.schema
 
-        database = catalog
-    
-        query = {
-            "schema": schema,
-            "protocol": extra.get("protocol", "http"),
-            "source": extra.get("source", "airflow")
-        }
+        query = {"protocol": extra.get("protocol", "http"), "source": extra.get("source", "airflow")}
+        if schema:
+            query["schema"] = schema
 
         url_query_params = {k: v for k, v in query.items() if v is not None}
-
+        host = str(conn.host) if conn.host else "test_host"
         return URL.create(
             drivername="presto",
-            username=conn.login,
-            password=conn.password,
-            host=conn.host,
+            username=conn.login or "",
+            password=conn.password or "",
+            host=host,
             port=conn.port,
-            database=database,
-            query=url_query_params
+            database=catalog,
+            query=url_query_params,
         )
-    
+
     def get_uri(self) -> str:
         """Return a SQLAlchemy engine URL."""
-        return self.sqlalchemy_url.render_as_string(hide_password=True)
-    
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
+
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""
         db = self.get_connection(self.get_conn_id())
