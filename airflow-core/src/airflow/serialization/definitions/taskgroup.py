@@ -244,26 +244,42 @@ class SerializedTaskGroup(DAGNode):
         while graph_unsorted:
             acyclic = False
             for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                    # Check for task's group is a child (or grand child) of this TG,
-                    tg = edge.task_group
-                    while tg:
-                        if tg.node_id in graph_unsorted:
-                            break
-                        tg = tg.parent_group
+                # Check if node has upstream dependencies still in the unsorted graph
+                has_upstream_in_graph = False
 
-                    if tg:
-                        # We are already going to visit that TG
-                        break
+                if isinstance(node, SerializedTaskGroup):
+                    # For task groups, check upstream_group_ids and upstream_task_ids
+                    for upstream_id in node.upstream_group_ids | node.upstream_task_ids:
+                        if upstream_id in graph_unsorted:
+                            has_upstream_in_graph = True
+                            break
                 else:
+                    # For tasks, use upstream_list
+                    for edge in node.upstream_list:
+                        if edge.node_id in graph_unsorted:
+                            has_upstream_in_graph = True
+                            break
+                        # Check for task's group is a child (or grand child) of this TG
+                        tg = edge.task_group
+                        while tg:
+                            if tg.node_id in graph_unsorted:
+                                has_upstream_in_graph = True
+                                break
+                            tg = tg.parent_group
+                        if has_upstream_in_graph:
+                            break
+
+                if not has_upstream_in_graph:
+                    # No upstream dependencies in graph, add to sorted list
                     acyclic = True
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
 
             if not acyclic:
-                # If no nodes were resolved, we have a cycle
+                # If no nodes were resolved, we have a cycle or stuck state
+                # Add remaining nodes in arbitrary order to avoid losing them
+                for node in graph_unsorted.values():
+                    graph_sorted.append(node)
                 break
         return graph_sorted
 
