@@ -26,7 +26,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -71,7 +71,7 @@ export const RecentRuns = ({
                 </Text>
               )}
               <Text>
-                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
+                {translate("duration")}: {renderDuration(run.duration)}
               </Text>
             </Box>
           }

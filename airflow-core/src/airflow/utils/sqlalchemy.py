@@ -48,15 +48,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-try:
-    from sqlalchemy.orm import mapped_column
-except ImportError:
-    # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):
-        from sqlalchemy import Column
-
-        return Column(*args, **kwargs)
-
 
 class UtcDateTime(TypeDecorator):
     """
