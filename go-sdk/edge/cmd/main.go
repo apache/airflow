@@ -18,10 +18,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/apache/airflow/go-sdk/celery/commands"
+	"github.com/apache/airflow/go-sdk/edge/commands"
 )
 
 func main() {
@@ -29,5 +30,8 @@ func main() {
 		fmt.Println("(We're not a bundle plugin)")
 		os.Exit(0)
 	}
-	commands.Execute()
+	err := commands.Root.ExecuteContext(context.Background())
+	if err != nil {
+		os.Exit(1)
+	}
 }
