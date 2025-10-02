@@ -48,7 +48,7 @@ export const useClearTaskInstances = ({
   const { t: translate } = useTranslation("dags");
 
   const onError = (error: ApiError) => {
-    if ( error.detail == "Task is running, stopping attempt to clear." ){
+    if ( error.detail != null && error.detail == "Task is running, stopping attempt to clear." ){
       toaster.create({
         description: error.detail,
         title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
