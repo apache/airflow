@@ -744,17 +744,15 @@ def post_clear_task_instances(
         body.end_date = None
 
     task_ids = body.task_ids
-    if task_ids is not None:
-        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
-        dag = dag.partial_subset(
+    if task_ids is not None and (upstream or downstream):
+        task_id = set([task[0] if isinstance(task, tuple) else task for task in task_ids])
+        relatives = dag.partial_subset(
             task_ids=task_id,
             include_downstream=downstream,
             include_upstream=upstream,
+            exclude_original=True,
         )
-
-        if len(dag.task_dict) > 1:
-            # If we had upstream/downstream etc then also include those!
-            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+        task_ids.extend(relatives.task_dict.keys())
 
     # Prepare common parameters
     common_params = {
