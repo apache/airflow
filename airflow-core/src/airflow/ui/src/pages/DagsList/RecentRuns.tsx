@@ -25,7 +25,7 @@ import { Link } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -42,19 +42,14 @@ export const RecentRuns = ({
     return undefined;
   }
 
-  const runsWithDuration = latestRuns.map((run) => ({
-    ...run,
-    duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
-  }));
-
   const max = Math.max.apply(
     undefined,
-    runsWithDuration.map((run) => run.duration),
+    latestRuns.map((run) => run.duration ?? 0),
   );
 
   return (
     <Flex alignItems="flex-end" flexDirection="row-reverse" pb={1}>
-      {runsWithDuration.map((run) => (
+      {latestRuns.map((run) => (
         <Tooltip
           content={
             <Box>
@@ -75,7 +70,7 @@ export const RecentRuns = ({
                 </Text>
               )}
               <Text>
-                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
+                {translate("duration")}: {renderDuration(run.duration)}
               </Text>
             </Box>
           }
@@ -93,7 +88,7 @@ export const RecentRuns = ({
               <Box
                 bg={`${run.state}.solid`}
                 borderRadius="4px"
-                height={`${(run.duration / max) * BAR_HEIGHT}px`}
+                height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
                 minHeight={1}
                 width="4px"
               />
