@@ -33,6 +33,7 @@ import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+import { ApiError } from "openapi/requests";
 
 export const useClearTaskInstances = ({
   dagId,
@@ -46,12 +47,22 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
-      type: "error",
-    });
+  const onError = (error: ApiError) => {
+    if ( error.detail == "Task is running, stopping attempt to clear." ){
+      toaster.create({
+        description: error.detail,
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+    }
+    
+    else{
+      toaster.create({
+        description: error.message,
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+    }
   };
 
   const onSuccess = async (
