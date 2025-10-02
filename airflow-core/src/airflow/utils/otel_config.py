@@ -68,19 +68,18 @@ class OtelConfig:
 
     def __post_init__(self):
         """Validate the environment variables where necessary."""
-        endpoint_type_specific = f"OTEL_EXPORTER_OTLP_{self.data_type.name.upper()}_ENDPOINT"
+        endpoint_type_specific = f"OTEL_EXPORTER_OTLP_{self.data_type.name}_ENDPOINT"
 
         if not self.endpoint:
             raise ValueError(
                 f"Missing required environment variable: 'OTEL_EXPORTER_OTLP_ENDPOINT' or {endpoint_type_specific}"
             )
 
-        stripped_protocol = (self.protocol or "").strip().strip('"').strip("'").lower()
-        if stripped_protocol not in ("grpc", "http/protobuf"):
+        if self.protocol not in ("grpc", "http/protobuf"):
             raise ValueError(f"Invalid value for OTEL_EXPORTER_OTLP_PROTOCOL: {self.protocol}")
 
         # If the protocol is http, then the endpoint url should end with '/v1/<traces|metrics>'.
-        if stripped_protocol == "http/protobuf":
+        if "http/protobuf" in self.protocol:
             suffix = "/v1/traces" if self.data_type == OtelDataType.TRACES else "/v1/metrics"
             if not self.endpoint.rstrip("/").endswith(suffix):
                 # No need for a fatal error, the OTel code will fail.
@@ -88,7 +87,7 @@ class OtelConfig:
                 log.error(
                     "Invalid value for config 'OTEL_EXPORTER_OTLP_ENDPOINT' or '%s' with protocol value '%s': %s",
                     endpoint_type_specific,
-                    stripped_protocol,
+                    self.protocol,
                     self.endpoint,
                 )
 
