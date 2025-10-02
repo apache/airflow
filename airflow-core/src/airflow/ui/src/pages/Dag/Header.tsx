@@ -23,6 +23,7 @@ import { FiBookOpen } from "react-icons/fi";
 import { LuMenu } from "react-icons/lu";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
+import { useDagServiceGetDagsUi } from "openapi/queries";
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
@@ -115,6 +116,8 @@ export const Header = ({
     },
   ];
 
+  const { data: dagData } = useDagServiceGetDagsUi({ dagIds: [dagId ?? ""] });
+
   return (
     <HeaderCard
       actions={
@@ -128,7 +131,11 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
+            <FavoriteDagButton
+              dagId={dag.dag_id}
+              isFavorite={dagData?.dags[0]?.is_favorite ?? false}
+              withText
+            />
             <Menu.Root>
               <Menu.Trigger asChild>
                 <Button aria-label={translate("dag:header.buttons.advanced")} variant="outline">
