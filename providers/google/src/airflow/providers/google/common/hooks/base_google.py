@@ -266,17 +266,31 @@ class GoogleBaseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "placeholders": {
+                "quota_project_id": "Optional quota project ID for billing",
+            },
         }
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
+        """Initialize the Google Cloud Base Hook.
+        
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials.
+        :param quota_project_id: Optional project ID to use for quota/billing purposes.
+            If None, the project ID from the GCP connection is used.
+        :param kwargs: Additional arguments to pass to parent constructor.
+        """
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.quota_project_id = quota_project_id
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
@@ -339,6 +353,11 @@ class GoogleBaseHook(BaseHook):
             idp_extra_params_dict=idp_extra_params_dict,
         )
 
+        # Support for quota project ID
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project:
+            credentials = credentials.with_quota_project(quota_project)
+
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
@@ -351,6 +370,12 @@ class GoogleBaseHook(BaseHook):
     def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
+        
+        # Ensure quota project is applied to credentials if specified
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project and hasattr(credentials, "with_quota_project"):
+            credentials = credentials.with_quota_project(quota_project)
+        
         return credentials
 
     def _get_access_token(self) -> str:
