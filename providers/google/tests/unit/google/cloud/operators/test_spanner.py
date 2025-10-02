@@ -21,8 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.generated.schema_dataset import SchemaDatasetFacetFields
-
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -35,7 +33,6 @@ from airflow.providers.google.cloud.operators.spanner import (
     SpannerQueryDatabaseInstanceOperator,
     SpannerUpdateDatabaseInstanceOperator,
 )
-
 from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 PROJECT_ID = "project-id"
@@ -389,14 +386,14 @@ class TestCloudSpanner:
     @pytest.mark.parametrize(
         "sql, expected_inputs, expected_outputs, expected_lineage",
         [
-            ("SELECT id, amount FROM public.orders",["db1.public.orders"], [], {}),
+            ("SELECT id, amount FROM public.orders", ["db1.public.orders"], [], {}),
             (
                 "INSERT INTO public.orders (id, amount) SELECT id, amount FROM public.staging",
                 ["db1.public.staging", "db1.public.orders"],
                 [],
                 {},
             ),
-            ("DELETE FROM public.logs WHERE id=1",[], ["db1.public.logs"], {}),
+            ("DELETE FROM public.logs WHERE id=1", [], ["db1.public.logs"], {}),
             (
                 "SELECT o.id, c.name FROM public.orders o JOIN public.customers c ON o.customer_id = c.id",
                 ["db1.public.orders", "db1.public.customers"],
@@ -415,7 +412,7 @@ class TestCloudSpanner:
                 [],
                 {},
             ),
-            ("SELECT id, amount FROM myschema.orders",["db1.myschema.orders"], [], {}),
+            ("SELECT id, amount FROM myschema.orders", ["db1.myschema.orders"], [], {}),
         ],
     )
     def test_spannerquerydatabaseinstanceoperator_get_openlineage_facets(
@@ -433,8 +430,13 @@ class TestCloudSpanner:
                     scheme="spanner",
                     authority=f"{PROJECT_ID}/{INSTANCE_ID}",
                     database=DB_ID,
-                    information_schema_columns=["table_schema", "table_name", "column_name",
-                                                "ordinal_position", "spanner_type"],
+                    information_schema_columns=[
+                        "table_schema",
+                        "table_name",
+                        "column_name",
+                        "ordinal_position",
+                        "spanner_type",
+                    ],
                     information_schema_table_name="information_schema.columns",
                     use_flat_cross_db_query=False,
                     is_information_schema_cross_db=False,

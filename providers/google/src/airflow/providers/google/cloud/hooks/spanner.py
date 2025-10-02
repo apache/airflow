@@ -31,14 +31,15 @@ from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 if TYPE_CHECKING:
     from google.cloud.spanner_v1.database import Database
     from google.cloud.spanner_v1.instance import Instance
     from google.cloud.spanner_v1.transaction import Transaction
     from google.longrunning.operations_grpc_pb2 import Operation
+
     from airflow.models.connection import Connection
-    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 class SpannerConnectionParams(NamedTuple):
@@ -431,10 +432,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         return counts
 
     def _get_openlineage_authority_part(self, connection):
-        """
-        Build Spanner-specific authority part for OpenLineage.
-        Returns {project}/{instance}.
-        """
+        """ Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
         extras = connection.extra_dejson
         project_id = extras.get("project_id")
         instance_id = extras.get("instance_id")
@@ -467,8 +465,5 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         )
 
     def get_openlineage_default_schema(self) -> str | None:
-        """
-        Spanner may or may not expose 'public' schema depending on dialect, but SQLAlchemy doesn't return
-        it at all, so this method is following the same approach.
-        """
+        """Spanner expose 'public' or '' schema depending on dialect(Postgres vs GoogleSQL)."""
         return None
