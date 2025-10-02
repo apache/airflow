@@ -79,6 +79,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -780,8 +781,10 @@ def post_clear_task_instances(
                 run_on_latest_version=body.run_on_latest_version,
                 prevent_running_task=body.prevent_running_task,
             )
-        except ValueError as e:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+        except AirflowClearRunningTaskException as e:
+            print(str(e))
+            if (str(e) == "Task is running, stopping attempt to clear."):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

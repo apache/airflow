@@ -49,7 +49,7 @@ export const useClearTaskInstances = ({
   const onError = (error: Error) => {
     toaster.create({
       description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
+      title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
       type: "error",
     });
   };
@@ -103,5 +103,8 @@ export const useClearTaskInstances = ({
   return useTaskInstanceServicePostClearTaskInstances({
     onError,
     onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    // retry: 0
   });
 };
