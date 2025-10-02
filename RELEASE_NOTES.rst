@@ -319,6 +319,22 @@ You can also use ``structlog`` loggers at the top level of modules etc, and ``st
 
 (You can't add arbitrary key/value pairs to ``stdlib``, but the normal ``percent-formatter`` approaches still work fine.)
 
+Serialization Interface Changes
+"""""""""""""""""""""""""""""""
+
+The deserializer interface in ``airflow.serialization.serializers`` has changed for improved security.
+
+**Before 3.1.0:**
+
+``def deserialize(classname: str, version: int, data: Any)``
+
+**Starting with 3.1.0:**
+
+``def deserialize(cls: type, version: int, data: Any)``
+
+The class loading is now handled in ``serde.py``, and the deserializer receives the loaded class directly rather than a ``classname`` string.
+This update avoids the use of ``import_string`` in the deserializer, making deserialization more secure.
+
 New Features
 ^^^^^^^^^^^^
 
