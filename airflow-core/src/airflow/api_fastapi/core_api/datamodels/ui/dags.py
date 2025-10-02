@@ -29,6 +29,7 @@ class DAGWithLatestDagRunsResponse(DAGResponse):
     asset_expression: dict | None
     latest_dag_runs: list[DAGRunResponse]
     pending_actions: list[HITLDetail]
+    is_favorite: bool
 
 
 class DAGWithLatestDagRunsCollectionResponse(BaseModel):
