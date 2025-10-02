@@ -52,7 +52,7 @@ const DeleteTaskInstancesButton = ({ clearSelections, dagId, dagRunId, deleteKey
 
   const type = translate("common:taskInstance_other");
   const title = translate("dags:runAndTaskActions.delete.dialog.title", { type });
-  const warningText = translate("dags:runAndTaskActions.delete.dialog.warning", { type });
+  const warningText = translate("common:bulkAction.delete.taskInstance.warning", { type });
   const deleteButtonText = translate("dags:runAndTaskActions.delete.button", { type });
 
   const affectedTasks = {
