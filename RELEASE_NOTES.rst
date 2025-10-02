@@ -324,11 +324,11 @@ Serialization Interface Changes
 
 The deserializer interface in ``airflow.serialization.serializers`` has changed for improved security.
 
-**Before Airflow 3.1.0:**
+**Before 3.1.0:**
 
 ``def deserialize(classname: str, version: int, data: Any)``
 
-**Starting with Airflow 3.1.0:**
+**Starting with 3.1.0:**
 
 ``def deserialize(cls: type, version: int, data: Any)``
 
