@@ -87,8 +87,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
-from flask import jsonify
-from airflow.configuration import conf
 
 log = structlog.get_logger(__name__)
 
