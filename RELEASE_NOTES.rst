@@ -1209,7 +1209,7 @@ simplify onboarding:
 
 - ``catchup_by_default`` is now set to ``False`` by default. DAGs will not automatically backfill unless explicitly configured to do so.
 - ``create_cron_data_intervals`` is now set to ``False`` by default. As a result, cron expressions will be interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``.
-- ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-flask-appbuilder`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
+- ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-fab`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
 
 These changes represent the most significant evolution of the Airflow platform since the release of 2.0 — setting the
 stage for more scalable, event-driven, and language-agnostic orchestration in the years ahead.

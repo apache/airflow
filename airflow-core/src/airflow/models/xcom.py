@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
+    Column,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -36,7 +37,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -44,7 +45,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
 
@@ -62,19 +63,17 @@ class XComModel(TaskInstanceDependencies):
 
     __tablename__ = "xcom"
 
-    dag_run_id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
-    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index: Mapped[int] = mapped_column(
-        Integer, primary_key=True, nullable=False, server_default=text("-1")
-    )
-    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
-    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"))
-    timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    value = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
