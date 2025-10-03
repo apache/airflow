@@ -24,12 +24,14 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from asgiref.sync import sync_to_async
 from more_itertools import flatten
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.version_compat import BaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
@@ -38,15 +40,6 @@ from tests_common.test_utils.compat import GenericTransfer
 from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -267,19 +260,21 @@ class TestGenericTransfer:
         assert operator.paginated_sql_statement_clause == "{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;"
 
     def test_non_paginated_read(self):
-        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
-            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
-                operator = GenericTransfer(
-                    task_id="transfer_table",
-                    source_conn_id="my_source_conn_id",
-                    destination_conn_id="my_destination_conn_id",
-                    sql="SELECT * FROM HR.EMPLOYEES",
-                    destination_table="NEW_HR.EMPLOYEES",
-                    insert_args=INSERT_ARGS,
-                    execution_timeout=timedelta(hours=1),
-                )
+        with (
+            mock.patch.object(BaseHook, "get_connection", side_effect=self.get_connection),
+            mock.patch.object(BaseHook, "get_hook", side_effect=self.get_hook),
+        ):
+            operator = GenericTransfer(
+                task_id="transfer_table",
+                source_conn_id="my_source_conn_id",
+                destination_conn_id="my_destination_conn_id",
+                sql="SELECT * FROM HR.EMPLOYEES",
+                destination_table="NEW_HR.EMPLOYEES",
+                insert_args=INSERT_ARGS,
+                execution_timeout=timedelta(hours=1),
+            )
 
-                operator.execute(context=mock_context(task=operator))
+            operator.execute(context=mock_context(task=operator))
 
         assert self.mocked_source_hook.get_records.call_count == 1
         assert self.mocked_source_hook.get_records.call_args_list[0].args[0] == "SELECT * FROM HR.EMPLOYEES"
@@ -295,26 +290,29 @@ class TestGenericTransfer:
         https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
         """
 
-        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
-            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
-                operator = GenericTransfer(
-                    task_id="transfer_table",
-                    source_conn_id="my_source_conn_id",
-                    destination_conn_id="my_destination_conn_id",
-                    sql="SELECT * FROM HR.EMPLOYEES",
-                    destination_table="NEW_HR.EMPLOYEES",
-                    page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
-                    insert_args=INSERT_ARGS,
-                    execution_timeout=timedelta(hours=1),
-                )
+        with (
+            mock.patch.object(BaseHook, "get_connection", side_effect=self.get_connection),
+            mock.patch.object(BaseHook, "aget_connection", side_effect=sync_to_async(self.get_connection)),
+            mock.patch.object(BaseHook, "get_hook", side_effect=self.get_hook),
+        ):
+            operator = GenericTransfer(
+                task_id="transfer_table",
+                source_conn_id="my_source_conn_id",
+                destination_conn_id="my_destination_conn_id",
+                sql="SELECT * FROM HR.EMPLOYEES",
+                destination_table="NEW_HR.EMPLOYEES",
+                page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
+                insert_args=INSERT_ARGS,
+                execution_timeout=timedelta(hours=1),
+            )
 
-                results, events = execute_operator(operator)
+            results, events = execute_operator(operator)
 
-                assert not results
-                assert len(events) == 3
-                assert events[0].payload["results"] == [[1, 2], [11, 12], [3, 4], [13, 14]]
-                assert events[1].payload["results"] == [[3, 4], [13, 14]]
-                assert not events[2].payload["results"]
+            assert not results
+            assert len(events) == 3
+            assert events[0].payload["results"] == [[1, 2], [11, 12], [3, 4], [13, 14]]
+            assert events[1].payload["results"] == [[3, 4], [13, 14]]
+            assert not events[2].payload["results"]
 
         assert self.mocked_source_hook.get_records.call_count == 3
         assert (
