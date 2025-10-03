@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box, Link } from "@chakra-ui/react";
+import { HStack, Text, Box, Link, Button, Menu, Portal } from "@chakra-ui/react";
 import { useCallback, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
+import { LuMenu } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -32,6 +33,7 @@ import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
@@ -90,6 +92,24 @@ export const Header = ({
             />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <Menu.Root>
+              <Menu.Trigger asChild>
+                <Button aria-label={translate("dag:header.buttons.advanced")} variant="outline">
+                  <LuMenu />
+                </Button>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content>
+                    <Menu.Item closeOnSelect={false} value="delete">
+                      <Box width="100%">
+                        <DeleteRunButton dagRun={dagRun} width="100%" withText={true} />
+                      </Box>
+                    </Menu.Item>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
           </>
         }
         icon={<FiBarChart />}

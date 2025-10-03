@@ -44,7 +44,7 @@ classifiers = [
 requires-python = ">=3.10, !=3.13"
 
 dependencies = [
-    "black>=23.11.0",
+    "black>=25.0.0",
     # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
     # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
     "click>=8.1.8,<8.2.0",
@@ -65,7 +65,7 @@ dependencies = [
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
     "pytest>=8.3.3",
-    "pyyaml>=6.0.2",
+    "pyyaml>=6.0.3",
     "requests>=2.32.0",
     "restructuredtext-lint>=1.4.0",
     # Temporarily pinned to fix for changes in https://github.com/ewels/rich-click/releases/tag/v1.9.0

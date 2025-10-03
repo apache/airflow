@@ -335,7 +335,7 @@ class TestBulkStateFetcher:
                 "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
             ):
                 caplog.clear()
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),
@@ -367,7 +367,7 @@ class TestBulkStateFetcher:
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
 
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),
@@ -401,7 +401,7 @@ class TestBulkStateFetcher:
                     mock_retry_db_result.return_value,
                 ]
 
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),
