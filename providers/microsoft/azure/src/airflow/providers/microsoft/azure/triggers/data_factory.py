@@ -238,6 +238,6 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         resource_group_name=self.resource_group_name,
                         factory_name=self.factory_name,
                     )
-                except Exception as err:
+                except Exception:
                     self.log.exception("Failed to cancel pipeline run %s", self.run_id)
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
