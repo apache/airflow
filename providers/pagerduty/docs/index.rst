@@ -71,8 +71,6 @@ apache-airflow-providers-pagerduty package
 
 Release: 5.0.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

@@ -1169,6 +1169,7 @@ class TestDagFileProcessorManager:
         bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
         assert bundle_names_being_parsed == expected
 
+    @conf_vars({("core", "multi_team"): "true"})
     def test_bundles_with_team(self, session):
         team1_name = "test_team1"
         team2_name = "test_team2"

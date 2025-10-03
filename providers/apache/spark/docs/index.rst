@@ -79,8 +79,6 @@ apache-airflow-providers-apache-spark package
 
 Release: 5.3.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

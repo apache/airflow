@@ -79,8 +79,6 @@ apache-airflow-providers-github package
 
 Release: 2.9.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

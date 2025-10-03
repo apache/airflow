@@ -19,6 +19,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pendulum import duration
+
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -148,6 +150,9 @@ with DAG(
         task_id="delete_eks_fargate_profile",
         cluster_name=cluster_name,
         fargate_profile_name=fargate_profile_name,
+        retries=4,
+        retry_delay=duration(seconds=30),
+        retry_exponential_backoff=True,
     )
     # [END howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile.trigger_rule = TriggerRule.ALL_DONE

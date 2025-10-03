@@ -18,7 +18,7 @@
  */
 import { describe, it, expect } from "vitest";
 
-import { getDuration } from "./datetimeUtils";
+import { getDuration, renderDuration } from "./datetimeUtils";
 
 describe("getDuration", () => {
   it("handles durations less than 10 seconds", () => {
@@ -49,8 +49,10 @@ describe("getDuration", () => {
     expect(getDuration(start, end)).toBe("02:30:00");
   });
 
-  it("handles null or undefined dates", () => {
-    expect(getDuration(null, null)).toBe("00:00:00");
-    expect(getDuration(undefined, undefined)).toBe("00:00:00");
+  it("handles small, null or undefined values", () => {
+    // eslint-disable-next-line unicorn/no-null
+    expect(getDuration(null, null)).toBe(undefined);
+    expect(getDuration(undefined, undefined)).toBe(undefined);
+    expect(renderDuration(0.000_01)).toBe(undefined);
   });
 });
