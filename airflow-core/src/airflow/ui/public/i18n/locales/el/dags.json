@@ -3,7 +3,7 @@
   "dagActions": {
     "delete": {
       "button": "Διαγραφή Dag",
-      "warning": "Αυτό θα αφαιρέσει όλα τα μεταδεδομένα που σχετίζονται με το Dag, συμπεριλαμβανομένων των εκτελέσεων και των εργασιών."
+      "warning": "Αυτό θα αφαιρέσει όλα τα μεταδεδομένα που σχετίζονται με το Dag, συμπεριλαμβανομένων των Εκτελέσεων και των Εργασιών."
     }
   },
   "favoriteDag": "Αγαπημένο Dag",
@@ -20,10 +20,9 @@
       "all": "Όλα",
       "paused": "Σε παύση"
     },
-    "runIdPatternFilter": "Αναζήτηση Εκτελέσεων Dag",
-    "triggeringUserNameFilter": "Αναζήτηση κατά Όνομα Χρήστη Ενεργοποίησης"
+    "runIdPatternFilter": "Αναζήτηση Εκτελέσεων Dag"
   },
-  "ownerLink": "Σύνδεσμος ιδιοκτήτη για {{owner}}",
+  "ownerLink": "Σύνδεσμος κατόχου για {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Δεν βρέθηκαν εργασίες.",
@@ -57,14 +56,14 @@
       "title": "Σήμανση {{type}} ως {{state}}"
     },
     "options": {
-      "downstream": "Κατάντη",
+      "downstream": "Kάθοδος",
       "existingTasks": "Εκκαθάριση υπαρχουσών εργασιών",
       "future": "Μελλοντικές",
       "onlyFailed": "Εκκαθάριση μόνο αποτυχημένων εργασιών",
       "past": "Παρελθόν",
       "queueNew": "Προσθήκη νέων εργασιών στην ουρά",
       "runOnLatestVersion": "Εκτέλεση με την τελευταία έκδοση του bundle",
-      "upstream": "Ανάντη"
+      "upstream": "Άνοδος"
     }
   },
   "search": {

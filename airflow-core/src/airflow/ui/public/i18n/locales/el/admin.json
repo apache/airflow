@@ -16,7 +16,7 @@
     "columns": {
       "connectionId": "ID Σύνδεσης",
       "connectionType": "Τύπος Σύνδεσης",
-      "host": "Διεύθυνση",
+      "host": "Ξενιστής",
       "port": "Θύρα"
     },
     "connection_one": "Σύνδεση",
@@ -30,12 +30,12 @@
     },
     "edit": "Επεξεργασία Σύνδεσης",
     "form": {
-      "connectionIdRequired": "Το ID σύνδεσης είναι υποχρεωτικό",
-      "connectionIdRequirement": "Το ID σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
-      "connectionTypeRequired": "Ο τύπος σύνδεσης είναι υποχρεωτικός",
+      "connectionIdRequired": "Το ID Σύνδεσης είναι υποχρεωτικό",
+      "connectionIdRequirement": "Το ID Σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
+      "connectionTypeRequired": "Ο Τύπος Σύνδεσης είναι υποχρεωτικός",
       "extraFields": "Επιπλέον Πεδία",
       "extraFieldsJson": "Επιπλέον Πεδία JSON",
-      "helperText": "Λείπει ο τύπος σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
+      "helperText": "Λείπει ο Τύπος Σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
       "helperTextForRedactedFields": "Τα πεδία που έχουν αποκρυφθεί ('***') θα παραμείνουν αμετάβλητα αν δεν τροποποιηθούν.",
       "selectConnectionType": "Επιλέξτε Τύπο Σύνδεσης",
       "standardFields": "Βασικά Πεδία"
@@ -53,7 +53,7 @@
       "error": "Αποτυχία ανάκτησης μεταδεδομένων τύπου σύνδεσης",
       "standardFields": {
         "description": "Περιγραφή",
-        "host": "Διεύθυνση",
+        "host": "Ξενιστής",
         "login": "Όνομα Χρήστη",
         "password": "Κωδικός",
         "port": "Θύρα",

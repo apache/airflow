@@ -12,7 +12,7 @@
   "requiredActionCount_other": "Απαιτούμενες Ενέργειες ({{count}})",
   "requiredActionState": "Κατάσταση Απαιτούμενης Ενέργειας",
   "response": {
-    "error": "Η απάντηση απέτυχε",
+    "error": "Αποτυχημένη απάντηση",
     "optionsDescription": "Επιλέξτε τις επιλογές σας για αυτήν την εκτέλεση εργασίας",
     "optionsLabel": "Επιλογές",
     "received": "Η απάντηση ελήφθη στις ",

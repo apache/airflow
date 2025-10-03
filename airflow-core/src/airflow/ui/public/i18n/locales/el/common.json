@@ -101,10 +101,12 @@
   },
   "filter": "Φίλτρο",
   "filters": {
+    "durationFrom": "Διάρκεια Από",
+    "durationTo": "Διάρκεια Έως",
     "logicalDateFrom": "Λογική Ημερομηνία Από",
     "logicalDateTo": "Λογική Ημερομηνία Έως",
     "runAfterFrom": "Εκτέλεση Μετά Από",
-    "runAfterTo": "Εκτέλεση Μέχρι"
+    "runAfterTo": "Εκτέλεση Μετά Έως"
   },
   "logicalDate": "Λογική Ημερομηνία",
   "logout": "Αποσύνδεση",

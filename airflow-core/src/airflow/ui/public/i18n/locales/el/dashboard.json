@@ -2,7 +2,7 @@
   "favorite": {
     "favoriteDags_one": "Πρώτο αγαπημένο Dag ({{count}})",
     "favoriteDags_other": "Πρώτα αγαπημένα Dag ({{count}})",
-    "noDagRuns": "Δεν υπάρχει ακόμη Εκτέλεση Dag για αυτό το dag.",
+    "noDagRuns": "Δεν υπάρχει ακόμη DagRun για αυτό το dag.",
     "noFavoriteDags": "Δεν υπάρχουν αγαπημένα ακόμα. Κάντε κλικ στο εικονίδιο αστεριού δίπλα σε ένα Dag στη λίστα για να το προσθέσετε στα αγαπημένα σας."
   },
   "group": "Ομάδα",
@@ -22,7 +22,7 @@
     "dagImportError_one": "Σφάλμα Εισαγωγής Dag",
     "dagImportError_other": "Σφάλματα Εισαγωγής Dag",
     "searchByFile": "Αναζήτηση κατά αρχείο",
-    "timestamp": "Χρονική σήμανση"
+    "timestamp": "Χρονοσήμανση"
   },
   "managePools": "Διαχείριση Pools",
   "noAssetEvents": "Δεν βρέθηκαν Συμβάντα Οντοτήτων.",
