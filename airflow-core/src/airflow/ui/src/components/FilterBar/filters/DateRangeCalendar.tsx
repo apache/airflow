@@ -21,7 +21,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { useMemo } from "react";
 import { MdChevronLeft, MdChevronRight } from "react-icons/md";
 
-import { useCalendarGrid } from "src/hooks/useCalendarGrid";
+import { useCalendarSelect } from "src/hooks/useCalendarSelect";
 
 import type { DateRangeValue } from "../types";
 import { isValidDateValue } from "../utils";
@@ -54,7 +54,7 @@ export const DateRangeCalendar = ({
   onMonthChange,
   value,
 }: DateRangeCalendarProps) => {
-  const { days } = useCalendarGrid(currentMonth);
+  const { days } = useCalendarSelect(currentMonth);
 
   const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
   const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;

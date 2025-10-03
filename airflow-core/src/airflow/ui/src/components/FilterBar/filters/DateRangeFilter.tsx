@@ -18,7 +18,6 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MdCalendarToday, MdClose } from "react-icons/md";
 
@@ -38,39 +37,12 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
       ? (filter.value as DateRangeValue)
       : { endDate: undefined, startDate: undefined };
 
-  const startDateValue = useMemo(
-    () => (isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined),
-    [value.startDate],
-  );
-  const endDateValue = useMemo(
-    () => (isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined),
-    [value.endDate],
-  );
+  const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
+  const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const { editingState, formatDisplayValue, handleDateClick, handleInputChange, setEditingState } =
     useDateRangeFilter({ onChange, value });
-
-  const renderCalendar = () => (
-    <VStack gap={4} w="full">
-      <DateRangeInputs
-        editingState={editingState}
-        endDateValue={endDateValue}
-        onChange={handleInputChange}
-        onClearEnd={() => onChange({ ...value, endDate: undefined })}
-        onClearStart={() => onChange({ ...value, startDate: undefined })}
-        setEditingState={setEditingState}
-        setSelectionTarget={(target) => setEditingState((prev) => ({ ...prev, selectionTarget: target }))}
-        startDateValue={startDateValue}
-      />
-      <DateRangeCalendar
-        currentMonth={editingState.currentMonth}
-        onDateClick={handleDateClick}
-        onMonthChange={(month) => setEditingState((prev) => ({ ...prev, currentMonth: month }))}
-        value={value}
-      />
-    </VStack>
-  );
 
   return (
     <FilterPill
@@ -143,7 +115,26 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
           </Box>
         </Popover.Trigger>
         <Popover.Content p={3} w="300px">
-          {renderCalendar()}
+          <VStack gap={4} w="full">
+            <DateRangeInputs
+              editingState={editingState}
+              endDateValue={endDateValue}
+              onChange={handleInputChange}
+              onClearEnd={() => onChange({ ...value, endDate: undefined })}
+              onClearStart={() => onChange({ ...value, startDate: undefined })}
+              setEditingState={setEditingState}
+              setSelectionTarget={(target) =>
+                setEditingState((prev) => ({ ...prev, selectionTarget: target }))
+              }
+              startDateValue={startDateValue}
+            />
+            <DateRangeCalendar
+              currentMonth={editingState.currentMonth}
+              onDateClick={handleDateClick}
+              onMonthChange={(month) => setEditingState((prev) => ({ ...prev, currentMonth: month }))}
+              value={value}
+            />
+          </VStack>
         </Popover.Content>
       </Popover.Root>
     </FilterPill>
