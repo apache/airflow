@@ -47,7 +47,8 @@ def upgrade():
 
     Add/drop/modify columns, create foreign key for trigger and rename the table name.
     """
-    # Drop all rows. this will only affect users who have incomplete Dag Processor callbacks during migration.
+    # Drop all rows. this will only affect users who have Dag Processor callbacks in non-terminal states
+    # during migration.
     op.execute("DELETE FROM callback_request")
     # TODO: migrate existing rows for pending DagProcessor callbacks
 

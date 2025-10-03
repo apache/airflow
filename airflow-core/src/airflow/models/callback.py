@@ -64,7 +64,7 @@ class CallbackType(str, Enum):
 class CallbackFetchMethod(str, Enum):
     """Methods used to fetch callback at runtime."""
 
-    # For when Dag Processor callbacks (on_success_callback/on_failure_callback) once they get moved to executors
+    # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors
     DAG_ATTRIBUTE = "dag_attribute"
 
     # For deadline callbacks since they import callbacks through the import path

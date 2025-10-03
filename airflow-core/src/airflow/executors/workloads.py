@@ -112,7 +112,6 @@ class ExecuteTask(BaseDagBundleWorkload):
     """Execute the given Task."""
 
     ti: TaskInstance
-    """The TaskInstance to execute"""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -140,7 +139,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
-            token=BaseWorkload.generate_token(str(ti.id), generator),
+            token=cls.generate_token(str(ti.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
@@ -174,7 +173,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=Callback.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc),
-            token=BaseWorkload.generate_token(str(callback.id), generator),
+            token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
