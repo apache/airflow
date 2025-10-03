@@ -24,7 +24,7 @@ from attr import define, field
 from airflow.providers.google import __version__ as provider_version
 
 if TYPE_CHECKING:
-    from openlineage.client.generated.base import RunFacet
+    from openlineage.client.generated.base import JobFacet, RunFacet
 
 try:
     try:
