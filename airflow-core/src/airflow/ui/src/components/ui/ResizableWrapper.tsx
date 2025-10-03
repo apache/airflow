@@ -26,23 +26,14 @@ import { usePersistentResizableState } from "src/utils/usePersistentResizableSta
 
 const ResizeHandle = forwardRef<HTMLDivElement>((props, ref) => (
   <Box
-    _before={{
-      background:
-        "linear-gradient(-45deg, transparent 6px, #ccc 6px, #ccc 8px, transparent 8px, transparent 12px, #ccc 12px, #ccc 14px, transparent 14px)",
-      bottom: 0,
-      content: '""',
-      height: "100%",
-      position: "absolute",
-      right: 0,
-      width: "100%",
-    }}
+    background="linear-gradient(-45deg, transparent 6px, #ccc 6px, #ccc 8px, transparent 8px, transparent 12px, #ccc 12px, #ccc 14px, transparent 14px)"
     bottom={0}
     cursor="se-resize"
-    height="20px"
+    height={5}
     position="absolute"
     ref={ref}
     right={0}
-    width="20px"
+    width={5}
     {...props}
   />
 ));
