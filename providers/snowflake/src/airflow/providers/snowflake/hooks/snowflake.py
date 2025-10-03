@@ -262,7 +262,7 @@ class SnowflakeHook(DbApiHook):
         try:
             azure_conn = Connection.get(azure_conn_id)
         except AttributeError:
-            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
         azure_base_hook = azure_conn.get_hook()
         scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
         try:
