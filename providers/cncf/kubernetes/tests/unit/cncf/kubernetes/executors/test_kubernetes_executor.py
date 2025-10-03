@@ -92,9 +92,9 @@ class TestAirflowKubernetesScheduler:
             ("影師嗎", "中華民國;$"),
         ]
 
-        cases.extend(
-            [(self._gen_random_string(seed, 200), self._gen_random_string(seed, 200)) for seed in range(100)]
-        )
+        cases.extend([
+            (self._gen_random_string(seed, 200), self._gen_random_string(seed, 200)) for seed in range(100)
+        ])
 
         return cases
 
@@ -933,14 +933,12 @@ class TestKubernetesExecutor:
     ):
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "10"
-        ti_key = annotations_to_key(
-            {
-                "dag_id": "dag",
-                "run_id": "run_id",
-                "task_id": "task",
-                "try_number": "1",
-            }
-        )
+        ti_key = annotations_to_key({
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        })
         mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
         mock_kube_client = mock.MagicMock()
@@ -1188,7 +1186,7 @@ class TestKubernetesExecutor:
             ],
             any_order=True,
         )
-        assert executor.running == expected_running_ti_keys
+        assert {k8s_res.key for k8s_res in executor.completed} == expected_running_ti_keys
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
