@@ -5095,7 +5095,7 @@
                     "default": null
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for Airflow API server to finish after SIGTERM is sent from Kubernetes.",
+                    "description": "Grace period for API server to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 30
                 },
