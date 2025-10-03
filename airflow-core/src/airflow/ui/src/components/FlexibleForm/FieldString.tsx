@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
+import { Textarea } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
@@ -40,10 +40,9 @@ export const FieldString = ({ name, namespace = "default", onUpdate }: FlexibleF
 
   return (
     <>
-      <Input
+      <Textarea
         disabled={disabled}
         id={`element_${name}`}
-        list={param.schema.examples ? `list_${name}` : undefined}
         maxLength={param.schema.maxLength ?? undefined}
         minLength={param.schema.minLength ?? undefined}
         name={`element_${name}`}
