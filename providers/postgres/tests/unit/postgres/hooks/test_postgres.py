@@ -452,7 +452,7 @@ class TestPostgresHookConn:
 
         mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
         mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
-        mock_azure_base_hook.get_token.return_value.token = "abc"
+        mock_azure_base_hook.get_token.return_value.token = mock_db_token
 
         self.db_hook.get_conn()
 
