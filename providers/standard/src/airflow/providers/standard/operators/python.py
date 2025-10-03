@@ -575,10 +575,38 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(termination_log_path),
                     os.fspath(airflow_context_path),
                 ]
-                execute_in_subprocess(
-                    cmd=cmd,
+                self.log.info("Executing virtualenv script: %s", cmd)
+                proc = subprocess.Popen(
+                    cmd,
                     env=env_vars,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
                 )
+                assert proc.stdout is not None
+                assert proc.stderr is not None
+
+                # Stream stdout → INFO
+                for line in proc.stdout:
+                    if line.strip():
+                        self.log.info("[venv stdout] %s", line.rstrip())
+
+                # Stream stderr → ERROR
+                for line in proc.stderr:
+                    if line.strip():
+                        self.log.error("[venv stderr] %s", line.rstrip())
+
+                return_code = proc.wait()
+                if return_code in self.skip_on_exit_code:
+                    raise AirflowSkipException(f"Process exited with code {return_code}. Skipping.")
+                if return_code != 0:
+                    if termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                        with open(termination_log_path) as file:
+                            error_msg = file.read()
+                        raise AirflowException(error_msg)
+                    raise subprocess.CalledProcessError(return_code, cmd)
+
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
