@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-09-28T19:49:57.916695
+# This constraints file was automatically generated on 2025-10-03T19:50:04.796151
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.0
-Authlib==1.6.4
+Authlib==1.6.5
 Deprecated==1.2.18
 Events==0.5
 Flask==3.1.2
@@ -68,7 +68,7 @@ aiomysql==0.2.0
 aiosignal==1.4.0
 aiosmtplib==4.0.2
 aiosqlite==0.21.0
-airbyte-api==0.52.2
+airbyte-api==0.53.0
 alembic==1.16.5
 alibabacloud-adb20211201==3.4.0
 alibabacloud-credentials-api==1.0.0
@@ -88,7 +88,6 @@ ansicolors==1.1.8
 anyio==4.11.0
 apache-airflow-providers-airbyte==5.2.3
 apache-airflow-providers-alibaba==3.2.3
-apache-airflow-providers-amazon==9.14.0
 apache-airflow-providers-apache-cassandra==3.8.2
 apache-airflow-providers-apache-drill==3.1.2
 apache-airflow-providers-apache-druid==4.3.0
@@ -170,6 +169,7 @@ apache-airflow-providers-smtp==2.3.1
 apache-airflow-providers-snowflake==6.5.4
 apache-airflow-providers-sqlite==4.1.2
 apache-airflow-providers-ssh==4.1.4
+apache-airflow-providers-standard==1.9.0
 apache-airflow-providers-tableau==5.2.0
 apache-airflow-providers-telegram==4.8.2
 apache-airflow-providers-teradata==3.2.1
@@ -177,7 +177,7 @@ apache-airflow-providers-trino==6.3.3
 apache-airflow-providers-vertica==4.1.2
 apache-airflow-providers-weaviate==3.2.3
 apache-airflow-providers-zendesk==4.10.2
-apprise==1.9.4
+apprise==1.9.5
 argcomplete==3.6.2
 asana==5.2.2
 asgiref==3.9.2
@@ -217,7 +217,7 @@ azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 backoff==2.2.1
 bcrypt==5.0.0
-beautifulsoup4==4.14.0
+beautifulsoup4==4.14.2
 billiard==4.2.2
 bitarray==3.7.1
 black==25.9.0
@@ -226,7 +226,7 @@ blinker==1.9.0
 boto3==1.40.18
 botocore==1.40.18
 build==1.3.0
-cachetools==5.5.2
+cachetools==6.2.0
 cadwyn==5.4.4
 cassandra-driver==3.29.2
 cattrs==25.2.0
@@ -293,12 +293,12 @@ gevent==25.9.1
 gitdb==4.0.12
 google-ads==28.0.0
 google-analytics-admin==0.25.0
-google-api-core==2.25.1
-google-api-python-client==2.183.0
+google-api-core==2.25.2
+google-api-python-client==2.184.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
-google-auth==2.40.3
-google-cloud-aiplatform==1.117.0
+google-auth==2.41.1
+google-cloud-aiplatform==1.119.0
 google-cloud-alloydb==0.4.9
 google-cloud-appengine-logging==1.6.2
 google-cloud-audit-log==0.3.2
@@ -342,7 +342,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.39.1
+google-genai==1.41.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.21
@@ -354,7 +354,7 @@ grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.75.1
 grpcio==1.75.1
-gssapi==1.10.0
+gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
@@ -366,7 +366,7 @@ httplib2==0.31.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface-hub==0.35.1
+huggingface-hub==0.35.3
 humanize==4.13.0
 hvac==2.3.0
 hyperframe==6.1.0
@@ -380,7 +380,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
 ipykernel==6.30.1
-ipython==9.5.0
+ipython==9.6.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -443,14 +443,14 @@ natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==5.28.2
+neo4j==6.0.2
 nest-asyncio==1.6.0
 numpy==2.3.3
 oauthlib==3.3.1
-openai==1.109.1
-openlineage-integration-common==1.37.0
-openlineage-python==1.37.0
-openlineage_sql==1.37.0
+openai==2.1.0
+openlineage-integration-common==1.38.0
+openlineage-python==1.38.0
+openlineage_sql==1.38.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.37.0
@@ -468,7 +468,7 @@ orjson==3.11.3
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
-pagerduty==5.0.0
+pagerduty==5.1.0
 pandas-gbq==0.29.2
 pandas-stubs==2.3.2.250926
 pandas==2.2.3
@@ -487,7 +487,8 @@ pinotdb==5.7.0
 platformdirs==4.4.0
 pluggy==1.6.0
 ply==3.11
-polars==1.33.1
+polars-runtime-32==1.34.0
+polars==1.34.0
 portalocker==3.2.0
 presto-python-client==0.8.4
 prometheus_client==0.23.1
@@ -515,7 +516,7 @@ pydruid==0.6.9
 pyexasol==1.2.0
 pygtrie==2.5.0
 pykerberos==1.2.4
-pymongo==4.15.1
+pymongo==4.15.2
 pymssql==2.3.7
 pyodbc==5.2.0
 pyodps==0.12.5
@@ -592,7 +593,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starlette==0.48.0
 statsd==4.0.1
-std-uritemplate==2.0.5
+std-uritemplate==2.0.6
 structlog==25.4.0
 svcs==25.1.0
 tableauserverclient==0.38
@@ -618,7 +619,7 @@ types-protobuf==6.32.1.20250918
 types-pytz==2025.2.0.20250809
 types-requests==2.32.4.20250913
 typing-inspect==0.9.0
-typing-inspection==0.4.1
+typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.2
 tzlocal==5.3.1
