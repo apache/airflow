@@ -1983,6 +1983,36 @@ class DagRun(Base, LoggingMixin):
             )
         ).all()
 
+    @staticmethod
+    def is_schedulable_task(task: Operator) -> bool:
+        """
+        Determine if the task should be scheduled instead of being short-circuited to ``success``.
+
+        A task requires scheduling if it is not a trivial EmptyOperator, i.e. one of the
+        following conditions holds:
+
+        * it does **not** inherit from ``EmptyOperator``
+        * it defines an ``on_execute_callback``
+        * it defines an ``on_success_callback``
+        * it declares any ``outlets``
+        * it declares any ``inlets``
+
+        If none of these are true, the task is considered empty and is immediately marked
+        successful without being scheduled.
+
+        Note: keeping this check as a separate public method is important so it can also be used
+        by listeners (hen a task is not scheduled, listeners are never called). For example,
+        the OpenLineage listener checks all tasks at DAG start, and using this method lets
+        it consistently determine whether the listener will run for each task.
+        """
+        return bool(
+            not task.inherits_from_empty_operator
+            or task.has_on_execute_callback
+            or task.has_on_success_callback
+            or task.outlets
+            or task.inlets
+        )
+
     @provide_session
     def schedule_tis(
         self,
@@ -1995,7 +2025,8 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have its ``task`` attribute already set.
 
-        Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
+        Any EmptyOperator without ``on_execute_callback`` or ``on_success_callback`` or ``inlets`` or
+        ``outlets`` is instead set straight to the success state, without execution.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
@@ -2008,14 +2039,8 @@ class DagRun(Base, LoggingMixin):
             task = ti.task
             if TYPE_CHECKING:
                 assert isinstance(task, Operator)
-            if (
-                task.inherits_from_empty_operator
-                and not task.has_on_execute_callback
-                and not task.has_on_success_callback
-                and not task.outlets
-                and not task.inlets
-            ):
-                empty_ti_ids.append(ti.id)
+            if self.is_schedulable_task(task):
+                schedulable_ti_ids.append(ti.id)
             # Check "start_trigger_args" to see whether the operator supports
             # start execution from triggerer. If so, we'll check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
@@ -2034,7 +2059,7 @@ class DagRun(Base, LoggingMixin):
             #     else:
             #         schedulable_ti_ids.append(ti.id)
             else:
-                schedulable_ti_ids.append(ti.id)
+                empty_ti_ids.append(ti.id)
 
         count = 0
 
