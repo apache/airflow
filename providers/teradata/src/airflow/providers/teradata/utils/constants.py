@@ -34,5 +34,16 @@ class Constants:
     CC_GRP_LAKE_SUPPORT_ONLY_MSG = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance  because the Compute Cluster feature is supported only on the Vantage Cloud Lake system."
     CC_OPR_TIMEOUT_ERROR = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance `%s`. Please contact the administrator for assistance."
     CC_ERR_VERSION_GET = "Failed to manage the Vantage Cloud Lake Compute Cluster Instance due to an error while getting the Teradata database version."
+    BTEQ_REMOTE_ERROR_MSG = (
+        "Failed to establish a SSH connection to the remote machine for executing the BTEQ script."
+    )
+    BTEQ_UNEXPECTED_ERROR_MSG = "Failure while executing BTEQ script due to unexpected error."
+    BTEQ_TIMEOUT_ERROR_MSG = "Failed to execute BTEQ script due to timeout after %s seconds."
+    BTEQ_MISSED_PARAMS = "Failed to execute BTEQ script due to missing required parameters: either 'sql' or 'file_path' must be provided."
+    BTEQ_INVALID_PATH = (
+        "Failed to execute BTEQ script due to invalid file path: '%s' does not exist or is inaccessible."
+    )
+    BTEQ_INVALID_CHARSET = "Failed to execute BTEQ script because the provided file '%s' encoding differs from the specified BTEQ I/O encoding %s"
+    BTEQ_REMOTE_FILE_PATH_INVALID = "Failed to execute BTEQ script due to invalid remote file path: '%s' does not exist or is inaccessible on the remote machine."
     CC_OPR_TIME_OUT = 1200
     CC_POLL_INTERVAL = 60
