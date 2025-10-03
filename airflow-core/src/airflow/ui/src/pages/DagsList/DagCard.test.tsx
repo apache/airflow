@@ -157,7 +157,8 @@ describe("DagCard", () => {
   it("DagCard should render without tags", () => {
     render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
-    expect(screen.queryByTestId("dag-tag")).toBeNull();
+    expect(screen.queryByTestId("dag-tag-icon")).toBeNull();
+    expect(screen.queryByTestId("dag-tags")).toBeNull();
   });
 
   it("DagCard should not show +X more text if there is only +1 over the limit", () => {
@@ -175,7 +176,8 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
-    expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tag-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tags")).toBeInTheDocument();
     expect(screen.queryByText("tag3")).toBeInTheDocument();
     expect(screen.queryByText("tag4")).toBeInTheDocument();
     expect(screen.queryByText(", +1 more")).toBeNull();
@@ -197,8 +199,28 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
-    expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tag-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tags")).toBeInTheDocument();
     expect(screen.getByText("+2 more")).toBeInTheDocument();
+  });
+
+  it("DagCard should show tags in alphabetical order", () => {
+    const tags = [
+      { dag_display_name: "id", dag_id: "id", name: "pear" },
+      { dag_display_name: "id", dag_id: "id", name: "watermelon" },
+      { dag_display_name: "id", dag_id: "id", name: "apple" },
+    ] satisfies Array<DagTagResponse>;
+
+    const expandedMockDag = {
+      ...mockDag,
+      tags,
+    } satisfies DAGWithLatestDagRunsResponse;
+
+    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
+    expect(screen.getByTestId("dag-id")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tag-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tags")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-tags")).toHaveTextContent("apple, pear, watermelon");
   });
 
   it("DagCard should render schedule section", () => {
