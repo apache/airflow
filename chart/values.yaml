@@ -533,7 +533,7 @@ data:
     protocol: sqlite
     host: ""
     port: 0
-    db: /opt/airflow/airflow.db
+    db: /opt/airflow/shared-db/airflow.db
     sslmode: disable
     # Add custom annotations to the metadata connection secret
     secretAnnotations: {}
@@ -570,6 +570,8 @@ sqliteShared:
     # Storage class name for the PVC (empty means use default storage class)
     storageClassName: ""
     # Access mode for the persistent volume
+    # Note: Local Path Provisioner (used in KinD) only supports ReadWriteOnce
+    # For production with multiple nodes, use ReadWriteMany with NFS or cloud RWX storage
     accessMode: ReadWriteMany
     # Size of the persistent volume
     size: 1Gi
@@ -2910,7 +2912,7 @@ config:
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
-    sql_alchemy_conn: 'sqlite:////opt/airflow/airflow.db'
+    sql_alchemy_conn: 'sqlite:////opt/airflow/shared-db/airflow.db'
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'

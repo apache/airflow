@@ -1048,6 +1048,12 @@ def _deploy_helm_chart(
             f"config.core.auth_manager={auth_manager}",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
+            "--set",
+            "sqliteShared.enabled=true",
+            "--set",
+            "sqliteShared.persistence.enabled=true",
+            "--set",
+            "sqliteShared.persistence.accessMode=ReadWriteOnce",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])

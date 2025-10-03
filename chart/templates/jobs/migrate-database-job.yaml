@@ -91,8 +91,26 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
-      {{- if .Values.migrateDatabaseJob.extraInitContainers }}
       initContainers:
+      {{- if include "airflow.sqliteShared.enabled" . }}
+        - name: fix-sqlite-permissions
+          image: {{ template "default_airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              DB_DIR=$(dirname "{{ .Values.data.metadataConnection.db }}")
+              mkdir -p "$DB_DIR"
+              chown -R {{ .Values.uid }}:{{ .Values.gid }} "$DB_DIR"
+              chmod 775 "$DB_DIR"
+          volumeMounts:
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
+          securityContext:
+            runAsUser: 0
+      {{- end }}
+      {{- if .Values.migrateDatabaseJob.extraInitContainers }}
         {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}
       {{- end }}
       containers:
