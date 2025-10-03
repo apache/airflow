@@ -27,7 +27,7 @@ import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
-import { renderDuration } from "src/utils";
+import { getDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
@@ -83,21 +83,13 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
-  const startIso: string | undefined = instance.min_start_date ?? undefined;
-  const endIso: string | undefined = instance.max_end_date ?? undefined;
-
-  const hasStart = startIso !== undefined;
-  const hasEnd = endIso !== undefined;
-
-  let durationText: string | undefined;
-
-  if (hasStart && hasEnd) {
-    const startMs = new Date(startIso).getTime();
-    const endMs = new Date(endIso).getTime();
-    const durationSeconds = (endMs - startMs) / 1000;
-
-    durationText = Number.isFinite(durationSeconds) ? renderDuration(durationSeconds) : undefined;
-  }
+  // Compute duration only if both ends exist
+  const hasStart = instance.min_start_date !== null;
+  const hasEnd = instance.max_end_date !== null;
+  const durationText =
+    hasStart && hasEnd
+      ? getDuration(instance.min_start_date, instance.max_end_date)
+      : translate("notAvailable", { defaultValue: "--" });
 
   return (
     <Flex
@@ -135,21 +127,19 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
 
               {hasStart ? (
                 <Text>
-                  {translate("startDate")}: <Time datetime={startIso} />
+                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
                 </Text>
               ) : null}
 
               {hasEnd ? (
                 <Text>
-                  {translate("endDate")}: <Time datetime={endIso} />
+                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
                 </Text>
               ) : null}
 
-              {durationText !== undefined && (
-                <Text>
-                  {translate("duration")}: {durationText}
-                </Text>
-              )}
+              <Text>
+                {translate("duration")}: {durationText}
+              </Text>
             </Box>
           }
           portalled

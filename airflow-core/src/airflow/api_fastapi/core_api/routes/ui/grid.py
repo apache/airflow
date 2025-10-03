@@ -329,7 +329,7 @@ def get_grid_ti_summaries(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
 
-    ti_details = collections.defaultdict(list)
+    ti_details: dict[str, list[dict[str, object | None]]] = collections.defaultdict(list)
     for ti in task_instances:
         ti_details[ti.task_id].append(
             {
@@ -338,6 +338,14 @@ def get_grid_ti_summaries(
                 "end_date": ti.end_date,
             }
         )
+
+    task_min_max: dict[str, tuple[object | None, object | None]] = {}
+    for task_id, rows in ti_details.items():
+        starts = [r["start_date"] for r in rows if r.get("start_date") is not None]
+        ends = [r["end_date"] for r in rows if r.get("end_date") is not None]
+        min_start = min(starts) if starts else None
+        max_end = max(ends) if ends else None
+        task_min_max[task_id] = (min_start, max_end)
 
     serdag = _get_serdag(
         dag_id=dag_id,
@@ -356,36 +364,14 @@ def get_grid_ti_summaries(
             parent_node=None,
             ti_details=ti_details,
         ):
-            if node["type"] in {"task", "mapped_task"}:
-                yielded_task_ids.add(node["task_id"])
-                if node["type"] == "task":
-                    entries = ti_details.get(node["task_id"], [])
-                    starts = [e["start_date"] for e in entries if e["start_date"] is not None]
-                    ends = [e["end_date"] for e in entries if e["end_date"] is not None]
-                    node["min_start_date"] = min(starts) if starts else None
-                    node["max_end_date"] = max(ends) if ends else None
-                    node["child_states"] = None
+            if node["type"] == "task":
+                node["child_states"] = None
+                min_start, max_end = task_min_max.get(node["task_id"], (None, None))
+                node["min_start_date"] = min_start
+                node["max_end_date"] = max_end
             yield node
 
-        # Add synthetic leaf nodes for tasks present in this run but not in current DAG structure
-        missing_task_ids = set(ti_details.keys()) - yielded_task_ids
-        for task_id in sorted(missing_task_ids):
-            detail = ti_details[task_id]
-            agg = _get_aggs_for_node(detail)  # includes min_start_date / max_end_date / state aggregation
-            yield {
-                "task_id": task_id,
-                "type": "task",
-                "parent_id": None,
-                **agg,
-                "child_states": None,
-            }
-
-    nodes_list = list(get_node_sumaries())
-    # If a group id and a task id collide, prefer the group record
-    group_ids = {n.get("task_id") for n in nodes_list if n.get("type") == "group"}
-    filtered = [n for n in nodes_list if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
-
-    return {  # type: ignore[return-value]
+    return {
         "run_id": run_id,
         "dag_id": dag_id,
         "task_instances": filtered,
