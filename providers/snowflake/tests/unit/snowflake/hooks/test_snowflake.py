@@ -1054,3 +1054,35 @@ class TestPytestSnowflakeHook:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
         )
+
+    def test_conn_params_without_wif(self):
+        conn = Connection(
+            conn_id="snowflake_default",
+            conn_type="snowflake",
+            login="user",
+            password="pass",
+            extra=json.dumps({"database": "TEST_DB"}),
+        )
+        hook = SnowflakeHook(snowflake_conn_id="snowflake_default")
+        hook.get_connection = lambda _: conn  # patch connection
+
+        params = hook._get_conn_params
+        assert "workload_identity_provider" not in params
+
+
+    def test_conn_params_with_wif(self):
+        conn = Connection(
+            conn_id="snowflake_default",
+            conn_type="snowflake",
+            login="user",
+            password="pass",
+            extra=json.dumps({
+                "database": "TEST_DB",
+                "workload_identity_provider": "aws",
+            }),
+        )
+        hook = SnowflakeHook(snowflake_conn_id="snowflake_default")
+        hook.get_connection = lambda _: conn  # patch connection
+
+        params = hook._get_conn_params
+        assert params["workload_identity_provider"] == "aws"
