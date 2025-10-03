@@ -311,8 +311,6 @@ _DEPRECATED_EXCEPTIONS = {
     "DagRunTriggerException": "airflow.sdk.exceptions.DagRunTriggerException",
     "TaskDeferralError": "airflow.sdk.exceptions.TaskDeferralError",
     "AirflowDagCycleException": "airflow.sdk.exceptions.AirflowDagCycleException",
-    # TODO: Verifying with Wei if we need to verify if Asset is inactive or not on both server & client
-    #   It is used on server side before marking a task state in API-server
     "AirflowInactiveAssetInInletOrOutletException": "airflow.sdk.exceptions.AirflowInactiveAssetInInletOrOutletException",
     "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
     "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
