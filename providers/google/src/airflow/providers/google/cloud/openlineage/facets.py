@@ -131,7 +131,6 @@ try:
                 "openlineage/CloudStorageTransferRunFacet.json"
             )
 
-
     @define
     class DataFusionRunFacet(RunFacet):
         """
