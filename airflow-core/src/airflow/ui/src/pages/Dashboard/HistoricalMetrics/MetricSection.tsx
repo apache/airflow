@@ -68,7 +68,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={state === "no_status" ? "none.solid" : `${state}.solid`}
+          bg={`${state === "no_status" ? "none" : state}.solid`}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
