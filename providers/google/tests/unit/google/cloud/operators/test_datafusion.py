@@ -416,8 +416,8 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
     @pytest.mark.parametrize(
         "pipeline_id, runtime_args, expected_run_id, expected_runtime_args, expected_output_suffix",
         [
-            ("abc123", {"arg1": "val1"}, "abc123", {"arg1": "val1"}, "/runs/abc123"),
-            (None, None, None, None, "/runs/unknown"),
+            ("abc123", {"arg1": "val1"}, "abc123", {"arg1": "val1"}, "abc123"),
+            (None, None, None, None, "unknown"),
         ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink.persist")
@@ -454,9 +454,7 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
         assert result_pipeline_id == pipeline_id
         assert op.pipeline_id == pipeline_id
 
-        expected_input_name = (
-            f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_NAME}/pipelines/{PIPELINE_NAME}"
-        )
+        expected_input_name = f"{PROJECT_ID}:{LOCATION}:{INSTANCE_NAME}:{PIPELINE_NAME}"
 
         assert results is not None
         assert len(results.inputs) == 1
@@ -465,7 +463,7 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
 
         assert len(results.outputs) == 1
         assert results.outputs[0].namespace == "datafusion"
-        assert results.outputs[0].name == f"{expected_input_name}{expected_output_suffix}"
+        assert results.outputs[0].name == f"{expected_input_name}:{expected_output_suffix}"
 
         facet = results.run_facets["dataFusionRun"]
         assert isinstance(facet, DataFusionRunFacet)

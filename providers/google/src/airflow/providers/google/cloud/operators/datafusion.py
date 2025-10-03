@@ -873,17 +873,14 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        pipeline_resource = (
-            f"projects/{self.project_id}/locations/{self.location}/instances/"
-            f"{self.instance_name}/pipelines/{self.pipeline_name}"
-        )
+        pipeline_resource = f"{self.project_id}:{self.location}:{self.instance_name}:{self.pipeline_name}"
 
         inputs = [Dataset(namespace="datafusion", name=pipeline_resource)]
 
         if self.pipeline_id:
-            output_name = f"{pipeline_resource}/runs/{self.pipeline_id}"
+            output_name = f"{pipeline_resource}:{self.pipeline_id}"
         else:
-            output_name = f"{pipeline_resource}/runs/unknown"
+            output_name = f"{pipeline_resource}:unknown"
         outputs = [Dataset(namespace="datafusion", name=output_name)]
 
         run_facets = {
