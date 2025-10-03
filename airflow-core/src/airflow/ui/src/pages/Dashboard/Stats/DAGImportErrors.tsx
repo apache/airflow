@@ -60,7 +60,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
         </StateBadge>
       ) : (
         <StatsCard
-          colorScheme="failed"
+          colorPalette="failed"
           count={importErrorsCount}
           icon={<LuFileWarning />}
           isLoading={isLoading}
