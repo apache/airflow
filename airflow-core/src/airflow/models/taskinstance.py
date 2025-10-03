@@ -196,7 +196,7 @@ def clear_task_instances(
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
-    prevent_running_task: Optional[bool] = False,
+    prevent_running_task: Optional[bool] = None,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
