@@ -22,6 +22,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
 
+const DATE_INPUT_FORMAT = "YYYY/MM/DD";
+
 export type DateSelection = "end" | "start" | undefined;
 
 export type DateRangeEditingState = {
@@ -51,8 +53,8 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
   const [editingState, setEditingState] = useState<DateRangeEditingState>(() => ({
     currentMonth: startDateValue ?? endDateValue ?? dayjs(),
     inputs: {
-      end: endDateValue?.format("YYYY/MM/DD") ?? "",
-      start: startDateValue?.format("YYYY/MM/DD") ?? "",
+      end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+      start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
     },
     selectionTarget: undefined,
   }));
@@ -61,8 +63,8 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
     setEditingState((prev) => ({
       ...prev,
       inputs: {
-        end: endDateValue?.format("YYYY/MM/DD") ?? "",
-        start: startDateValue?.format("YYYY/MM/DD") ?? "",
+        end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+        start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
       },
     }));
   }, [startDateValue, endDateValue]);
@@ -105,7 +107,7 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
       inputs: { ...prev.inputs, [field]: inputValue },
     }));
 
-    const parsedDate = dayjs(inputValue, "YYYY/MM/DD", true);
+    const parsedDate = dayjs(inputValue, DATE_INPUT_FORMAT, true);
 
     if (parsedDate.isValid()) {
       onChange({
