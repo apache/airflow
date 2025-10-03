@@ -579,7 +579,14 @@ export const customConfig = defineConfig({
             hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
           },
           minimap: {
-            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } }
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            group: {
+              odd: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+              even: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.300}" } }
+            }
+          },
+          selected: {
+            stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
           }
         },
         
@@ -593,6 +600,9 @@ export const customConfig = defineConfig({
           },
           minimap: {
             bg: { value: { _light: "white", _dark: "{colors.gray.800}" } }
+          },
+          selected: {
+            stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
           }
         },
         
