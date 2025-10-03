@@ -32,7 +32,7 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "เวลาหมดอายุของ Dag Run",
+    "dagRunTimeout": "เวลา Timeout ของ DAG Run",
     "defaultArgs": "Arguments ค่าเริ่มต้น",
     "description": "คำอธิบาย",
     "documentation": "เอกสารประกอบ Dag",
@@ -82,9 +82,9 @@
   "endDate": "วันที่สิ้นสุด",
   "error": {
     "back": "ย้อนกลับ",
-    "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิด",
+    "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิดขึ้น",
     "home": "หน้าแรก",
-    "notFound": "ไม่พบหน้า",
+    "notFound": "ไม่พบหน้านี้",
     "title": "ข้อผิดพลาด"
   },
   "expand": {
