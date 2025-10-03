@@ -70,7 +70,7 @@ def get_provider_info():
                 "description": "Configuration for Postgres hooks and operators.\n",
                 "options": {
                     "azure_oauth_scope": {
-                        "description": "The scope to use while retrieving Oauth token for Postgres Flexible Server from Azure Entra authentication.\n",
+                        "description": "The scope to use while retrieving Oauth token for Postgres Flexible Server\nfrom Azure Entra authentication.\n",
                         "version_added": "6.4.0",
                         "type": "string",
                         "example": None,

@@ -107,7 +107,7 @@ Extra (optional)
       for which you are requesting credentials. This parameter is case sensitive.
       If not specified than hostname from **Connection Host** is used.
     * ``azure_conn_id`` - Azure Connection ID to be used for authentication via Azure Entra ID. Azure Oauth token
-      is retrieved from the azure connection which is used as password for PostgreSQL connection.
+      is retrieved from the azure connection which is used as password for PostgreSQL connection. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
 
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 

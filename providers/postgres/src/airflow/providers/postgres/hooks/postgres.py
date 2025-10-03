@@ -518,10 +518,21 @@ class PostgresHook(DbApiHook):
         This uses AzureBaseHook to retrieve an OAUTH token to connect to Postgres.
         """
         azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
-        azure_conn = Connection.get(azure_conn_id)
+        try:
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
         azure_base_hook = azure_conn.get_hook()
         scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
-        token = azure_base_hook.get_token(scope).token
+        try:
+            token = azure_base_hook.get_token(scope).token
+        except AttributeError as e:
+            if "get_token" in str(e):
+                raise AttributeError(
+                    "'AzureBaseHook' object has no attribute 'get_token'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0."
+                ) from e
+            raise
         return cast("str", conn.login or azure_conn.login), cast("str", token), conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
