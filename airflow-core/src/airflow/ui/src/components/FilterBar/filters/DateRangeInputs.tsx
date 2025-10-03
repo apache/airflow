@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
 
 import type { DateRangeEditingState } from "src/hooks/useDateRangeFilter";
+import { DATE_INPUT_FORMAT } from "src/hooks/useDateRangeFilter";
 
 type DateRangeInputsProps = {
   readonly editingState: DateRangeEditingState;
@@ -49,29 +50,29 @@ export const DateRangeInputs = ({
   return (
     <HStack gap={2} w="full">
       <Box position="relative" w="140px">
-        <Text color="gray.600" fontSize="xs" mb={0.5}>
+        <Text color="fg.muted" fontSize="xs" mb={0.5}>
           {translate("common:table.from")}
         </Text>
         <Input
-          _focus={{ borderColor: "blue.500" }}
-          borderColor={editingState.selectionTarget === "start" ? "blue.500" : "gray.300"}
+          _focus={{ borderColor: "brand.focusRing" }}
+          borderColor={editingState.selectionTarget === "start" ? "brand.focusRing" : "border"}
           fontSize="sm"
           fontWeight="medium"
           onBlur={() => {
             if (
               startDateValue &&
               editingState.inputs.start &&
-              !dayjs(editingState.inputs.start, "YYYY/MM/DD", true).isValid()
+              !dayjs(editingState.inputs.start, DATE_INPUT_FORMAT, true).isValid()
             ) {
               setEditingState((prev) => ({
                 ...prev,
-                inputs: { ...prev.inputs, start: startDateValue.format("YYYY/MM/DD") },
+                inputs: { ...prev.inputs, start: startDateValue.format(DATE_INPUT_FORMAT) },
               }));
             }
           }}
           onChange={onChange("start")}
           onFocus={() => setSelectionTarget("start")}
-          placeholder="YYYY/MM/DD"
+          placeholder={DATE_INPUT_FORMAT}
           value={editingState.inputs.start}
         />
         {Boolean(editingState.inputs.start) ? (
@@ -90,29 +91,29 @@ export const DateRangeInputs = ({
       </Box>
 
       <Box position="relative" w="140px">
-        <Text color="gray.600" fontSize="xs" mb={0.5}>
+        <Text color="fg.muted" fontSize="xs" mb={0.5}>
           {translate("common:table.to")}
         </Text>
         <Input
-          _focus={{ borderColor: "blue.500" }}
-          borderColor={editingState.selectionTarget === "end" ? "blue.500" : "gray.300"}
+          _focus={{ borderColor: "brand.focusRing" }}
+          borderColor={editingState.selectionTarget === "end" ? "brand.focusRing" : "border"}
           fontSize="sm"
           fontWeight="medium"
           onBlur={() => {
             if (
               endDateValue &&
               editingState.inputs.end &&
-              !dayjs(editingState.inputs.end, "YYYY/MM/DD", true).isValid()
+              !dayjs(editingState.inputs.end, DATE_INPUT_FORMAT, true).isValid()
             ) {
               setEditingState((prev) => ({
                 ...prev,
-                inputs: { ...prev.inputs, end: endDateValue.format("YYYY/MM/DD") },
+                inputs: { ...prev.inputs, end: endDateValue.format(DATE_INPUT_FORMAT) },
               }));
             }
           }}
           onChange={onChange("end")}
           onFocus={() => setSelectionTarget("end")}
-          placeholder="YYYY/MM/DD"
+          placeholder={DATE_INPUT_FORMAT}
           value={editingState.inputs.end}
         />
         {Boolean(editingState.inputs.end) ? (

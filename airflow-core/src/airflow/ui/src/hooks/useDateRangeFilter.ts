@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
 
-const DATE_INPUT_FORMAT = "YYYY/MM/DD";
+export const DATE_INPUT_FORMAT = "YYYY/MM/DD";
 
 export type DateSelection = "end" | "start" | undefined;
 

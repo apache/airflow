@@ -67,13 +67,13 @@ export const DateRangeCalendar = ({
 
       const getBgColor = () => {
         if (state.isStart) {
-          return "blue.500";
+          return "brand.solid";
         }
         if (state.isEnd) {
-          return "blue.300";
+          return "brand.muted";
         }
         if (state.isInRange) {
-          return "blue.50";
+          return "brand.subtle";
         }
 
         return "transparent";
@@ -81,13 +81,13 @@ export const DateRangeCalendar = ({
 
       const getTextColor = () => {
         if (state.isStart || state.isEnd) {
-          return "white";
+          return "brand.contrast";
         }
         if (!state.isCurrentMonth) {
-          return "gray.400";
+          return "fg.muted";
         }
 
-        return "inherit";
+        return "fg";
       };
 
       return {
@@ -121,7 +121,7 @@ export const DateRangeCalendar = ({
         <Grid gap={1} gridTemplateColumns="repeat(7, 1fr)" w="full">
           {weekdayHeaders.map((dayName) => (
             <Text
-              color="gray.500"
+              color="fg.muted"
               fontSize="2xs"
               fontWeight="medium"
               key={dayName}
@@ -143,7 +143,7 @@ export const DateRangeCalendar = ({
             return (
               <Button
                 _hover={{
-                  bg: isSelected ? styles.bgColor : "gray.100",
+                  bg: isSelected ? styles.bgColor : "bg.muted",
                 }}
                 bg={styles.bgColor}
                 border="1px solid transparent"
@@ -162,7 +162,7 @@ export const DateRangeCalendar = ({
                 {dayItem.date()}
                 {Boolean(styles.showTodayIndicator) && (
                   <Box
-                    bg="red.500"
+                    bg="red.solid"
                     borderRadius="full"
                     bottom="1"
                     height="3px"
