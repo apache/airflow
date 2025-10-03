@@ -1346,7 +1346,7 @@
                         "db": {
                             "description": "The name of the database.",
                             "type": "string",
-                            "default": "/opt/airflow/airflow.db"
+                            "default": "/opt/airflow/shared-db/airflow.db"
                         },
                         "sslmode": {
                             "description": "The database SSL parameter.",
