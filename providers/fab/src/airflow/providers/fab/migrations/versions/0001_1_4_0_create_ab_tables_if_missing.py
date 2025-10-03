@@ -121,6 +121,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=250), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("ab_view_menu_pkey")),
         sa.UniqueConstraint("name", name=op.f("ab_view_menu_name_uq")),
+        if_not_exists=True,
     )
     op.create_table(
         "ab_group_role",
@@ -138,8 +139,8 @@ def upgrade() -> None:
         if_not_exists=True,
     )
     with op.batch_alter_table("ab_group_role", schema=None) as batch_op:
-        batch_op.create_index("idx_group_id", ["group_id"], unique=False)
-        batch_op.create_index("idx_group_role_id", ["role_id"], unique=False)
+        batch_op.create_index("idx_group_id", ["group_id"], unique=False, if_not_exists=True)
+        batch_op.create_index("idx_group_role_id", ["role_id"], unique=False, if_not_exists=True)
 
     op.create_table(
         "ab_permission_view",
@@ -174,8 +175,8 @@ def upgrade() -> None:
         if_not_exists=True,
     )
     with op.batch_alter_table("ab_user_group", schema=None) as batch_op:
-        batch_op.create_index("idx_user_group_id", ["group_id"], unique=False)
-        batch_op.create_index("idx_user_id", ["user_id"], unique=False)
+        batch_op.create_index("idx_user_group_id", ["group_id"], unique=False, if_not_exists=True)
+        batch_op.create_index("idx_user_id", ["user_id"], unique=False, if_not_exists=True)
 
     op.create_table(
         "ab_user_role",

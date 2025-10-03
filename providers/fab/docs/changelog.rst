@@ -20,11 +20,59 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
+Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
+Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+
+* ``Upgrade flask-appbuilder to version 5 (#50960)``
+
+Features
+~~~~~~~~
+
+* ``Support nested groups resolution for LDAP authentication in Fab auth manager``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'if_not_exists=True' to FAB migration (#56100)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix static check error resulting from not rebased change in FAB5 (#56178)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+2.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Override 'get_authorized_connections', 'get_authorized_pools' and 'get_authorized_variables' in Fab auth manager (#55682)``
+
+Misc
+~~~~
+
+* ``Bump eslint from 9.35.0 to 9.36.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#55895)``
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add SSO integration guide for Apache Airflow (#55281)``
+* ``Remove useless Airflow version compatibility checks (#55852)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.3
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
@@ -45,8 +93,6 @@ Misc
 2.4.2
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

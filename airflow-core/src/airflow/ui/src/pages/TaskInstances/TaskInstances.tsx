@@ -37,7 +37,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
@@ -183,8 +183,8 @@ const taskInstanceColumns = ({
     header: translate("task.operator"),
   },
   {
-    cell: ({ row: { original } }) =>
-      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
     header: translate("duration"),
   },
   {
@@ -216,8 +216,11 @@ export const TaskInstances = () => {
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_version: false,
+      end_date: false,
       executor: false,
       hostname: false,
+      pool: false,
       queue: false,
     },
   });

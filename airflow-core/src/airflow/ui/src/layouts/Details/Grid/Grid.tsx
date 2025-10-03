@@ -52,12 +52,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const gridRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
-  const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
-  const selectedRun = gridRuns?.find((run) => run.run_id === runId);
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -71,25 +69,15 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  useEffect(() => {
-    if (gridRuns) {
-      const run = gridRuns.some((dr: GridRunsResponse) => isStatePending(dr.state));
-
-      if (!run) {
-        setHasActiveRun(false);
-      }
-    }
-  }, [gridRuns, setHasActiveRun]);
-
   const { data: dagStructure } = useGridStructure({
     dagRunState,
-    hasActiveRun,
+    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
     limit,
     runType,
     triggeringUser,
   });
-  // calculate dag run bar heights relative to max
 
+  // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -117,12 +105,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
-      <Box
-        flexGrow={1}
-        minWidth={7}
-        position="relative"
-        top={Boolean(runId) && !Boolean(selectedRun) ? "50px" : "100px"}
-      >
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="100px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">

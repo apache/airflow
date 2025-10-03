@@ -98,6 +98,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
+from airflow.stats import Stats
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -1290,7 +1291,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     resources: dict[str, Any] | None = None
     retries: int = 0
-    retry_delay: datetime.timedelta
+    retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
     retry_exponential_backoff: bool = False
     run_as_user: str | None = None
 
@@ -2056,12 +2057,13 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         for k, v in OPERATOR_DEFAULTS.items():
             if k not in cls.get_serialized_fields():
                 continue
-            # Exclude values that are the same as the schema defaults
-            if k in schema_defaults and schema_defaults[k] == v:
-                continue
 
             # Exclude values that are None or empty collections
             if v is None or v in [[], (), set(), {}]:
+                continue
+
+            # Check schema defaults first with raw value comparison (fast path)
+            if k in schema_defaults and schema_defaults[k] == v:
                 continue
 
             # Use the existing serialize method to ensure consistent format
@@ -2069,6 +2071,12 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             # Extract just the value part, consistent with serialize_to_json behavior
             if isinstance(serialized_value, dict) and Encoding.TYPE in serialized_value:
                 serialized_value = serialized_value[Encoding.VAR]
+
+            # For cases where raw comparison failed but serialized values might match
+            # (e.g., timedelta vs float), check again with serialized value
+            if k in schema_defaults and schema_defaults[k] == serialized_value:
+                continue
+
             client_defaults[k] = serialized_value
 
         return client_defaults
@@ -2901,6 +2909,10 @@ class SerializedDAG(BaseSerialization):
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
@@ -3284,6 +3296,7 @@ class SerializedDAG(BaseSerialization):
                                 dagrun_id=orm_dagrun.id,
                             )
                         )
+                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
         return orm_dagrun
 
