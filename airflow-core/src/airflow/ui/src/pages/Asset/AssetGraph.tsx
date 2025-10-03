@@ -46,9 +46,14 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
-  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["bg.muted", "bg.emphasized"]);
-
-  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const [selectedStroke, bg, pattern, controlsBg, controlsHover, minimapBg] = useToken("colors", [
+    "asset-graph.selected.stroke",
+    "asset-graph.bg",
+    "asset-graph.pattern",
+    "asset-graph.controls.bg",
+    "asset-graph.controls.hover",
+    "asset-graph.minimap.bg",
+  ]);
 
   const edges = (graphData?.edges ?? []).map((edge) => ({
     ...edge,
@@ -62,11 +67,11 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   }));
 
   const reactFlowStyle: CSSProperties = {
-    "--xy-background-color": "var(--chakra-colors-asset-graph-bg)",
-    "--xy-background-pattern-color": "var(--chakra-colors-asset-graph-pattern)",
-    "--xy-controls-button-background-color": "var(--chakra-colors-asset-graph-controls-bg)",
-    "--xy-controls-button-background-color-hover": "var(--chakra-colors-asset-graph-controls-hover)",
-    "--xy-minimap-background-color": "var(--chakra-colors-asset-graph-minimap-bg)",
+    "--xy-background-color": bg,
+    "--xy-background-pattern-color": pattern,
+    "--xy-controls-button-background-color": controlsBg,
+    "--xy-controls-button-background-color-hover": controlsHover,
+    "--xy-minimap-background-color": minimapBg,
   } as CSSProperties;
 
   return (
@@ -89,7 +94,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       <Controls showInteractive={false} />
       <MiniMap
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+          node.data.isSelected && selectedStroke !== undefined ? selectedStroke : ""
         }
         nodeStrokeWidth={15}
         pannable
