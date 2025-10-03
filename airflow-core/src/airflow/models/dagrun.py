@@ -1517,10 +1517,6 @@ class DagRun(Base, LoggingMixin):
                 return expanded_tis
             return ()
 
-        def is_unmapped_task(ti: TI) -> bool:
-            # TODO: check why task is still MappedOperator even when not an unmapped task anymore
-            return isinstance(schedulable.task, MappedOperator) and schedulable.map_index == -1
-
         # Check dependencies.
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
@@ -1554,7 +1550,11 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
-                if not enable_lazy_task_expansion or not is_unmapped_task(schedulable):
+
+                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
+                # after calculating mapped task length, so we need to re-check
+                # the task state to ensure it's still schedulable
+                if schedulable.state in SCHEDULEABLE_STATES:
                     ready_tis.append(schedulable)
 
         # Check if any ti changed state
