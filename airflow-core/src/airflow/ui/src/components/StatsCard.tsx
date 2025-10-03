@@ -24,7 +24,7 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 
 export const StatsCard = ({
-  colorScheme,
+  colorPalette,
   count,
   icon,
   isLoading = false,
@@ -34,7 +34,7 @@ export const StatsCard = ({
   onClick,
   state,
 }: {
-  readonly colorScheme: string;
+  readonly colorPalette: string;
   readonly count: number;
   readonly icon?: React.ReactNode;
   readonly isLoading?: boolean;
@@ -57,7 +57,7 @@ export const StatsCard = ({
       cursor="pointer"
       p={2}
     >
-      <StateBadge colorPalette={colorScheme} mr={2} state={state}>
+      <StateBadge colorPalette={colorPalette} mr={2} state={state}>
         {icon}
         {count}
       </StateBadge>
