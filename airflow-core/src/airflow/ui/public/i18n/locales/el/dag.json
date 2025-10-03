@@ -10,6 +10,7 @@
     "hourly": "Ωριαία",
     "legend": {
       "less": "Λιγότερο",
+      "mixed": "Μικτό",
       "more": "Περισσότερο"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Προηγούμενο έτος"
     },
     "noData": "Δεν υπάρχουν διαθέσιμα δεδομένα",
+    "noFailedRuns": "No failed runs",
     "noRuns": "Δεν υπάρχουν εκτελέσεις",
     "totalRuns": "Σύνολο Εκτελέσεων",
     "week": "Εβδομάδα {{weekNumber}}",
@@ -77,8 +79,8 @@
       "failedRun_other": "Αποτυχημένες Εκτελέσεις",
       "failedTask_one": "Αποτυχημένη Εργασία",
       "failedTask_other": "Αποτυχημένες Εργασίες",
-      "failedTaskInstance_one": "Αποτυχημένη Εκτέλεση Εργασίας",
-      "failedTaskInstance_other": "Αποτυχημένες Εκτελέσεις Εργασίας"
+      "failedTaskInstance_one": "Αποτυχημένη Στιγμιαία Κατάσταση Εργασίας",
+      "failedTaskInstance_other": "Αποτυχημένες Στιγμιαίες Καταστάσεις Εργασίας"
     },
     "charts": {
       "assetEvent_one": "Δημιουργήθηκε Συμβάν Οντότητας",
@@ -123,7 +125,7 @@
       },
       "success": {
         "description": "Το Dag θα επαναναλυθεί σύντομα.",
-        "title": "Το αίτημα επαναανάλυσης υποβλήθηκε επιτυχώς"
+        "title": "Το αίτημα επανανάλυσης υποβλήθηκε επιτυχώς"
       }
     }
   },
@@ -135,13 +137,13 @@
     "code": "Κώδικας",
     "details": "Λεπτομέρειες",
     "logs": "Καταγραφές",
-    "mappedTaskInstances_one": "Εκτέλεση Εργασίας [{{count}}]",
-    "mappedTaskInstances_other": "Εκτελέσεις Εργασίας [{{count}}]",
+    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count}}]",
+    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count}}]",
     "overview": "Επισκόπηση",
     "renderedTemplates": "Αποδοθέντα Πρότυπα",
     "requiredActions": "Απαιτούμενες Ενέργειες",
     "runs": "Εκτελέσεις",
-    "taskInstances": "Εκτελέσεις Εργασίας",
+    "taskInstances": "Στιγμιαίες Καταστάσεις Εργασίας",
     "tasks": "Εργασίες",
     "xcom": "XCom"
   },

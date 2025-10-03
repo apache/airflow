@@ -24,7 +24,7 @@
   "group": "Ομάδα",
   "lastAssetEvent": "Τελευταίο Συμβάν Οντότητας",
   "name": "Όνομα",
-  "producingTasks": "Παραγωγικές Εργασίες",
+  "producingTasks": "Παραγωγή Εργασιών",
   "scheduledDags": "Προγραμματισμένα Dags",
   "searchPlaceholder": "Αναζήτηση Οντοτήτων"
 }
