@@ -21,7 +21,6 @@ import pytest
 from datetime import datetime
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 
 
 class TestDAGTagValidation:
@@ -37,8 +36,8 @@ class TestDAGTagValidation:
         assert len(list(dag.tags)[0]) == 100
 
     def test_tag_101_chars_raises_exception(self):
-        """Test that a tag with 101 characters raises AirflowException."""
-        with pytest.raises(AirflowException) as exc_info:
+        """Test that a tag with 101 characters raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
             DAG(
                 dag_id="test_dag",
                 start_date=datetime(2021, 1, 1),
@@ -50,8 +49,8 @@ class TestDAGTagValidation:
         assert "maximum limit of 100 characters" in error_msg
 
     def test_multiple_tags_one_too_long_raises_exception(self):
-        """Test that multiple tags with one too long raises AirflowException."""
-        with pytest.raises(AirflowException) as exc_info:
+        """Test that multiple tags with one too long raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
             DAG(
                 dag_id="test_dag",
                 start_date=datetime(2021, 1, 1),
@@ -65,7 +64,7 @@ class TestDAGTagValidation:
     def test_long_tag_preview_trimmed(self):
         """Test that very long tags are trimmed in error messages."""
         long_tag = "a" * 200
-        with pytest.raises(AirflowException) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             DAG(
                 dag_id="test_dag",
                 start_date=datetime(2021, 1, 1),
