@@ -19,7 +19,7 @@
 import type { Dayjs } from "dayjs";
 import { useMemo } from "react";
 
-export const useCalendarGrid = (currentMonth: Dayjs) =>
+export const useCalendarSelect = (currentMonth: Dayjs) =>
   useMemo(() => {
     const monthStart = currentMonth.startOf("month");
     const monthEnd = currentMonth.endOf("month");
