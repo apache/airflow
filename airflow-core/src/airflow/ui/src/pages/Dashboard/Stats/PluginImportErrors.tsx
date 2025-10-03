@@ -58,7 +58,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           onClick={onOpen}
           title={translate("plugins.importError", { count: importErrorsCount })}
         >
-          <LuPlug size="0.5rem" />
+          <LuPlug size={8} />
           {importErrorsCount}
         </StateBadge>
       ) : (

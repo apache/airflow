@@ -258,13 +258,6 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			State:     api.Running,
 			StartDate: time.Now().UTC(),
 		})
-	logger.LogAttrs(
-		ctx,
-		slog.LevelInfo,
-		"Start context",
-		slog.Any("resp", runtimeContext),
-		logging.AttrErr(err),
-	)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
 		if errors.As(err, &httpError) {

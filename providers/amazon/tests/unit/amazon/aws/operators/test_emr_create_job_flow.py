@@ -26,7 +26,7 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
@@ -216,34 +216,26 @@ class TestEmrCreateJobFlowOperator:
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
 
-    @pytest.mark.parametrize(
-        "wait_policy",
-        [
-            pytest.param(WaitPolicy.WAIT_FOR_COMPLETION, id="with wait for completion"),
-            pytest.param(WaitPolicy.WAIT_FOR_STEPS_COMPLETION, id="with wait for steps completion policy"),
-        ],
-    )
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(Waiter, "wait")
-    def test_execute_with_wait_policy(self, mock_waiter, _, mocked_hook_client, wait_policy: WaitPolicy):
+    def test_execute_with_wait_for_completion(self, mock_waiter, _, mocked_hook_client):
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
-        # Mock out the emr_client creator
-        self.operator.wait_policy = wait_policy
+        self.operator.wait_for_completion = True
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
-        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[wait_policy])
+        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION])
 
     def test_create_job_flow_deferrable(self, mocked_hook_client):
         """
         Test to make sure that the operator raises a TaskDeferred exception
-        if run in deferrable mode and wait_policy is set.
+        if run in deferrable mode and wait_for_completion is set.
         """
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True
-        self.operator.wait_policy = WaitPolicy.WAIT_FOR_COMPLETION
+        self.operator.wait_for_completion = True
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
@@ -254,14 +246,22 @@ class TestEmrCreateJobFlowOperator:
     def test_create_job_flow_deferrable_no_wait(self, mocked_hook_client):
         """
         Test to make sure that the operator does NOT raise a TaskDeferred exception
-        if run in deferrable mode but wait_policy is not set.
+        if run in deferrable mode but wait_for_completion is not set.
         """
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True
-        # wait_policy is None by default
+        # wait_for_completion is None by default
         result = self.operator.execute(self.mock_context)
         assert result == JOB_FLOW_ID
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_wait_policy_deprecation_warning(self):
+        """Test that using wait_policy raises a deprecation warning."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
+            EmrCreateJobFlowOperator(
+                task_id=TASK_ID,
+                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
+            )

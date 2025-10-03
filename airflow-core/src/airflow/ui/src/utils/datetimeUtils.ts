@@ -26,20 +26,17 @@ dayjs.extend(tz);
 export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-export const renderDuration = (durationSeconds: number | null | undefined): string => {
-  if (
-    durationSeconds === null ||
-    durationSeconds === undefined ||
-    isNaN(durationSeconds) ||
-    durationSeconds <= 0
-  ) {
-    return "00:00:00";
+export const renderDuration = (durationSeconds: number | null | undefined): string | undefined => {
+  if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
+    return undefined;
   }
 
+  // If under 10 seconds, render as 9s
   if (durationSeconds < 10) {
     return `${durationSeconds.toFixed(2)}s`;
   }
 
+  // If under 1 day, render as HH:mm:ss otherwise include the number of days
   return durationSeconds < 86_400
     ? dayjs.duration(durationSeconds, "seconds").format("HH:mm:ss")
     : dayjs.duration(durationSeconds, "seconds").format("D[d]HH:mm:ss");

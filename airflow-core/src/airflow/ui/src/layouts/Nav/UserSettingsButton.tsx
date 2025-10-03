@@ -67,21 +67,21 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
+        <NavButton icon={<FiUser size={28} />} title={translate("user")} />
       </Menu.Trigger>
       <Menu.Content>
         <Menu.Item onClick={onOpenLanguage} value="language">
-          <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
+          <FiGlobe size={20} style={{ marginRight: "8px" }} />
           {translate("selectLanguage")}
         </Menu.Item>
         <Menu.Root>
           <Menu.TriggerItem>
-            <FiEye size="1.25rem" style={{ marginRight: "8px" }} />
+            <FiEye size={20} style={{ marginRight: "8px" }} />
             {translate("appearance.appearance")}
             {isRTL ? (
-              <FiChevronLeft size="1.25rem" style={{ marginRight: "auto" }} />
+              <FiChevronLeft size={20} style={{ marginRight: "auto" }} />
             ) : (
-              <FiChevronRight size="1.25rem" style={{ marginLeft: "auto" }} />
+              <FiChevronRight size={20} style={{ marginLeft: "auto" }} />
             )}
           </Menu.TriggerItem>
           <Menu.Content>
@@ -90,17 +90,17 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               value={theme}
             >
               <Menu.RadioItem value={COLOR_MODES.LIGHT}>
-                <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
+                <FiSun size={20} style={{ marginRight: "8px" }} />
                 {translate("appearance.lightMode")}
                 <Menu.ItemIndicator />
               </Menu.RadioItem>
               <Menu.RadioItem value={COLOR_MODES.DARK}>
-                <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
+                <FiMoon size={20} style={{ marginRight: "8px" }} />
                 {translate("appearance.darkMode")}
                 <Menu.ItemIndicator />
               </Menu.RadioItem>
               <Menu.RadioItem value={COLOR_MODES.SYSTEM}>
-                <FiMonitor size="1.25rem" style={{ marginRight: "8px" }} />
+                <FiMonitor size={20} style={{ marginRight: "8px" }} />
                 {translate("appearance.systemMode")}
                 <Menu.ItemIndicator />
               </Menu.RadioItem>
@@ -113,12 +113,12 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
         >
           {dagView === "grid" ? (
             <>
-              <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
+              <MdOutlineAccountTree size={20} style={{ marginRight: "8px" }} />
               {translate("defaultToGraphView")}
             </>
           ) : (
             <>
-              <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
+              <FiGrid size={20} style={{ marginRight: "8px" }} />
               {translate("defaultToGridView")}
             </>
           )}
@@ -129,7 +129,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
         ))}
         <Menu.Item onClick={onOpenLogout} value="logout">
           <FiLogOut
-            size="1.25rem"
+            size={20}
             style={{ marginRight: "8px", transform: isRTL ? "rotate(180deg)" : undefined }}
           />
           {translate("logout")}

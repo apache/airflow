@@ -26,7 +26,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 
 type Props = {
   readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
@@ -64,7 +64,7 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
                 {translate("endDate")}: <Time datetime={taskInstance.end_date} />
               </Text>
               <Text>
-                {translate("duration")}: {getDuration(taskInstance.start_date, taskInstance.end_date)}
+                {translate("duration")}: {renderDuration(taskInstance.duration)}
               </Text>
             </>
           ) : undefined}

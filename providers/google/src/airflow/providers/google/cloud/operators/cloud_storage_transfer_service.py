@@ -71,6 +71,7 @@ from airflow.providers.google.cloud.utils.helpers import normalize_directory_pat
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -964,6 +965,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         self.aws_role_arn = aws_role_arn
         self.deferrable = deferrable
         self._validate_inputs()
+        self._transfer_job: dict[str, Any] | None = None
 
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
@@ -978,19 +980,18 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
 
         TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id, default_schedule=True).process_body()
 
-        job = hook.create_transfer_job(body=body)
-
+        self._transfer_job = hook.create_transfer_job(body=body)
         if self.wait:
             if not self.deferrable:
-                hook.wait_for_transfer_job(job, timeout=self.timeout)
+                hook.wait_for_transfer_job(self._transfer_job, timeout=self.timeout)
                 if self.delete_job_after_completion:
-                    hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
+                    hook.delete_transfer_job(job_name=self._transfer_job[NAME], project_id=self.project_id)
             else:
                 self.defer(
                     timeout=timedelta(seconds=self.timeout or 60),
                     trigger=CloudStorageTransferServiceCheckJobStatusTrigger(
-                        job_name=job[NAME],
-                        project_id=job[PROJECT_ID],
+                        job_name=self._transfer_job[NAME],
+                        project_id=self._transfer_job[PROJECT_ID],
                         gcp_conn_id=self.gcp_conn_id,
                         impersonation_chain=self.google_impersonation_chain,
                     ),
@@ -1039,6 +1040,57 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
             body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ROLE_ARN] = self.aws_role_arn  # type: ignore[index]
 
         return body
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        """Provide OpenLineage OperatorLineage for the S3->GCS transfer."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.facets import (
+            CloudStorageTransferJobFacet,
+            CloudStorageTransferRunFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_ds = Dataset(
+            namespace=f"s3://{self.s3_bucket}",
+            name=normalize_directory_path(self.s3_path) or "",
+        )
+
+        output_ds = Dataset(
+            namespace=f"gs://{self.gcs_bucket}",
+            name=normalize_directory_path(self.gcs_path) or "",
+        )
+
+        job = self._transfer_job or {}
+        job_facet = CloudStorageTransferJobFacet(
+            jobName=job.get(NAME),
+            projectId=job.get(PROJECT_ID, self.project_id),
+            description=job.get(DESCRIPTION, self.description),
+            status=job.get(STATUS),
+            sourceBucket=job.get(TRANSFER_SPEC, {})
+            .get(AWS_S3_DATA_SOURCE, {})
+            .get(BUCKET_NAME, self.s3_bucket),
+            sourcePath=job.get(TRANSFER_SPEC, {}).get(AWS_S3_DATA_SOURCE, {}).get(PATH, self.s3_path),
+            targetBucket=job.get(TRANSFER_SPEC, {}).get(GCS_DATA_SINK, {}).get(BUCKET_NAME, self.gcs_bucket),
+            targetPath=job.get(TRANSFER_SPEC, {}).get(GCS_DATA_SINK, {}).get(PATH, self.gcs_path),
+            objectConditions=job.get(TRANSFER_SPEC, {}).get("objectConditions", self.object_conditions),
+            transferOptions=job.get(TRANSFER_SPEC, {}).get("transferOptions", self.transfer_options),
+            schedule=job.get(SCHEDULE, self.schedule),
+        )
+
+        run_facet = CloudStorageTransferRunFacet(
+            jobName=job.get(NAME),
+            wait=self.wait,
+            timeout=self.timeout,
+            deferrable=self.deferrable,
+            deleteJobAfterCompletion=self.delete_job_after_completion,
+        )
+
+        return OperatorLineage(
+            inputs=[input_ds],
+            outputs=[output_ds],
+            job_facets={"cloudStorageTransferJob": job_facet},
+            run_facets={"cloudStorageTransferRun": run_facet},
+        )
 
 
 class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):

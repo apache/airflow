@@ -49,7 +49,7 @@ try:
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

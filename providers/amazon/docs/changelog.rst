@@ -26,6 +26,28 @@
 Changelog
 ---------
 
+9.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add async support for Amazon SNS Notifier (#56133)``
+* ``Add async support for Amazon SQS Notifier (#56159)``
+* ``Add 'SesNotifier' - Amazon Simple Email Service Notifier (#56106)``
+* ``Implement 'filter_authorized_connections', 'filter_authorized_pools' and 'filter_authorized_variables' in AWS auth manager (#55687)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix wrong import of 'AIRFLOW_V_3_0_PLUS' in 'AwsLambdaExecutor' (#56280)``
+* ``Only defer 'EmrCreateJobFlowOperator' when 'wait_policy' is set (#56077)``
+* ``Reducing memory footprint for synchronous 'S3KeySensor' (#55070)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 9.14.0
 ......
 

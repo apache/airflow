@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
+from urllib.parse import urlparse
 
 from airflow.providers.google.version_compat import (
     AIRFLOW_V_3_0_PLUS,
@@ -108,6 +109,14 @@ class BaseGoogleLink(BaseOperatorLink):
     ) -> str:
         if TYPE_CHECKING:
             assert isinstance(operator, (GoogleCloudBaseOperator, BaseSensorOperator))
+
+        # In cases when worker passes execution to trigger, the value that is put to XCom
+        # already contains link to the object in string format. In this case we don't want to execute
+        # get_config() again. Instead we can leave this value without any changes
+        link_value = XCom.get_value(key=self.key, ti_key=ti_key)
+        if link_value and isinstance(link_value, str):
+            if urlparse(link_value).scheme in ("http", "https"):
+                return link_value
 
         conf = self.get_config(operator, ti_key)
         if not conf:

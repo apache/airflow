@@ -54,7 +54,7 @@ export const Overview = () => {
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
-  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
+  const { data: tiData, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: "~",
@@ -72,12 +72,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton
-        refreshInterval={
-          taskInstances?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false
-        }
-        taskId={taskId}
-      />
+      <NeedsReviewButton taskId={taskId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -111,7 +106,7 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={taskInstances?.task_instances.slice().reverse()} kind="Task Instance" />
+            <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
       </SimpleGrid>
