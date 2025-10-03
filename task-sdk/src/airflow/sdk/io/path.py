@@ -307,6 +307,8 @@ class ObjectStoragePath(CloudPath):
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
+        # TODO: change dst arg to target when we bump major version for task-sdk and remove type: ignore in copy method
+
         from airflow.lineage.hook import get_hook_lineage_collector
 
         if isinstance(dst, str):
