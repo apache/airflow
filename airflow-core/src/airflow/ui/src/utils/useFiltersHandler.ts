@@ -27,34 +27,32 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 const isNonEmptyString = (value: string | null | undefined): value is string =>
   value !== null && value !== undefined && value !== "";
 
-const isValidDateRangeValue = (value: DateRangeValue): boolean =>
-  isNonEmptyString(value.startDate) || isNonEmptyString(value.endDate);
+const handleDateRangeChange = (
+  newParams: URLSearchParams,
+  rangeValue: DateRangeValue | null,
+  config: { endKey?: string; key: string; startKey?: string },
+) => {
+  const { endKey, key, startKey } = config;
 
-const handleLogicalDateRange = (newParams: URLSearchParams, rangeValue: DateRangeValue) => {
-  newParams.delete(SearchParamsKeys.LOGICAL_DATE_RANGE as string);
-  if (isNonEmptyString(rangeValue.startDate)) {
-    newParams.set(SearchParamsKeys.LOGICAL_DATE_GTE, rangeValue.startDate);
-  } else {
-    newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
-  }
-  if (isNonEmptyString(rangeValue.endDate)) {
-    newParams.set(SearchParamsKeys.LOGICAL_DATE_LTE, rangeValue.endDate);
-  } else {
-    newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
-  }
-};
+  newParams.delete(key);
 
-const handleRunAfterRange = (newParams: URLSearchParams, rangeValue: DateRangeValue) => {
-  newParams.delete(SearchParamsKeys.RUN_AFTER_RANGE as string);
-  if (isNonEmptyString(rangeValue.startDate)) {
-    newParams.set(SearchParamsKeys.RUN_AFTER_GTE, rangeValue.startDate);
-  } else {
-    newParams.delete(SearchParamsKeys.RUN_AFTER_GTE);
+  if (startKey === undefined || endKey === undefined) {
+    return;
   }
-  if (isNonEmptyString(rangeValue.endDate)) {
-    newParams.set(SearchParamsKeys.RUN_AFTER_LTE, rangeValue.endDate);
+
+  const startDate = rangeValue?.startDate;
+  const endDate = rangeValue?.endDate;
+
+  if (isNonEmptyString(startDate)) {
+    newParams.set(startKey, startDate);
   } else {
-    newParams.delete(SearchParamsKeys.RUN_AFTER_LTE);
+    newParams.delete(startKey);
+  }
+
+  if (isNonEmptyString(endDate)) {
+    newParams.set(endKey, endDate);
+  } else {
+    newParams.delete(endKey);
   }
 };
 
@@ -119,34 +117,12 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
         filterConfigs.forEach((config) => {
           const value = filters[config.key];
 
-          if (value === null || value === undefined || value === "") {
-            newParams.delete(config.key);
-            if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
-              newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
-              newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
-            }
-            if (config.key === (SearchParamsKeys.RUN_AFTER_RANGE as string)) {
-              newParams.delete(SearchParamsKeys.RUN_AFTER_GTE);
-              newParams.delete(SearchParamsKeys.RUN_AFTER_LTE);
-            }
-          } else if (config.type === "daterange" && typeof value === "object") {
-            const rangeValue = value as DateRangeValue;
+          newParams.delete(config.key);
 
-            if (isValidDateRangeValue(rangeValue)) {
-              if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
-                handleLogicalDateRange(newParams, rangeValue);
-              } else if (config.key === (SearchParamsKeys.RUN_AFTER_RANGE as string)) {
-                handleRunAfterRange(newParams, rangeValue);
-              } else {
-                newParams.set(config.key, JSON.stringify(rangeValue));
-              }
-            } else {
-              newParams.delete(config.key);
-              if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
-                newParams.delete(SearchParamsKeys.LOGICAL_DATE_GTE);
-                newParams.delete(SearchParamsKeys.LOGICAL_DATE_LTE);
-              }
-            }
+          if (config.type === "daterange") {
+            handleDateRangeChange(newParams, value as DateRangeValue | null, config);
+          } else if (value === null || value === undefined || value === "") {
+            newParams.delete(config.key);
           } else {
             newParams.set(config.key, typeof value === "object" ? JSON.stringify(value) : String(value));
           }

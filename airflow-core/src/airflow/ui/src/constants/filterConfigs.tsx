@@ -146,8 +146,10 @@ export const useFilterConfigs = () => {
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
+      endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
       icon: <MdDateRange />,
       label: translate("common:date"),
+      startKey: SearchParamsKeys.LOGICAL_DATE_GTE,
       type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.MAP_INDEX]: {
@@ -189,8 +191,10 @@ export const useFilterConfigs = () => {
       type: FilterTypes.DATE,
     },
     [SearchParamsKeys.RUN_AFTER_RANGE]: {
+      endKey: SearchParamsKeys.RUN_AFTER_LTE,
       icon: <MdDateRange />,
       label: translate("common:dagRun.runAfter"),
+      startKey: SearchParamsKeys.RUN_AFTER_GTE,
       type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.RUN_ID]: {
