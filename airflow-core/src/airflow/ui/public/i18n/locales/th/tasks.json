@@ -1,0 +1,10 @@
+{
+  "mapped": "ถูกแมพแล้ว (Mapped)",
+  "notMapped": "ยังไม่ได้แมพ (Not mapped)",
+  "retries": "การลองใหม่ (Retries)",
+  "searchTasks": "ค้นหา Tasks",
+  "selectMapped": "เลือกที่ถูกแมพ",
+  "selectOperator": "เลือก Operators",
+  "selectRetryValues": "เลือกค่าการลองใหม่",
+  "selectTriggerRules": "เลือกกฎการทริกเกอร์ (Trigger Rules)"
+}

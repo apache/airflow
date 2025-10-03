@@ -1,0 +1,317 @@
+{
+  "admin": {
+    "Config": "การตั้งค่า",
+    "Connections": "การเชื่อมต่อ",
+    "Plugins": "ปลั๊กอิน",
+    "Pools": "พูล",
+    "Providers": "ผู้ให้บริการ",
+    "Variables": "ตัวแปร"
+  },
+  "allOperators": "ตัวดำเนินการทั้งหมด",
+  "appearance": {
+    "appearance": "การแสดงผล",
+    "darkMode": "โหมดมืด",
+    "lightMode": "โหมดสว่าง",
+    "systemMode": "ตามการตั้งค่าระบบ"
+  },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetEvent_one": "Asset Event",
+  "assetEvent_other": "Asset Events",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
+  "browse": {
+    "auditLog": "บันทึกการตรวจสอบ (Audit Log)",
+    "requiredActions": "การดำเนินการที่จำเป็น",
+    "xcoms": "XComs"
+  },
+  "collapseDetailsPanel": "ย่อแผงรายละเอียด",
+  "createdAssetEvent_one": "Asset Event ที่สร้างแล้ว",
+  "createdAssetEvent_other": "Asset Events ที่สร้างแล้ว",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "dagRunTimeout": "เวลาหมดอายุของ Dag Run",
+    "defaultArgs": "Arguments ค่าเริ่มต้น",
+    "description": "คำอธิบาย",
+    "documentation": "เอกสารประกอบ Dag",
+    "fileLocation": "ตำแหน่งไฟล์",
+    "hasTaskConcurrencyLimits": "มีการจำกัดจำนวนงานพร้อมกัน",
+    "lastExpired": "หมดอายุครั้งล่าสุด",
+    "lastParseDuration": "ระยะเวลาการแปลงล่าสุด",
+    "lastParsed": "แปลงครั้งล่าสุด",
+    "latestDagVersion": "เวอร์ชัน Dag ล่าสุด",
+    "latestRun": "การรันล่าสุด",
+    "maxActiveRuns": "จำนวน Dag Run ที่ทำงานพร้อมกันสูงสุด",
+    "maxActiveTasks": "จำนวนงานที่ทำงานพร้อมกันสูงสุด",
+    "maxConsecutiveFailedDagRuns": "จำนวน Dag Run ที่ล้มเหลวต่อเนื่องสูงสุด",
+    "nextRun": "การรันถัดไป",
+    "owner": "เจ้าของ",
+    "params": "พารามิเตอร์",
+    "schedule": "ตารางเวลา",
+    "tags": "แท็ก"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "การตั้งค่า (Conf)",
+    "dagVersions": "เวอร์ชัน Dag",
+    "dataIntervalEnd": "สิ้นสุดช่วงข้อมูล",
+    "dataIntervalStart": "เริ่มต้นช่วงข้อมูล",
+    "lastSchedulingDecision": "การตัดสินใจกำหนดเวลา ล่าสุด",
+    "queuedAt": "เข้าคิวเมื่อ",
+    "runAfter": "รันหลังจาก",
+    "runType": "ประเภทการรัน",
+    "sourceAssetEvent": "Source Asset Event",
+    "triggeredBy": "ทริกเกอร์โดย",
+    "triggeringUser": "ชื่อผู้ใช้ที่ทริกเกอร์"
+  },
+  "dagRun_one": "Dag Run",
+  "dagRun_other": "Dag Runs",
+  "dagRunId": "Dag Run ID",
+  "dagWarnings": "คำเตือน/ข้อผิดพลาดของ Dag",
+  "defaultToGraphView": "ค่าเริ่มต้นเป็นมุมมองกราฟ",
+  "defaultToGridView": "ค่าเริ่มต้นเป็นมุมมองกริด",
+  "direction": "ทิศทาง",
+  "docs": {
+    "documentation": "เอกสารประกอบ",
+    "githubRepo": "GitHub Repo",
+    "restApiReference": "เอกสารอ้างอิง REST API"
+  },
+  "duration": "ระยะเวลา",
+  "endDate": "วันที่สิ้นสุด",
+  "error": {
+    "back": "ย้อนกลับ",
+    "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิด",
+    "home": "หน้าแรก",
+    "notFound": "ไม่พบหน้า",
+    "title": "ข้อผิดพลาด"
+  },
+  "expand": {
+    "collapse": "ย่อ",
+    "expand": "ขยาย",
+    "hotkey": "e",
+    "tooltip": "กด {{hotkey}} เพื่อสลับการขยาย"
+  },
+  "expression": {
+    "all": "ทั้งหมด",
+    "and": "AND",
+    "any": "อย่างใดอย่างหนึ่ง",
+    "or": "OR"
+  },
+  "filter": "ตัวกรอง",
+  "filters": {
+    "logicalDateFrom": "Logical Date จาก",
+    "logicalDateTo": "Logical Date ถึง",
+    "runAfterFrom": "Run After จาก",
+    "runAfterTo": "Run After ถึง"
+  },
+  "logicalDate": "Logical Date",
+  "logout": "ออกจากระบบ",
+  "logoutConfirmation": "คุณกำลังจะออกจากระบบแอปพลิเคชัน",
+  "mapIndex": "ดัชนีแผนที่",
+  "modal": {
+    "cancel": "ยกเลิก",
+    "confirm": "ยืนยัน",
+    "delete": {
+      "button": "ลบ",
+      "confirmation": "คุณแน่ใจหรือไม่ว่าต้องการลบ {{resourceName}}? การดำเนินการนี้ไม่สามารถย้อนกลับได้"
+    }
+  },
+  "nav": {
+    "admin": "ผู้ดูแลระบบ",
+    "assets": "Assets",
+    "browse": "เรียกดู",
+    "dags": "Dags",
+    "docs": "เอกสาร",
+    "home": "หน้าแรก",
+    "legacyFabViews": "มุมมองเก่า",
+    "plugins": "ปลั๊กอิน",
+    "security": "ความปลอดภัย"
+  },
+  "noItemsFound": "ไม่พบ {{modelName}}",
+  "note": {
+    "add": "เพิ่มบันทึก",
+    "dagRun": "บันทึก Dag Run",
+    "label": "บันทึก",
+    "placeholder": "เพิ่มบันทึก...",
+    "taskInstance": "บันทึก Task Instance"
+  },
+  "pools": {
+    "deferred": "เลื่อนออกไป",
+    "open": "เปิด",
+    "pools_one": "พูล",
+    "pools_other": "พูล",
+    "queued": "เข้าคิว",
+    "running": "กำลังทำงาน",
+    "scheduled": "ตามตารางเวลา"
+  },
+  "reset": "รีเซ็ต",
+  "runId": "Run ID",
+  "runTypes": {
+    "asset_triggered": "ทริกเกอร์โดย Asset",
+    "backfill": "Backfill",
+    "manual": "ทำเอง",
+    "scheduled": "ตามตารางเวลา"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "ล่างสุด",
+      "top": "บนสุด"
+    },
+    "tooltip": "กด {{hotkey}} เพื่อเลื่อนไปที่ {{direction}}"
+  },
+  "seconds": "{{count}} วินาที",
+  "security": {
+    "actions": "การดำเนินการ",
+    "permissions": "สิทธิ์",
+    "resources": "ทรัพยากร",
+    "roles": "บทบาท",
+    "users": "ผู้ใช้"
+  },
+  "selectLanguage": "เลือกภาษา",
+  "showDetailsPanel": "แสดงแผงรายละเอียด",
+  "source": {
+    "hide": "ซ่อนซอร์ส",
+    "hotkey": "s",
+    "show": "แสดงซอร์ส"
+  },
+  "sourceAssetEvent_one": "Source Asset Event",
+  "sourceAssetEvent_other": "Source Asset Events",
+  "startDate": "วันที่เริ่มต้น",
+  "state": "สถานะ",
+  "states": {
+    "deferred": "เลื่อนออกไป",
+    "failed": "ล้มเหลว",
+    "no_status": "ไม่มีสถานะ",
+    "none": "ไม่มีสถานะ",
+    "planned": "วางแผนแล้ว",
+    "queued": "เข้าคิว",
+    "removed": "ถูกลบ",
+    "restarting": "กำลังรีสตาร์ท",
+    "running": "กำลังทำงาน",
+    "scheduled": "ตามตารางเวลา",
+    "skipped": "ข้าม",
+    "success": "สำเร็จ",
+    "up_for_reschedule": "รอการกำหนดเวลาใหม่",
+    "up_for_retry": "รอการลองใหม่",
+    "upstream_failed": "ต้นทางล้มเหลว"
+  },
+  "table": {
+    "completedAt": "เสร็จสิ้นเมื่อ",
+    "createdAt": "สร้างเมื่อ",
+    "filterByTag": "กรอง Dags ตามแท็ก",
+    "filterColumns": "กรองคอลัมน์ตาราง",
+    "filterReset_one": "รีเซ็ตตัวกรอง",
+    "filterReset_other": "รีเซ็ตตัวกรอง",
+    "from": "จาก",
+    "maxActiveRuns": "จำนวน Dag Run ที่ทำงานพร้อมกันสูงสุด",
+    "noTagsFound": "ไม่พบแท็ก",
+    "tagMode": {
+      "all": "ทั้งหมด",
+      "any": "อย่างใดอย่างหนึ่ง"
+    },
+    "tagPlaceholder": "กรองตามแท็ก",
+    "to": "ถึง"
+  },
+  "task": {
+    "documentation": "เอกสารประกอบงาน",
+    "lastInstance": "อินสแตนซ์ล่าสุด",
+    "operator": "ตัวดำเนินการ",
+    "triggerRule": "กฎการทริกเกอร์"
+  },
+  "task_one": "งาน",
+  "task_other": "งาน",
+  "taskGroup": "กลุ่มงาน",
+  "taskId": "Task ID",
+  "taskInstance": {
+    "dagVersion": "เวอร์ชัน Dag",
+    "executor": "Executor",
+    "executorConfig": "การตั้งค่า Executor",
+    "hostname": "ชื่อโฮสต์",
+    "maxTries": "จำนวนครั้งสูงสุด",
+    "pid": "PID",
+    "pool": "พูล",
+    "poolSlots": "ช่องในพูล",
+    "priorityWeight": "น้ำหนักความสำคัญ",
+    "queue": "คิว",
+    "queuedWhen": "เข้าคิวเมื่อ",
+    "scheduledWhen": "ตามตารางเมื่อ",
+    "triggerer": {
+      "assigned": "Triggerer ที่ถูกกำหนด",
+      "class": "คลาส Trigger",
+      "createdAt": "เวลาสร้าง Trigger",
+      "id": "Trigger ID",
+      "latestHeartbeat": "Heartbeat ล่าสุดของ Triggerer",
+      "title": "ข้อมูล Triggerer"
+    },
+    "unixname": "ชื่อ Unix"
+  },
+  "taskInstance_one": "Task Instance",
+  "taskInstance_other": "Task Instances",
+  "timeRange": {
+    "last12Hours": "12 ชั่วโมงล่าสุด",
+    "last24Hours": "24 ชั่วโมงล่าสุด",
+    "lastHour": "ชั่วโมงล่าสุด",
+    "pastWeek": "สัปดาห์ที่ผ่านมา"
+  },
+  "timestamp": {
+    "hide": "ซ่อนเวลา",
+    "hotkey": "t",
+    "show": "แสดงเวลา"
+  },
+  "timezone": "เขตเวลา",
+  "timezoneModal": {
+    "current-timezone": "เวลาปัจจุบันใน",
+    "placeholder": "เลือกเขตเวลา",
+    "title": "เลือกเขตเวลา",
+    "utc": "UTC (เวลาสากล)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "คำขอลบ {{resourceName}} จำนวนมาก ล้มเหลว",
+      "success": {
+        "description": "{{count}} {{resourceName}} ถูกลบเรียบร้อยแล้ว คีย์: {{keys}}",
+        "title": "ส่งคำขอลบ {{resourceName}} จำนวนมากแล้ว"
+      }
+    },
+    "create": {
+      "error": "คำขอสร้าง {{resourceName}} ล้มเหลว",
+      "success": {
+        "description": "{{resourceName}} ถูกสร้างเรียบร้อยแล้ว",
+        "title": "ส่งคำขอสร้าง {{resourceName}} แล้ว"
+      }
+    },
+    "delete": {
+      "error": "คำขอลบ {{resourceName}} ล้มเหลว",
+      "success": {
+        "description": "{{resourceName}} ถูกลบเรียบร้อยแล้ว",
+        "title": "ส่งคำขอลบ {{resourceName}} แล้ว"
+      }
+    },
+    "import": {
+      "error": "คำขอนำเข้า {{resourceName}} ล้มเหลว",
+      "success": {
+        "description": "{{count}} {{resourceName}} ถูกนำเข้าเรียบร้อยแล้ว",
+        "title": "ส่งคำขอนำเข้า {{resourceName}} แล้ว"
+      }
+    },
+    "update": {
+      "error": "คำขออัปเดต {{resourceName}} ล้มเหลว",
+      "success": {
+        "description": "{{resourceName}} ถูกอัปเดตเรียบร้อยแล้ว",
+        "title": "ส่งคำขออัปเดต {{resourceName}} แล้ว"
+      }
+    }
+  },
+  "total": "รวม {{state}}",
+  "triggered": "ถูกทริกเกอร์",
+  "tryNumber": "จำนวนครั้งที่ลอง",
+  "user": "ผู้ใช้",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "กด {{hotkey}} เพื่อสลับการตัดบรรทัด",
+    "unwrap": "ไม่ตัดบรรทัด",
+    "wrap": "ตัดบรรทัด"
+  }
+}

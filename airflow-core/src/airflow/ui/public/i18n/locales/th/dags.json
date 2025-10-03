@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "{{count}} จาก {{total}} รายการอัปเดตแล้ว",
+  "dagActions": {
+    "delete": {
+      "button": "ลบ Dag",
+      "warning": "การดำเนินการนี้จะลบเมตาดาต้าทั้งหมดที่เกี่ยวข้องกับ Dag รวมถึง Runs และ Tasks"
+    }
+  },
+  "favoriteDag": "ชื่นชอบ Dag",
+  "filters": {
+    "allRunTypes": "ประเภทการทำงานทั้งหมด",
+    "allStates": "สถานะทั้งหมด",
+    "favorite": {
+      "all": "ทั้งหมด",
+      "favorite": "รายการโปรด",
+      "unfavorite": "ไม่ใช่รายการโปรด"
+    },
+    "paused": {
+      "active": "ใช้งาน",
+      "all": "ทั้งหมด",
+      "paused": "หยุดชั่วคราว"
+    },
+    "runIdPatternFilter": "ค้นหา Dag Runs",
+    "triggeringUserNameFilter": "ค้นหาโดยผู้ใช้ที่ทริกเกอร์"
+  },
+  "ownerLink": "ลิงก์เจ้าของสำหรับ {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "ไม่พบ Tasks",
+      "title": "Tasks ที่ได้รับผลกระทบ: {{count}}"
+    },
+    "clear": {
+      "button": "ล้าง {{type}}",
+      "buttonTooltip": "กด shift+c เพื่อล้าง",
+      "error": "ล้าง {{type}} ไม่สำเร็จ",
+      "title": "ล้าง {{type}}"
+    },
+    "delete": {
+      "button": "ลบ {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "ลบ {{type}}",
+        "warning": "การดำเนินการนี้จะลบเมตาดาต้าทั้งหมดที่เกี่ยวข้องกับ {{type}}"
+      },
+      "error": "เกิดข้อผิดพลาดในการลบ {{type}}",
+      "success": {
+        "description": "คำขอการลบ {{type}} สำเร็จ",
+        "title": "ลบ {{type}} สำเร็จแล้ว"
+      }
+    },
+    "markAs": {
+      "button": "ทำเครื่องหมาย {{type}} เป็น...",
+      "buttonTooltip": {
+        "failed": "กด shift+f เพื่อทำเครื่องหมายเป็นล้มเหลว",
+        "success": "กด shift+s เพื่อทำเครื่องหมายเป็นสำเร็จ"
+      },
+      "title": "ทำเครื่องหมาย {{type}} เป็น {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "ล้าง Tasks ที่มีอยู่",
+      "future": "ในอนาคต",
+      "onlyFailed": "ล้างเฉพาะ Tasks ที่ล้มเหลว",
+      "past": "ในอดีต",
+      "queueNew": "จัดคิว Tasks ใหม่",
+      "runOnLatestVersion": "ทำงานด้วยเวอร์ชันล่าสุดของชุดรวม (bundle)",
+      "upstream": "Upstream"
+    }
+  },
+  "search": {
+    "advanced": "การค้นหาขั้นสูง",
+    "clear": "ล้างการค้นหา",
+    "dags": "ค้นหา Dags",
+    "hotkey": "+K",
+    "tasks": "ค้นหา Tasks"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "จัดเรียงตามชื่อที่แสดง (A-Z)",
+      "desc": "จัดเรียงตามชื่อที่แสดง (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "จัดเรียงตามวันที่เริ่มทำงานครั้งล่าสุด (เก่าสุด-ใหม่สุด)",
+      "desc": "จัดเรียงตามวันที่เริ่มทำงานครั้งล่าสุด (ใหม่สุด-เก่าสุด)"
+    },
+    "lastRunState": {
+      "asc": "จัดเรียงตามสถานะการทำงานครั้งล่าสุด (A-Z)",
+      "desc": "จัดเรียงตามสถานะการทำงานครั้งล่าสุด (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "จัดเรียงตาม Next Dag Run (เก่าสุด-ใหม่สุด)",
+      "desc": "จัดเรียงตาม Next Dag Run (ใหม่สุด-เก่าสุด)"
+    },
+    "placeholder": "จัดเรียงตาม"
+  },
+  "unfavoriteDag": "เลิกชื่นชอบ Dag"
+}

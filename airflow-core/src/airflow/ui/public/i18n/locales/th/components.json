@@ -1,0 +1,132 @@
+{
+  "backfill": {
+    "affected_one": "จะมี 1 Run ถูกทริกเกอร์",
+    "affected_other": "จะมี {{count}} Runs ถูกทริกเกอร์",
+    "affectedNone": "ไม่มี Run ที่ตรงกับเงื่อนไขที่เลือก",
+    "allRuns": "ทุก Run",
+    "backwards": "รันย้อนกลับ",
+    "dateRange": "ช่วงวันที่",
+    "errorStartDateBeforeEndDate": "วันที่เริ่มต้นต้องมาก่อนวันที่สิ้นสุด",
+    "maxRuns": "จำนวน Run ที่ใช้งานพร้อมกันสูงสุด",
+    "missingAndErroredRuns": "Runs ที่หายไปและมีข้อผิดพลาด",
+    "missingRuns": "Runs ที่หายไป",
+    "reprocessBehavior": "พฤติกรรมการประมวลผลซ้ำ",
+    "run": "รัน Backfill",
+    "selectDescription": "รัน Dag นี้ตามช่วงวันที่",
+    "selectLabel": "Backfill",
+    "title": "รัน Backfill",
+    "toaster": {
+      "success": {
+        "description": "งาน Backfill ถูกทริกเกอร์สำเร็จแล้ว",
+        "title": "สร้าง Backfill แล้ว"
+      }
+    },
+    "tooltip": "Backfill ต้องการตารางเวลา (Schedule)",
+    "unpause": "ยกเลิกการหยุดพัก {{dag_display_name}} เมื่อทริกเกอร์",
+    "validation": {
+      "datesRequired": "ต้องระบุวันเริ่มต้นและวันสิ้นสุดของ Data Interval",
+      "startBeforeEnd": "วันเริ่มต้นของ Data Interval ต้องน้อยกว่าหรือเท่ากับวันสิ้นสุด"
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill กำลังทำงานอยู่",
+    "cancel": "ยกเลิก Backfill",
+    "pause": "หยุดพัก Backfill",
+    "unpause": "ยกเลิกการหยุดพัก Backfill"
+  },
+  "clipboard": {
+    "copy": "คัดลอก"
+  },
+  "close": "ปิด",
+  "configForm": {
+    "advancedOptions": "ตัวเลือกขั้นสูง",
+    "configJson": "การตั้งค่า JSON",
+    "invalidJson": "รูปแบบ JSON ไม่ถูกต้อง: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 ข้อผิดพลาด",
+    "errorAndWarning": "1 ข้อผิดพลาด และ {{warningText}}",
+    "warning_one": "1 คำเตือน",
+    "warning_other": "{{count}} คำเตือน"
+  },
+  "durationChart": {
+    "duration": "ระยะเวลา (วินาที)",
+    "lastDagRun_one": "Dag Run ล่าสุด",
+    "lastDagRun_other": "Dag Runs ล่าสุด {{count}} ครั้ง",
+    "lastTaskInstance_one": "Task Instance ล่าสุด",
+    "lastTaskInstance_other": "Task Instances ล่าสุด {{count}} ครั้ง",
+    "queuedDuration": "ระยะเวลาที่รอคิว",
+    "runAfter": "รันหลังจาก",
+    "runDuration": "ระยะเวลาการรัน"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} ไฟล์"
+  },
+  "flexibleForm": {
+    "placeholder": "เลือกค่า",
+    "placeholderArray": "กรอกข้อความแต่ละบรรทัดแยกกัน",
+    "placeholderExamples": "เริ่มพิมพ์เพื่อดูตัวเลือก",
+    "placeholderMulti": "เลือกค่าเดียวหรือหลายค่า",
+    "validationErrorArrayNotArray": "ค่าต้องเป็น Array",
+    "validationErrorArrayNotNumbers": "ทุกองค์ประกอบใน Array ต้องเป็นตัวเลข",
+    "validationErrorArrayNotObject": "ทุกองค์ประกอบใน Array ต้องเป็น Object",
+    "validationErrorRequired": "จำเป็นต้องกรอกช่องนี้"
+  },
+  "graph": {
+    "directionDown": "บนลงล่าง",
+    "directionLeft": "ขวาไปซ้าย",
+    "directionRight": "ซ้ายไปขวา",
+    "directionUp": "ล่างขึ้นบน",
+    "downloadImage": "ดาวน์โหลดรูปภาพแผนภาพ",
+    "downloadImageError": "ไม่สามารถดาวน์โหลดรูปภาพแผนภาพได้",
+    "downloadImageErrorTitle": "ดาวน์โหลดล้มเหลว",
+    "otherDagRuns": "+Dag Runs อื่น ๆ",
+    "taskCount_one": "{{count}} Task",
+    "taskCount_other": "{{count}} Tasks",
+    "taskGroup": "กลุ่ม Task"
+  },
+  "limitedList": "+{{count}} เพิ่มเติม",
+  "logs": {
+    "file": "ไฟล์",
+    "location": "บรรทัด {{line}} ใน {{name}}"
+  },
+  "reparseDag": "ประมวลผล Dag ใหม่",
+  "sortedAscending": "เรียงจากน้อยไปมาก",
+  "sortedDescending": "เรียงจากมากไปน้อย",
+  "sortedUnsorted": "ไม่เรียงลำดับ",
+  "taskTries": "จำนวนครั้งที่ลอง Task",
+  "toggleCardView": "แสดงมุมมองแบบการ์ด",
+  "toggleTableView": "แสดงมุมมองแบบตาราง",
+  "triggerDag": {
+    "button": "ทริกเกอร์",
+    "loading": "กำลังโหลดข้อมูล Dag...",
+    "loadingFailed": "โหลดข้อมูล Dag ไม่สำเร็จ กรุณาลองใหม่",
+    "runIdHelp": "ไม่บังคับ - จะถูกสร้างอัตโนมัติหากไม่ระบุ",
+    "selectDescription": "ทริกเกอร์ Dag นี้สำหรับการรันครั้งเดียว",
+    "selectLabel": "Single Run",
+    "title": "ทริกเกอร์ Dag",
+    "toaster": {
+      "success": {
+        "description": "Dag Run ถูกทริกเกอร์สำเร็จแล้ว",
+        "title": "ทริกเกอร์ Dag Run แล้ว"
+      }
+    },
+    "unpause": "ยกเลิกการหยุดพัก {{dagDisplayName}} เมื่อทริกเกอร์"
+  },
+  "trimText": {
+    "details": "รายละเอียด",
+    "empty": "ว่างเปล่า",
+    "noContent": "ไม่มีเนื้อหา"
+  },
+  "versionDetails": {
+    "bundleLink": "ลิงก์ Bundle",
+    "bundleName": "ชื่อ Bundle",
+    "bundleVersion": "เวอร์ชัน Bundle",
+    "createdAt": "สร้างเมื่อ",
+    "versionId": "รหัสเวอร์ชัน"
+  },
+  "versionSelect": {
+    "dagVersion": "เวอร์ชัน Dag",
+    "versionCode": "v{{versionCode}}"
+  }
+}
