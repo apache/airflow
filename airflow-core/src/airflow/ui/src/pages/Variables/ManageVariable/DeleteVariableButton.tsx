@@ -39,10 +39,6 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   return (
     <>
       <ActionButton
-        _hover={{ 
-          bg: "state.danger.emphasized",
-          color: "state.danger.contrast"
-        }}
         actionName={translate("variables.delete.title")}
         colorPalette="danger"
         disabled={disabled}
