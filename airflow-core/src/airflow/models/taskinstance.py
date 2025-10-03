@@ -95,6 +95,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from typing import Optional
 
 TR = TaskReschedule
 
@@ -195,7 +196,7 @@ def clear_task_instances(
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
-    prevent_running_task: bool = False,
+    prevent_running_task: Optional[bool] = False,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
