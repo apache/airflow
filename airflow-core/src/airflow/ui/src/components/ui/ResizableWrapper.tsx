@@ -50,17 +50,17 @@ const ResizeHandle = forwardRef<HTMLDivElement>((props, ref) => (
 type ResizableWrapperProps = {
   readonly children: ReactNode;
   readonly defaultSize?: { height: number; width: number };
-  readonly maxConstraints?: [number, number];
+  readonly maxConstraints?: [width: number, height: number];
   readonly storageKey: string;
 };
 
 const DEFAULT_SIZE = { height: 400, width: 500 };
-const DEFAULT_MAX: [number, number] = [1200, 800];
+const MAX_SIZE: [number, number] = [1200, 800];
 
 export const ResizableWrapper = ({
   children,
   defaultSize = DEFAULT_SIZE,
-  maxConstraints = DEFAULT_MAX,
+  maxConstraints = MAX_SIZE,
   storageKey,
 }: ResizableWrapperProps) => {
   const { handleResize, handleResizeStop, size } = usePersistentResizableState(storageKey, defaultSize);

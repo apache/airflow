@@ -16,53 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { useLocalStorage } from "usehooks-ts";
 
 type Size = { height: number; width: number };
 
-const getInitialSize = (key: string, defaultSize: Size): Size => {
-  try {
-    const item = localStorage.getItem(key);
-
-    if (item === null) {
-      return defaultSize;
-    }
-
-    const parsed: unknown = JSON.parse(item);
-
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "width" in parsed &&
-      "height" in parsed &&
-      typeof parsed.width === "number" &&
-      typeof parsed.height === "number"
-    ) {
-      return { height: parsed.height, width: parsed.width };
-    }
-  } catch {
-    // Ignore parsing errors
-  }
-
-  return defaultSize;
-};
-
 export const usePersistentResizableState = (storageKey: string, defaultSize: Size) => {
-  const [size, setSize] = useState(() => getInitialSize(storageKey, defaultSize));
+  const [size, setSize] = useLocalStorage(storageKey, defaultSize);
 
-  const handleResize = useCallback((_event: React.SyntheticEvent, { size: newSize }: { size: Size }) => {
-    setSize(newSize);
-  }, []);
+  const handleResize = useCallback(
+    (_event: React.SyntheticEvent, { size: newSize }: { size: Size }) => {
+      setSize(newSize);
+    },
+    [setSize],
+  );
 
   const handleResizeStop = useCallback(
     (_event: React.SyntheticEvent, { size: finalSize }: { size: Size }) => {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(finalSize));
-      } catch {
-        // Ignore storage errors
-      }
+      setSize(finalSize);
     },
-    [storageKey],
+    [setSize],
   );
 
   return { handleResize, handleResizeStop, size };

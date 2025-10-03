@@ -51,15 +51,7 @@ const DisplayMarkdownButton = ({
         open={isDocsOpen}
         size="md"
       >
-        <Dialog.Content
-          backdrop
-          style={{
-            maxHeight: "none",
-            maxWidth: "none",
-            padding: 0,
-            width: "auto",
-          }}
-        >
+        <Dialog.Content backdrop maxHeight="none" maxWidth="none" padding={0} width="auto">
           <ResizableWrapper storageKey={STORAGE_KEY}>
             <Dialog.Header bg="brand.muted" flexShrink={0}>
               <Heading size="xl">{header}</Heading>
