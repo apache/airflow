@@ -30,20 +30,20 @@
     },
     "edit": "แก้ไขการเชื่อมต่อ",
     "form": {
-      "connectionIdRequired": "ต้องระบุรหัสการเชื่อมต่อ",
+      "connectionIdRequired": "กรุณาระบุรหัสการเชื่อมต่อ",
       "connectionIdRequirement": "รหัสการเชื่อมต่อไม่สามารถมีช่องว่างได้",
-      "connectionTypeRequired": "ต้องระบุประเภทการเชื่อมต่อ",
+      "connectionTypeRequired": "กรุณาระบุประเภทการเชื่อมต่อ",
       "extraFields": "ฟิลด์เพิ่มเติม",
       "extraFieldsJson": "ฟิลด์เพิ่มเติมในรูปแบบ JSON",
-      "helperText": "ไม่มีประเภทการเชื่อมต่อ? ตรวจสอบว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
+      "helperText": "ไม่พบประเภทการเชื่อมต่อ? โปรดตรวจสอบว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
       "helperTextForRedactedFields": "ฟิลด์ที่ถูกซ่อน ('***') จะไม่ถูกเปลี่ยนแปลงหากไม่ได้แก้ไข",
       "selectConnectionType": "เลือกประเภทการเชื่อมต่อ",
       "standardFields": "ฟิลด์มาตรฐาน"
     },
     "nothingFound": {
-      "description": "การเชื่อมต่อที่กำหนดผ่าน environment variables หรือ secrets managers จะไม่แสดงที่นี่",
-      "documentationLink": "เรียนรู้เพิ่มเติมได้จากเอกสาร Airflow",
-      "learnMore": "ค่าพวกนี้จะถูก resolve ตอน runtime และไม่สามารถมองเห็นได้ในหน้า UI",
+      "description": "การเชื่อมต่อที่ตั้งค่าผ่าน environment variables หรือ secrets managers จะไม่ปรากฏที่นี่",
+      "documentationLink": "ดูรายละเอียดเพิ่มเติมได้ในเอกสาร Airflow",
+      "learnMore": "ค่าการเชื่อมต่อเหล่านี้จะถูกประมวลผลตอน runtime และจะไม่แสดงในหน้า UI",
       "title": "ไม่พบการเชื่อมต่อ!"
     },
     "searchPlaceholder": "ค้นหาการเชื่อมต่อ",
@@ -94,8 +94,8 @@
       "checkbox": "เลือกเพื่อรวมงานที่ถูกเลื่อนเมื่อคำนวณจำนวนช่องว่างในพูล",
       "description": "คำอธิบาย",
       "includeDeferred": "รวมงานที่ถูกเลื่อน",
-      "nameMaxLength": "ชื่อสามารถมีได้สูงสุด 256 ตัวอักษร",
-      "nameRequired": "ต้องระบุชื่อ",
+      "nameMaxLength": "ชื่อยาวได้ไม่เกิน 256 ตัวอักษร",
+      "nameRequired": "กรุณาระบุชื่อ",
       "slots": "จำนวนช่อง"
     },
     "noPoolsFound": "ไม่พบพูล",
@@ -132,13 +132,13 @@
     "exportTooltip": "ส่งออกตัวแปรที่เลือก",
     "form": {
       "invalidJson": "JSON ไม่ถูกต้อง",
-      "keyMaxLength": "คีย์สามารถมีได้สูงสุด 250 ตัวอักษร",
-      "keyRequired": "ต้องระบุคีย์",
-      "valueRequired": "ต้องระบุค่า"
+      "keyMaxLength": "คีย์ยาวได้ไม่เกิน 250 ตัวอักษร",
+      "keyRequired": "กรุณาระบุคีย์",
+      "valueRequired": "กรุณาระบุค่า"
     },
     "import": {
       "button": "นำเข้า",
-      "conflictResolution": "เลือกวิธีแก้ไขความขัดแย้งของตัวแปร",
+      "conflictResolution": "เลือกวิธีจัดการเมื่อมีตัวแปรซ้ำ",
       "errorParsingJsonFile": "เกิดข้อผิดพลาดในการอ่านไฟล์ JSON: โปรดอัปโหลดไฟล์ JSON ที่มีตัวแปร (เช่น {\"key\": \"value\", ...})",
       "options": {
         "fail": {
