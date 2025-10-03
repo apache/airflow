@@ -93,7 +93,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     "gantt.grid.color",
     "gantt.selected.bg",
     "gantt.hover.bg",
-  ]);
+  ]).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
