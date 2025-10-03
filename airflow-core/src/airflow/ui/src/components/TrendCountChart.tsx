@@ -99,12 +99,11 @@ type Props = {
 export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   const chartRef = useRef<ChartJS<"line">>();
 
-  // Get semantic token colors that automatically handle light/dark mode
   const [successBg, successLine, failedBg, failedLine] = useToken("colors", [
-    "success.subtle",
-    "success.solid",
-    "failed.subtle",
-    "failed.solid",
+    "trend-count-chart.success.bg",
+    "trend-count-chart.success.line",
+    "trend-count-chart.failed.bg",
+    "trend-count-chart.failed.line",
   ]).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   const intervalData = useMemo(
@@ -112,6 +111,9 @@ export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
     [events, startDate, endDate],
   );
 
+  // TODO: Add a default/neutral state (neither green nor red) when no runs have happened yet.
+  // Currently shows green (success) when count is 0, but this is misleading when there are
+  // actually no runs at all (as opposed to runs with no failures).
   const hasFailures = intervalData.some((value) => value > 0);
   const backgroundColor = hasFailures ? failedBg : successBg;
   const lineColor = hasFailures ? failedLine : successLine;

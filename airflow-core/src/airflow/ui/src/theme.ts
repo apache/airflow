@@ -465,6 +465,18 @@ export const customConfig = defineConfig({
           }
         },
         
+        // components/TrendCountChart.tsx
+        "trend-count-chart": {
+          success: {
+            bg: { value: { _light: "{colors.green.100}", _dark: "{colors.green.800}" } },
+            line: { value: { _light: "{colors.green.500}", _dark: "{colors.green.400}" } }
+          },
+          failed: {
+            bg: { value: { _light: "{colors.red.100}", _dark: "{colors.red.800}" } },
+            line: { value: { _light: "{colors.red.500}", _dark: "{colors.red.400}" } }
+          }
+        },
+        
         // components/ui/ActionButton.tsx
         "action-button": {
           primary: {
