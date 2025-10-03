@@ -1423,7 +1423,7 @@ apiServer:
   allowPodLogReading: true
   env: []
 
-  # Grace period for Airflow API server to finish after SIGTERM is sent from kubernetes
+  # Grace period for API server to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 30
 
   serviceAccount:
