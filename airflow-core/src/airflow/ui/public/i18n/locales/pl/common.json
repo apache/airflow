@@ -113,6 +113,8 @@
   },
   "filter": "Filtr",
   "filters": {
+    "durationFrom": "Czas trwania od",
+    "durationTo": "Czas trwania do",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
     "runAfterFrom": "Uruchom po (od)",

@@ -254,7 +254,15 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
-    def test_should_set_username_and_pass_env_variables(self):
+    @pytest.mark.parametrize(
+        "tag,expected_prefix",
+        [
+            ("v3.6.7", "GIT_SYNC_"),
+            ("v4.4.2", "GITSYNC_"),
+            ("latest", "GITSYNC_"),
+        ],
+    )
+    def test_should_set_username_and_pass_env_variables(self, tag, expected_prefix):
         docs = render_chart(
             values={
                 "dags": {
@@ -263,30 +271,28 @@ class TestPodTemplateFile:
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
                     }
-                }
+                },
+                "images": {
+                    "gitSync": {
+                        "tag": tag,
+                    }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        envs = jmespath.search("spec.initContainers[0].env", docs[0])
 
-        # Testing git-sync v4
         assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+            "name": f"{expected_prefix}USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}USERNAME"}},
+        } in envs
+
         assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+            "name": f"{expected_prefix}PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
+        } in envs
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(

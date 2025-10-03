@@ -32,7 +32,7 @@ export const isStatePending = (state?: TaskInstanceState | null) =>
 
 // checkPendingRuns=false assumes that the component is already handling pending, setting to true will have useAutoRefresh handle it
 export const useAutoRefresh = ({
-  checkPendingRuns,
+  checkPendingRuns = false,
   dagId,
 }: {
   checkPendingRuns?: boolean;
