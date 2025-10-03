@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, Flex, Box, Text } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries/queries.ts";
-import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
-import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
+import { getDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
@@ -49,7 +51,6 @@ const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["se
 
 type Props = {
   readonly dagId: string;
-  readonly fullInstance?: TaskInstanceResponse; // optional richer data from parent
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
@@ -60,48 +61,14 @@ type Props = {
   readonly taskId: string;
 };
 
-const Instance = ({
-  dagId,
-  fullInstance,
-  instance,
-  isGroup,
-  isMapped,
-  onClick,
-  runId,
-  search,
-  taskId,
-}: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const location = useLocation();
-
-  const [open, setOpen] = useState(false);
+  const { t: translate } = useTranslation("common");
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
-
-  // include the map index for mapped tasks so API returns the specific TI
-  const mapIndexArray =
-    "map_index" in instance && typeof instance.map_index === "number" ? [instance.map_index] : undefined;
-
-  // Hydrate the tooltip with a full TaskInstance when opened (skip if parent already provided one)
-  const { data: tiPage } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: runId,
-      taskId,
-      ...(mapIndexArray === undefined ? {} : { mapIndex: mapIndexArray }),
-      limit: 1, // don't use orderBy here — it 400's this endpoint
-    },
-    undefined,
-    {
-      enabled: open && !fullInstance,
-      staleTime: 15_000,
-    },
-  );
-
-  // eslint fix: no unnecessary optional chain on array indexing
-  const hydrated = fullInstance ?? tiPage?.task_instances[0] ?? instance;
 
   const getTaskUrl = useCallback(
     () =>
@@ -115,6 +82,14 @@ const Instance = ({
       }),
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
+
+  // Compute duration only if both ends exist
+  const hasStart = instance.min_start_date !== null;
+  const hasEnd = instance.max_end_date !== null;
+  const durationText =
+    hasStart && hasEnd
+      ? getDuration(instance.min_start_date, instance.max_end_date)
+      : translate("notAvailable", { defaultValue: "--" });
 
   return (
     <Flex
@@ -140,7 +115,36 @@ const Instance = ({
           search,
         }}
       >
-        <TaskInstanceTooltip onOpenChange={(details) => setOpen(details.open)} taskInstance={hydrated}>
+        <Tooltip
+          content={
+            <Box>
+              <Text>
+                {translate("taskId")}: {taskId}
+              </Text>
+              <Text>
+                {translate("state")}: {instance.state}
+              </Text>
+
+              {hasStart ? (
+                <Text>
+                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
+                </Text>
+              ) : null}
+
+              {hasEnd ? (
+                <Text>
+                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
+                </Text>
+              ) : null}
+
+              <Text>
+                {translate("duration")}: {durationText}
+              </Text>
+            </Box>
+          }
+          portalled
+          positioning={{ offset: { crossAxis: 5, mainAxis: 5 }, placement: "bottom-start" }}
+        >
           <Badge
             alignItems="center"
             borderRadius={4}
@@ -155,7 +159,7 @@ const Instance = ({
           >
             <StateIcon size={10} state={instance.state} />
           </Badge>
-        </TaskInstanceTooltip>
+        </Tooltip>
       </Link>
     </Flex>
   );

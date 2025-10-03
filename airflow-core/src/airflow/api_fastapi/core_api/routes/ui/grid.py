@@ -330,7 +330,8 @@ def get_grid_ti_summaries(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
-    ti_details = collections.defaultdict(list)
+
+    ti_details: dict[str, list[dict[str, object | None]]] = collections.defaultdict(list)
     for ti in task_instances:
         ti_details[ti.task_id].append(
             {
@@ -339,6 +340,15 @@ def get_grid_ti_summaries(
                 "end_date": ti.end_date,
             }
         )
+
+    task_min_max: dict[str, tuple[object | None, object | None]] = {}
+    for task_id, rows in ti_details.items():
+        starts = [r["start_date"] for r in rows if r.get("start_date") is not None]
+        ends = [r["end_date"] for r in rows if r.get("end_date") is not None]
+        min_start = min(starts) if starts else None
+        max_end = max(ends) if ends else None
+        task_min_max[task_id] = (min_start, max_end)
+
     serdag = _get_serdag(
         dag_id=dag_id,
         dag_version_id=task_instances[0].dag_version_id,
@@ -355,11 +365,12 @@ def get_grid_ti_summaries(
         ):
             if node["type"] == "task":
                 node["child_states"] = None
-                node["min_start_date"] = None
-                node["max_end_date"] = None
+                min_start, max_end = task_min_max.get(node["task_id"], (None, None))
+                node["min_start_date"] = min_start
+                node["max_end_date"] = max_end
             yield node
 
-    return {  # type: ignore[return-value]
+    return {
         "run_id": run_id,
         "dag_id": dag_id,
         "task_instances": list(get_node_sumaries()),
