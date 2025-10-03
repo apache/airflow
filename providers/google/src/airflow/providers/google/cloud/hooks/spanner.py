@@ -431,7 +431,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
             counts[sql] = rc
         return counts
 
-    def _get_openlineage_authority_part(self, connection):
+    def _get_openlineage_authority_part(self, connection: Connection) -> str:
         """Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
         extras = connection.extra_dejson
         project_id = extras.get("project_id")
@@ -465,5 +465,10 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         )
 
     def get_openlineage_default_schema(self) -> str | None:
-        """Spanner expose 'public' or '' schema depending on dialect(Postgres vs GoogleSQL)."""
+        """
+        Spanner expose 'public' or '' schema depending on dialect(Postgres vs GoogleSQL).
+
+        SQLAlchemy dialect for Spanner does not expose default schema, so we return None
+        to follow the same approach.
+        """
         return None
