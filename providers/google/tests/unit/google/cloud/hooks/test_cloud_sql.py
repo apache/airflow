@@ -974,10 +974,10 @@ class TestCloudSqlDatabaseHook:
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id="cloudsql_connection", default_gcp_project_id="google_connection"
         )
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError, match="Proxy runner can only be retrieved in case of use_proxy = True"
+        ):
             hook.get_sqlproxy_runner()
-        err = ctx.value
-        assert "Proxy runner can only be retrieved in case of use_proxy = True" in str(err)
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_cloudsql_database_hook_get_sqlproxy_runner(self, get_connection):
