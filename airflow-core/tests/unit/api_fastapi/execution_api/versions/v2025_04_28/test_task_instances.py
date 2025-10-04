@@ -137,6 +137,7 @@ class TestTIUpdateState:
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
+                "triggering_user_name": None,
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
