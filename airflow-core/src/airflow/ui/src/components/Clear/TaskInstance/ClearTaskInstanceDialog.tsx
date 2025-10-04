@@ -59,6 +59,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -170,6 +171,13 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
             ) : undefined}
+            <Checkbox
+              checked={preventRunningTask}
+              style={{ marginRight: "auto"}}
+              onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.preventRunningTasks")} 
+            </Checkbox>
             <Button
               colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
@@ -187,6 +195,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
                     task_ids: [[taskId, mapIndex]],
+                    ...(preventRunningTask ? { prevent_running_task: true } : {}),
                   },
                 });
                 if (note !== taskInstance.note) {
