@@ -22,11 +22,11 @@ import { NavLink } from "react-router-dom";
 
 const styles = {
   _active: {
-    bg: "brand.emphasized",
+    bg: "nav.button.bg.active",
   },
   // Fix inverted hover and active colors
   _hover: {
-    bg: "brand.emphasized", // Even darker for better light mode contrast
+    bg: "colorPalette.emphasized",
   },
   alignItems: "center",
   borderRadius: "none",
@@ -63,9 +63,8 @@ export const NavButton = ({ icon, isExternal = false, title, to, ...rest }: NavB
       {({ isActive }: { readonly isActive: boolean }) => (
         <Button
           {...styles}
-          _active={isActive ? { bg: "brand.solid" } : { bg: "brand.emphasized" }}
-          // Override styles for active state to ensure proper colors
-          _hover={isActive ? { bg: "brand.solid" } : { bg: "brand.emphasized" }}
+          _active={isActive ? { bg: "nav.button.bg.active" } : { bg: "nav.button.bg.default" }}
+          _hover={isActive ? { bg: "nav.button.bg.active" } : { bg: "colorPalette.emphasized" }}
           variant={isActive ? "solid" : "ghost"}
           {...rest}
         >

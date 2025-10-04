@@ -70,8 +70,8 @@ export const Graph = () => {
     "graph.selected.stroke",
     "graph.bg",
     "graph.pattern",
-    "graph.controls.bg",
-    "graph.controls.hover",
+    "graph.controls.bg.default",
+    "graph.controls.bg.hover",
     "graph.minimap.bg",
   ]);
 

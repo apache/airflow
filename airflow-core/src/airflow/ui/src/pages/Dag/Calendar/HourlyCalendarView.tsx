@@ -145,7 +145,7 @@ export const HourlyCalendarView = ({
           {Array.from({ length: 24 }, (_, hour) => (
             <Box
               alignItems="center"
-              color="gray.500"
+              color="calendar.hour-label.color"
               display="flex"
               fontSize="xs"
               height="14px"

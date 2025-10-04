@@ -50,8 +50,8 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     "asset-graph.selected.stroke",
     "asset-graph.bg",
     "asset-graph.pattern",
-    "asset-graph.controls.bg",
-    "asset-graph.controls.hover",
+    "asset-graph.controls.bg.default",
+    "asset-graph.controls.bg.hover",
     "asset-graph.minimap.bg",
   ]);
 
