@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Dags ที่ใช้",
+  "createEvent": {
+    "button": "สร้างเหตุการณ์",
+    "manual": {
+      "description": "สร้าง Asset Event ด้วยตนเอง",
+      "extra": "ข้อมูลเพิ่มเติมของ Asset Event",
+      "label": "ทำเอง"
+    },
+    "materialize": {
+      "description": "ทริกเกอร์ Dag ต้นทางของ Asset นี้",
+      "descriptionWithDag": "ทริกเกอร์ Dag ต้นทางของ Asset นี้: {{dagName}}",
+      "label": "สร้างขึ้น (Materialize)",
+      "unpauseDag": "ยกเลิกการหยุดพัก {{dagName}} เมื่อทริกเกอร์"
+    },
+    "success": {
+      "manualDescription": "สร้าง Asset Event ด้วยตนเองสำเร็จแล้ว",
+      "manualTitle": "สร้าง Asset Event แล้ว",
+      "materializeDescription": "Dag ต้นทาง {{dagId}} ถูกทริกเกอร์สำเร็จแล้ว",
+      "materializeTitle": "กำลังสร้าง Asset"
+    },
+    "title": "สร้าง Asset Event สำหรับ {{name}}"
+  },
+  "group": "กลุ่ม",
+  "lastAssetEvent": "Asset Event ล่าสุด",
+  "name": "ชื่อ",
+  "producingTasks": "งานที่สร้างขึ้น",
+  "scheduledDags": "Dags ที่ถูกตั้งเวลา",
+  "searchPlaceholder": "ค้นหา Assets"
+}
