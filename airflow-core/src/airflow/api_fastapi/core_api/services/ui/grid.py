@@ -85,16 +85,19 @@ def _find_aggregates(
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
     parent_id = parent_node.node_id if parent_node else None
-    details = ti_details[node_id]
+    # Do not mutate ti_details by accidental key creation
+    details = ti_details.get(node_id, [])
 
     if node is None:
         return
     if isinstance(node, MappedOperator):
+        # For unmapped tasks, reflect a single None state so UI shows one square
+        mapped_details = details or [{"state": None, "start_date": None, "end_date": None}]
         yield {
             "task_id": node_id,
             "type": "mapped_task",
             "parent_id": parent_id,
-            **_get_aggs_for_node(details),
+            **_get_aggs_for_node(mapped_details),
         }
 
         return
