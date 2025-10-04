@@ -1305,6 +1305,7 @@ class KubernetesPodOperator(BaseOperator):
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
                 active_deadline_seconds=self.active_deadline_seconds,
+                termination_grace_period_seconds=self.termination_grace_period,
             ),
         )
 
