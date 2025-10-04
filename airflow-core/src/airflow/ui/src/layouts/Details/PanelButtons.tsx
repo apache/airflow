@@ -262,7 +262,7 @@ export const PanelButtons = ({
             <Popover.Trigger asChild>
               <Button size="sm" variant="outline">
                 {translate("dag:panel.buttons.options")}
-                <FiChevronDown size="0.5rem" />
+                <FiChevronDown size={8} />
               </Button>
             </Popover.Trigger>
             <Portal>
