@@ -262,7 +262,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             if self.delete_on_termination:
                 pod_name = pod.metadata.name.replace("-driver", "")
                 self.log.info("Deleting spark job: %s", pod_name)
-                self.launcher.delete_spark_job(pod_name)
+                # Check if launcher exists before using it (needed for deferrable mode)
+                if hasattr(self, "launcher") and self.launcher is not None:
+                    self.launcher.delete_spark_job(pod_name)
+                else:
+                    self.log.warning("Launcher not available for pod deletion in deferrable mode")
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
@@ -361,7 +365,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.find_spark_job(context, exclude_checked=exclude_checked)
 
     def on_kill(self) -> None:
-        if self.launcher:
+        if hasattr(self, "launcher") and self.launcher:
             self.log.debug("Deleting spark job for task %s", self.task_id)
             self.launcher.delete_spark_job()
 
