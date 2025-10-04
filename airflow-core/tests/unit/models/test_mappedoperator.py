@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from airflow.models.mappedoperator import MappedOperator
 from sqlalchemy import select
 
 from airflow.exceptions import AirflowSkipException
@@ -31,6 +33,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
+from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
@@ -1401,3 +1405,60 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
+
+
+def test_properties():
+    op = PythonOperator.partial(
+        task_id="mapped",
+        python_callable=print,
+        email="email",
+        execution_timeout=timedelta(seconds=10),
+        retry_delay=timedelta(seconds=5),
+        max_retry_delay=timedelta(seconds=60),
+        retry_exponential_backoff=True,
+        max_active_tis_per_dag=1,
+        max_active_tis_per_dagrun=2,
+        run_as_user="user",
+    ).expand(op_args=["Hello", "world"])
+    assert op.operator_name == PythonOperator.__name__
+    assert op.roots == [op]
+    assert op.leaves == [op]
+    assert op.task_display_name == "mapped"
+    assert op.owner == SerializedBaseOperator.owner
+    assert op.email == "email"
+    assert op.email_on_failure
+    assert op.email_on_retry
+    assert not op.map_index_template
+    assert op.trigger_rule == SerializedBaseOperator.trigger_rule
+    assert not op.is_setup
+    assert not op.is_teardown
+    assert not op.depends_on_past
+    assert op.ignore_first_depends_on_past == bool(SerializedBaseOperator.ignore_first_depends_on_past)
+    assert not op.wait_for_downstream
+    assert op.retries == SerializedBaseOperator.retries
+    assert op.queue == SerializedBaseOperator.queue
+    assert op.pool == SerializedBaseOperator.pool
+    assert op.pool_slots == SerializedBaseOperator.pool_slots
+    assert op.execution_timeout == timedelta(seconds=10)
+    assert op.max_retry_delay == timedelta(seconds=60)
+    assert op.retry_delay == timedelta(seconds=5)
+    assert op.retry_exponential_backoff
+    assert op.priority_weight == SerializedBaseOperator.priority_weight
+    assert isinstance(op.weight_rule, PriorityWeightStrategy)
+    assert op.max_active_tis_per_dag == 1
+    assert op.max_active_tis_per_dagrun == 2
+    assert not op.resources
+    assert not op.has_on_execute_callback
+    assert not op.has_on_failure_callback
+    assert not op.has_on_retry_callback
+    assert not op.has_on_success_callback
+    assert not op.has_on_skipped_callback
+    assert op.run_as_user == "user"
+    assert not op.executor_config
+    assert not op.inlets
+    assert not op.outlets
+    assert not op.doc
+    assert not op.doc_md
+    assert not op.doc_json
+    assert not op.doc_yaml
+    assert not op.doc_rst
