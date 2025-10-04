@@ -10,6 +10,7 @@
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
+      "mixed": "Mixed",
       "more": "More"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Previous year"
     },
     "noData": "No data available",
+    "noFailedRuns": "No failed runs",
     "noRuns": "No runs",
     "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
