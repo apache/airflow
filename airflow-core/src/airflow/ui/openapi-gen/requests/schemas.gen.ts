@@ -1063,6 +1063,21 @@ export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1089,6 +1104,21 @@ export const $BulkUpdateAction_ConnectionBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1117,6 +1147,21 @@ export const $BulkUpdateAction_PoolBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1143,6 +1188,21 @@ export const $BulkUpdateAction_VariableBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -2777,6 +2837,61 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lt'
+        },
+        duration_gte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gte'
+        },
+        duration_gt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gt'
+        },
+        duration_lte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lte'
+        },
+        duration_lt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lt'
+        },
+        conf_contains: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conf Contains'
         }
     },
     additionalProperties: false,
