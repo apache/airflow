@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-03T19:49:42.889701
+# This constraints file was automatically generated on 2025-10-04T13:50:59.825542
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -95,6 +95,7 @@ ansicolors==1.1.8
 anyio==4.11.0
 apache-airflow-providers-airbyte==5.2.3
 apache-airflow-providers-alibaba==3.2.3
+apache-airflow-providers-amazon==9.15.0
 apache-airflow-providers-apache-beam==6.1.5
 apache-airflow-providers-apache-cassandra==3.8.2
 apache-airflow-providers-apache-drill==3.1.2
@@ -548,7 +549,7 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
-pydantic==2.11.9
+pydantic==2.11.10
 pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
