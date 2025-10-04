@@ -119,15 +119,14 @@ class TestTaskInstanceEndpoint:
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         tis = []
         for i in range(counter):
-            map_index = task_instances[i].pop("map_index", -1)
-            assert map_index != 0
-
-            if task_instances is None:
-                pass
-            elif update_extras:
-                self.ti_extras.update(task_instances[i])
-            else:
-                self.ti_init.update(task_instances[i])
+            map_indexes = (-1,)
+            if task_instances:
+                map_index = task_instances[i].get("map_index", -1)
+                map_indexes = task_instances[i].pop("map_indexes", (map_index,))
+                if update_extras:
+                    self.ti_extras.update(task_instances[i])
+                else:
+                    self.ti_init.update(task_instances[i])
 
             if "logical_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
@@ -147,9 +146,9 @@ class TestTaskInstanceEndpoint:
             if TYPE_CHECKING:
                 assert dag_version
 
-            map_indexes = range(map_index) if map_index > -1 else (map_index,)
             for mi in map_indexes:
-                ti = TaskInstance(task=tasks[i], **self.ti_init, map_index=mi, dag_version_id=dag_version.id)
+                kwargs = self.ti_init | {"map_index": mi}
+                ti = TaskInstance(task=tasks[i], **kwargs, dag_version_id=dag_version.id)
                 session.add(ti)
                 ti.dag_run = dr
                 ti.note = "placeholder-note"
@@ -2523,12 +2522,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                 ],
                 "example_task_mapping_second_order",
@@ -2549,12 +2548,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                 ],
                 "example_task_mapping_second_order",
@@ -2576,12 +2575,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                 ],
                 "example_task_mapping_second_order",
@@ -2603,12 +2602,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                     {
                         "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
-                        "map_index": 3,
+                        "map_indexes": (0, 1, 2),
                     },
                 ],
                 "example_task_mapping_second_order",
