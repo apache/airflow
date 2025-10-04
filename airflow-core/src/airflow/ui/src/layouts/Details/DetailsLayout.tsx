@@ -223,7 +223,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <>
                         <ActionButton
                           actionName={translate("common:dagWarnings")}
-                          colorPalette={Boolean(error) ? "red" : "orange"}
+                          colorPalette={Boolean(error) ? "danger" : "warning"}
                           icon={<LuFileWarning />}
                           margin="2"
                           marginBottom="-1"

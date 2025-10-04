@@ -91,8 +91,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
 
   const [gridColor, selectedItemColor, hoveredItemColor] = useToken("colors", [
     "gantt.grid.color",
-    "gantt.selected.bg",
-    "gantt.hover.bg",
+    "gantt.bg.selected",
+    "gantt.bg.hover",
   ]).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({

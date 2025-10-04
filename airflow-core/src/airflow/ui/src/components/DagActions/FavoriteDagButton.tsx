@@ -41,6 +41,7 @@ export const FavoriteDagButton = ({ dagId, isFavorite = false, withText = true }
     <Box>
       <ActionButton
         actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
+        colorPalette="brand"
         icon={
           <FiStar
             style={{

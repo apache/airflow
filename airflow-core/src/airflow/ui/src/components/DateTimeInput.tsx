@@ -41,6 +41,8 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
 
   return (
     <Input
+      _hover={{ borderColor: "colorPalette.emphasized" }}
+      colorPalette="brand"
       onChange={(event) =>
         onChange?.({
           ...event,
