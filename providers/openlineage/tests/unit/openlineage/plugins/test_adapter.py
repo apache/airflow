@@ -1226,6 +1226,18 @@ def test_build_dag_run_id_different_clear_number_give_different_results():
     assert result1 != result2
 
 
+def test_build_task_instance_for_task_instance_id():
+    result = OpenLineageAdapter.build_task_instance_run_id(
+        task_instance_id=uuid.UUID("019972a6-3eb0-7d9c-aa89-20e2cd29fad5"),
+        dag_id="whatever",
+        task_id="whatever",
+        try_number=1,
+        logical_date=datetime.datetime.now(),
+        map_index=-1,
+    )
+    assert result == "019972a6-3eb0-7d9c-aa89-20e2cd29fad5"
+
+
 def test_build_task_instance_run_id_is_valid_uuid():
     result = OpenLineageAdapter.build_task_instance_run_id(
         dag_id="dag_id",
