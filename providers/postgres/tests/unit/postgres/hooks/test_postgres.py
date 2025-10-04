@@ -471,6 +471,30 @@ class TestPostgresHookConn:
 
         assert mock_db_token in self.db_hook.sqlalchemy_url
 
+    def test_get_azure_iam_token_expect_failure_on_get_token(self, mocker):
+        """Test get_azure_iam_token method gets token from provided connection id"""
+
+        class MockAzureBaseHookWithoutGetToken:
+            def __init__(self):
+                pass
+
+        azure_conn_id = "azure_test_conn"
+        mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
+        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+
+        self.connection.extra = json.dumps({"iam": True, "azure_conn_id": azure_conn_id})
+        with pytest.raises(
+            AttributeError,
+            match=(
+                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Please upgrade apache-airflow-providers-microsoft-azure>="
+            ),
+        ):
+            self.db_hook.get_azure_iam_token(self.connection)
+
+        # Check AzureBaseHook initialization
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)
+
     def test_get_uri_from_connection_without_database_override(self, mocker):
         expected: str = f"postgresql{'+psycopg' if USE_PSYCOPG3 else ''}://login:password@host:1/database"
         self.db_hook.get_connection = mocker.MagicMock(
