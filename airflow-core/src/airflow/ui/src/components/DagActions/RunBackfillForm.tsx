@@ -21,6 +21,7 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Button } from "src/components/ui";
@@ -30,6 +31,7 @@ import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { getPreloadBackfillFormData } from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -43,6 +45,7 @@ type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
   readonly onClose: () => void;
 };
+
 const today = new Date().toISOString().slice(0, 16);
 
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
@@ -54,15 +57,26 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
   const { conf } = useParamStore();
-  const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const {
+    conf: urlConf,
+    from_date: urlFromDate,
+    max_active_runs: urlMaxActiveRuns,
+    reprocess_behavior: urlReprocessBehavior,
+    run_backwards: urlRunBackwards,
+    to_date: urlToDate,
+  } = getPreloadBackfillFormData(params);
+
+  const { control, handleSubmit, reset } = useForm<BackfillFormProps>({
     defaultValues: {
-      conf,
+      conf: urlConf ?? (conf || "{}"),
       dag_id: dag.dag_id,
-      from_date: "",
-      max_active_runs: 1,
-      reprocess_behavior: "none",
-      run_backwards: false,
-      to_date: "",
+      from_date: urlFromDate,
+      max_active_runs: urlMaxActiveRuns,
+      reprocess_behavior: urlReprocessBehavior,
+      run_backwards: urlRunBackwards,
+      to_date: urlToDate,
     },
     mode: "onBlur",
   });
@@ -90,22 +104,16 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   useEffect(() => {
     if (Boolean(dateValidationError)) {
       setErrors((prev) => ({ ...prev, date: dateValidationError }));
-    }
-  }, [dateValidationError]);
-
-  useEffect(() => {
-    if (conf) {
+    } else if (urlConf === null && conf) {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [dateValidationError, urlConf, conf, reset]);
 
-  const dataIntervalStart = watch("from_date");
-  const dataIntervalEnd = watch("to_date");
-  const noDataInterval = !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
-  const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
+  const noDataInterval = !Boolean(values.from_date) || !Boolean(values.to_date);
+  const dataIntervalInvalid = dayjs(values.from_date).isAfter(dayjs(values.to_date));
 
   const onSubmit = (fdata: BackfillFormProps) => {
     if (unpause && dag.is_paused) {
@@ -248,6 +256,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           errors={errors}
           initialParamsDict={initialParamsDict}
+          openAdvanced={Boolean(urlConf ?? conf)}
           setErrors={setErrors}
           setFormError={setFormError}
         />
