@@ -157,6 +157,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
             "data": {
                 "connection": {
                     "type": "snowflake",
+                    "name": "conn_name",
                     "details": {
                         "account": "gp21411.us-east-1",
                         "database": "SANDBOX",

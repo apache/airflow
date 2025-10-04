@@ -255,27 +255,31 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{ else if .Values.dags.gitSync.credentialsSecret }}
-    - name: GIT_SYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_USERNAME
+    {{- else if .Values.dags.gitSync.credentialsSecret }}
+    {{- $tag := trimPrefix "v" .Values.images.gitSync.tag }}
+    {{- if or (eq $tag "latest") (semverCompare ">=4.0.0" $tag) }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
-    - name: GIT_SYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_PASSWORD
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
+    {{- else }}
+    - name: GIT_SYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_USERNAME
+    - name: GIT_SYNC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_PASSWORD
+    {{- end }}
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
