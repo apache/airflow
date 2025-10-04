@@ -259,11 +259,14 @@ class SnowflakeHook(DbApiHook):
 
         This uses AzureBaseHook to retrieve the token.
         """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.azure_base import AzureBaseHook
+
         try:
             azure_conn = Connection.get(azure_conn_id)
         except AttributeError:
             azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
-        azure_base_hook = azure_conn.get_hook()
+        azure_base_hook: AzureBaseHook = azure_conn.get_hook()
         scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
         try:
             token = azure_base_hook.get_token(scope).token
