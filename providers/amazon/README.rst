@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.14.0``
+Release: ``9.15.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.14.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.15.0/>`_.
 
 Installation
 ------------
@@ -129,4 +129,4 @@ Extra                 Dependencies
 ====================  ========================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.14.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.15.0/changelog.html>`_.
