@@ -19,8 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
-from airflow.providers.atlassian.jira.notifications.jira import JiraNotifier, send_jira_notification
+from airflow.providers.atlassian.jira.notifications.jira import (
+    JiraNotifier,
+    send_jira_notification,
+)
 
 jira_create_issue_payload = dict(
     description="Test operator failed",
@@ -78,3 +83,32 @@ class TestJiraNotifier:
                 labels=["airflow-dag-failure"],
             )
         )
+
+    def test_jira_notifier_get_fields(self):
+        notifier = JiraNotifier(
+            jira_conn_id="jira_default",
+            project_id=10000,
+            description="Test operator failed",
+            summary="Test Jira issue",
+            issue_type_id=10003,
+            labels=["airflow-dag-failure"],
+        )
+        assert notifier._get_fields() == jira_create_issue_payload
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.atlassian.jira.notifications.jira.JiraAsyncHook.create_issue",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_jira_async_notifier(self, mock_jira_hook, create_dag_without_db):
+        notifier = send_jira_notification(
+            jira_conn_id="jira_default",
+            api_root="test/rest",
+            project_id=10000,
+            description="Test operator failed",
+            summary="Test Jira issue",
+            issue_type_id=10003,
+            labels=["airflow-dag-failure"],
+        )
+        await notifier.async_notify({"dag": create_dag_without_db("test_jira_notifier")})
+        mock_jira_hook.assert_called_once_with(jira_create_issue_payload)
