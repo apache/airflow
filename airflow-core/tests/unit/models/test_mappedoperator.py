@@ -37,6 +37,7 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstances import run_ti
 from unit.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
@@ -432,7 +433,7 @@ def test_expand_mapped_task_instance_with_named_index(
     dr = dag_maker.create_dagrun(session=session)
     tis = dr.get_task_instances(session=session)
     for ti in tis:
-        ti.run()
+        run_ti(ti, dag_maker.dag.get_task(ti.task_id))
     session.flush()
 
     indices = session.scalars(
@@ -1396,8 +1397,7 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
         tg1.expand(a=t)
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="t1")
-    ti.run()
+    dag_maker.run_ti("t1", dr)
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state

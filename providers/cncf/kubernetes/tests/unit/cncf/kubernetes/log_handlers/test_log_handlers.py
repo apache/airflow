@@ -42,7 +42,8 @@ from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.taskinstances import run_ti
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -145,7 +146,13 @@ class TestFileTaskLogHandler:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **dagrun_kwargs,
         )
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
+            ti = TaskInstance(
+                task=dag.get_task(task.task_id),
+                run_id=dagrun.run_id,
+                dag_version_id=dagrun.created_dag_version_id,
+            )
+        elif AIRFLOW_V_3_0_PLUS:
             ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dagrun.created_dag_version_id)
         else:
             ti = TaskInstance(task=task, run_id=dagrun.run_id)
@@ -157,7 +164,7 @@ class TestFileTaskLogHandler:
 
         file_handler = TaskLogReader().log_handler
         set_context(logger, ti)
-        ti.run(ignore_ti_state=True)
+        run_ti(ti, task)
         ti.state = TaskInstanceState.RUNNING
         # clear executor_instances cache
         file_handler.executor_instances = {}
