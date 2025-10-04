@@ -645,7 +645,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.sql google "
-                    "openlineage pgvector postgres",
+                    "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -667,7 +667,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.sql,openlineage,pgvector,postgres] "
+                                "Providers[common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
