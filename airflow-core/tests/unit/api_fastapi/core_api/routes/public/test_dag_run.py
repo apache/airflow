@@ -1827,6 +1827,61 @@ class TestTriggerDagRun:
             "note": None,
         }
 
+    @time_machine.travel("2025-10-02 12:00:00", tick=False)
+    def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
+        """Test that custom timetable's generate_run_id is used for manual triggers (issue #55908)."""
+        from pendulum import DateTime
+
+        from airflow.timetables.base import DataInterval
+        from airflow.timetables.interval import CronDataIntervalTimetable
+
+        class CustomTimetable(CronDataIntervalTimetable):
+            def generate_run_id(
+                self,
+                *,
+                run_type: DagRunType,
+                run_after: DateTime,
+                data_interval: DataInterval | None,
+                **kwargs,
+            ) -> str:
+                if data_interval:
+                    return f"custom_{data_interval.start.strftime('%Y%m%d%H%M%S')}"
+                return f"custom_manual_{run_after.strftime('%Y%m%d%H%M%S')}"
+
+        custom_dag_id = "test_custom_timetable_dag"
+        with dag_maker(
+            dag_id=custom_dag_id,
+            timetable=CustomTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        logical_date = datetime(2025, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": logical_date.isoformat()},
+        )
+        assert response.status_code == 200
+        run_id_with_logical_date = response.json()["dag_run_id"]
+        assert run_id_with_logical_date.startswith("custom_")
+
+        run = session.query(DagRun).filter(DagRun.run_id == run_id_with_logical_date).one()
+        assert run.dag_id == custom_dag_id
+
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": None},
+        )
+        assert response.status_code == 200
+        run_id_without_logical_date = response.json()["dag_run_id"]
+        assert run_id_without_logical_date.startswith("custom_manual_")
+
+        run = session.query(DagRun).filter(DagRun.run_id == run_id_without_logical_date).one()
+        assert run.dag_id == custom_dag_id
+
 
 class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.
