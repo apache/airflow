@@ -280,10 +280,12 @@ class TestRedis:
         # We want to make sure default redis secrets (if needed) are still
         # created during install, as they are marked "pre-install".
         # See note in templates/secrets/redis-secrets.yaml for more.
+        # For non-Celery executors, only the Redis password secret should be created,
+        # not the broker URL secret (which is only needed for Celery executors).
         docs = render_chart(
             values={"executor": "KubernetesExecutor"}, show_only=["templates/secrets/redis-secrets.yaml"]
         )
-        assert len(docs) == 2
+        assert len(docs) == 1
 
     def test_scheduler_name(self):
         docs = render_chart(
