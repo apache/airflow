@@ -193,6 +193,13 @@ class DagBundlesManager(LoggingMixin):
             _add_example_dag_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
+            if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
+                raise AirflowConfigException(
+                    "Section `dag_processor` key `dag_bundle_config_list` "
+                    "cannot have a team name when multi-team mode is disabled."
+                    "To enable multi-team, you need to update section `core` key `multi_team` in your config."
+                )
+
             class_ = import_string(bundle_config.classpath)
             self._bundle_config[bundle_config.name] = _InternalBundleConfig(
                 bundle_class=class_,

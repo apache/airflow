@@ -26,7 +26,7 @@ from urllib.parse import urljoin
 import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
-from flask import Blueprint, g
+from flask import Blueprint, current_app, g
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -282,7 +282,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def deserialize_user(self, token: dict[str, Any]) -> User:
         with create_session() as session:
-            return session.get(User, int(token["sub"]))
+            return session.scalars(select(User).where(User.id == int(token["sub"]))).one()
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -292,7 +292,7 @@ class FabAuthManager(BaseAuthManager[User]):
         user = self.get_user()
         return (
             self.appbuilder
-            and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+            and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
             or (not user.is_anonymous and user.is_active)
         )
 
@@ -470,14 +470,18 @@ class FabAuthManager(BaseAuthManager[User]):
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         if isinstance(user, AnonymousUser):
             return set()
-        user_query = session.scalar(
-            select(User)
-            .options(
-                joinedload(User.roles)
-                .subqueryload(Role.permissions)
-                .options(joinedload(Permission.action), joinedload(Permission.resource))
+        user_query = (
+            session.scalars(
+                select(User)
+                .options(
+                    joinedload(User.roles)
+                    .subqueryload(Role.permissions)
+                    .options(joinedload(Permission.action), joinedload(Permission.resource))
+                )
+                .where(User.id == user.id)
             )
-            .where(User.id == user.id)
+            .unique()
+            .one()
         )
         roles = user_query.roles
 
@@ -547,7 +551,7 @@ class FabAuthManager(BaseAuthManager[User]):
         if not self.appbuilder:
             raise AirflowException("AppBuilder is not initialized.")
 
-        sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
+        sm_from_config = current_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
                 raise AirflowConfigException(
