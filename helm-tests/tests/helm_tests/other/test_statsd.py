@@ -26,7 +26,19 @@ class TestStatsd:
     """Tests statsd."""
 
     def test_should_create_statsd_default(self):
-        docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "args": [
+                        "--statsd.cache-size=1000",
+                        "--statsd.cache-type=lru",
+                        "--ttl=0s",
+                    ],
+                }
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"]
+        )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
 
@@ -42,8 +54,15 @@ class TestStatsd:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-        default_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
-        assert default_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        expected_args = [                                                              
+                    '--statsd.cache-size=1000',                                  
+                    '--statsd.cache-type=lru',                                   
+                    '--ttl=0s',                                                  
+                    '--statsd.cache-size=',                                      
+                    '--statsd.cache-type=',                                      
+                    '--ttl=',                                                    
+                    ]
+        assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -294,7 +313,7 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--some-arg=foo"]
+        args = ["--some-arg=foo", "--statsd.cache-size=1000", "--statsd.cache-type=lru", "--ttl=0s"]
         docs = render_chart(
             values={"statsd": {"enabled": True, "args": args}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
