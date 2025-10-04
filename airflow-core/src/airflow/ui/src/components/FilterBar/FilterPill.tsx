@@ -23,6 +23,7 @@ import { MdClose } from "react-icons/md";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState, FilterValue } from "./types";
+import { isEmptyFilterValue } from "./utils";
 
 type FilterPillProps = {
   readonly children: React.ReactNode;
@@ -41,7 +42,7 @@ export const FilterPill = ({
   onChange,
   onRemove,
 }: FilterPillProps) => {
-  const isEmpty = filter.value === null || filter.value === undefined || String(filter.value).trim() === "";
+  const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
