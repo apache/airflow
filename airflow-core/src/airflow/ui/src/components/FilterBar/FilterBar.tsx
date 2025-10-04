@@ -143,9 +143,10 @@ export const FilterBar = ({
         <Menu.Root>
           <Menu.Trigger asChild>
             <Button
-              _hover={{ bg: "colorPalette.subtle" }}
-              bg="gray.muted"
+              _hover={{ bg: "colorPalette.emphasized" }}
+              bg="colorPalette.muted"
               borderRadius="full"
+              colorPalette="brand"
               variant="outline"
             >
               <MdAdd />
