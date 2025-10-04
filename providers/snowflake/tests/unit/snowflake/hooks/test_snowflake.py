@@ -1092,3 +1092,44 @@ class TestPytestSnowflakeHook:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
         )
+
+    def test_get_azure_oauth_token(self, mocker):
+        """Test get_azure_oauth_token method gets token from provided connection id"""
+        azure_conn_id = "azure_test_conn"
+        mock_azure_token = "azure_test_token"
+
+        mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
+        mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
+        mock_azure_base_hook.get_token.return_value.token = mock_azure_token
+
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        token = hook.get_azure_oauth_token(azure_conn_id)
+
+        # Check AzureBaseHook initialization and get_token call args
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)
+        mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
+        assert token == mock_azure_token
+
+    def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
+        """Test get_azure_oauth_token method gets token from provided connection id"""
+
+        class MockAzureBaseHookWithoutGetToken:
+            def __init__(self):
+                pass
+
+        azure_conn_id = "azure_test_conn"
+        mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
+        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        with pytest.raises(
+            AttributeError,
+            match=(
+                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Please upgrade apache-airflow-providers-microsoft-azure>="
+            ),
+        ):
+            hook.get_azure_oauth_token(azure_conn_id)
+
+        # Check AzureBaseHook initialization
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)

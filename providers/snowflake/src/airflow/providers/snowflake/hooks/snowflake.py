@@ -257,7 +257,13 @@ class SnowflakeHook(DbApiHook):
         """
         Generate OAuth access token using Azure connection id.
 
-        This uses AzureBaseHook to retrieve the token.
+        This uses AzureBaseHook on the connection id to retrieve the token. Scope for the OAuth token can be
+        set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``.
+
+        :param azure_conn_id: The connection id for the Azure connection that will be used to fetch the token.
+        :raises AttributeError: If AzureBaseHook does not have a get_token method which happens when
+            package apache-airflow-providers-microsoft-azure<12.8.0.
+        :returns: The OAuth access token string.
         """
         if TYPE_CHECKING:
             from airflow.providers.microsoft.azure.hooks.azure_base import AzureBaseHook
@@ -271,10 +277,12 @@ class SnowflakeHook(DbApiHook):
         try:
             token = azure_base_hook.get_token(scope).token
         except AttributeError as e:
-            if "get_token" in str(e):
+            if e.name == "get_token" and e.obj == azure_base_hook:
                 raise AttributeError(
                     "'AzureBaseHook' object has no attribute 'get_token'. "
-                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0."
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0",
+                    name=e.name,
+                    obj=e.obj,
                 ) from e
             raise
         return token
