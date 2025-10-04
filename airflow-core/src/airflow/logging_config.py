@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-REMOTE_TASK_LOG: RemoteLogIO | None
+REMOTE_TASK_LOG: RemoteLogIO | None = None
 DEFAULT_REMOTE_CONN_ID: str | None = None
 
 
