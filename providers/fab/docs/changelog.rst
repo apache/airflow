@@ -41,11 +41,13 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Add 'if_not_exists=True' to FAB migration (#56100)``
+* ``Add if_not_exists to index creation in migrations (#56328)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix static check error resulting from not rebased change in FAB5 (#56178)``
    * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare fab and amazon providers to release (September 2025) (#56241)``
 
 2.4.4
 .....

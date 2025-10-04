@@ -123,24 +123,46 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
 
     git fetch upstream && git rebase upstream/main && git push --force-with-lease
 
-Option B – One-Click GitHub Codespaces
--------------------------------------
+## Option B – One-Click GitHub Codespaces
+
 1. On **your fork**, click *Code → Codespaces → New codespace*.
 2. Wait for the VS Code web IDE to appear.  A terminal opens automatically.
-3. Install Breeze and start the development container
+3. Install Docker Buildx and Docker Compose (required for Breeze)
 
 .. code-block:: bash
 
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    uv tool install prek
-    prek install -f
-    uv tool install -e ./dev/breeze
-    uv run setup_vscode.py
-    breeze start-airflow
+```
+mkdir -p ~/.docker/cli-plugins
 
-4. Edit a file in the editor, save, and commit via the Source Control
-   sidebar.  Push when prompted.
-5. Press **Create pull request** when GitHub offers.
+# Install Docker Buildx
+BUILDX_VERSION=v0.16.2
+curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+chmod +x ~/.docker/cli-plugins/docker-buildx
+docker buildx version
+
+# Install Docker Compose v2
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+docker compose version
+```
+
+4. Install Breeze and start the development container
+
+.. code-block:: bash
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install prek
+prek install -f
+uv tool install -e ./dev/breeze
+uv run setup_vscode.py
+breeze start-airflow
+```
+
+5. Edit a file in the editor, save, and commit via the Source Control
+sidebar.  Push when prompted.
+6. Press **Create pull request** when GitHub offers.
+
 
 Review & Merge
 --------------
