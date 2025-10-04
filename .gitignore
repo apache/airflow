@@ -195,6 +195,7 @@ _api
 _build
 _doctree
 _inventory_cache
+.copilot_token
 
 # mypy
 .mypy_cache/
