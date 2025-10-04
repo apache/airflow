@@ -50,10 +50,15 @@ export const StatsCard = ({
 
   const content = (
     <HStack
+      _hover={{
+        bg: "colorPalette.subtle",
+        borderColor: "colorPalette.emphasized",
+      }}
       alignItems="center"
       borderRadius="lg"
       borderWidth={1}
       color="fg.emphasized"
+      colorPalette={colorPalette}
       cursor="pointer"
       p={2}
     >

@@ -46,10 +46,11 @@ export const StateFilters = ({
 
   return (
     <HStack>
-      <QuickFilterButton isActive={isAll} onClick={onStateChange} value="all">
+      <QuickFilterButton colorPalette="brand" isActive={isAll} onClick={onStateChange} value="all">
         {translate("dags:filters.paused.all")}
       </QuickFilterButton>
       <QuickFilterButton
+        colorPalette="failed"
         data-testid="dags-failed-filter"
         isActive={isFailed}
         onClick={onStateChange}
@@ -59,6 +60,7 @@ export const StateFilters = ({
         {translate("common:states.failed")}
       </QuickFilterButton>
       <QuickFilterButton
+        colorPalette="queued"
         data-testid="dags-queued-filter"
         isActive={isQueued}
         onClick={onStateChange}
@@ -68,6 +70,7 @@ export const StateFilters = ({
         {translate("common:states.queued")}
       </QuickFilterButton>
       <QuickFilterButton
+        colorPalette="running"
         data-testid="dags-running-filter"
         isActive={isRunning}
         onClick={onStateChange}
@@ -77,6 +80,7 @@ export const StateFilters = ({
         {translate("common:states.running")}
       </QuickFilterButton>
       <QuickFilterButton
+        colorPalette="success"
         data-testid="dags-success-filter"
         isActive={isSuccess}
         onClick={onStateChange}
@@ -86,6 +90,7 @@ export const StateFilters = ({
         {translate("common:states.success")}
       </QuickFilterButton>
       <QuickFilterButton
+        colorPalette="deferred"
         data-testid="dags-needs-review-filter"
         isActive={needsReview}
         onClick={onStateChange}

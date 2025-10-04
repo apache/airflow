@@ -39,7 +39,7 @@ export const InputWithAddon = React.forwardRef<HTMLInputElement, InputWithAddonP
       width={width}
     >
       <Text
-        bg="gray.muted"
+        bg="colorPalette.muted"
         borderLeftRadius="full"
         color="colorPalette.fg"
         colorPalette="gray"

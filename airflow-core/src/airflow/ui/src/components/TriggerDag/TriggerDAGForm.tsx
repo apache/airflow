@@ -134,7 +134,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Input {...field} size="sm" />
+                <Input _hover={{ borderColor: "colorPalette.emphasized" }} colorPalette="brand" {...field} size="sm" />
                 <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText>
               </Stack>
             </Field.Root>
