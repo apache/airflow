@@ -108,6 +108,8 @@ class Trigger(Base):
     asset_watchers = relationship("AssetWatcherModel", back_populates="trigger")
     assets = association_proxy("asset_watchers", "asset")
 
+    callback = relationship("Callback", back_populates="trigger", uselist=False)
+
     deadline = relationship("Deadline", back_populates="trigger", uselist=False)
 
     def __init__(
