@@ -48,18 +48,18 @@ class TestPrepareVirtualenv:
     @pytest.mark.parametrize(
         ("index_urls", "expected_pip_conf_content", "unexpected_pip_conf_content"),
         [
-            [[], ["[global]", "no-index ="], ["index-url", "extra", "http", "pypi"]],
-            [["http://mysite"], ["[global]", "index-url", "http://mysite"], ["no-index", "extra", "pypi"]],
-            [
+            ([], ["[global]", "no-index ="], ["index-url", "extra", "http", "pypi"]),
+            (["http://mysite"], ["[global]", "index-url", "http://mysite"], ["no-index", "extra", "pypi"]),
+            (
                 ["http://mysite", "https://othersite"],
                 ["[global]", "index-url", "http://mysite", "extra", "https://othersite"],
                 ["no-index", "pypi"],
-            ],
-            [
+            ),
+            (
                 ["http://mysite", "https://othersite", "http://site"],
                 ["[global]", "index-url", "http://mysite", "extra", "https://othersite http://site"],
                 ["no-index", "pypi"],
-            ],
+            ),
         ],
     )
     def test_generate_pip_conf(

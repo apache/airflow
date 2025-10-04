@@ -111,13 +111,13 @@ def test_private_access(env):
 
 @pytest.mark.parametrize(
     ["name", "expected"],
-    (
+    [
         ("ds", "2012-07-24"),
         ("ds_nodash", "20120724"),
         ("ts", "2012-07-24T03:04:52+00:00"),
         ("ts_nodash", "20120724T030452"),
         ("ts_nodash_with_tz", "20120724T030452+0000"),
-    ),
+    ],
 )
 def test_filters(env, name, expected):
     when = datetime(2012, 7, 24, 3, 4, 52, tzinfo=timezone.utc)

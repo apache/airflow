@@ -53,7 +53,7 @@ def test_init():
     assert path3.path == "bucket/key/part1/part2/part3/2023"
 
 
-@pytest.mark.parametrize("input_str", ("file:///tmp/foo", "s3://conn_id@bucket/test.txt"))
+@pytest.mark.parametrize("input_str", ["file:///tmp/foo", "s3://conn_id@bucket/test.txt"])
 def test_str(input_str):
     o = ObjectStoragePath(input_str)
     assert str(o) == input_str

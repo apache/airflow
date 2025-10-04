@@ -954,7 +954,7 @@ class TestWatchedSubprocess:
 
     @pytest.mark.parametrize(
         ["signal_to_raise", "log_pattern", "level"],
-        (
+        [
             pytest.param(
                 signal.SIGKILL,
                 re.compile(r"Process terminated by signal. Likely out of memory error"),
@@ -973,7 +973,7 @@ class TestWatchedSubprocess:
                 "critical",
                 id="segv",
             ),
-        ),
+        ],
     )
     def test_exit_by_signal(self, signal_to_raise, log_pattern, level, cap_structlog, client_with_ti_start):
         def subprocess_main():
@@ -2359,12 +2359,12 @@ class TestInProcessClient:
 
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
-    (
+    [
         pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
         pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
         pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
         pytest.param(False, "", "", id="no-remote-logging"),
-    ),
+    ],
 )
 def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch, mocker):
     # This doesn't strictly need the AWS provider, but it does need something that
