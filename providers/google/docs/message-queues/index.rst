@@ -18,6 +18,10 @@
 Google Cloud Messaging Queues
 ==============================
 
+.. contents::
+   :local:
+   :depth: 2
+
 Google Cloud Pub/Sub Queue Provider
 ------------------------------------
 
@@ -25,37 +29,42 @@ Implemented by :class:`~airflow.providers.google.cloud.queues.pubsub.PubsubMessa
 
 The Google Cloud Pub/Sub Queue Provider is a message queue provider that uses Google Cloud Pub/Sub as the underlying message queue system.
 
-The queue should match this regex:
+It allows you to send and receive messages using Cloud Pub/Sub in your Airflow workflows
+with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
-.. exampleinclude:: /../src/airflow/providers/google/cloud/queues/pubsub.py
+.. include:: /../src/airflow/providers/google/cloud/queues/pubsub.py
+    :start-after: [START pubsub_message_queue_provider_description]
+    :end-before: [END pubsub_message_queue_provider_description]
+
+Pub/Sub Message Queue Trigger
+-----------------------------
+
+Implemented by :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger`
+
+Inherited from :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger`
+
+
+Wait for a message in a queue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of how you can configure an Airflow DAG to be triggered by a message in Pub/Sub.
+
+.. exampleinclude:: /../tests/system/google/cloud/pubsub/example_pubsub_message_queue_trigger.py
     :language: python
-    :dedent: 0
-    :start-after: [START queue_regexp]
-    :end-before: [END queue_regexp]
+    :start-after: [START howto_trigger_pubsub_message_queue]
+    :end-before: [END howto_trigger_pubsub_message_queue]
 
-Queue URI Format:
+How it works
+------------
 
-.. code-block:: text
+1. **Pub/Sub Message Queue Trigger**: The ``PubsubPullTrigger`` listens for messages from a Google Cloud Pub/Sub subscription.
 
-    projects/{project_id}/subscriptions/{subscription_name}
+2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the Pub/Sub subscription in this example.
+   The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
+   asset.
 
-Where:
+3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+   (e.g., a new message in the queue).
 
-- ``project_id``: Google Cloud project ID where the Pub/Sub subscription exists
-- ``subscription_name``: Name of the Pub/Sub subscription to consume messages from
-
-.. note::
-    The subscription name must follow Google Cloud naming conventions:
-    - Must start with a letter
-    - Can contain letters, numbers, hyphens, underscores, tildes, plus signs, and percent signs
-    - Must be between 3 and 255 characters long
-    - Cannot start with `goog`
-
-The queue parameter is used to configure the underlying
-:class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger` class.
-The provider extracts the ``project_id`` and ``subscription`` from the queue URI format
-and passes them along with additional configuration to the trigger constructor.
-
-.. warning::
-    Do not provide ``project_id`` or ``subscription`` in kwargs as they are extracted
-    from the queue URI format and will raise a ValueError if provided.
+For how to use the trigger, refer to the documentation of the
+:ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
