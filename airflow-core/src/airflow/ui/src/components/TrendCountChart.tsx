@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, useToken } from "@chakra-ui/react";
+import { resolveTokenValue } from "src/theme";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,7 +32,6 @@ import dayjs from "dayjs";
 import { useMemo, useRef, useEffect } from "react";
 import { Line } from "react-chartjs-2";
 
-import { useColorMode } from "src/context/colorMode";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -97,46 +97,26 @@ type Props = {
 };
 
 export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
-  const { colorMode } = useColorMode();
   const chartRef = useRef<ChartJS<"line">>();
 
-  // Get raw color values instead of CSS variables
-  const [bgLightGreen, bgDarkGreen, lineLightGreen, lineDarkGreen] = useToken("colors", [
-    "green.100",
-    "green.800",
-    "green.500",
-    "green.400",
-  ]);
-
-  const [bgLightRed, bgDarkRed, lineLightRed, lineDarkRed] = useToken("colors", [
-    "red.100",
-    "red.800",
-    "red.500",
-    "red.400",
-  ]);
+  const [successBg, successLine, failedBg, failedLine] = useToken("colors", [
+    "trend-count-chart.success.bg",
+    "trend-count-chart.success.line",
+    "trend-count-chart.failed.bg",
+    "trend-count-chart.failed.line",
+  ]).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   const intervalData = useMemo(
     () => aggregateEventsIntoIntervals(events, startDate, endDate),
     [events, startDate, endDate],
   );
 
-  const backgroundColor =
-    colorMode === "light"
-      ? intervalData.some((value) => value > 0)
-        ? bgLightRed
-        : bgLightGreen
-      : intervalData.some((value) => value > 0)
-        ? bgDarkRed
-        : bgDarkGreen;
-
-  const lineColor =
-    colorMode === "light"
-      ? intervalData.some((value) => value > 0)
-        ? lineLightRed
-        : lineLightGreen
-      : intervalData.some((value) => value > 0)
-        ? lineDarkRed
-        : lineDarkGreen;
+  // TODO: Add a default/neutral state (neither green nor red) when no runs have happened yet.
+  // Currently shows green (success) when count is 0, but this is misleading when there are
+  // actually no runs at all (as opposed to runs with no failures).
+  const hasFailures = intervalData.some((value) => value > 0);
+  const backgroundColor = hasFailures ? failedBg : successBg;
+  const lineColor = hasFailures ? failedLine : successLine;
 
   // Cleanup chart instance on unmount
   useEffect(
