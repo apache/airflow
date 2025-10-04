@@ -24,17 +24,94 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
+QUEUE_NAME = "test-queue"
 QUEUE_URL = "https://sqs.region.amazonaws.com/123456789/test-queue"
 MESSAGE_BODY = "test message"
 
 MESSAGE_ID_KEY = "MessageId"
 
 
+@mock_aws
 class TestSqsHook:
-    @mock_aws
-    def test_get_conn(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_queue(self):
+        """Create a test queue before each test"""
         hook = SqsHook(aws_conn_id="aws_default")
+        self.queue_url = hook.get_conn().create_queue(QueueName=QUEUE_NAME)["QueueUrl"]
+        yield
+
+    @pytest.fixture
+    def hook(self):
+        return SqsHook(aws_conn_id="aws_default")
+
+    def test_get_conn(self, hook):
         assert hook.get_conn() is not None
+
+    def test_create_queue(self, hook):
+        """Test that create_queue creates a queue and returns the queue URL"""
+        queue_name = "test-create-queue"
+        queue_url = hook.create_queue(queue_name=queue_name)
+
+        assert queue_url is not None
+        assert isinstance(queue_url, str)
+        assert queue_name in queue_url
+
+    def test_create_queue_with_attributes(self, hook):
+        """Test creating a queue with custom attributes"""
+        queue_name = "test-queue-with-attributes"
+        attributes = {
+            "DelaySeconds": "5",
+            "MaximumMessageSize": "262144",
+        }
+        
+        queue_url = hook.create_queue(queue_name=queue_name, attributes=attributes)
+
+        assert queue_url is not None
+        assert queue_name in queue_url
+
+    def test_send_message(self, hook):
+        """Test sending a message to a queue"""
+        response = hook.send_message(queue_url=self.queue_url, message_body=MESSAGE_BODY)
+
+        assert response is not None
+        assert isinstance(response, dict)
+        assert MESSAGE_ID_KEY in response
+        assert "MD5OfMessageBody" in response
+
+    def test_send_message_with_attributes(self, hook):
+        """Test sending a message with message attributes"""
+        message_attributes = {
+            "Author": {
+                "StringValue": "test-user",
+                "DataType": "String",
+            },
+            "Priority": {
+                "StringValue": "1",
+                "DataType": "Number",
+            },
+        }
+
+        response = hook.send_message(
+            queue_url=self.queue_url,
+            message_body=MESSAGE_BODY,
+            message_attributes=message_attributes,
+        )
+
+        assert response is not None
+        assert MESSAGE_ID_KEY in response
+
+    def test_send_message_with_delay(self, hook):
+        """Test sending a message with a delay"""
+        delay_seconds = 5
+
+        response = hook.send_message(
+            queue_url=self.queue_url,
+            message_body=MESSAGE_BODY,
+            delay_seconds=delay_seconds,
+        )
+
+        assert response is not None
+        assert MESSAGE_ID_KEY in response
 
 
 @pytest.mark.asyncio
