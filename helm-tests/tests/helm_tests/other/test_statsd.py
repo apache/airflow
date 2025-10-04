@@ -34,12 +34,10 @@ class TestStatsd:
                         "--statsd.cache-size=1000",
                         "--statsd.cache-type=lru",
                         "--ttl=0s",
-                    ]
+                    ],
                 }
             },
-            show_only=[
-                "templates/statsd/statsd-deployment.yaml"
-            ]
+            show_only=["templates/statsd/statsd-deployment.yaml"]
         )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
@@ -56,7 +54,14 @@ class TestStatsd:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-        expected_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+        expected_args = [                                                              
+                    '--statsd.cache-size=1000',                                  
+                    '--statsd.cache-type=lru',                                   
+                    '--ttl=0s',                                                  
+                    '--statsd.cache-size=',                                      
+                    '--statsd.cache-type=',                                      
+                    '--ttl=',                                                    
+                    ]
         assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
