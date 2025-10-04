@@ -600,14 +600,32 @@ class TestRedshiftToS3Transfer:
         # test sql arg
         assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args.kwargs["Sql"], unload_query)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
-    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
     def test_get_openlineage_facets_on_complete_default(
-        self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
+        self, mock_get_facets, mock_run, mock_session, create_connection_without_db
     ):
+        create_connection_without_db(
+            Connection(
+                conn_id="aws_conn_id",
+                conn_type="aws",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="redshift_conn_id",
+                conn_type="redshift",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -615,9 +633,6 @@ class TestRedshiftToS3Transfer:
         mock_session.return_value.secret_key = secret_key
         mock_session.return_value.token = None
 
-        mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
-        )
         mock_facets = {
             "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
@@ -671,24 +686,38 @@ class TestRedshiftToS3Transfer:
             "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
         }
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
-    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
     def test_get_openlineage_facets_on_complete_with_select_query(
-        self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
+        self, mock_get_facets, mock_run, mock_session, create_connection_without_db
     ):
+        create_connection_without_db(
+            Connection(
+                conn_id="redshift_conn_id",
+                conn_type="redshift",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="aws_conn_id",
+                conn_type="aws",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
         mock_session.return_value.access_key = access_key
         mock_session.return_value.secret_key = secret_key
         mock_session.return_value.token = None
-
-        mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
-        )
         mock_facets = {
             "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
@@ -835,8 +864,6 @@ class TestRedshiftToS3Transfer:
             "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
         }
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
-    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
@@ -846,22 +873,38 @@ class TestRedshiftToS3Transfer:
     )
     @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
     def test_get_openlineage_facets_on_complete_data_and_sql_hooks_aligned(
-        self, mock_get_facets, mock_rs_region, mock_rs, mock_run, mock_session, mock_connection, mock_hook
+        self, mock_get_facets, mock_rs_region, mock_rs, mock_run, mock_session, create_connection_without_db
     ):
         """
         Ensuring both supported hooks - RedshiftDataHook and RedshiftSQLHook return same lineage.
         """
+        create_connection_without_db(
+            Connection(
+                conn_id="redshift_conn_id",
+                conn_type="redshift",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="aws_conn_id",
+                conn_type="aws",
+                schema="database",
+                port=5439,
+                host="cluster.id.region.redshift.amazonaws.com",
+                extra={},
+            )
+        )
+
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
         mock_session.return_value.access_key = access_key
         mock_session.return_value.secret_key = secret_key
         mock_session.return_value.token = None
-
-        mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
-        )
-        mock_hook.return_value = Connection()
         mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
         mock_rs.describe_statement.return_value = {"Status": "FINISHED"}
 

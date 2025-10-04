@@ -29,7 +29,7 @@ import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
   const { t: translate } = useTranslation("dashboard");
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
     refetchInterval,
   });
@@ -84,7 +84,7 @@ export const PoolSummary = () => {
       {isLoading ? (
         <Skeleton borderRadius="full" h={8} w="100%" />
       ) : (
-        <Flex bg="white" borderRadius="full" display="flex" overflow="hidden" w="100%">
+        <Flex bg="bg" borderRadius="full" display="flex" overflow="hidden" w="100%">
           <PoolBar pool={aggregatePool} poolsWithSlotType={poolsWithSlotType} totalSlots={totalSlots} />
         </Flex>
       )}

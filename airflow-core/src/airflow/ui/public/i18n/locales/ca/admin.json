@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "Descripció",
+    "key": "Clau",
+    "name": "Nom",
+    "value": "Valor"
+  },
+  "config": {
+    "columns": {
+      "section": "Secció"
+    },
+    "title": "Configuració d'Airflow"
+  },
+  "connections": {
+    "add": "Afegir connexió",
+    "columns": {
+      "connectionId": "ID de connexió",
+      "connectionType": "Tipus de connexió",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_one": "Connexió",
+    "connection_other": "Connexions",
+    "delete": {
+      "deleteConnection_one": "Eliminar 1 connexió",
+      "deleteConnection_other": "Eliminar {{count}} connexions",
+      "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent connexió:",
+      "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents connexions:",
+      "title": "Eliminar connexió"
+    },
+    "edit": "Editar connexió",
+    "form": {
+      "connectionIdRequired": "L'ID de connexió és obligatori",
+      "connectionIdRequirement": "L'ID de connexió no pot tenir únicament espais",
+      "connectionTypeRequired": "El tipus de connexió és obligatori",
+      "extraFields": "Camps addicionals",
+      "extraFieldsJson": "Camps addicionals JSON",
+      "helperText": "Falta el tipus de connexió? Assegureu-vos d'haver instal·lat el paquet de proveïdors d'Airflow corresponent.",
+      "helperTextForRedactedFields": "Els camps redactats ('***') romandran sense canvis si no es modifiquen.",
+      "selectConnectionType": "Seleccioneu el tipus de connexió",
+      "standardFields": "Camps estàndard"
+    },
+    "nothingFound": {
+      "description": "Les connexions definides a través de variables d'entorn o gestors de secrets no es mostren aquí.",
+      "documentationLink": "Més informació a la documentació d'Airflow.",
+      "learnMore": "Aquestes es resolen en temps d'execució i no són visibles a la interfície d'usuari.",
+      "title": "No s'ha trobat cap connexió!"
+    },
+    "searchPlaceholder": "Cercar connexions",
+    "test": "Provar connexió",
+    "testDisabled": "La funció de prova de connexió està desactivada. Si us plau, contacteu amb un administrador per activar-la.",
+    "typeMeta": {
+      "error": "No s'ha pogut recuperar la informació del tipus de connexió",
+      "standardFields": {
+        "description": "Descripció",
+        "host": "Host",
+        "login": "Inici de sessió",
+        "password": "Contrasenya",
+        "port": "Port",
+        "url_schema": "Esquema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Eliminar",
+    "modal": {
+      "confirmButton": "Sí, eliminar",
+      "secondConfirmMessage": "Aquesta acció és permanent i no es pot desfer.",
+      "thirdConfirmMessage": "Estàs segur que vols continuar?"
+    },
+    "selected": "Seleccionades",
+    "tooltip": "Eliminar connexions seleccionades"
+  },
+  "formActions": {
+    "save": "Desar"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Font"
+    },
+    "importError_one": "Error d'importació d'extensió",
+    "importError_other": "Errors d'importació d'extensió",
+    "searchPlaceholder": "Cercar per fitxer"
+  },
+  "pools": {
+    "add": "Afegir pool",
+    "deferredSlotsIncluded": "Slots diferits inclosos",
+    "delete": {
+      "title": "Eliminar pool",
+      "warning": "Això eliminarà tota la metadada relacionada amb el pool i pot afectar les tasques que utilitzin aquest pool."
+    },
+    "edit": "Editar pool",
+    "form": {
+      "checkbox": "Marqueu per incloure les tasques diferides per calcular els slots oberts del pool",
+      "description": "Descripció",
+      "includeDeferred": "Incloure diferides",
+      "nameMaxLength": "El nom pot contenir un màxim de 256 caràcters",
+      "nameRequired": "El nom és obligatori",
+      "slots": "Slots"
+    },
+    "noPoolsFound": "No s'han trobat pools",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Cercar pools",
+    "sort": {
+      "asc": "Nom (A-Z)",
+      "desc": "Nom (Z-A)",
+      "placeholder": "Ordenar per"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Nom del paquet",
+      "version": "Versió"
+    }
+  },
+  "variables": {
+    "add": "Afegir variable",
+    "columns": {
+      "isEncrypted": "Està xifrat"
+    },
+    "delete": {
+      "deleteVariable_one": "Eliminar 1 Variable",
+      "deleteVariable_other": "Eliminar {{count}} Variables",
+      "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent variable:",
+      "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents variables:",
+      "title": "Eliminar Variable",
+      "tooltip": "Eliminar variables seleccionades"
+    },
+    "edit": "Editar Variable",
+    "export": "Exportar",
+    "exportTooltip": "Exportar les variables seleccionades",
+    "form": {
+      "invalidJson": "JSON no vàlid",
+      "keyMaxLength": "La clau pot contenir un màxim de 250 caràcters",
+      "keyRequired": "La clau és obligatòria",
+      "valueRequired": "El valor és obligatori"
+    },
+    "import": {
+      "button": "Importar",
+      "conflictResolution": "Seleccionar resolució de conflicte de variables",
+      "errorParsingJsonFile": "Error a l'analitzar el fitxer JSON: Puja un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Error en la importació si es detecten variables existents.",
+          "title": "Error"
+        },
+        "overwrite": {
+          "description": "Sobreescriu la variable en cas de conflicte.",
+          "title": "Sobreescriure"
+        },
+        "skip": {
+          "description": "Ignora la importació de variables que ja existeixen.",
+          "title": "Ignorar"
+        }
+      },
+      "title": "Importar Variables",
+      "upload": "Penjar un fitxer JSON",
+      "uploadPlaceholder": "Penjar un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "No s'han trobat variables",
+    "searchPlaceholder": "Cercar claus",
+    "variable_one": "Variable",
+    "variable_other": "Variables"
+  }
+}

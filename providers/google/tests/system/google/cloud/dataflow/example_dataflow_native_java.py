@@ -43,7 +43,12 @@ from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOper
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_java"
@@ -82,7 +87,7 @@ with DAG(
     # [START howto_operator_start_java_job_local_jar]
     start_java_job_direct = BeamRunJavaPipelineOperator(
         task_id="start_java_job_direct",
-        jar=LOCAL_JAR,
+        jar=GCS_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
         },
@@ -97,7 +102,7 @@ with DAG(
 
     start_java_job_direct_deferrable = BeamRunJavaPipelineOperator(
         task_id="start_java_job_direct_deferrable",
-        jar=GCS_JAR,
+        jar=LOCAL_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
         },

@@ -23,7 +23,7 @@ This page documents the full public API exposed in Airflow 3.0+ via the Task SDK
 If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
 -- we won't go out of our way break usage of them, but we make no promises either.
 
-Defining DAGs
+Defining Dags
 -------------
 .. autoapiclass:: airflow.sdk.DAG
 
@@ -87,6 +87,16 @@ Tasks & Operators
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
 .. autoapiclass:: airflow.sdk.Param
+
+.. autoclass:: airflow.sdk.TriggerRule
+
+State Enums
+-----------
+.. autoclass:: airflow.sdk.TaskInstanceState
+
+.. autoclass:: airflow.sdk.DagRunState
+
+.. autoclass:: airflow.sdk.WeightRule
 
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~

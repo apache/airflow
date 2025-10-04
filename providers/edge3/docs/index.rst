@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <_api/airflow/providers/edge3/example_dags/index>
+    Example Dags <_api/airflow/providers/edge3/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge3/>
     Installing from sources <installing-providers-from-sources>
 
@@ -90,9 +90,7 @@ Additional REST API endpoints are provided to distribute tasks and manage the ed
 are provided by the API server.
 
 
-Release: 1.1.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 1.3.1
 
 Provider package
 ----------------
@@ -103,7 +101,7 @@ All classes for this package are included in the ``airflow.providers.edge3`` pyt
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-edge3``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

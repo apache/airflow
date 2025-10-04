@@ -207,6 +207,7 @@ class TestAssetsOperations:
         producing_tasks=[],
         consuming_tasks=[],
         aliases=[],
+        watchers=[],
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
@@ -641,9 +642,10 @@ class TestConnectionsOperations:
 
 class TestDagOperations:
     dag_id = "dag_id"
+    dag_display_name = "dag_display_name"
     dag_response = DAGResponse(
         dag_id=dag_id,
-        dag_display_name="dag_display_name",
+        dag_display_name=dag_display_name,
         is_paused=False,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -764,6 +766,7 @@ class TestDagOperations:
                 warning_type=DagWarningType.NON_EXISTENT_POOL,
                 message="message",
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_display_name,
             )
         ],
         total_entries=1,
@@ -809,13 +812,13 @@ class TestDagOperations:
         response = client.dags.list()
         assert response == self.dag_collection_response
 
-    def test_patch(self):
+    def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
             return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.patch(dag_id="dag_id", dag_body=self.dag_patch_body)
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
     def test_delete(self):

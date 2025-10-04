@@ -22,6 +22,7 @@ import io
 from unittest import mock
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -442,7 +443,10 @@ class TestSqlToS3Operator:
 
         assert len(partitions) == 2
         for group_name, df in partitions:
-            assert isinstance(df, pd.DataFrame)
+            if df_type == "polars":
+                assert isinstance(df, pl.DataFrame)
+            else:
+                assert isinstance(df, pd.DataFrame)
             assert group_name in ["A", "B"]
 
     @pytest.mark.parametrize(

@@ -15,6 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "diagrams>=0.23.4",
+#   "rich>=13.6.0",
+# ]
+# ///
+
 from __future__ import annotations
 
 import hashlib
@@ -47,7 +55,7 @@ def main():
                 if sys.platform == "darwin":
                     console.print(
                         "[red]Likely you have no graphviz installed[/]"
-                        "Please install eralchemy2 package to run this script. "
+                        "Please install eralchemy package to run this script. "
                         "This will require to install graphviz, "
                         "and installing graphviz might be difficult for MacOS. Please follow: "
                         "https://pygraphviz.github.io/documentation/stable/install.html#macos ."

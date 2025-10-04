@@ -71,14 +71,14 @@ def upsert_hitl_detail(
             defaults=payload.defaults,
             multiple=payload.multiple,
             params=payload.params,
-            respondents=payload.respondents,
+            assignees=[user.model_dump() for user in payload.assigned_users],
         )
         session.add(hitl_detail_model)
     elif hitl_detail_model.response_received:
         # Cleanup the response part of HITLDetail as we only store one response for one task instance.
         # It normally happens after retry, we keep only the latest response.
-        hitl_detail_model.user_id = None
-        hitl_detail_model.response_at = None
+        hitl_detail_model.responded_by = None
+        hitl_detail_model.responded_at = None
         hitl_detail_model.chosen_options = None
         hitl_detail_model.params_input = {}
         session.add(hitl_detail_model)
@@ -116,8 +116,8 @@ def update_hitl_detail(
             f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_detail_model.user_id = "Fallback to defaults"
-    hitl_detail_model.response_at = datetime.now(timezone.utc)
+    hitl_detail_model.responded_by = None
+    hitl_detail_model.responded_at = datetime.now(timezone.utc)
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)

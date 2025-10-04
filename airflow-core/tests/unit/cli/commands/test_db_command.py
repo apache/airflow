@@ -47,6 +47,118 @@ class TestCliDb:
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
         mock_resetdb.assert_called_once_with(skip_init=True)
 
+    def test_run_db_migrate_command_success_and_messages(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_migrate_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing upgrade" in out
+        assert "Database migrating done!" in out
+        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
+
+    def test_run_db_migrate_command_offline_generation(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = True
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_migrate_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Generating sql for upgrade" in out
+        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": True}
+
+    @pytest.mark.parametrize(
+        "args, match",
+        [
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": "2.10.0",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": "2.10.0",
+                    "show_sql_only": True,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "only .* with `--show-sql-only`",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "abc",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Invalid version",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "2.1.25",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Unknown version",
+            ),
+        ],
+    )
+    def test_run_db_migrate_command_validation_errors(self, args, match):
+        class Args:
+            to_revision = args["to_revision"]
+            to_version = args["to_version"]
+            from_revision = args["from_revision"]
+            from_version = args["from_version"]
+            show_sql_only = args["show_sql_only"]
+
+        def fake_command(**kwargs):
+            pass
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match=match):
+            db_command.run_db_migrate_command(Args(), fake_command, heads)
+
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):
         db_command.check_migrations(self.parser.parse_args(["db", "check-migrations"]))
@@ -241,9 +353,51 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres:5432/airflow"),
+    )
+    def test_cli_shell_postgres_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
     )
     def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
+        db_command.shell(self.parser.parse_args(["db", "shell"]))
+        mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs["env"]
+        postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
+        assert postgres_env == {
+            "PGDATABASE": "airflow",
+            "PGHOST": "postgres",
+            "PGPASSWORD": "airflow",
+            "PGPORT": "5432",
+            "PGUSER": "postgres",
+        }
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_postgres_without_port_ppg3(self, mock_execute_interactive):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["psql"], env=mock.ANY)
         _, kwargs = mock_execute_interactive.call_args
@@ -264,6 +418,180 @@ class TestCliDb:
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
+
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("invalid+psycopg://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_invalid_ppg3(self):
+        pytest.importorskip("psycopg", reason="Test only runs when psycopg v3 is installed.")
+
+        with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
+            db_command.shell(self.parser.parse_args(["db", "shell"]))
+
+    def test_run_db_downgrade_command_success_and_messages(self, capsys):
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = True
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing downgrade" in out
+        assert "Downgrade complete" in out
+        assert called == {"to_revision": "abc", "from_revision": None, "show_sql_only": False}
+
+    def test_run_db_downgrade_command_offline_generation(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = "2.10.0"
+            from_revision = None
+            from_version = None
+            show_sql_only = True
+            yes = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Generating sql for downgrade" in out
+        assert called == {"to_revision": "22ed7efa9da2", "from_revision": None, "show_sql_only": True}
+
+    @pytest.mark.parametrize(
+        "args, match",
+        [
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": False,
+                },
+                "Must provide either",
+            ),
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": "2.10.0",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": None,
+                    "from_revision": "abc1",
+                    "from_version": "2.10.0",
+                    "show_sql_only": True,
+                    "yes": True,
+                },
+                "may not be combined",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "2.1.25",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "not supported",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "only .* with `--show-sql-only`",
+            ),
+        ],
+    )
+    def test_run_db_downgrade_command_validation_errors(self, args, match):
+        class Args:
+            to_revision = args["to_revision"]
+            to_version = args["to_version"]
+            from_revision = args["from_revision"]
+            from_version = args["from_version"]
+            show_sql_only = args["show_sql_only"]
+            yes = args["yes"]
+
+        def fake_command(**kwargs):
+            pass
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match=match):
+            db_command.run_db_downgrade_command(Args(), fake_command, heads)
+
+    @mock.patch("airflow.cli.commands.db_command.input")
+    def test_run_db_downgrade_command_confirmation_yes_calls_command(self, mock_input, capsys):
+        mock_input.return_value = "Y"
+
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing downgrade" in out
+        assert called == {"to_revision": "abc", "from_revision": None, "show_sql_only": False}
+
+    @mock.patch("airflow.cli.commands.db_command.input")
+    def test_run_db_downgrade_command_confirmation_no_cancels(self, mock_input):
+        mock_input.return_value = "n"
+
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = False
+
+        def fake_command(**kwargs):
+            raise AssertionError("Command should not be called when cancelled")
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match="Cancelled"):
+            db_command.run_db_downgrade_command(Args(), fake_command, heads)
 
     @pytest.mark.parametrize(
         "args, match",
@@ -674,3 +1002,17 @@ def test_get_version_revision():
     assert db_command._get_version_revision("2.11.1", heads) == "5f2621c13b39"
     assert db_command._get_version_revision("2.10.1", heads) == "22ed7efa9da2"
     assert db_command._get_version_revision("2.0.0", heads) is None
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("pa!sw0rd#", '"pa!sw0rd#"'),
+        ('he"llo', '"he\\"llo"'),
+        ("path\\file", '"path\\\\file"'),
+        (None, ""),
+    ],
+)
+def test_quote_mysql_password_for_cnf(raw, expected):
+    password = db_command._quote_mysql_password_for_cnf(raw)
+    assert password == expected

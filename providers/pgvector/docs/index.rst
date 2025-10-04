@@ -81,8 +81,6 @@ apache-airflow-providers-pgvector package
 
 Release: 1.5.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
@@ -92,7 +90,7 @@ All classes for this package are included in the ``airflow.providers.pgvector`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-pgvector``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

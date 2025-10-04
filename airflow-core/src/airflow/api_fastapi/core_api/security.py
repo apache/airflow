@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
-from urllib.parse import ParseResult, urljoin, urlparse
+from typing import TYPE_CHECKING, Annotated, cast
+from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
@@ -28,6 +28,11 @@ from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.batch_apis import (
+    IsAuthorizedConnectionRequest,
+    IsAuthorizedPoolRequest,
+    IsAuthorizedVariableRequest,
+)
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
@@ -41,7 +46,12 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.core_api.base import OrmClause
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBody
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
+from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
+from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
@@ -65,6 +75,12 @@ auth_description = (
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description, auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
+
+MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
+    BulkAction.CREATE: "POST",
+    BulkAction.DELETE: "DELETE",
+    BulkAction.UPDATE: "PUT",
+}
 
 
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
@@ -103,10 +119,15 @@ def requires_access_dag(
         user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
+        dag_id = dag_id if dag_id != "~" else None
+        team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
-                method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
+                method=method,
+                access_entity=access_entity,
+                details=DagDetails(id=dag_id, team_name=team_name),
+                user=user,
             )
         )
 
@@ -212,20 +233,127 @@ def requires_access_backfill(method: ResourceMethod) -> Callable[[Request, BaseU
     return inner
 
 
+class PermittedPoolFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted pools for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Pool.pool.in_(self.value))
+
+
+def permitted_pool_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedPoolFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted pools for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_pools_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedPoolFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_pools: set[str] = auth_manager.get_authorized_pools(user=user, method=method)
+        return PermittedPoolFilter(authorized_pools)
+
+    return depends_permitted_pools_filter
+
+
+ReadablePoolsFilterDep = Annotated[PermittedPoolFilter, Depends(permitted_pool_filter_factory("GET"))]
+
+
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
+        team_name = Pool.get_team_name(pool_name) if pool_name else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
-                method=method, details=PoolDetails(name=pool_name), user=user
+                method=method, details=PoolDetails(name=pool_name, team_name=team_name), user=user
             )
         )
 
     return inner
+
+
+def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[PoolBody],
+        user: GetUserDep,
+    ) -> None:
+        # Build the list of pool names provided as part of the request
+        existing_pool_names = [
+            cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        # For each pool, find its associated team (if it exists)
+        pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
+
+        requests: list[IsAuthorizedPoolRequest] = []
+        for action in request.actions:
+            for pool in action.entities:
+                pool_name = (
+                    cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
+                )
+                # For each pool, build a `IsAuthorizedPoolRequest`
+                # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
+                # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
+                req: IsAuthorizedPoolRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": PoolDetails(
+                        name=pool_name,
+                        team_name=pool_name_to_team.get(pool_name),
+                    ),
+                }
+                requests.append(req)
+
+        _requires_access(
+            # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_pool(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+class PermittedConnectionFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted connections for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Connection.conn_id.in_(self.value))
+
+
+def permitted_connection_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedConnectionFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted connections for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_connections_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedConnectionFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_connections: set[str] = auth_manager.get_authorized_connections(user=user, method=method)
+        return PermittedConnectionFilter(authorized_connections)
+
+    return depends_permitted_connections_filter
+
+
+ReadableConnectionsFilterDep = Annotated[
+    PermittedConnectionFilter, Depends(permitted_connection_filter_factory("GET"))
+]
 
 
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
@@ -234,10 +362,61 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
+        team_name = Connection.get_team_name(connection_id) if connection_id else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
-                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
+                method=method,
+                details=ConnectionDetails(conn_id=connection_id, team_name=team_name),
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[ConnectionBody],
+        user: GetUserDep,
+    ) -> None:
+        # Build the list of ``conn_id`` provided as part of the request
+        existing_connection_ids = [
+            cast("str", entity)
+            if action.action == BulkAction.DELETE
+            else cast("ConnectionBody", entity).connection_id
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        # For each connection, find its associated team (if it exists)
+        conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
+
+        requests: list[IsAuthorizedConnectionRequest] = []
+        for action in request.actions:
+            for connection in action.entities:
+                connection_id = (
+                    cast("str", connection)
+                    if action.action == BulkAction.DELETE
+                    else cast("ConnectionBody", connection).connection_id
+                )
+                # For each pool, build a `IsAuthorizedConnectionRequest`
+                # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
+                # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
+                req: IsAuthorizedConnectionRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": ConnectionDetails(
+                        conn_id=connection_id,
+                        team_name=conn_id_to_team.get(connection_id),
+                    ),
+                }
+                requests.append(req)
+
+        _requires_access(
+            # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
+                requests=requests,
+                user=user,
             )
         )
 
@@ -262,17 +441,96 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
+class PermittedVariableFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted variables for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Variable.key.in_(self.value))
+
+
+def permitted_variable_filter_factory(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser], PermittedVariableFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted variables for the user.
+
+    :param method: whether filter readable or writable.
+    """
+
+    def depends_permitted_variables_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedVariableFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_variables: set[str] = auth_manager.get_authorized_variables(user=user, method=method)
+        return PermittedVariableFilter(authorized_variables)
+
+    return depends_permitted_variables_filter
+
+
+ReadableVariablesFilterDep = Annotated[
+    PermittedVariableFilter, Depends(permitted_variable_filter_factory("GET"))
+]
+
+
 def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
+        team_name = Variable.get_team_name(variable_key) if variable_key else None
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
-                method=method, details=VariableDetails(key=variable_key), user=user
+                method=method, details=VariableDetails(key=variable_key, team_name=team_name), user=user
             ),
+        )
+
+    return inner
+
+
+def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[VariableBody],
+        user: GetUserDep,
+    ) -> None:
+        # Build the list of variable keys provided as part of the request
+        existing_variable_keys = [
+            cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
+            for action in request.actions
+            for entity in action.entities
+            if action.action != BulkAction.CREATE
+        ]
+        # For each variable, find its associated team (if it exists)
+        var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
+
+        requests: list[IsAuthorizedVariableRequest] = []
+        for action in request.actions:
+            for variable in action.entities:
+                variable_key = (
+                    cast("str", variable)
+                    if action.action == BulkAction.DELETE
+                    else cast("VariableBody", variable).key
+                )
+                # For each variable, build a `IsAuthorizedVariableRequest`
+                # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
+                # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
+                req: IsAuthorizedVariableRequest = {
+                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
+                    "details": VariableDetails(
+                        key=variable_key,
+                        team_name=var_key_to_team.get(variable_key),
+                    ),
+                }
+                requests.append(req)
+
+        _requires_access(
+            # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
+                requests=requests,
+                user=user,
+            )
         )
 
     return inner
@@ -365,7 +623,7 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         return True
 
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
         target_path = Path(parsed_target.path).resolve()
 

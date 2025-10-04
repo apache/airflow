@@ -29,7 +29,7 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { getDuration, useContainerWidth } from "src/utils";
+import { renderDuration, useContainerWidth } from "src/utils";
 
 export const Header = ({
   isRefreshing,
@@ -43,7 +43,7 @@ export const Header = ({
   const containerWidth = useContainerWidth(containerRef);
 
   const stats = [
-    { label: translate("task.operator"), value: taskInstance.operator },
+    { label: translate("task.operator"), value: taskInstance.operator_name },
     ...(taskInstance.map_index > -1
       ? [{ label: translate("mapIndex"), value: taskInstance.rendered_map_index }]
       : []),
@@ -53,7 +53,7 @@ export const Header = ({
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: translate("duration"), value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+      ? [{ label: translate("duration"), value: renderDuration(taskInstance.duration) }]
       : []),
     {
       label: translate("taskInstance.dagVersion"),

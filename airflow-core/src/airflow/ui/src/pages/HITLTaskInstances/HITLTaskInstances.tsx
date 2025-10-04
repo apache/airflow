@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -30,12 +31,20 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { useAutoRefresh } from "src/utils";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import { HITLFilters } from "./HITLFilters";
+
 type TaskInstanceRow = { row: { original: HITLDetail } };
+
+const {
+  DAG_DISPLAY_NAME_PATTERN,
+  OFFSET: OFFSET_PARAM,
+  RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM,
+  TASK_ID_PATTERN,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
   dagId,
@@ -49,7 +58,7 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
-    accessorKey: "task_instance.operator",
+    accessorKey: "task_instance_state",
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
@@ -80,17 +89,9 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                  <Time datetime={original.task_instance.run_after} />
-                </RouterLink>
-              </Link>
-            ) : (
-              <Time datetime={original.task_instance.run_after} />
-            ),
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Time datetime={original.task_instance.run_after} />
+          ),
           header: translate("common:dagRun.runAfter"),
         },
       ]),
@@ -111,12 +112,8 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_received",
-    header: translate("state.responseReceived"),
-  },
-  {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];
@@ -124,32 +121,52 @@ const taskInstanceColumns = ({
 export const HITLTaskInstances = () => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const responseReceived = searchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const refetchInterval = useAutoRefresh({});
+  const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
+  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
+  const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-      dagRunId: runId,
-      responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
-      taskId,
-    },
-    undefined,
-    {
-      refetchInterval,
-    },
-  );
+  // Use the filter value if available, otherwise fall back to the old responseReceived param
+  const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
+    dagId: dagId ?? "~",
+    dagIdPattern,
+    dagRunId: runId ?? "~",
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+    responseReceived:
+      Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
+        ? effectiveResponseReceived === "true"
+        : undefined,
+    state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+    taskId,
+    taskIdPattern,
+  });
+
+  const handleResponseChange = useCallback(() => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
 
   return (
-    <Box>
+    <VStack align="start">
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
         <Heading size="md">
           {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
         </Heading>
       ) : undefined}
+      <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={taskInstanceColumns({
           dagId,
@@ -165,6 +182,6 @@ export const HITLTaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </VStack>
   );
 };

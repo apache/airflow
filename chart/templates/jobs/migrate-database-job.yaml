@@ -74,7 +74,7 @@ spec:
       {{- end }}
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
-      restartPolicy: OnFailure
+      restartPolicy: {{ .Values.migrateDatabaseJob.restartPolicy }}
       {{- if .Values.migrateDatabaseJob.priorityClassName }}
       priorityClassName: {{ .Values.migrateDatabaseJob.priorityClassName }}
       {{- end }}

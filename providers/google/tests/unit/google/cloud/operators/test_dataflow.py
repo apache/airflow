@@ -124,6 +124,7 @@ TEST_PIPELINE_BODY = {
         }
     },
 }
+CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED = "Conflict between deferrable and wait_until_finished parameters because it makes operator as blocking when it requires to be deferred. It should be True as deferrable parameter or True as wait_until_finished."
 
 
 class TestDataflowTemplatedJobStartOperator:
@@ -227,7 +228,7 @@ class TestDataflowTemplatedJobStartOperator:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "cancel_timeout": CANCEL_TIMEOUT,
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED):
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
     @pytest.mark.db_test
@@ -330,7 +331,7 @@ class TestDataflowStartFlexTemplateOperator:
             "wait_until_finished": True,
             "deferrable": True,
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED):
             DataflowStartFlexTemplateOperator(**init_kwargs)
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartFlexTemplateOperator.defer")
@@ -518,8 +519,7 @@ class TestDataflowCreatePipelineOperator:
             project_id=TEST_PROJECT, body=TEST_PIPELINE_BODY, location=TEST_LOCATION
         )
 
-    @pytest.mark.db_test
-    def test_body_invalid(self):
+    def test_body_invalid(self, sdk_connection_not_found):
         """
         Test that if the operator is not passed a Request Body, an AirflowException is raised
         """
@@ -561,8 +561,7 @@ class TestDataflowCreatePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_response_invalid(self):
+    def test_response_invalid(self, sdk_connection_not_found):
         """
         Test that if the Response Body contains an error message, an AirflowException is raised
         """
@@ -626,8 +625,7 @@ class TestDataflowRunPipelineOperator:
             location=TEST_LOCATION,
         )
 
-    @pytest.mark.db_test
-    def test_invalid_data_pipeline_name(self):
+    def test_invalid_data_pipeline_name(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Run Operator is not given a data pipeline name.
         """
@@ -641,8 +639,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_invalid_project_id(self):
+    def test_invalid_project_id(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Run Operator is not given a project ID.
         """
@@ -656,8 +653,7 @@ class TestDataflowRunPipelineOperator:
         with pytest.raises(AirflowException):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_invalid_location(self):
+    def test_invalid_location(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Run Operator is not given a location.
         """
@@ -736,8 +732,7 @@ class TestDataflowDeletePipelineOperator:
             location=TEST_LOCATION,
         )
 
-    @pytest.mark.db_test
-    def test_invalid_data_pipeline_name(self):
+    def test_invalid_data_pipeline_name(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Delete Operator is not given a data pipeline name.
         """
@@ -751,8 +746,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_invalid_project_id(self):
+    def test_invalid_project_id(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Delete Operator is not given a project ID.
         """
@@ -766,8 +760,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_invalid_location(self):
+    def test_invalid_location(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Delete Operator is not given a location.
         """
@@ -781,8 +774,7 @@ class TestDataflowDeletePipelineOperator:
         with pytest.raises(AirflowException):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    @pytest.mark.db_test
-    def test_invalid_response(self):
+    def test_invalid_response(self, sdk_connection_not_found):
         """
         Test that AirflowException is raised if Delete Operator fails execution and returns error.
         """

@@ -31,6 +31,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
@@ -52,7 +53,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -71,6 +72,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -81,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
+    "localstack",  # just for local integration testing for now
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -131,7 +134,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.10", "v1.31.6", "v1.32.3", "v1.33.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -200,19 +203,30 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.11"
+UV_VERSION = "0.8.22"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
 
-# packages that  providers docs
+# packages that providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
+
+
+# packages that are distributions of Airflow
+class DistributionType(Enum):
+    AIRFLOW_CORE = "airflow"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    AIRFLOW_CTL = "airflowctl"
+    HELM_CHART = "helm-chart"
+
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
@@ -561,6 +575,19 @@ COMMITTERS = [
 ]
 
 
+def get_airflowctl_version():
+    airflowctl_init_py_file = AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py"
+    airflowctl_version = "unknown"
+    with open(airflowctl_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflowctl_version = line.split()[2][1:-1]
+                break
+    if airflowctl_version == "unknown":
+        raise RuntimeError("Unable to determine AirflowCTL version")
+    return airflowctl_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -692,7 +719,7 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.27.0"
+KIND_VERSION = "v0.30.0"
 HELM_VERSION = "v3.17.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -752,30 +779,34 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "python-version": "3.10",
         "airflow-version": "2.10.5",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.4",
+        "airflow-version": "3.0.6",
         "remove-providers": "",
-        "run-tests": "true",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.1.0",
+        "remove-providers": "",
+        "run-unit-tests": "true",
     },
 ]
 
-ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.15",
-    "3.7": "v3.7.17",
-    "3.8": "v3.8.20",
-    "3.9": "v3.9.23",
-    "3.10": "v3.10.18",
-    "3.11": "v3.11.13",
-    "3.12": "v3.12.11",
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.9": "3.9.23",
+    "3.10": "3.10.18",
+    "3.11": "3.11.13",
+    "3.12": "3.12.11",
+    "3.13": "3.13.7",
 }
 
 # Number of slices for low dep tests

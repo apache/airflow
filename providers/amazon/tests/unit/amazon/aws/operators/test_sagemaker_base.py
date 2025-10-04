@@ -26,21 +26,21 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,
 )
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CONFIG: dict = {
     "key1": "1",
@@ -218,9 +218,7 @@ class TestSageMakerExperimentOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
