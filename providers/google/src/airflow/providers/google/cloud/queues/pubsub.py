@@ -33,7 +33,34 @@ if TYPE_CHECKING:
 
 
 class PubsubMessageQueueProvider(BaseMessageQueueProvider):
-    """Configuration for PubSub integration with common-messaging."""
+    """
+    Configuration for PubSub integration with common-messaging.
+
+    [START pubsub_message_queue_provider_description]
+    * It uses ``google+pubsub`` as the scheme for identifying the provider.
+    * For parameter definitions, take a look at :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger`.
+
+    .. code-block:: python
+
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.sdk import Asset, AssetWatcher
+
+        trigger = MessageQueueTrigger(
+            scheme="google+pubsub",
+            # Additional PubsubPullTrigger parameters as needed
+            project_id="my_project",
+            subscription="my_subscription",
+            ack_messages=True,
+            max_messages=1,
+            gcp_conn_id="google_cloud_default",
+            poke_interval=60.0,
+        )
+
+        asset = Asset("pubsub_queue_asset", watchers=[AssetWatcher(name="pubsub_watcher", trigger=trigger)])
+
+    [END pubsub_message_queue_provider_description]
+
+    """
 
     scheme = "google+pubsub"
 
