@@ -218,16 +218,18 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
     Given an jsonschema objects properties dict, return a flattened list of all parameters
     from that object and any nested objects
     """
-    # TODO: handle arrays? probably missing more cases too
     out = []
     for param_name, schema in root_schema.items():
         prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
         section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
+        common_out = {
+            "section": section_name,
+            "name": prefixed_name,
+        }
         if section_name and schema["description"] and "default" in schema:
             out.append(
                 {
-                    "section": section_name,
-                    "name": prefixed_name,
+                    **common_out,
                     "description": schema["description"],
                     "default": _format_default(schema["default"]),
                     "examples": _format_examples(param_name, schema),
@@ -235,6 +237,21 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
             )
         if schema.get("properties"):
             out += _get_params(schema["properties"], prefixed_name, section_name)
+        items = schema.get("items")
+        if items:
+            item_prefix = f"{prefixed_name}[]"
+            item_properties = items.get("properties")
+            if item_properties:
+                out += _get_params(item_properties, item_prefix, section_name)
+                continue
+            out.append(
+                {
+                    **common_out,
+                    "description": items["description"],
+                    "default": _format_default(items["default"]),
+                    "examples": _format_examples(param_name, items),
+                }
+            )
     return out
 
 
