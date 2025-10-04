@@ -51,6 +51,8 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
     _SearchParam,
     datetime_range_filter_factory,
+    filter_param_factory,
+    float_range_filter_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -317,7 +319,12 @@ def get_dag_runs(
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
+    duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
+    conf_contains: Annotated[
+        FilterParam[str],
+        Depends(filter_param_factory(DagRun.conf, str, FilterOptionEnum.CONTAINS, "conf_contains")),
+    ],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     dag_version: QueryDagRunVersionFilter,
@@ -376,6 +383,8 @@ def get_dag_runs(
             start_date_range,
             end_date_range,
             update_at_range,
+            duration_range,
+            conf_contains,
             state,
             run_type,
             dag_version,
@@ -565,6 +574,16 @@ def get_list_dag_runs_batch(
         ),
         attribute=DagRun.end_date,
     )
+    duration = RangeFilter(
+        Range(
+            lower_bound_gte=body.duration_gte,
+            lower_bound_gt=body.duration_gt,
+            upper_bound_lte=body.duration_lte,
+            upper_bound_lt=body.duration_lt,
+        ),
+        attribute=DagRun.duration,
+    )
+    conf_contains = FilterParam(DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS)
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
@@ -590,7 +609,17 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, run_after, start_date, end_date, state, readable_dag_runs_filter],
+        filters=[
+            dag_ids,
+            logical_date,
+            run_after,
+            start_date,
+            end_date,
+            duration,
+            conf_contains,
+            state,
+            readable_dag_runs_filter,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,

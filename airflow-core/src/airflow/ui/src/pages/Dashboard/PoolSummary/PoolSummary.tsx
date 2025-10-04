@@ -29,7 +29,7 @@ import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
   const { t: translate } = useTranslation("dashboard");
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
   const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
     refetchInterval,
   });
