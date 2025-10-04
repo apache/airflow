@@ -1,0 +1,11 @@
+Deprecate duplicate Kubernetes configuration options in favor of pod_template_file
+
+The following configuration options in the ``[kubernetes_executor]`` section are now deprecated and will be removed in a future version:
+
+* ``worker_container_repository`` - Use ``pod_template_file`` to specify the container image instead
+* ``worker_container_tag`` - Use ``pod_template_file`` to specify the container image instead  
+* ``namespace`` - Use ``pod_template_file`` to specify the namespace instead
+
+These options have been redundant since Airflow 2.0 when ``pod_template_file`` became the preferred method for configuring Kubernetes pods. Users should migrate to using ``pod_template_file`` for all pod configuration needs.
+
+Deprecation warnings will now be issued when these options are used with non-default values.
