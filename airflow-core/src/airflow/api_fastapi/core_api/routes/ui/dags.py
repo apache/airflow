@@ -102,10 +102,15 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date", "last_run_run_after"],
                 DagModel,
-                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
-            ).dynamic_depends()
+                {
+                    "last_run_state": DagRun.state,
+                    "start_date": DagRun.start_date,
+                    "last_run_start_date": DagRun.start_date,
+                    "last_run_run_after": DagRun.run_after,
+                },
+            ).dynamic_depends(default="last_run_run_after")
         ),
     ],
     is_favorite: QueryFavoriteFilter,

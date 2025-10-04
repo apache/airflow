@@ -579,7 +579,7 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
 * @param data.assetDependency Filter Dags by asset dependency (name or URI)
