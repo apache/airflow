@@ -20,8 +20,11 @@ import { Box, Heading, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
 
 import { Button, Dialog } from "src/components/ui";
+import { ResizableWrapper } from "src/components/ui/ResizableWrapper";
 
 import ReactMarkdown from "./ReactMarkdown";
+
+const STORAGE_KEY = "airflow-markdown-dialog-size";
 
 const DisplayMarkdownButton = ({
   header,
@@ -48,14 +51,16 @@ const DisplayMarkdownButton = ({
         open={isDocsOpen}
         size="md"
       >
-        <Dialog.Content backdrop>
-          <Dialog.Header bg="info.muted">
-            <Heading size="xl">{header}</Heading>
-            <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
-          </Dialog.Header>
-          <Dialog.Body alignItems="flex-start" as={VStack} gap="0">
-            <ReactMarkdown>{mdContent}</ReactMarkdown>
-          </Dialog.Body>
+        <Dialog.Content backdrop maxHeight="none" maxWidth="none" padding={0} width="auto">
+          <ResizableWrapper storageKey={STORAGE_KEY}>
+            <Dialog.Header bg="brand.muted" flexShrink={0}>
+              <Heading size="xl">{header}</Heading>
+              <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
+            </Dialog.Header>
+            <Dialog.Body alignItems="flex-start" as={VStack} flex="1" gap="0" overflow="auto">
+              <ReactMarkdown>{mdContent}</ReactMarkdown>
+            </Dialog.Body>
+          </ResizableWrapper>
         </Dialog.Content>
       </Dialog.Root>
     </Box>
