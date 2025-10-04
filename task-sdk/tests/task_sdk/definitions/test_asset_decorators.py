@@ -118,7 +118,7 @@ class TestAssetDecorator:
         with pytest.raises(ValueError, match="nested function not supported"):
             root_func()
 
-    @pytest.mark.parametrize("func_fixer", ("self", "context"), indirect=True)
+    @pytest.mark.parametrize("func_fixer", ["self", "context"], indirect=True)
     def test_with_invalid_asset_name(self, func_fixer):
         @func_fixer
         def example_asset_func():

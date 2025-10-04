@@ -131,7 +131,7 @@ class TestCopyFromExternalStageToSnowflake:
             job_facets={"sql": SQLJobFacet(query=expected_sql)},
         )
 
-    @pytest.mark.parametrize("rows", (None, []))
+    @pytest.mark.parametrize("rows", [None, []])
     @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
     def test_get_openlineage_facets_on_complete_with_empty_inputs(self, mock_hook, rows):
         mock_hook().run.return_value = rows

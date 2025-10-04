@@ -124,7 +124,7 @@ class TestSFTPSensor:
 
     @pytest.mark.parametrize(
         "newer_than",
-        (
+        [
             datetime(2020, 1, 2),
             datetime(2020, 1, 2, tzinfo=stdlib_timezone.utc),
             "2020-01-02",
@@ -134,7 +134,7 @@ class TestSFTPSensor:
             "2020-01-02T00:00:00Z",
             "2020-01-02T00:00:00+04:00",
             "2020-01-02T00:00:00.000001+04:00",
-        ),
+        ],
     )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_multiple_datetime_format_in_newer_than(self, sftp_hook_mock, newer_than):

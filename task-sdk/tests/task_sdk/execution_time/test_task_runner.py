@@ -185,7 +185,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
 @pytest.mark.parametrize(
     ("dag_id", "task_id", "expected_error"),
-    (
+    [
         pytest.param(
             "madeup_dag_id",
             "a",
@@ -198,7 +198,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             mock.call(mock.ANY, task_id="no-such-task", dag_id="super_basic", path="super_basic.py"),
             id="task-not-found",
         ),
-    ),
+    ],
 )
 def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
     """Check for nice error messages on dag not found."""
@@ -1652,10 +1652,10 @@ class TestRuntimeTaskInstance:
 
     @pytest.mark.parametrize(
         ("logical_date", "check"),
-        (
+        [
             pytest.param(None, pytest.raises(KeyError), id="no-logical-date"),
             pytest.param(timezone.datetime(2024, 12, 3), contextlib.nullcontext(), id="with-logical-date"),
-        ),
+        ],
     )
     def test_no_logical_date_key_error(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti, logical_date, check

@@ -216,7 +216,7 @@ def test_get_airflow_dag_run_facet():
 
 @pytest.mark.parametrize(
     ("dag_run_attrs", "expected_duration"),
-    (
+    [
         ({"start_date": None, "end_date": None}, None),
         ({"start_date": datetime.datetime(2025, 1, 1), "end_date": None}, None),
         ({"start_date": None, "end_date": datetime.datetime(2025, 1, 1)}, None),
@@ -228,7 +228,7 @@ def test_get_airflow_dag_run_facet():
             },
             11.003456,
         ),
-    ),
+    ],
 )
 def test_dag_run_duration(dag_run_attrs, expected_duration):
     dag_run = MagicMock(**dag_run_attrs)
