@@ -108,7 +108,9 @@ export const Dag = () => {
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
         <Header
           dag={dag}
-          isRefreshing={latestRun ? Boolean(isStatePending(latestRun.state) && Boolean(refetchInterval)) : false}
+          isRefreshing={
+            latestRun ? Boolean(isStatePending(latestRun.state) && Boolean(refetchInterval)) : false
+          }
           latestRunInfo={latestRun ?? undefined}
         />
       </DetailsLayout>
