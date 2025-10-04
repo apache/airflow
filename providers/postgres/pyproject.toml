@@ -71,7 +71,7 @@ dependencies = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure>=12.8.0"
+    "apache-airflow-providers-microsoft-azure"
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
