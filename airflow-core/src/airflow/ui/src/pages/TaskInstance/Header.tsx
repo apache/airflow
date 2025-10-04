@@ -125,7 +125,6 @@ export const Header = ({
         isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
-        subTitle={<Time datetime={taskInstance.start_date} />}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
     </Box>
