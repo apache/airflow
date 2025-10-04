@@ -91,9 +91,11 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
             setup_teardown_type = "setup"
         elif task.is_teardown is True:
             setup_teardown_type = "teardown"
+        # we explicitly want the short task ID here, not the full doted notation if in a group
+        task_display_name = task.task_display_name if task.task_display_name != task.task_id else task.label
         return {
             "id": task.task_id,
-            "label": task.task_display_name,
+            "label": task_display_name,
             "is_mapped": mapped,
             "children": None,
             "setup_teardown_type": setup_teardown_type,
