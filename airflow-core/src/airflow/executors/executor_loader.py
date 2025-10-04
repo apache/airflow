@@ -32,6 +32,7 @@ from airflow.executors.executor_constants import (
     ConnectorSource,
 )
 from airflow.executors.executor_utils import ExecutorName
+from airflow.models.team import Team
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -154,6 +155,30 @@ class ExecutorLoader:
             raise AirflowConfigException("Configuring multiple team based executors is not yet supported!")
 
     @classmethod
+    def _validate_teams_exist_in_database(cls, team_names: set[str]) -> None:
+        """
+        Validate that all specified team names exist in the database.
+
+        :param team_names: Set of team names to validate
+        :raises AirflowConfigException: If any team names don't exist in the database
+        """
+        if not team_names:
+            return
+
+        existing_teams = Team.get_all_team_names()
+
+        missing_teams = team_names - existing_teams
+
+        if missing_teams:
+            missing_teams_list = sorted(missing_teams)
+            missing_teams_str = ", ".join(missing_teams_list)
+
+            raise AirflowConfigException(
+                f"One or more teams specified in executor configuration do not exist in database: {missing_teams_str}. "
+                "Please create these teams first or remove them from executor configuration."
+            )
+
+    @classmethod
     def _get_team_executor_configs(cls) -> list[tuple[str | None, list[str]]]:
         """
         Return a list of executor configs to be loaded.
@@ -207,6 +232,11 @@ class ExecutorLoader:
                 "team-based executors. Please add a global executor configuration (e.g., "
                 "'CeleryExecutor;team1=LocalExecutor' instead of 'team1=CeleryExecutor;team2=LocalExecutor')."
             )
+
+        # Validate that all team names exist in the database (excluding None for global configs)
+        team_names_to_validate = {team_name for team_name in seen_teams if team_name is not None}
+        if team_names_to_validate:
+            cls._validate_teams_exist_in_database(team_names_to_validate)
 
         return configs
 
