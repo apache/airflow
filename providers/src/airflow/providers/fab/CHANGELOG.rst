@@ -20,6 +20,15 @@
 Changelog
 ---------
 
+1.5.4
+.....
+
+* ``[providers-fab/v1-5] Update dependencies for FAB provider to not be conflicting with 2.11.1 (#53029)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.5.3
 .....
 
