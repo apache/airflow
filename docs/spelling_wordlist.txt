@@ -272,6 +272,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -476,6 +477,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -1612,6 +1614,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker

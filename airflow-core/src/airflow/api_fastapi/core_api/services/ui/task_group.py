@@ -25,6 +25,7 @@ from operator import methodcaller
 
 from airflow.configuration import conf
 from airflow.models.mappedoperator import MappedOperator, is_mapped
+from airflow.sdk import TaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
@@ -90,15 +91,17 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
             setup_teardown_type = "setup"
         elif task.is_teardown is True:
             setup_teardown_type = "teardown"
+        # we explicitly want the short task ID here, not the full doted notation if in a group
+        task_display_name = task.task_display_name if task.task_display_name != task.task_id else task.label
         return {
             "id": task.task_id,
-            "label": task.label,
+            "label": task_display_name,
             "is_mapped": mapped,
             "children": None,
             "setup_teardown_type": setup_teardown_type,
         }
 
-    task_group = task_item_or_group
+    task_group: TaskGroup = task_item_or_group
     task_group_sort = get_task_group_children_getter()
     mapped = is_mapped(task_group)
     children = [
@@ -108,7 +111,7 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
 
     return {
         "id": task_group.group_id,
-        "label": task_group.label,
+        "label": task_group.group_display_name or task_group.label,
         "is_mapped": mapped or None,
         "children": children or None,
     }
