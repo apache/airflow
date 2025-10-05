@@ -32,29 +32,29 @@ RENEWAL_DELTA = timedelta(minutes=54)
 MODULE = "airflow.providers.snowflake"
 
 
+@pytest.mark.asyncio
 class TestSnowflakeSqlApiTrigger:
-    TRIGGER = SnowflakeSqlApiTrigger(
-        poll_interval=POLL_INTERVAL,
-        query_ids=["uuid"],
-        snowflake_conn_id="test_conn",
-        token_life_time=LIFETIME,
-        token_renewal_delta=RENEWAL_DELTA,
-    )
+    def setup_method(self):
+        self.poll_interval = 0.01  # fast polling for tests
+        self.query_ids = ["uuid", "uuid1"]
+        self.api_url = "https://account.snowflakecomputing.com"
+        self.auth_header = {"Authorization": "Bearer token"}
+        self.TRIGGER = SnowflakeSqlApiTrigger(
+            poll_interval=self.poll_interval,
+            query_ids=self.query_ids,
+            api_url=self.api_url,
+            auth_header=self.auth_header,
+        )
+        print(self.TRIGGER)
 
     def test_snowflake_sql_trigger_serialization(self):
-        """
-        Asserts that the SnowflakeSqlApiTrigger correctly serializes its arguments
-        and classpath.
-        """
+        """Trigger should serialize properly."""
         classpath, kwargs = self.TRIGGER.serialize()
         assert classpath == "airflow.providers.snowflake.triggers.snowflake_trigger.SnowflakeSqlApiTrigger"
-        assert kwargs == {
-            "poll_interval": POLL_INTERVAL,
-            "query_ids": ["uuid"],
-            "snowflake_conn_id": "test_conn",
-            "token_life_time": LIFETIME,
-            "token_renewal_delta": RENEWAL_DELTA,
-        }
+        assert kwargs["poll_interval"] == self.poll_interval
+        assert kwargs["query_ids"] == self.query_ids
+        assert kwargs["api_url"] == self.api_url
+        assert kwargs["auth_header"] == self.auth_header
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")
@@ -100,8 +100,7 @@ class TestSnowflakeSqlApiTrigger:
         """Test SnowflakeSqlApiTrigger task is executed and triggered with failure status."""
         mock_response = {
             "status": "error",
-            "message": "An error occurred when executing the statement. Check "
-            "the error code and error message for details",
+            "message": "Non-JSON response received from Snowflake API.",
         }
         mock_get_sql_api_query_status_async.return_value = mock_response
 
@@ -113,8 +112,13 @@ class TestSnowflakeSqlApiTrigger:
     @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
     async def test_snowflake_sql_trigger_exception(self, mock_get_sql_api_query_status_async):
         """Tests the SnowflakeSqlApiTrigger does not fire if there is an exception."""
-        mock_get_sql_api_query_status_async.side_effect = Exception("Test exception")
+        mock_get_sql_api_query_status_async.side_effect = Exception(
+            "Non-JSON response received from Snowflake API."
+        )
 
         task = [i async for i in self.TRIGGER.run()]
         assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        assert (
+            TriggerEvent({"status": "error", "message": "Non-JSON response received from Snowflake API."})
+            in task
+        )

@@ -403,6 +403,40 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
 
+    def _get_auth_header(self, hook: SnowflakeSqlApiHook) -> dict[str, Any]:
+        """
+        Synchronously generates the URL and Authorization Headers on the Worker
+        by calling the synchronous get_headers() method on the Hook.
+        """
+        try:
+            # Call the synchronous method that generates the token for either JWT or OAuth
+            full_headers = hook.get_headers()
+            auth_header = full_headers.get("Authorization")
+
+            if not auth_header:
+                raise AirflowException(
+                    "Authorization header not found after calling hook.get_headers(). "
+                    "Check that your Snowflake connection is properly configured for Keypair or OAuth."
+                )
+
+            self.log.info("Successfully retrieved Authorization header using hook.get_headers().")
+
+        except Exception as e:
+            # Raise a specific error if authentication fails during deferral setup
+            raise AirflowException(
+                f"Failed to retrieve Authorization header synchronously from the hook via get_headers(). "
+                f"Original error: {e}"
+            )
+
+        conn = hook.get_connection(hook.snowflake_conn_id)
+        return {
+            "Authorization": auth_header,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            # Pass the currently used role, extracted from the hook or connection
+            "sf-role": hook.role or conn.extra_dejson.get("role", ""),
+        }
+
     def execute(self, context: Context) -> None:
         """
         Make a POST API request to snowflake by using SnowflakeSQL and execute the query to get the ids.
@@ -448,9 +482,8 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 trigger=SnowflakeSqlApiTrigger(
                     poll_interval=self.poll_interval,
                     query_ids=self.query_ids,
-                    snowflake_conn_id=self.snowflake_conn_id,
-                    token_life_time=self.token_life_time,
-                    token_renewal_delta=self.token_renewal_delta,
+                    api_url=f"{self._hook.account_identifier}.snowflakecomputing.com",
+                    auth_header=self._get_auth_header(self._hook),
                 ),
                 method_name="execute_complete",
             )

@@ -23,6 +23,7 @@ import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -267,14 +268,43 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(context=None)
 
     @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.account_identifier",
+        new_callable=mock.PropertyMock,
+    )
     def test_snowflake_sql_api_execute_operator_async(
-        self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
+        self,
+        mock_hook_account_identifier_prop,
+        mock_get_headers,
+        mock_execute_query,
+        mock_get_connection_from_secrets,
+        mock_sql,
+        statement_count,
+        mock_get_sql_api_query_status,
     ):
         """
         Asserts that a task is deferred and an SnowflakeSqlApiTrigger will be fired
         when the SnowflakeSqlApiOperator is executed.
         """
+        # Set up a mock Connection object to satisfy hook.get_connection() call
+        mock_connection = mock.MagicMock(spec=Connection)
+        mock_connection.conn_id = CONN_ID
+        mock_get_connection_from_secrets.return_value = mock_connection
+
+        # 1. Setup mock attributes and methods for the hook instance
+        mock_hook_account_identifier_prop.return_value = "mock_account_id"
+
+        # Mock the return value of get_headers(), which satisfies the token retrieval
+        mock_get_headers.return_value = {
+            "Authorization": "Bearer dummy_jwt_token",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "sf-role": "mock_role",
+        }
+
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
@@ -289,9 +319,24 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(create_context(operator))
 
+        # 3. Assertions
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
+
+        # Verify the trigger received the mocked connection details
+        assert exc.value.trigger.api_url == "mock_account_id.snowflakecomputing.com"
+        assert exc.value.trigger.auth_header["Authorization"] == "Bearer dummy_jwt_token"
+
+        # Ensure the mocks were called as expected
+        mock_execute_query.assert_called_once()
+        mock_get_headers.assert_called_once()
+
+        # The property mocks are accessed once inside _get_auth_header
+        mock_hook_account_identifier_prop.assert_called()
+
+        # NEW ASSERTION: Ensure connection was retrieved
+        mock_get_connection_from_secrets.assert_called_once_with(CONN_ID)
 
     def test_snowflake_sql_api_execute_complete_failure(self):
         """Test SnowflakeSqlApiOperator raise AirflowException of error event"""
@@ -332,11 +377,15 @@ class TestSnowflakeSqlApiOperator:
             operator.execute_complete(context=None, event=mock_event)
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
 
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
     def test_snowflake_sql_api_execute_operator_failed_before_defer(
-        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
+        self, mock_defer, mock_get_connection_from_secrets, mock_execute_query, mock_get_sql_api_query_status
     ):
         """Asserts that a task is not deferred when its failed"""
+        mock_connection = mock.MagicMock(spec=Connection)
+        mock_connection.conn_id = "snowflake_default"
+        mock_get_connection_from_secrets.return_value = mock_connection
 
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
@@ -352,11 +401,15 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(create_context(operator))
         assert not mock_defer.called
 
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
     def test_snowflake_sql_api_execute_operator_succeeded_before_defer(
-        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
+        self, mock_defer, mock_get_connection_from_secrets, mock_execute_query, mock_get_sql_api_query_status
     ):
         """Asserts that a task is not deferred when its succeeded"""
+        mock_connection = mock.MagicMock(spec=Connection)
+        mock_connection.conn_id = "snowflake_default"
+        mock_get_connection_from_secrets.return_value = mock_connection
 
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
@@ -372,12 +425,45 @@ class TestSnowflakeSqlApiOperator:
 
         assert not mock_defer.called
 
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status"
+    )
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_snowflake_sql_api_execute_operator_running_before_defer(
-        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
+        self,
+        mock_get_headers,
+        mock_defer,
+        mock_get_connection_from_secrets,
+        mock_get_sql_api_query_status,  # This now correctly receives the mock for get_sql_api_query_status
+        mock_execute_query,  # This now correctly receives the mock for execute_query
     ):
         """Asserts that a task is deferred when its running"""
 
+        # 1. Mock Connection Setup
+        mock_connection = mock.MagicMock(spec=Connection)
+        mock_connection.conn_id = "snowflake_default"
+        mock_connection.extra_dejson = {}
+        mock_connection.login = "mock_airflow_user"
+        mock_connection.password = ""
+        mock_get_connection_from_secrets.return_value = mock_connection
+
+        # 2. Mock Hook Dependencies
+        mock_get_headers.return_value = {
+            "Authorization": "Bearer dummy_jwt_token",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+
+        # 3. Apply Return Values to the NOW CORRECTLY NAMED MOCKS
+        mock_execute_query.return_value = ["uuid1"]
+
+        # This mock is for get_sql_api_query_status, and it returns the dictionary status
+        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
+
+        # 4. Operator Execution
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
             snowflake_conn_id="snowflake_default",
@@ -386,11 +472,11 @@ class TestSnowflakeSqlApiOperator:
             do_xcom_push=False,
             deferrable=True,
         )
-        mock_execute_query.return_value = ["uuid1"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
+
         operator.execute(create_context(operator))
 
-        assert mock_defer.called
+        # 5. Assertion
+        mock_defer.assert_called_once()
 
     def test_snowflake_sql_api_execute_operator_polling_running(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
