@@ -144,7 +144,7 @@ export const Header = ({
             ),
           },
         ]}
-        title={<Time datetime={dagRun.run_after} />}
+        title={dagRun.dag_run_id}
       />
     </Box>
   );
