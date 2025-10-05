@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-04T12:20:27.499882
+# This constraints file was automatically generated on 2025-10-05T09:16:17.581950
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -142,7 +142,7 @@ cadwyn==5.4.4
 cassandra-driver==3.29.2
 cattrs==25.2.0
 celery==5.5.3
-certifi==2025.8.3
+certifi==2025.10.5
 cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.40.0
@@ -472,7 +472,7 @@ presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
-propcache==0.3.2
+propcache==0.4.0
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.0
