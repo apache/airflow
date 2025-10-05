@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import importlib
 import itertools
 import logging
 import uuid
@@ -59,6 +60,7 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
+from packaging.version import Version
 from sqlalchemy import delete, func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
@@ -100,7 +102,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 from airflow.security.permissions import RESOURCE_BACKFILL
-from packaging.version import Version
+
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
@@ -798,7 +800,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
-        else:            
+        else:
             current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             current_app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
