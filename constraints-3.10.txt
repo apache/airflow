@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-04T19:50:08.337740
+# This constraints file was automatically generated on 2025-10-05T02:27:47.989005
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -531,7 +531,7 @@ presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
-propcache==0.3.2
+propcache==0.4.0
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.0
