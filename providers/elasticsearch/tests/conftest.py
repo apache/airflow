@@ -23,8 +23,6 @@ from testcontainers.elasticsearch import ElasticSearchContainer
 @pytest.fixture(scope="session")
 def es_8_container_url():
     with ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0") as es:
-        es.with_env("discovery.type", "single-node")
-        es.with_env("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
         yield es.get_url()
 
 

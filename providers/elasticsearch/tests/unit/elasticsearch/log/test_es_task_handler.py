@@ -1022,13 +1022,17 @@ class TestElasticsearchRemoteLogIO:
         self.elasticsearch_io.target_index = unique_index
         self.elasticsearch_io.index_pattern = unique_index
         self.elasticsearch_io.upload(tmp_json_file, ti)
-        self.elasticsearch_io.client.indices.refresh(index="_all")
+        self.elasticsearch_io.client.indices.refresh(index=unique_index, request_timeout=60)
 
     def test_write_to_es(self, tmp_json_file, ti):
         self.elasticsearch_io.write_stdout = False
         self.elasticsearch_io.upload(tmp_json_file, ti)
-        self.elasticsearch_io.client.indices.refresh(index="_all")
-        res = self.elasticsearch_io.client.search(index="_all", query={"match_all": {}})
+        self.elasticsearch_io.client.indices.refresh(
+            index=self.elasticsearch_io.target_index, request_timeout=60
+        )
+        res = self.elasticsearch_io.client.search(
+            index=self.elasticsearch_io.target_index, query={"match_all": {}}
+        )
 
         offset = 1
         expected_msg = ["start", "processing", "end"]
@@ -1040,7 +1044,7 @@ class TestElasticsearchRemoteLogIO:
             assert hit["_source"]["offset"] == offset
             assert hit["_source"]["log_id"] == expected_log_id
             offset += 1
-        self.elasticsearch_io.client.indices.delete(index="airflow-logs")
+        self.elasticsearch_io.client.indices.delete(index=self.elasticsearch_io.target_index)
 
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
