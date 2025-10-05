@@ -122,7 +122,7 @@ def get_dags(
     # Fetch DAGs with their latest DagRun and apply filters
     logger = logging.getLogger(__name__)
 
-    if 'ETL' in tags.tags_list:
+    if tags and 'ETL' in tags.tags_list:
         logger.info(f'Getting DAGs with ETL Label at {datetime.now()}')
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
@@ -159,7 +159,7 @@ def get_dags(
 
 
     dags = [dag for dag in session.scalars(dags_select)]
-    if 'ETL' in tags.tags_list:
+    if tags and 'ETL' in tags.tags_list:
         logger.info(f'Got DAGs with ETL Label at {datetime.now()}')
 
     # Populate the last 'dag_runs_limit' DagRuns for each DAG
@@ -199,7 +199,7 @@ def get_dags(
         )
         .order_by(recent_runs_subquery.c.run_after.desc())
     )
-    if 'ETL' in tags.tags_list:
+    if tags and 'ETL' in tags.tags_list:
         logger.info(f'Populated recent runs for ETL label at {datetime.now()}')
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
