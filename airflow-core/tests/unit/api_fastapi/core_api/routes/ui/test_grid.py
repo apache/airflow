@@ -132,7 +132,9 @@ def setup(dag_maker, session=None):
         with TaskGroup(group_id=TASK_GROUP_ID):
             MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
             with TaskGroup(group_id=INNER_TASK_GROUP, group_display_name="My Inner Task Group"):
-                MockOperator.partial(task_id=INNER_TASK_GROUP_SUB_TASK, task_display_name="Inner Task Group Sub Task Label").expand(arg1=["a", "b"])
+                MockOperator.partial(
+                    task_id=INNER_TASK_GROUP_SUB_TASK, task_display_name="Inner Task Group Sub Task Label"
+                ).expand(arg1=["a", "b"])
 
         # Mapped but never expanded. API should not crash, but count this as one no-status ti.
         MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
