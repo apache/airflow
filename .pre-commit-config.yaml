@@ -1387,13 +1387,13 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
-      - id: generate-openapi-spec
-        name: Generate the FastAPI API spec
-        language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
-        pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
+#      - id: generate-openapi-spec
+#        name: Generate the FastAPI API spec
+#        language: python
+#        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+#        pass_filenames: false
+#        files: ^airflow/api_fastapi/.*\.py$
+#        additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
         language: python
