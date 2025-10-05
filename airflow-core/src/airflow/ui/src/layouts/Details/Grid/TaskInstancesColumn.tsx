@@ -38,7 +38,6 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }
   const search = searchParams.toString();
 
   return nodes.map((node) => {
-    // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
     if (!taskInstance) {

@@ -42,9 +42,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.common import (
     GridNodeResponse,
     GridRunsResponse,
 )
-from airflow.api_fastapi.core_api.datamodels.ui.grid import (
-    GridTISummaries,
-)
+from airflow.api_fastapi.core_api.datamodels.ui.grid import GridTISummaries
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
@@ -68,9 +66,7 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 def _get_latest_serdag(dag_id, session):
     serdag = session.scalar(
         select(SerializedDagModel)
-        .where(
-            SerializedDagModel.dag_id == dag_id,
-        )
+        .where(SerializedDagModel.dag_id == dag_id)
         .order_by(SerializedDagModel.id.desc())
         .limit(1)
     )
@@ -92,9 +88,7 @@ def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
     if not version:
         version = session.scalar(
             select(DagVersion)
-            .where(
-                DagVersion.dag_id == dag_id,
-            )
+            .where(DagVersion.dag_id == dag_id)
             .options(joinedload(DagVersion.serialized_dag))
             .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
             .limit(1)
@@ -166,11 +160,7 @@ def get_dag_structure(
             SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.id != latest_serdag.id,
             SerializedDagModel.dag_version_id.in_(
-                select(TaskInstance.dag_version_id)
-                .join(TaskInstance.dag_run)
-                .where(
-                    DagRun.id.in_(run_ids),
-                )
+                select(TaskInstance.dag_version_id).join(TaskInstance.dag_run).where(DagRun.id.in_(run_ids))
             ),
         )
     )
@@ -225,18 +215,8 @@ def get_dag_structure(
         ]
     ),
     dependencies=[
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.TASK_INSTANCE,
-            )
-        ),
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.RUN,
-            )
-        ),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
     ],
     response_model_exclude_none=True,
 )
@@ -265,7 +245,6 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Retrieve, sort the previous DAG Runs
     base_query = select(
         DagRun.dag_id,
         DagRun.run_id,
@@ -277,7 +256,6 @@ def get_grid_runs(
         DagRun.run_type,
     ).where(DagRun.dag_id == dag_id)
 
-    # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag
@@ -305,18 +283,8 @@ def get_grid_runs(
         ]
     ),
     dependencies=[
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.TASK_INSTANCE,
-            )
-        ),
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.RUN,
-            )
-        ),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
     ],
 )
 def get_grid_ti_summaries(
@@ -348,9 +316,7 @@ def get_grid_ti_summaries(
                 TaskInstance.end_date,
             )
             .where(TaskInstance.dag_id == dag_id)
-            .where(
-                TaskInstance.run_id == run_id,
-            )
+            .where(TaskInstance.run_id == run_id)
         ),
         filters=[],
         order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
@@ -362,6 +328,7 @@ def get_grid_ti_summaries(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
+
     ti_details = collections.defaultdict(list)
     for ti in task_instances:
         ti_details[ti.task_id].append(
@@ -371,6 +338,7 @@ def get_grid_ti_summaries(
                 "end_date": ti.end_date,
             }
         )
+
     serdag = _get_serdag(
         dag_id=dag_id,
         dag_version_id=task_instances[0].dag_version_id,
@@ -391,33 +359,31 @@ def get_grid_ti_summaries(
             if node["type"] in {"task", "mapped_task"}:
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
+                    entries = ti_details.get(node["task_id"], [])
+                    starts = [e["start_date"] for e in entries if e["start_date"] is not None]
+                    ends = [e["end_date"] for e in entries if e["end_date"] is not None]
+                    node["min_start_date"] = min(starts) if starts else None
+                    node["max_end_date"] = max(ends) if ends else None
                     node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
             yield node
 
-        # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
-        # but are not present in the current DAG structure (e.g. removed tasks)
+        # Add synthetic leaf nodes for tasks present in this run but not in current DAG structure
         missing_task_ids = set(ti_details.keys()) - yielded_task_ids
         for task_id in sorted(missing_task_ids):
             detail = ti_details[task_id]
-            # Create a leaf task node with aggregated state from its TIs
-            agg = _get_aggs_for_node(detail)
+            agg = _get_aggs_for_node(detail)  # includes min_start_date / max_end_date / state aggregation
             yield {
                 "task_id": task_id,
                 "type": "task",
                 "parent_id": None,
                 **agg,
-                # Align with leaf behavior
                 "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
             }
 
-    task_instances = list(get_node_sumaries())
+    nodes_list = list(get_node_sumaries())
     # If a group id and a task id collide, prefer the group record
-    group_ids = {n.get("task_id") for n in task_instances if n.get("type") == "group"}
-    filtered = [n for n in task_instances if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
+    group_ids = {n.get("task_id") for n in nodes_list if n.get("type") == "group"}
+    filtered = [n for n in nodes_list if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
 
     return {  # type: ignore[return-value]
         "run_id": run_id,

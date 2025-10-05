@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, Flex, Box, Text } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,6 +27,7 @@ import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
+import { renderDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
@@ -36,7 +37,6 @@ const handleMouseEnter =
     tasks.forEach((task) => {
       task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
     });
-
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
   };
 
@@ -46,7 +46,6 @@ const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["se
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
   });
-
   setHoveredTaskId(undefined);
 };
 
@@ -65,8 +64,8 @@ type Props = {
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
-  const { t: translate } = useTranslation();
   const location = useLocation();
+  const { t: translate } = useTranslation("common");
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
@@ -83,6 +82,22 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       }),
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
+
+  const startIso: string | undefined = instance.min_start_date ?? undefined;
+  const endIso: string | undefined = instance.max_end_date ?? undefined;
+
+  const hasStart = startIso !== undefined;
+  const hasEnd = endIso !== undefined;
+
+  let durationText: string | undefined;
+
+  if (hasStart && hasEnd) {
+    const startMs = new Date(startIso).getTime();
+    const endMs = new Date(endIso).getTime();
+    const durationSeconds = (endMs - startMs) / 1000;
+
+    durationText = Number.isFinite(durationSeconds) ? renderDuration(durationSeconds) : undefined;
+  }
 
   return (
     <Flex
@@ -110,24 +125,35 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       >
         <Tooltip
           content={
-            <>
-              {translate("taskId")}: {taskId}
-              <br />
-              {translate("state")}: {instance.state}
-              {instance.min_start_date !== null && (
-                <>
-                  <br />
-                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
-                </>
+            <Box>
+              <Text>
+                {translate("taskId")}: {taskId}
+              </Text>
+              <Text>
+                {translate("state")}: {instance.state}
+              </Text>
+
+              {hasStart ? (
+                <Text>
+                  {translate("startDate")}: <Time datetime={startIso} />
+                </Text>
+              ) : null}
+
+              {hasEnd ? (
+                <Text>
+                  {translate("endDate")}: <Time datetime={endIso} />
+                </Text>
+              ) : null}
+
+              {durationText !== undefined && (
+                <Text>
+                  {translate("duration")}: {durationText}
+                </Text>
               )}
-              {instance.max_end_date !== null && (
-                <>
-                  <br />
-                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
-                </>
-              )}
-            </>
+            </Box>
           }
+          portalled
+          positioning={{ offset: { crossAxis: 5, mainAxis: 5 }, placement: "bottom-start" }}
         >
           <Badge
             alignItems="center"
