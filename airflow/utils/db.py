@@ -744,7 +744,7 @@ def _get_flask_db(sql_database_uri):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db = SQLAlchemy(flask_app)
-    AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
+    AirflowDatabaseSessionInterface(app=flask_app, client=db, table="session", key_prefix="")
     return db
 
 
