@@ -1375,6 +1375,184 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.parametrize(
+        (
+            "email,"
+            "execution_timeout,"
+            "retry_delay,"
+            "max_retry_delay,"
+            "retry_exponential_backoff,"
+            "max_active_tis_per_dag,"
+            "max_active_tis_per_dagrun,"
+            "run_as_user,"
+            "resources,"
+            "has_on_execute_callback,"
+            "has_on_failure_callback,"
+            "has_on_retry_callback,"
+            "has_on_success_callback,"
+            "has_on_skipped_callback,"
+            "executor_config,"
+            "inlets,"
+            "outlets,"
+            "doc,"
+            "doc_md,"
+            "doc_json,"
+            "doc_yaml,"
+            "doc_rst"
+        ),
+        [
+            pytest.param(
+                # Default case
+                "email",
+                timedelta(seconds=10),
+                timedelta(seconds=5),
+                timedelta(seconds=60),
+                True,
+                1,
+                2,
+                "user",
+                None,
+                False,
+                False,
+                False,
+                False,
+                False,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                id="default",
+            ),
+            pytest.param(
+                # With all optional values and callbacks set
+                None,
+                timedelta(seconds=20),
+                timedelta(seconds=10),
+                timedelta(seconds=120),
+                False,
+                3,
+                5,
+                None,
+                {"CPU": 1},
+                True,
+                True,
+                True,
+                True,
+                True,
+                {"key": "value"},
+                ["input_table"],
+                ["output_table"],
+                "Some docs",
+                "MD docs",
+                {"json": True},
+                "yaml: true",
+                "RST docs",
+                id="with-values-and-callbacks",
+            ),
+        ],
+    )
+    def test_properties(
+        self,
+        email,
+        execution_timeout,
+        retry_delay,
+        max_retry_delay,
+        retry_exponential_backoff,
+        max_active_tis_per_dag,
+        max_active_tis_per_dagrun,
+        run_as_user,
+        resources,
+        has_on_execute_callback,
+        has_on_failure_callback,
+        has_on_retry_callback,
+        has_on_success_callback,
+        has_on_skipped_callback,
+        executor_config,
+        inlets,
+        outlets,
+        doc,
+        doc_md,
+        doc_json,
+        doc_yaml,
+        doc_rst,
+    ):
+        op = (
+            PythonOperator.partial(
+                task_id="mapped",
+                python_callable=print,
+                email=email,
+                execution_timeout=execution_timeout,
+                retry_delay=retry_delay,
+                max_retry_delay=max_retry_delay,
+                retry_exponential_backoff=retry_exponential_backoff,
+                max_active_tis_per_dag=max_active_tis_per_dag,
+                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+                run_as_user=run_as_user,
+                resources=resources,
+                on_execute_callback=(lambda: None) if has_on_execute_callback else None,
+                on_failure_callback=(lambda: None) if has_on_failure_callback else None,
+                on_retry_callback=(lambda: None) if has_on_retry_callback else None,
+                on_success_callback=(lambda: None) if has_on_success_callback else None,
+                on_skipped_callback=(lambda: None) if has_on_skipped_callback else None,
+                executor_config=executor_config,
+                inlets=inlets,
+                outlets=outlets,
+                doc=doc,
+                doc_md=doc_md,
+                doc_json=doc_json,
+                doc_yaml=doc_yaml,
+                doc_rst=doc_rst,
+            )
+            .expand(op_args=["Hello", "world"])
+        )
+
+        assert op.operator_name == PythonOperator.__name__
+        assert op.roots == [op]
+        assert op.leaves == [op]
+        assert op.task_display_name == "mapped"
+        assert op.owner == SerializedBaseOperator.owner
+        assert op.trigger_rule == SerializedBaseOperator.trigger_rule
+        assert not op.map_index_template
+        assert not op.is_setup
+        assert not op.is_teardown
+        assert not op.depends_on_past
+        assert op.ignore_first_depends_on_past == bool(SerializedBaseOperator.ignore_first_depends_on_past)
+        assert not op.wait_for_downstream
+        assert op.retries == SerializedBaseOperator.retries
+        assert op.queue == SerializedBaseOperator.queue
+        assert op.pool == SerializedBaseOperator.pool
+        assert op.pool_slots == SerializedBaseOperator.pool_slots
+        assert op.priority_weight == SerializedBaseOperator.priority_weight
+        assert isinstance(op.weight_rule, PriorityWeightStrategy)
+        assert op.email == email
+        assert op.execution_timeout == execution_timeout
+        assert op.retry_delay == retry_delay
+        assert op.max_retry_delay == max_retry_delay
+        assert op.retry_exponential_backoff == retry_exponential_backoff
+        assert op.max_active_tis_per_dag == max_active_tis_per_dag
+        assert op.max_active_tis_per_dagrun == max_active_tis_per_dagrun
+        assert op.run_as_user == run_as_user
+        assert op.email_on_failure
+        assert op.email_on_retry
+        assert (op.resources is not None) == bool(resources)
+        assert op.has_on_execute_callback == has_on_execute_callback
+        assert op.has_on_failure_callback == has_on_failure_callback
+        assert op.has_on_retry_callback == has_on_retry_callback
+        assert op.has_on_success_callback == has_on_success_callback
+        assert op.has_on_skipped_callback == has_on_skipped_callback
+        assert (op.executor_config is not None) == bool(executor_config)
+        assert (op.inlets is not None) == bool(inlets)
+        assert (op.outlets is not None) == bool(outlets)
+        assert (op.doc is not None) == bool(doc)
+        assert (op.doc_md is not None) == bool(doc_md)
+        assert (op.doc_json is not None) == bool(doc_json)
+        assert (op.doc_yaml is not None) == bool(doc_yaml)
+        assert (op.doc_rst is not None) == bool(doc_rst)
+
 
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
     """Test that one failed trigger rule works well in mapped task group"""
@@ -1405,60 +1583,3 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
-
-
-def test_properties():
-    op = PythonOperator.partial(
-        task_id="mapped",
-        python_callable=print,
-        email="email",
-        execution_timeout=timedelta(seconds=10),
-        retry_delay=timedelta(seconds=5),
-        max_retry_delay=timedelta(seconds=60),
-        retry_exponential_backoff=True,
-        max_active_tis_per_dag=1,
-        max_active_tis_per_dagrun=2,
-        run_as_user="user",
-    ).expand(op_args=["Hello", "world"])
-    assert op.operator_name == PythonOperator.__name__
-    assert op.roots == [op]
-    assert op.leaves == [op]
-    assert op.task_display_name == "mapped"
-    assert op.owner == SerializedBaseOperator.owner
-    assert op.email == "email"
-    assert op.email_on_failure
-    assert op.email_on_retry
-    assert not op.map_index_template
-    assert op.trigger_rule == SerializedBaseOperator.trigger_rule
-    assert not op.is_setup
-    assert not op.is_teardown
-    assert not op.depends_on_past
-    assert op.ignore_first_depends_on_past == bool(SerializedBaseOperator.ignore_first_depends_on_past)
-    assert not op.wait_for_downstream
-    assert op.retries == SerializedBaseOperator.retries
-    assert op.queue == SerializedBaseOperator.queue
-    assert op.pool == SerializedBaseOperator.pool
-    assert op.pool_slots == SerializedBaseOperator.pool_slots
-    assert op.execution_timeout == timedelta(seconds=10)
-    assert op.max_retry_delay == timedelta(seconds=60)
-    assert op.retry_delay == timedelta(seconds=5)
-    assert op.retry_exponential_backoff
-    assert op.priority_weight == SerializedBaseOperator.priority_weight
-    assert isinstance(op.weight_rule, PriorityWeightStrategy)
-    assert op.max_active_tis_per_dag == 1
-    assert op.max_active_tis_per_dagrun == 2
-    assert not op.resources
-    assert not op.has_on_execute_callback
-    assert not op.has_on_failure_callback
-    assert not op.has_on_retry_callback
-    assert not op.has_on_success_callback
-    assert not op.has_on_skipped_callback
-    assert op.run_as_user == "user"
-    assert not op.executor_config
-    assert not op.inlets
-    assert not op.outlets
-    assert not op.doc
-    assert not op.doc_md
-    assert not op.doc_json
-    assert not op.doc_yaml
-    assert not op.doc_rst
