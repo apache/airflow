@@ -66,6 +66,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
+    RecentConfigurationsResponse,
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
@@ -81,6 +82,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -91,6 +93,51 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
+
+
+@dag_run_router.get(
+    "/recent-configurations",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+)
+def get_recent_dag_run_configurations(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    limit: Annotated[int, Query(ge=1, le=50, description="Maximum number of recent configurations to return")] = 5,
+) -> RecentConfigurationsResponse:
+    """Get recent manual DAG run configurations for a specific DAG."""
+    # Check if the DAG exists
+    get_latest_version_of_dag(dag_bag, dag_id, session)
+    
+    # Get the configured limit from settings
+    configured_limit = conf.getint("webserver", "num_recent_configurations_for_trigger", fallback=5)
+    actual_limit = min(limit, configured_limit)
+    
+    # Query recent manual DAG runs with configurations
+    query = (
+        select(DagRun.run_id, DagRun.conf, DagRun.logical_date, DagRun.start_date)
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_type == DagRunType.MANUAL,
+            DagRun.conf.is_not(None)
+        )
+        .order_by(DagRun.start_date.desc())
+        .limit(actual_limit)
+    )
+    
+    results = session.execute(query).all()
+    
+    configurations = []
+    for result in results:
+        configurations.append({
+            "run_id": result.run_id,
+            "conf": result.conf,
+            "logical_date": result.logical_date,
+            "start_date": result.start_date,
+        })
+    
+    return RecentConfigurationsResponse(configurations=configurations)
 
 
 @dag_run_router.get(
