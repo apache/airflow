@@ -101,6 +101,8 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Laufzeit Von",
+    "durationTo": "Laufzeit Bis",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
     "runAfterFrom": "Gelaufen-nach von filtern",
