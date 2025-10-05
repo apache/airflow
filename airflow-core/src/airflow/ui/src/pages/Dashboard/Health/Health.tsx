@@ -27,7 +27,7 @@ import { useAutoRefresh } from "src/utils";
 import { HealthBadge } from "./HealthBadge";
 
 export const Health = () => {
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
 
   const { data, error, isLoading } = useMonitorServiceGetHealth(undefined, {
     refetchInterval,
