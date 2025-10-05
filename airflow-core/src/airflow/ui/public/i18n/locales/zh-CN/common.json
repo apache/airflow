@@ -161,7 +161,6 @@
     },
     "tooltip": "按 {{hotkey}} 滚动到{{direction}}"
   },
-  "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
     "permissions": "权限",
