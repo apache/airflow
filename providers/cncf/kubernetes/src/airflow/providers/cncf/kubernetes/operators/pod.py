@@ -209,8 +209,9 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
-    :param termination_grace_period: Termination grace period if task killed in UI,
-        defaults to kubernetes default
+    :param termination_grace_period: Termination grace period (in seconds) for the pod.
+        This sets the pod's ``terminationGracePeriodSeconds`` and is also used as the grace period
+        when deleting the pod if the task is killed. If not specified, uses the Kubernetes default (30 seconds).
     :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
