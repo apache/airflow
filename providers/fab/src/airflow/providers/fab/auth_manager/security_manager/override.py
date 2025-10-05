@@ -799,7 +799,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
         else:            
-            _ = generate_password_hash("test", method="scrypt")
             current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
             current_app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
