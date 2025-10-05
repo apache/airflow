@@ -154,7 +154,6 @@
     },
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a görgetéshez ide: {{direction}}"
   },
-  "seconds": "{{count}} mp",
   "security": {
     "actions": "Műveletek",
     "permissions": "Jogosultságok",
