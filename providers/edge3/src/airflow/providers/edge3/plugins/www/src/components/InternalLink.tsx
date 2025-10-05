@@ -16,28 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Link as ExternalLink } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
-import { JobsPage } from "src/pages/JobsPage";
-import { WorkerPage } from "src/pages/WorkerPage";
+type Props = {
+  readonly children: React.ReactNode;
+  readonly inPlugin?: boolean;
+  readonly to: string;
+};
 
-import { NavTabs } from "./NavTabs";
-
-export const EdgeLayout = () => {
-  const tabs = [
-    { label: "Edge Worker", value: "worker" },
-    { label: "Edge Jobs", value: "jobs" },
-  ];
-
-  return (
-    <Box p={2} /* Compensate for parent padding from ExternalView */>
-      <NavTabs tabs={tabs} />
-      <Routes>
-        <Route index element={<Navigate to="worker" replace />} />
-        <Route path="worker" element={<WorkerPage />} />
-        <Route path="jobs" element={<JobsPage />} />
-      </Routes>
-    </Box>
-  );
+export const Link = ({ children, inPlugin, to }: Props) => {
+  // Need to check whether ReactRouterDOM is available globally
+  // because in Airflow 3.1.0, the plugin system was missing this.
+  if (inPlugin || (globalThis as Record<string, unknown>).ReactRouterDOM) {
+    return <RouterLink to={to}>{children}</RouterLink>;
+  } else {
+    // Fallback in 3.1.0, can be removed if we drop support for it
+    return <ExternalLink href={`..${to}`}>{children}</ExternalLink>;
+  }
 };
