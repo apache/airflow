@@ -161,7 +161,6 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
