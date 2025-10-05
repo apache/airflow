@@ -177,7 +177,6 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
