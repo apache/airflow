@@ -24,7 +24,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from airflow.models.mappedoperator import MappedOperator
 from sqlalchemy import select
 
 from airflow.exceptions import AirflowSkipException
@@ -1480,35 +1479,32 @@ class TestMappedSetupTeardown:
         doc_yaml,
         doc_rst,
     ):
-        op = (
-            PythonOperator.partial(
-                task_id="mapped",
-                python_callable=print,
-                email=email,
-                execution_timeout=execution_timeout,
-                retry_delay=retry_delay,
-                max_retry_delay=max_retry_delay,
-                retry_exponential_backoff=retry_exponential_backoff,
-                max_active_tis_per_dag=max_active_tis_per_dag,
-                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
-                run_as_user=run_as_user,
-                resources=resources,
-                on_execute_callback=(lambda: None) if has_on_execute_callback else None,
-                on_failure_callback=(lambda: None) if has_on_failure_callback else None,
-                on_retry_callback=(lambda: None) if has_on_retry_callback else None,
-                on_success_callback=(lambda: None) if has_on_success_callback else None,
-                on_skipped_callback=(lambda: None) if has_on_skipped_callback else None,
-                executor_config=executor_config,
-                inlets=inlets,
-                outlets=outlets,
-                doc=doc,
-                doc_md=doc_md,
-                doc_json=doc_json,
-                doc_yaml=doc_yaml,
-                doc_rst=doc_rst,
-            )
-            .expand(op_args=["Hello", "world"])
-        )
+        op = PythonOperator.partial(
+            task_id="mapped",
+            python_callable=print,
+            email=email,
+            execution_timeout=execution_timeout,
+            retry_delay=retry_delay,
+            max_retry_delay=max_retry_delay,
+            retry_exponential_backoff=retry_exponential_backoff,
+            max_active_tis_per_dag=max_active_tis_per_dag,
+            max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+            run_as_user=run_as_user,
+            resources=resources,
+            on_execute_callback=(lambda: None) if has_on_execute_callback else None,
+            on_failure_callback=(lambda: None) if has_on_failure_callback else None,
+            on_retry_callback=(lambda: None) if has_on_retry_callback else None,
+            on_success_callback=(lambda: None) if has_on_success_callback else None,
+            on_skipped_callback=(lambda: None) if has_on_skipped_callback else None,
+            executor_config=executor_config,
+            inlets=inlets,
+            outlets=outlets,
+            doc=doc,
+            doc_md=doc_md,
+            doc_json=doc_json,
+            doc_yaml=doc_yaml,
+            doc_rst=doc_rst,
+        ).expand(op_args=["Hello", "world"])
 
         assert op.operator_name == PythonOperator.__name__
         assert op.roots == [op]
