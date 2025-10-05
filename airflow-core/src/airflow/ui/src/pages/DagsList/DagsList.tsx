@@ -196,7 +196,7 @@ export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
-  const dagRunsLimit = display === "card" ? 14 : 1;
+  const dagRunsLimit = display === "card" ? 1 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
