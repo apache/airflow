@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-05T07:48:23.203644
+# This constraints file was automatically generated on 2025-10-05T13:50:58.434577
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -194,7 +194,7 @@ apispec==6.8.4
 apprise==1.9.5
 argcomplete==3.6.2
 asana==5.2.2
-asgiref==3.9.2
+asgiref==3.10.0
 asn1crypto==1.5.1
 asttokens==3.0.0
 async-property==0.2.2

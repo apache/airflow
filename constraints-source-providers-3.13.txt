@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-05T07:44:54.546125
+# This constraints file was automatically generated on 2025-10-05T13:46:48.583064
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -73,7 +73,7 @@ apprise==1.9.5
 argcomplete==3.6.2
 arro3-core==0.6.3
 asana==5.2.2
-asgiref==3.9.2
+asgiref==3.10.0
 asn1crypto==1.5.1
 astroid==3.3.11
 asttokens==3.0.0
@@ -361,7 +361,7 @@ microsoft-kiota-serialization-text==1.9.7
 mistune==3.1.4
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.13
+moto==5.1.14
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.34.0
