@@ -102,6 +102,7 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
         "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
+    # TODO aiohttp!
     response = requests.request(method, url=api_endpoint, data=data, headers=headers)
     response.raise_for_status()
     if response.status_code == HTTPStatus.NO_CONTENT:
@@ -109,12 +110,12 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
     return json.loads(response.content)
 
 
-def worker_register(
+async def worker_register(
     hostname: str, state: EdgeWorkerState, queues: list[str] | None, sysinfo: dict
 ) -> WorkerRegistrationReturn:
     """Register worker with the Edge API."""
     try:
-        result = _make_generic_request(
+        result = await _make_generic_request(
             "POST",
             f"worker/{quote(hostname)}",
             WorkerStateBody(state=state, jobs_active=0, queues=queues, sysinfo=sysinfo).model_dump_json(
@@ -133,7 +134,7 @@ def worker_register(
     return WorkerRegistrationReturn(**result)
 
 
-def worker_set_state(
+async def worker_set_state(
     hostname: str,
     state: EdgeWorkerState,
     jobs_active: int,
@@ -143,7 +144,7 @@ def worker_set_state(
 ) -> WorkerSetStateReturn:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
     try:
-        result = _make_generic_request(
+        result = await _make_generic_request(
             "PATCH",
             f"worker/{quote(hostname)}",
             WorkerStateBody(
@@ -161,9 +162,9 @@ def worker_set_state(
     return WorkerSetStateReturn(**result)
 
 
-def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
+async def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
-    result = _make_generic_request(
+    result = await _make_generic_request(
         "POST",
         f"jobs/fetch/{quote(hostname)}",
         WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency).model_dump_json(
@@ -175,17 +176,17 @@ def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -
     return None
 
 
-def jobs_set_state(key: TaskInstanceKey, state: TaskInstanceState) -> None:
+async def jobs_set_state(key: TaskInstanceKey, state: TaskInstanceState) -> None:
     """Set the state of a job."""
-    _make_generic_request(
+    await _make_generic_request(
         "PATCH",
         f"jobs/state/{key.dag_id}/{key.task_id}/{key.run_id}/{key.try_number}/{key.map_index}/{state}",
     )
 
 
-def logs_logfile_path(task: TaskInstanceKey) -> Path:
+async def logs_logfile_path(task: TaskInstanceKey) -> Path:
     """Elaborate the path and filename to expect from task execution."""
-    result = _make_generic_request(
+    result = await _make_generic_request(
         "GET",
         f"logs/logfile_path/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
     )
@@ -193,13 +194,13 @@ def logs_logfile_path(task: TaskInstanceKey) -> Path:
     return Path(base_log_folder, result)
 
 
-def logs_push(
+async def logs_push(
     task: TaskInstanceKey,
     log_chunk_time: datetime,
     log_chunk_data: str,
 ) -> None:
     """Push an incremental log chunk from Edge Worker to central site."""
-    _make_generic_request(
+    await _make_generic_request(
         "POST",
         f"logs/push/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
         PushLogsBody(log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data).model_dump_json(
