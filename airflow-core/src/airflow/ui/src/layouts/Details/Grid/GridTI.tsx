@@ -21,21 +21,22 @@ import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
+import dayjs from "dayjs";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
   (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
     const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    tasks.forEach((taskEl) => {
+      taskEl.style.backgroundColor = "var(--chakra-colors-info-subtle)";
     });
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
   };
@@ -43,8 +44,8 @@ const handleMouseEnter =
 const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
 
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
+  tasks.forEach((taskEl) => {
+    taskEl.style.backgroundColor = "";
   });
   setHoveredTaskId(undefined);
 };
@@ -83,13 +84,17 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
-  // Compute duration only if both ends exist
-  const hasStart = instance.min_start_date !== null;
-  const hasEnd = instance.max_end_date !== null;
+  const start = instance.min_start_date ?? undefined;
+  const end = instance.max_end_date ?? undefined;
+
+  const hasStart = start !== undefined;
+  const hasEnd = end !== undefined;
+
+  const seconds =
+    hasStart && hasEnd ? dayjs(end).diff(dayjs(start), "second", true) : undefined;
+
   const durationText =
-    hasStart && hasEnd
-      ? getDuration(instance.min_start_date, instance.max_end_date)
-      : translate("notAvailable", { defaultValue: "--" });
+    seconds === undefined ? translate("notAvailable", { defaultValue: "--" }) : renderDuration(seconds) ?? translate("notAvailable", { defaultValue: "--" });
 
   return (
     <Flex
@@ -127,15 +132,15 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
 
               {hasStart ? (
                 <Text>
-                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
+                  {translate("startDate")}: <Time datetime={start} />
                 </Text>
-              ) : null}
+              ) : undefined}
 
               {hasEnd ? (
                 <Text>
-                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
+                  {translate("endDate")}: <Time datetime={end} />
                 </Text>
-              ) : null}
+              ) : undefined}
 
               <Text>
                 {translate("duration")}: {durationText}
