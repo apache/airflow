@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import importlib
 import itertools
 import logging
 import os
@@ -68,6 +69,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
+from packaging.version import Version
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
@@ -847,10 +849,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
         app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
-        from packaging.version import Version
-        from werkzeug import __version__ as werkzeug_version
-
-        parsed_werkzeug_version = Version(werkzeug_version)
+        # Werkzeug prior to 3.0.0 does not support scrypt
+        parsed_werkzeug_version = Version(importlib.metadata.version("werkzeug"))
         if parsed_werkzeug_version < Version("3.0.0"):
             app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
