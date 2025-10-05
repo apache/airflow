@@ -34,6 +34,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
+import { useAutoRefresh } from "src/utils";
 
 import { HITLFilters } from "./HITLFilters";
 
@@ -127,6 +128,9 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
+  // Add auto-refresh functionality
+  const refetchInterval = useAutoRefresh({});
+
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
@@ -148,6 +152,8 @@ export const HITLTaskInstances = () => {
     state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
     taskId,
     taskIdPattern,
+  }, undefined, {
+    refetchInterval,
   });
 
   const handleResponseChange = useCallback(() => {
