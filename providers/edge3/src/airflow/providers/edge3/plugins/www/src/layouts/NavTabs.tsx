@@ -32,25 +32,31 @@ export const NavTabs = ({ tabs }: Props) => {
 
   return (
     <Flex alignItems="center" borderBottomWidth={1} mb={2} ref={containerRef}>
-      {tabs.map(({ icon, label, value }) => (
-        <NavLink end key={value} title={label} to={value}>
-          {({ isActive }) => (
-            <Center
-              borderBottomColor="border.info"
-              borderBottomWidth={isActive ? 3 : 0}
-              color={isActive ? "fg" : "fg.muted"}
-              fontWeight="bold"
-              height="40px"
-              mb="-2px" // Show the border on top of its parent's border
-              pb={isActive ? 0 : "3px"}
-              px={4}
-              transition="all 0.2s ease"
-            >
-              {containerWidth > 600 || !icon ? label : icon}
-            </Center>
-          )}
-        </NavLink>
-      ))}
+      {tabs.map(({ icon, label, value }) => {
+        // Need to check whether ReactRouterDOM is available globally
+        // because in Airflow 3.1.0, the plugin system was missing this.
+        const navTo = (globalThis as Record<string, unknown>).ReactRouterDOM ? value : { pathname: value };
+
+        return (
+          <NavLink end key={value} title={label} to={navTo}>
+            {({ isActive }) => (
+              <Center
+                borderBottomColor="border.info"
+                borderBottomWidth={isActive ? 3 : 0}
+                color={isActive ? "fg" : "fg.muted"}
+                fontWeight="bold"
+                height="40px"
+                mb="-2px" // Show the border on top of its parent's border
+                pb={isActive ? 0 : "3px"}
+                px={4}
+                transition="all 0.2s ease"
+              >
+                {containerWidth > 600 || !icon ? label : icon}
+              </Center>
+            )}
+          </NavLink>
+        );
+      })}
     </Flex>
   );
 };

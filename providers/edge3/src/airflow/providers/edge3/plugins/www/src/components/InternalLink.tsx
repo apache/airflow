@@ -30,6 +30,7 @@ export const Link = ({ children, inPlugin, to }: Props) => {
   // because in Airflow 3.1.0, the plugin system was missing this.
   if (inPlugin || (globalThis as Record<string, unknown>).ReactRouterDOM) {
     return <RouterLink to={to}>{children}</RouterLink>;
+    // TODO need to fix internal URL in plugin... in 3.1.0
   } else {
     // Fallback in 3.1.0, can be removed if we drop support for it
     return <ExternalLink href={`..${to}`}>{children}</ExternalLink>;

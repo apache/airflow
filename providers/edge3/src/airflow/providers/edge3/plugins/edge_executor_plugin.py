@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_0, AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -234,17 +234,40 @@ class EdgeExecutorPlugin(AirflowPlugin):
     if EDGE_EXECUTOR_ACTIVE and RUNNING_ON_APISERVER:
         if AIRFLOW_V_3_1_PLUS:
             fastapi_apps = [_get_api_endpoint()]
-            react_apps = [
-                {
-                    "name": "Edge Executor",
-                    "bundle_url": "/edge_worker/static/main.umd.cjs",
-                    "destination": "nav",
-                    "url_route": "edge_executor",
-                    "category": "admin",
-                    "icon": "/edge_worker/res/cloud-computer.svg",
-                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
-                },
-            ]
+            if AIRFLOW_V_3_1_0:
+                # Airflow 3.1.0 does not route sub-pages, need to register both pages separately
+                react_apps = [
+                    {
+                        "name": "Edge Worker",
+                        "bundle_url": "/edge_worker/static/main.umd.cjs",
+                        "destination": "nav",
+                        "url_route": "edge_worker",
+                        "category": "admin",
+                        "icon": "/edge_worker/res/cloud-computer.svg",
+                        "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                    },
+                    {
+                        "name": "Edge Worker Jobs",
+                        "bundle_url": "/edge_worker/static/main.umd.cjs",
+                        "destination": "nav",
+                        "url_route": "edge_jobs",
+                        "category": "admin",
+                        "icon": "/edge_worker/res/cloud-computer.svg",
+                        "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                    },
+                ]
+            else:
+                react_apps = [
+                    {
+                        "name": "Edge Executor",
+                        "bundle_url": "/edge_worker/static/main.umd.cjs",
+                        "destination": "nav",
+                        "url_route": "edge_executor",
+                        "category": "admin",
+                        "icon": "/edge_worker/res/cloud-computer.svg",
+                        "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
+                    },
+                ]
             external_views = [
                 {
                     "name": "Edge Worker API docs",
