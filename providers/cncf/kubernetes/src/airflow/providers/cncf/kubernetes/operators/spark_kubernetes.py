@@ -268,6 +268,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
         )
         return driver_pod
+
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
@@ -357,10 +358,10 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 spec_dict[component]["labels"].update(task_context_labels)
 
         self.log.info("Creating sparkApplication.")
-        
+
         # Add xcom sidecar if needed
         self.update_pod_spec_add_xcom_sidecar()
-        
+
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
