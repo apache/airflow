@@ -268,6 +268,12 @@ CELERY_COMMANDS = (
             ARG_FULL_CELERY_HOSTNAME,
         ),
     ),
+    ActionCommand(
+        name="remove-all-queues",
+        help="Unsubscribe Celery worker from all its active queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_all_queues"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
 )
 
 
