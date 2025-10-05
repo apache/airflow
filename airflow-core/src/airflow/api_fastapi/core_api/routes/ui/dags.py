@@ -17,8 +17,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from http.client import HTTPException
 from typing import Annotated
+import logging
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
@@ -118,6 +120,10 @@ def get_dags(
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get DAGs with recent DagRun."""
     # Fetch DAGs with their latest DagRun and apply filters
+    logger = logging.getLogger(__name__)
+
+    if 'ETL' in tags.tags_list:
+        logger.info(f'Getting DAGs with ETL Label at {datetime.now()}')
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             last_dag_run_state,
@@ -151,7 +157,10 @@ def get_dags(
         session=session,
     )
 
+
     dags = [dag for dag in session.scalars(dags_select)]
+    if 'ETL' in tags.tags_list:
+        logger.info(f'Got DAGs with ETL Label at {datetime.now()}')
 
     # Populate the last 'dag_runs_limit' DagRuns for each DAG
     recent_runs_subquery = (
@@ -190,6 +199,8 @@ def get_dags(
         )
         .order_by(recent_runs_subquery.c.run_after.desc())
     )
+    if 'ETL' in tags.tags_list:
+        logger.info(f'Populated recent runs for ETL label at {datetime.now()}')
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
 
