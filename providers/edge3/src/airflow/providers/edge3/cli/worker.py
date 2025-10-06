@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import signal
 import sys
-from asyncio import sleep
+from asyncio import create_subprocess_exec, sleep
+from asyncio.subprocess import Process as AsyncProcess
 from datetime import datetime
 from functools import cache
 from http import HTTPStatus
@@ -28,8 +30,8 @@ from multiprocessing import Process
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
-from requests import HTTPError
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
@@ -124,7 +126,7 @@ class EdgeWorker:
                 marker_path.unlink()
                 # send heartbeat immediately to update state
                 if EdgeWorker.edge_instance:
-                    EdgeWorker.edge_instance.heartbeat(EdgeWorker.maintenance_comments)
+                    asyncio.run(EdgeWorker.edge_instance.heartbeat(EdgeWorker.maintenance_comments))
             else:
                 logger.info("Request to get status of Edge Worker received.")
             status_path = Path(status_file_path(None))
@@ -234,9 +236,10 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            self.last_hb = await worker_register(
+            register_result = await worker_register(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            ).last_update
+            )
+            self.last_hb = register_result.last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -255,7 +258,7 @@ class EdgeWorker:
         os.environ["HOSTNAME"] = self.hostname
         os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
         try:
-            self.worker_state_changed = self.heartbeat()
+            self.worker_state_changed = await self.heartbeat()
             self.last_hb = datetime.now()
             while not EdgeWorker.drain or EdgeWorker.jobs:
                 await self.loop()

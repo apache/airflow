@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -97,7 +98,7 @@ def _launch_worker(args):
         heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
     )
-    edge_worker.start()
+    asyncio.run(edge_worker.start())
 
 
 @cli_utils.action_cli(check_db=False)

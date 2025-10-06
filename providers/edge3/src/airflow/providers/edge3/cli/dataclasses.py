@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 import json
+from asyncio.subprocess import Process as AsyncProcess
 from dataclasses import asdict, dataclass
 from multiprocessing import Process
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from psutil import Popen
-
     from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
@@ -74,7 +73,7 @@ class Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     edge_job: EdgeJobFetched
-    process: Popen | Process
+    process: AsyncProcess | Process
     logfile: Path
     logsize: int
     """Last size of log file, point of last chunk push."""
@@ -82,8 +81,7 @@ class Job:
     @property
     def is_running(self) -> bool:
         """Check if the job is still running."""
-        if hasattr(self.process, "returncode") and hasattr(self.process, "poll"):
-            self.process.poll()
+        if hasattr(self.process, "returncode"):
             return self.process.returncode is None
         return self.process.exitcode is None
 

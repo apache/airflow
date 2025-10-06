@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin
 
-import requests
+from aiohttp import ClientConnectionError, ClientResponseError, ServerTimeoutError, request
 from retryhttp import retry, wait_retry_after
 from tenacity import before_sleep_log, wait_random_exponential
 
@@ -85,6 +85,7 @@ def jwt_generator() -> JWTGenerator:
 
 
 @retry(
+    before_sleep=before_log(logger, logging.WARNING),
     reraise=True,
     max_attempt_number=API_RETRIES,
     wait_server_errors=_default_wait,
@@ -92,6 +93,8 @@ def jwt_generator() -> JWTGenerator:
     wait_timeouts=_default_wait,
     wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
     before_sleep=before_sleep_log(logger, logging.WARNING),
+    network_errors=ClientConnectionError,
+    timeouts=ServerTimeoutError,
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     authorization = jwt_generator().generate({"method": rest_path})
@@ -102,12 +105,11 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
         "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
-    # TODO aiohttp!
-    response = requests.request(method, url=api_endpoint, data=data, headers=headers)
-    response.raise_for_status()
-    if response.status_code == HTTPStatus.NO_CONTENT:
-        return None
-    return json.loads(response.content)
+    async with request(method, url=api_endpoint, data=data, headers=headers) as response:
+        response.raise_for_status()
+        if response.status == HTTPStatus.NO_CONTENT:
+            return None
+        return json.loads(await response.read())
 
 
 async def worker_register(
@@ -122,8 +124,8 @@ async def worker_register(
                 exclude_unset=True
             ),
         )
-    except requests.HTTPError as e:
-        if e.response.status_code == 400:
+    except ClientResponseError as e:
+        if e.status == HTTPStatus.BAD_REQUEST:
             raise EdgeWorkerVersionException(str(e))
         if e.response.status_code == 409:
             raise EdgeWorkerDuplicateException(
@@ -155,8 +157,8 @@ async def worker_set_state(
                 maintenance_comments=maintenance_comments,
             ).model_dump_json(exclude_unset=True),
         )
-    except requests.HTTPError as e:
-        if e.response.status_code == 400:
+    except ClientResponseError as e:
+        if e.status == HTTPStatus.BAD_REQUEST:
             raise EdgeWorkerVersionException(str(e))
         raise e
     return WorkerSetStateReturn(**result)
