@@ -49,6 +49,7 @@ repos:
       - id: compile-edge-assets
         name: Compile Edge provider assets
         language: node
+        stages: ['manual']
         files: ^src/airflow/providers/edge3/plugins/www
         entry: ../../scripts/ci/prek/compile_provider_assets.py edge
         pass_filenames: false
