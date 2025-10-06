@@ -1974,6 +1974,7 @@ Utils
 utils
 uuid
 uv
+uvicorn
 V1JobList
 validator
 validators
