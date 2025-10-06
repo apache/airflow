@@ -101,6 +101,8 @@
   },
   "filter": "ตัวกรอง",
   "filters": {
+    "durationFrom": "Duration จาก",
+    "durationTo": "Duration ถึง",
     "logicalDateFrom": "Logical Date จาก",
     "logicalDateTo": "Logical Date ถึง",
     "runAfterFrom": "Run After จาก",
@@ -161,7 +163,6 @@
     },
     "tooltip": "กด {{hotkey}} เพื่อเลื่อนไปที่ {{direction}}"
   },
-  "seconds": "{{count}} วินาที",
   "security": {
     "actions": "การดำเนินการ",
     "permissions": "สิทธิ์",
