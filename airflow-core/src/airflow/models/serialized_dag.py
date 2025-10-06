@@ -427,22 +427,24 @@ class SerializedDagModel(Base):
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
             latest_ser_dag = cls.get(dag.dag_id, session=session)
-            if TYPE_CHECKING:
-                assert latest_ser_dag is not None
-            # Update the serialized DAG with the new_serialized_dag
-            latest_ser_dag._data = new_serialized_dag._data
-            latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
-            latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
-            session.merge(latest_ser_dag)
-            # The dag_version and dag_code may not have changed, still we should
-            # do the below actions:
-            # Update the latest dag version
-            dag_version.bundle_name = bundle_name
-            dag_version.bundle_version = bundle_version
-            session.merge(dag_version)
-            # Update the latest DagCode
-            DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
-            return True
+            
+            if latest_ser_dag:  
+                if TYPE_CHECKING:
+                    assert latest_ser_dag is not None
+                # Update the serialized DAG with the new_serialized_dag
+                latest_ser_dag._data = new_serialized_dag._data
+                latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
+                latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
+                session.merge(latest_ser_dag)
+                # The dag_version and dag_code may not have changed, still we should
+                # do the below actions:
+                # Update the latest dag version
+                dag_version.bundle_name = bundle_name
+                dag_version.bundle_version = bundle_version
+                session.merge(dag_version)
+                # Update the latest DagCode
+                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+                return True
 
         dagv = DagVersion.write_dag(
             dag_id=dag.dag_id,
@@ -627,5 +629,5 @@ class SerializedDagModel(Base):
             else query.all()
         )
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
-        dag_depdendencies_by_dag = resolver.resolve()
-        return dag_depdendencies_by_dag
+        dag_dependencies_by_dag = resolver.resolve()
+        return dag_dependencies_by_dag
