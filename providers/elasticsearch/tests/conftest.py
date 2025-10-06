@@ -17,17 +17,13 @@
 from __future__ import annotations
 
 import pytest
-from filelock import FileLock
 from testcontainers.elasticsearch import ElasticSearchContainer
-
-LOCK_PATH = "/tmp/airflow_es_testcontainers.lock"
 
 
 @pytest.fixture(scope="session")
 def es_8_container_url():
-    with FileLock(LOCK_PATH, timeout=1200):
-        with ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0") as es:
-            yield es.get_url()
+    with ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0") as es:
+        yield es.get_url()
 
 
 pytest_plugins = "tests_common.pytest_plugin"
