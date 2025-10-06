@@ -40,6 +40,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk.bases.sensor import poke_mode_only
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.sensors.base import poke_mode_only  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseOperatorLink, BaseSensorOperator
