@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin
 
-import requests
+from aiohttp import ClientConnectionError, ClientResponseError, ServerTimeoutError, request
 from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 
@@ -72,13 +72,15 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
 
 
 @retry(
+    before_sleep=before_log(logger, logging.WARNING),
     reraise=True,
     max_attempt_number=API_RETRIES,
     wait_server_errors=_default_wait,
     wait_network_errors=_default_wait,
     wait_timeouts=_default_wait,
     wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
-    before_sleep=before_log(logger, logging.WARNING),
+    network_errors=ClientConnectionError,
+    timeouts=ServerTimeoutError,
 )
 async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     if AIRFLOW_V_3_0_PLUS:
@@ -110,12 +112,11 @@ async def _make_generic_request(method: str, rest_path: str, data: str | None = 
         "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
-    # TODO aiohttp!
-    response = requests.request(method, url=api_endpoint, data=data, headers=headers)
-    response.raise_for_status()
-    if response.status_code == HTTPStatus.NO_CONTENT:
-        return None
-    return json.loads(response.content)
+    async with request(method, url=api_endpoint, data=data, headers=headers) as response:
+        response.raise_for_status()
+        if response.status == HTTPStatus.NO_CONTENT:
+            return None
+        return json.loads(await response.read())
 
 
 async def worker_register(
@@ -130,8 +131,8 @@ async def worker_register(
                 exclude_unset=True
             ),
         )
-    except requests.HTTPError as e:
-        if e.response.status_code == 400:
+    except ClientResponseError as e:
+        if e.status == HTTPStatus.BAD_REQUEST:
             raise EdgeWorkerVersionException(str(e))
         raise e
     return WorkerRegistrationReturn(**result)
@@ -158,8 +159,8 @@ async def worker_set_state(
                 maintenance_comments=maintenance_comments,
             ).model_dump_json(exclude_unset=True),
         )
-    except requests.HTTPError as e:
-        if e.response.status_code == 400:
+    except ClientResponseError as e:
+        if e.status == HTTPStatus.BAD_REQUEST:
             raise EdgeWorkerVersionException(str(e))
         raise e
     return WorkerSetStateReturn(**result)
