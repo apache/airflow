@@ -99,7 +99,7 @@ class PubsubPullTrigger(BaseTrigger):
                 messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
                 yield TriggerEvent({"status": "success", "message": messages_json})
-                break
+                return
             self.log.info("Sleeping for %s seconds.", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
 
