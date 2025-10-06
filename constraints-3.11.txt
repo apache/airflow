@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-06T13:56:25.599028
+# This constraints file was automatically generated on 2025-10-06T19:49:34.733811
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -468,7 +468,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.6.4
+multidict==6.7.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.4.0
 mysqlclient==2.2.7
@@ -481,7 +481,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.1.0
+openai==2.2.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.38.0
@@ -624,7 +624,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowflake-connector-python==3.18.0
-snowflake-snowpark-python==1.39.1
+snowflake-snowpark-python==1.40.0
 snowflake-sqlalchemy==1.7.7
 sortedcontainers==2.4.0
 soupsieve==2.8
@@ -692,7 +692,7 @@ xmlsec==1.3.16
 xmltodict==1.0.2
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
-yarl==1.21.0
+yarl==1.22.0
 ydb-dbapi==0.1.14
 ydb==3.21.12
 zeep==4.3.2
