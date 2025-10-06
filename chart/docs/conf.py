@@ -239,20 +239,30 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
             out += _get_params(schema["properties"], prefixed_name, section_name)
         items = schema.get("items")
         if items:
-            item_prefix = f"{prefixed_name}[]"
-            item_properties = items.get("properties")
-            if item_properties:
-                out += _get_params(item_properties, item_prefix, section_name)
-                continue
-            out.append(
-                {
-                    **common_out,
-                    "description": items["description"],
-                    "default": _format_default(items["default"]),
-                    "examples": _format_examples(param_name, items),
-                }
-            )
+            out.extend(_process_array_items(items, prefixed_name, param_name, section_name))
     return out
+
+
+def _process_array_items(items: dict, parent_name: str, param_name: str, default_section: str) -> list[dict]:
+    """Extract parameters from array item schemas."""
+    item_prefix = f"{parent_name}[]"
+    section_name = items.get("x-docsSection", default_section)
+
+    if items.get("properties"):
+        return _get_params(items["properties"], item_prefix, section_name)
+
+    if section_name and items.get("description") and "default" in items:
+        return [
+            {
+                "section": section_name,
+                "name": item_prefix,
+                "description": items["description"],
+                "default": _format_default(items["default"]),
+                "examples": _format_examples(param_name, items),
+            }
+        ]
+
+    return []
 
 
 schema_file = CHART_ROOT_PATH / "values.schema.json"
