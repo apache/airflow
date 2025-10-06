@@ -57,6 +57,12 @@ class _AssetMainOperator(PythonOperator):
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
         _validate_asset_function_arguments(definition._function)
+
+        if isinstance(definition, AssetDefinition):
+            definition_name = definition.name
+        else:
+            definition_name = definition._function.__name__
+
         return cls(
             task_id=definition._function.__name__,
             inlets=[
@@ -66,7 +72,7 @@ class _AssetMainOperator(PythonOperator):
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
-            definition_name=definition._function.__name__,
+            definition_name=definition_name,
         )
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
