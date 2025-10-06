@@ -1000,6 +1000,69 @@ workers:
   # If true, dedicated Service Accounts for every worker type will be created.
   useWorkerDedicatedServiceAccounts: false
 
+  # Celery queue groups for different queues and node assignments
+  # When defined, ONLY these worker groups will be created (no default worker deployment)
+  # Each worker group creates a separate Deployment assigned to specific nodes and queues
+  # celeryQueueGroups: []
+  # Example configuration:
+  # celeryQueueGroups:
+  #   # GPU workers for ML/AI tasks
+  #   - name: gpu-workers
+  #     # Celery queues to listen to (comma-separated)
+  #     queues: "gpu_tasks"
+  #     # Number of replicas for this worker group
+  #     replicas: 2
+  #     # Node selector to assign pods to specific nodes
+  #     nodeSelector:
+  #       accelerator: nvidia-tesla-t4
+  #     # Tolerations for this worker group
+  #     tolerations:
+  #       - key: nvidia.com/gpu
+  #         operator: Exists
+  #     # Resources for this worker group
+  #     resources:
+  #       requests:
+  #         memory: "8Gi"
+  #         cpu: "4"
+  #         nvidia.com/gpu: "1"
+  #       limits:
+  #         memory: "16Gi"
+  #         cpu: "8"
+  #         nvidia.com/gpu: "1"
+  #
+  #   # High-priority workers on dedicated nodes
+  #   - name: high-priority
+  #     queues: "high_priority,urgent"
+  #     replicas: 3
+  #     nodeSelector:
+  #       workload-type: high-priority
+  #     tolerations:
+  #       - key: "dedicated"
+  #         operator: "Equal"
+  #         value: "high-priority"
+  #         effect: "NoSchedule"
+  #     resources:
+  #       requests:
+  #         memory: "4Gi"
+  #         cpu: "2"
+  #       limits:
+  #         memory: "8Gi"
+  #         cpu: "4"
+  #
+  # Available configuration options for each worker group:
+  #   - name: (required) Unique name for the worker group
+  #   - queues: (required) Comma-separated list of Celery queues
+  #   - replicas: (required) Number of worker replicas
+  #   - nodeSelector: (optional) Node selector for pod assignment
+  #   - affinity: (optional) Affinity rules
+  #   - tolerations: (optional) Tolerations for node taints
+  #   - topologySpreadConstraints: (optional) Pod topology spread constraints
+  #   - resources: (optional) CPU, memory, and other resource requests/limits
+  #   - labels: (optional) Additional labels for pods
+  #   - podAnnotations: (optional) Additional pod annotations
+  #   - priorityClassName: (optional) Priority class name
+  #   - env: (optional) Additional environment variables
+
   celery:
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
