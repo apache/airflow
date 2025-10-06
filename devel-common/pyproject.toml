@@ -78,7 +78,7 @@ dependencies = [
     "docutils>=0.21",
     "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.2.3/sphinx_airflow_theme-0.2.3-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
-    "sphinx-autoapi>=3",
+    "sphinx-autoapi>=3.5.0",
     "sphinx-autobuild>=2024.10.2",
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.5.0",

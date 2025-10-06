@@ -339,6 +339,11 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/tests/system/__init__.py",
     "*/tests/system/*/tests/*",
     "*/tests/system/example_empty.py",
+    "*/check_translations_completeness.py",
+    # Files that are not useful for API reference and can trip AutoAPI under astroid>=4
+    "*/airflow/providers/*/__init__.py",
+    "*/airflow/providers/*/get_provider_info.py",
+    "*/airflow/providers/*/version_compat.py",
 ]
 
 IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)
@@ -361,6 +366,9 @@ AUTOAPI_OPTIONS = [
     "show-inheritance",
     "show-module-summary",
     "special-members",
+    # Ensure objects imported into modules are documented as members.
+    # This helps AutoAPI correctly resolve symbols when using Astroid 4.
+    "imported-members",
 ]
 
 SUPPRESS_WARNINGS = [
