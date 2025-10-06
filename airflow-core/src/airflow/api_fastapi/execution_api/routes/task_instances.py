@@ -605,12 +605,12 @@ def ti_heartbeat(
             "Retrieved current task state", state=previous_state, current_hostname=hostname, current_pid=pid
         )
     except NoResultFound:
-        log.error("Task Instance not found")
+        log.error("Task Instance not found in Task Instance, might have moved to the Task Instance History table")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_410_GONE,
             detail={
                 "reason": "not_found",
-                "message": "Task Instance not found",
+                "message": "Task Instance not found, might have moved to the Task Instance History table",
             },
         )
 
