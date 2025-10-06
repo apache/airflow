@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-05T10:38:48.433137
+# This constraints file was automatically generated on 2025-10-06T17:25:58.515566
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -82,7 +82,7 @@ asyncpg==0.30.0
 asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
-attrs==25.3.0
+attrs==25.4.0
 aws-sam-translator==1.100.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
@@ -192,7 +192,7 @@ filelock==3.19.1
 flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
-frozenlist==1.7.0
+frozenlist==1.8.0
 fsspec==2025.9.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
@@ -360,7 +360,7 @@ microsoft-kiota-serialization-text==1.9.7
 mistune==3.1.4
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.13
+moto==5.1.14
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.34.0
@@ -369,7 +369,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.6.4
+multidict==6.7.0
 mypy-boto3-appflow==1.40.17
 mypy-boto3-rds==1.40.42
 mypy-boto3-redshift-data==1.40.0
@@ -550,7 +550,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.2
-sentry-sdk==2.39.0
+sentry-sdk==2.40.0
 setproctitle==1.3.7
 setuptools==80.9.0
 shapely==2.1.2
@@ -562,7 +562,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.17.4
+snowflake-connector-python==3.18.0
 snowflake-sqlalchemy==1.7.7
 sortedcontainers==2.4.0
 soupsieve==2.8
@@ -630,7 +630,7 @@ types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.2.20250924
+types-docutils==0.22.2.20251006
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20250918
 types-pyOpenSSL==24.1.0.20240722
@@ -672,7 +672,7 @@ wirerope==1.0.0
 wrapt==1.17.3
 xmltodict==1.0.2
 yamllint==1.37.1
-yarl==1.20.1
+yarl==1.22.0
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0

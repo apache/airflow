@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-05T10:43:57.154268
+# This constraints file was automatically generated on 2025-10-06T17:29:30.455029
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -34,13 +34,12 @@ APScheduler==3.11.0
 Authlib==1.6.5
 Deprecated==1.2.18
 Events==0.5
-Flask-AppBuilder==4.6.3
-Flask-Babel==2.0.0
+Flask-AppBuilder==5.0.0
 Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.12
 Flask-Login==0.6.3
-Flask-SQLAlchemy==2.5.1
-Flask-Session==0.5.0
+Flask-SQLAlchemy==3.0.5
+Flask-Session==0.8.0
 Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.45
@@ -134,7 +133,7 @@ apache-airflow-providers-docker==4.4.3
 apache-airflow-providers-edge3==1.3.1
 apache-airflow-providers-elasticsearch==6.3.3
 apache-airflow-providers-exasol==4.8.3
-apache-airflow-providers-fab==2.4.4
+apache-airflow-providers-fab==3.0.0
 apache-airflow-providers-facebook==3.8.2
 apache-airflow-providers-ftp==3.13.2
 apache-airflow-providers-git==0.0.8
@@ -205,7 +204,7 @@ asyncpg==0.30.0
 asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
-attrs==25.3.0
+attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.35.1
@@ -310,8 +309,9 @@ fasteners==0.20
 fastjsonschema==2.21.2
 fastuuid==0.13.5
 filelock==3.19.1
+flask-babel==4.0.0
 flower==2.0.1
-frozenlist==1.7.0
+frozenlist==1.8.0
 fsspec==2025.9.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
@@ -469,7 +469,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.6.4
+multidict==6.7.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.4.0
 mysqlclient==2.2.7
@@ -613,7 +613,7 @@ scramp==1.4.6
 scrapbook==0.5.0
 segment-analytics-python==2.3.4
 sendgrid==6.12.4
-sentry-sdk==2.39.0
+sentry-sdk==2.40.0
 setproctitle==1.3.7
 shapely==2.1.2
 shellingham==1.5.4
@@ -624,8 +624,8 @@ smart_open==7.3.1
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowflake-connector-python==3.17.4
-snowflake-snowpark-python==1.39.1
+snowflake-connector-python==3.18.0
+snowflake-snowpark-python==1.40.0
 snowflake-sqlalchemy==1.7.7
 sortedcontainers==2.4.0
 soupsieve==2.8
@@ -694,7 +694,7 @@ xmlsec==1.3.16
 xmltodict==1.0.2
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
-yarl==1.20.1
+yarl==1.22.0
 ydb-dbapi==0.1.14
 ydb==3.21.12
 zeep==4.3.2
