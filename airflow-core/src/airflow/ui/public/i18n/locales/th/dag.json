@@ -10,6 +10,7 @@
     "hourly": "รายชั่วโมง",
     "legend": {
       "less": "น้อย",
+      "mixed": "ผสม",
       "more": "มาก"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "ปีก่อนหน้า"
     },
     "noData": "ไม่มีข้อมูล",
+    "noFailedRuns": "ไม่มีรันที่ล้มเหลว",
     "noRuns": "ไม่มีการรัน",
     "totalRuns": "การรันทั้งหมด",
     "week": "สัปดาห์ที่ {{weekNumber}}",

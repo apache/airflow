@@ -20,8 +20,7 @@
       "all": "ทั้งหมด",
       "paused": "หยุดชั่วคราว"
     },
-    "runIdPatternFilter": "ค้นหา Dag Runs",
-    "triggeringUserNameFilter": "ค้นหาโดยผู้ใช้ที่ทริกเกอร์"
+    "runIdPatternFilter": "ค้นหา Dag Runs"
   },
   "ownerLink": "ลิงก์เจ้าของสำหรับ {{owner}}",
   "runAndTaskActions": {
