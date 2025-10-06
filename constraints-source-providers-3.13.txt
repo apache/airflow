@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-05T13:46:48.583064
+# This constraints file was automatically generated on 2025-10-06T07:47:47.020719
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -193,7 +193,7 @@ filelock==3.19.1
 flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
-frozenlist==1.7.0
+frozenlist==1.8.0
 fsspec==2025.9.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
@@ -631,7 +631,7 @@ types-aiofiles==24.1.0.20250822
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.2.20250924
+types-docutils==0.22.2.20251006
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20250918
 types-pyOpenSSL==24.1.0.20240722
@@ -673,7 +673,7 @@ wirerope==1.0.0
 wrapt==1.17.3
 xmltodict==1.0.2
 yamllint==1.37.1
-yarl==1.20.1
+yarl==1.21.0
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
