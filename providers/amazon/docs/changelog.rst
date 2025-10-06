@@ -26,11 +26,71 @@
 Changelog
 ---------
 
-9.13.0
+9.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add async support for Amazon SNS Notifier (#56133)``
+* ``Add async support for Amazon SQS Notifier (#56159)``
+* ``Add 'SesNotifier' - Amazon Simple Email Service Notifier (#56106)``
+* ``Implement 'filter_authorized_connections', 'filter_authorized_pools' and 'filter_authorized_variables' in AWS auth manager (#55687)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix wrong import of 'AIRFLOW_V_3_0_PLUS' in 'AwsLambdaExecutor' (#56280)``
+* ``Only defer 'EmrCreateJobFlowOperator' when 'wait_policy' is set (#56077)``
+* ``Reducing memory footprint for synchronous 'S3KeySensor' (#55070)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+9.14.0
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
+Features
+~~~~~~~~
+
+* ``Implement 'batch_is_authorized_' methods in AWS auth manager (#55307)``
+* ``Add configurable confirm parameter to 'S3ToSFTPOperator' (#55569)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Catch 404/401 issues for Bedrock Operators (#55445)``
+* ``EcsRunTaskOperator fails when no containers are provided in the response (#51692)``
+* ``AWS BatchOperator does not fetch log entries for deferred jobs (#55703)``
+
+Misc
+~~~~
+
+* ``List only connections, pools and variables the user has access to (#55298)``
+* ``Switch all airflow logging to structlog (#52651)``
+* ``AIP-67 - Multi-team: Per team executor config (env var only) (#55003)``
+* ``Allow SSM operators and sensors to run in deferrable mode (#55649)``
+* ``Update EOL AWS Redshift cluster node types (#55741)``
+* ``improve logging in SqsSensorTrigger (#55705)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add stable note to BatchExecutor (#55286)``
+* ``Add quotas section in lambda executor docs (#55740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate off Xen-based ECS instances (#55527)``
+   * ``Add missing test for aws batch utils (#55407)``
+   * ``README optional dependencies template (#55280)``
+
+9.13.0
+......
+
 
 .. note::
   * ``The experimental BatchExecutor added in 8.20.0 is now stable``

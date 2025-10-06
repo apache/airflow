@@ -161,7 +161,6 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",

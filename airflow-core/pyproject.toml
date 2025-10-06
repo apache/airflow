@@ -82,7 +82,7 @@ dependencies = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -134,17 +134,16 @@ dependencies = [
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
-    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
-    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
-    "universal-pathlib>=0.2.2,!=0.2.4",
+    # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
+    "universal-pathlib>=0.2.6,<0.3.0",
     "uuid6>=2024.7.10",
     "apache-airflow-task-sdk<1.3.0,>=1.1.0",
     # pre-installed providers
-    "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-io>=1.5.3",
-    "apache-airflow-providers-common-sql>=1.26.0",
-    "apache-airflow-providers-smtp>=2.0.2",
-    "apache-airflow-providers-standard>=0.4.0",
+    "apache-airflow-providers-common-compat>=1.7.4",
+    "apache-airflow-providers-common-io>=1.6.3",
+    "apache-airflow-providers-common-sql>=1.28.1",
+    "apache-airflow-providers-smtp>=2.3.1",
+    "apache-airflow-providers-standard>=1.9.0",
     # Start of shared logging dependencies
     "msgspec>=0.19.0",
     "pygtrie>=2.5.0",
@@ -158,6 +157,7 @@ dependencies = [
     "eventlet>=0.37.0",
     "gevent>=25.4.1",
     "greenlet>=3.1.0",
+    "greenback>=1.2.1",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
