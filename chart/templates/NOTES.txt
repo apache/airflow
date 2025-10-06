@@ -131,7 +131,7 @@ Default Postgres connection credentials:
 
 You can get Fernet Key value by running the following:
 
-    echo Fernet Key: $(kubectl get secret --namespace {{ .Release.Namespace }} {{ .Release.Name }}-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
+    echo Fernet Key: $(kubectl get secret --namespace {{ .Release.Namespace }} {{ include "airflow.fullname" . }}-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
 
 {{- end }}
 

@@ -22,26 +22,35 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import type { FilterValue } from "src/components/FilterBar";
 import { useFilterConfigs } from "src/constants/filterConfigs";
-import type { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
   | SearchParamsKeys.BEFORE
+  | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.DAG_ID_PATTERN
+  | SearchParamsKeys.DAG_VERSION
+  | SearchParamsKeys.DURATION_GTE
+  | SearchParamsKeys.DURATION_LTE
   | SearchParamsKeys.END_DATE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.START_DATE
+  | SearchParamsKeys.STATE
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
 
@@ -55,26 +64,32 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
-      filterConfigs.forEach((config) => {
-        const value = filters[config.key];
-
-        if (value === null || value === undefined || value === "") {
-          searchParams.delete(config.key);
-        } else {
-          searchParams.set(config.key, String(value));
-        }
-      });
-
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      setSearchParams(searchParams);
+
+      setSearchParams((prevParams) => {
+        const newParams = new URLSearchParams(prevParams);
+
+        filterConfigs.forEach((config) => {
+          const value = filters[config.key];
+
+          if (value === null || value === undefined || value === "") {
+            newParams.delete(config.key);
+          } else {
+            newParams.set(config.key, String(value));
+          }
+        });
+
+        newParams.delete(SearchParamsKeys.OFFSET);
+
+        return newParams;
+      });
     },
-    [filterConfigs, pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [filterConfigs, pagination, setSearchParams, setTableURLState, sorting],
   );
 
   return {

@@ -342,6 +342,13 @@ export const $AssetResponse = {
             type: 'array',
             title: 'Aliases'
         },
+        watchers: {
+            items: {
+                '$ref': '#/components/schemas/AssetWatcherResponse'
+            },
+            type: 'array',
+            title: 'Watchers'
+        },
         last_asset_event: {
             anyOf: [
                 {
@@ -354,9 +361,31 @@ export const $AssetResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases'],
+    required: ['id', 'name', 'uri', 'group', 'created_at', 'updated_at', 'scheduled_dags', 'producing_tasks', 'consuming_tasks', 'aliases', 'watchers'],
     title: 'AssetResponse',
     description: 'Asset serializer for responses.'
+} as const;
+
+export const $AssetWatcherResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        trigger_id: {
+            type: 'integer',
+            title: 'Trigger Id'
+        },
+        created_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created Date'
+        }
+    },
+    type: 'object',
+    required: ['name', 'trigger_id', 'created_date'],
+    title: 'AssetWatcherResponse',
+    description: 'Asset watcher serializer for responses.'
 } as const;
 
 export const $BackfillCollectionResponse = {
@@ -1034,6 +1063,21 @@ export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1060,6 +1104,21 @@ export const $BulkUpdateAction_ConnectionBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1088,6 +1147,21 @@ export const $BulkUpdateAction_PoolBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1114,6 +1188,21 @@ export const $BulkUpdateAction_VariableBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -2748,6 +2837,61 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lt'
+        },
+        duration_gte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gte'
+        },
+        duration_gt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Gt'
+        },
+        duration_lte: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lte'
+        },
+        duration_lt: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Lt'
+        },
+        conf_contains: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conf Contains'
         }
     },
     additionalProperties: false,
@@ -3363,6 +3507,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Dag Display Name'
+        },
+        task_display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Display Name'
         }
     },
     type: 'object',
@@ -3578,6 +3733,11 @@ export const $HITLDetail = {
             type: 'array',
             title: 'Assigned Users'
         },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
         responded_by_user: {
             anyOf: [
                 {
@@ -3626,7 +3786,7 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject'],
+    required: ['task_instance', 'options', 'subject', 'created_at'],
     title: 'HITLDetail',
     description: 'Schema for Human-in-the-loop detail.'
 } as const;
@@ -7395,7 +7555,7 @@ export const $GridRunsResponse = {
         state: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/TaskInstanceState'
+                    '$ref': '#/components/schemas/DagRunState'
                 },
                 {
                     type: 'null'

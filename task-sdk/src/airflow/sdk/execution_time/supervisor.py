@@ -55,6 +55,7 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.configuration import conf
+from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -539,8 +540,10 @@ class WatchedSubprocess:
         )
 
         target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+
         if self.subprocess_logs_to_stdout:
             target_loggers += (log,)
+
         self.selector.register(
             stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
         )
@@ -564,6 +567,13 @@ class WatchedSubprocess:
 
     def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
+        loggers = tuple(
+            reconfigure_logger(
+                log,
+                structlog.processors.CallsiteParameterAdder,
+            )
+            for log in loggers
+        )
         return make_buffered_socket_reader(
             forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
         )
@@ -1702,6 +1712,17 @@ def process_log_messages_from_subprocess(
 ) -> Generator[None, bytes | bytearray, None]:
     from structlog.stdlib import NAME_TO_LEVEL
 
+    loggers = tuple(
+        reconfigure_logger(
+            log,
+            structlog.processors.CallsiteParameterAdder,
+            # We need these logger to print _everything_ they are given. The subprocess itself does the level
+            # filtering.
+            level_override=logging.NOTSET,
+        )
+        for log in loggers
+    )
+
     while True:
         # Generator receive syntax, values are "sent" in  by the `make_buffered_socket_reader` and returned to
         # the yield.
@@ -1716,12 +1737,7 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            #
-            # We remove the timezone info here, as the json encoding has `+00:00`, and since the log came
-            # from a subprocess we know that the timezone of the log message is the same, so having some
-            # messages include tz (from subprocess) but others not (ones from supervisor process) is
-            # confusing.
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime).replace(tzinfo=None)
+            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace
@@ -1880,7 +1896,13 @@ def supervise(
 
     exit_code = process.wait()
     end = time.monotonic()
-    log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
+    log.info(
+        "Task finished",
+        task_instance_id=str(ti.id),
+        exit_code=exit_code,
+        duration=end - start,
+        final_state=process.final_state,
+    )
     if log_path and log_file_descriptor:
         log_file_descriptor.close()
     return exit_code

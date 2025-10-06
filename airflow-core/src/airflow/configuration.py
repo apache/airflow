@@ -793,7 +793,7 @@ class AirflowConfigParser(ConfigParser):
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
             warnings.warn(
-                f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{parsed.scheme}`. "
+                f"Bad scheme in Airflow configuration [database] sql_alchemy_conn: `{parsed.scheme}`. "
                 "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
                 f"change to `{good_scheme}` before the next Airflow release.",
                 FutureWarning,
@@ -1235,7 +1235,7 @@ class AirflowConfigParser(ConfigParser):
         val = self.get(section, key, **kwargs)
         if val is None:
             if "fallback" in kwargs:
-                return val
+                return kwargs["fallback"]
             raise AirflowConfigException(
                 f"Failed to convert value None to list. "
                 f'Please check "{key}" key in "{section}" section is set.'

@@ -95,9 +95,7 @@
     "buttons": {
       "options": "옵션",
       "showGantt": "간트 차트 보기",
-      "showGraph": "그래프 보기",
       "showGraphShortcut": "그래프 보기 (g 키)",
-      "showGrid": "그리드 보기",
       "showGridShortcut": "그리드 보기 (g 키)"
     },
     "dagRuns": {

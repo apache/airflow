@@ -66,10 +66,12 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = BaseOperator | MappedOperator
@@ -333,7 +335,8 @@ class DAG:
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with DeadlineAlerts in 3.1
+    :param deadline: An optional DeadlineAlert for the Dag.
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
@@ -457,6 +460,7 @@ class DAG:
         ),
     )
 
+    sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -610,6 +614,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, and replaced with a Deadline Alerts in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1087,7 +1100,6 @@ class DAG:
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
-        # Note - older serialized Dags may not have edge_info being a dict at all
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
@@ -1192,8 +1204,10 @@ class DAG:
             #   -- dep check, scheduling tis
             # and need real dag to get and run callbacks without having to load the dag model
 
-            scheduler_dag.on_success_callback = self.on_success_callback
-            scheduler_dag.on_failure_callback = self.on_failure_callback
+            # Scheduler DAG shouldn't have these attributes, but assigning them
+            # here is an easy hack to get this test() thing working.
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
@@ -1303,7 +1317,12 @@ class DAG:
         return dr
 
 
-def _run_task(*, ti, task, run_triggerer=False):
+def _run_task(
+    *,
+    ti: SchedulerTaskInstance,
+    task: Operator,
+    run_triggerer: bool = False,
+) -> TaskRunResult | None:
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -1313,6 +1332,7 @@ def _run_task(*, ti, task, run_triggerer=False):
     from airflow.sdk.module_loading import import_string
     from airflow.utils.state import State
 
+    taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
     while True:
         try:
@@ -1321,6 +1341,7 @@ def _run_task(*, ti, task, run_triggerer=False):
             from airflow.sdk.api.datamodels._generated import TaskInstance as TaskInstanceSDK
             from airflow.sdk.execution_time.comms import DeferTask
             from airflow.sdk.execution_time.supervisor import run_task_in_process
+            from airflow.serialization.serialized_objects import create_scheduler_operator
 
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
@@ -1335,14 +1356,10 @@ def _run_task(*, ti, task, run_triggerer=False):
                 dag_version_id=ti.dag_version_id,
             )
 
-            taskrun_result = run_task_in_process(
-                ti=task_sdk_ti,
-                task=task,
-            )
-
+            taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)
             msg = taskrun_result.msg
             ti.set_state(taskrun_result.ti.state)
-            ti.task = taskrun_result.ti.task
+            ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 from airflow.utils.session import create_session
@@ -1362,16 +1379,19 @@ def _run_task(*, ti, task, run_triggerer=False):
                 with create_session() as session:
                     ti.state = State.SCHEDULED
                     session.add(ti)
+                continue
 
-            return taskrun_result
+            break
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
             if ti.state not in State.finished:
                 ti.set_state(State.FAILED)
+                taskrun_result = None
                 break
             raise
 
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    return taskrun_result
 
 
 def _run_inline_trigger(trigger, task_sdk_ti):

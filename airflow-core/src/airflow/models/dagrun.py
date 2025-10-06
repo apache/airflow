@@ -22,6 +22,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 import structlog
@@ -86,7 +87,6 @@ from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from typing import Literal, TypeAlias
 
     from opentelemetry.sdk.trace import Span
@@ -396,9 +396,15 @@ class DagRun(Base, LoggingMixin):
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
 
+        if dialect_name == "sqlite":
+            duration_expr = (func.julianday(cls.end_date) - func.julianday(cls.start_date)) * 86400
+
+        else:
+            duration_expr = func.extract("epoch", cls.end_date - cls.start_date)
+
         when_condition = (
             (cls.end_date != None) & (cls.start_date != None),  # noqa: E711
-            func.extract("epoch", cls.end_date - cls.start_date),
+            duration_expr,
         )
 
         return case(when_condition, else_=None)
@@ -1173,7 +1179,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="task_failure")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=False, reason="task_failure")
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1206,7 +1212,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="success")
 
             if execute_callbacks and dag.has_on_success_callback:
-                self.handle_dag_callback(dag=dag, success=True, reason="success")
+                self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1237,7 +1243,11 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks and dag.has_on_failure_callback:
-                self.handle_dag_callback(dag=dag, success=False, reason="all_tasks_deadlocked")
+                self.handle_dag_callback(
+                    dag=cast("SDKDAG", dag),
+                    success=False,
+                    reason="all_tasks_deadlocked",
+                )
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
                     filepath=self.dag_model.relative_fileloc,
@@ -1306,9 +1316,7 @@ class DagRun(Base, LoggingMixin):
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
                 try:
-                    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-                    # instead, but currently it inherits SDK's DAG.
-                    ti.task = cast("Operator", dag.get_task(ti.task_id))
+                    ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
                     if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
@@ -1539,7 +1547,12 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
-                ready_tis.append(schedulable)
+
+                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
+                # after calculating mapped task length, so we need to re-check
+                # the task state to ensure it's still schedulable
+                if schedulable.state in SCHEDULEABLE_STATES:
+                    ready_tis.append(schedulable)
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)

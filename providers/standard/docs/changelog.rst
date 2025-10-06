@@ -35,11 +35,63 @@
 Changelog
 ---------
 
-1.7.0
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DagBag imports in Airflow 3.2+ (#56109)``
+
+Misc
+~~~~
+
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bash_decorator' DAG (#56020)``
+   * ``Enable pt011 rule 2 (#55749)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 3rd ad-hoc wave of providers (#56007)``
+
+1.8.0
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Features
+~~~~~~~~
+
+* ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+* ``feat(hitl): add fail_on_reject to ApprovalOperator (#55255)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hitl): make the user model in HITLDetail consistent with airflow user model (#55463)``
+* ``fix(hitl): Resolve Conflict 409 in API server when user actions at nearly timeout (#55243)``
+* ``fix(hitl): fix HITL timeout error handling (#55760)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename response_at to responded_at (#55535)``
+* ``refactor(hitl): remove AirflowException from HITLTriggerEventError inheritance (#55763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK dependency from SerializedDAG (#55538)``
+   * ``Introduce e2e testing with testcontainers (#54072)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
+1.7.0
+.....
+
 
 Features
 ~~~~~~~~

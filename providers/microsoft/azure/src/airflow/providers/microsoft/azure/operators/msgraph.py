@@ -347,6 +347,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.defer(
                     trigger=MSGraphTrigger(
                         url=url,
+                        method=self.method,
                         query_parameters=query_parameters,
                         response_type=self.response_type,
                         conn_id=self.conn_id,
