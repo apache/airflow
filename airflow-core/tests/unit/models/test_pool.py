@@ -17,15 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -35,6 +37,10 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     set_default_pool_slots,
 )
+
+if TYPE_CHECKING:
+    from airflow.models.team import Team
+    from airflow.settings import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -319,3 +325,19 @@ class TestPool:
         default_pool = Pool.get_default_pool()
         assert not Pool.is_default_pool(id=pool.id)
         assert Pool.is_default_pool(str(default_pool.id))
+
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        pool = Pool(pool="test", include_deferred=False, team_id=testing_team.id)
+        session.add(pool)
+        session.flush()
+
+        assert Pool.get_team_name("test", session=session) == "testing"
+
+    def test_get_name_to_team_name_mapping(self, testing_team: Team, session: Session):
+        pool1 = Pool(pool="pool1", include_deferred=False, team_id=testing_team.id)
+        pool2 = Pool(pool="pool2", include_deferred=False)
+        session.add(pool1)
+        session.add(pool2)
+        session.flush()
+
+        assert Pool.get_name_to_team_name_mapping(["pool1", "pool2"], session=session) == {"pool1": "testing"}

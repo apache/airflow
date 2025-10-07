@@ -275,6 +275,13 @@ def list_spark_versions_endpoint(host):
     return f"https://{host}/api/2.0/clusters/spark-versions"
 
 
+def permissions_endpoint(host, job_id):
+    """
+    Utility function to generate the permissions endpoint given the host
+    """
+    return f"https://{host}/api/2.0/permissions/jobs/{job_id}"
+
+
 def create_valid_response_mock(content):
     response = mock.MagicMock()
     response.json.return_value = content
@@ -351,7 +358,7 @@ class TestDatabricksHook:
         assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -474,7 +481,7 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
-    def test_reset(self, mock_requests):
+    def test_reset_with_no_acl(self, mock_requests):
         mock_requests.codes.ok = 200
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
@@ -484,6 +491,40 @@ class TestDatabricksHook:
         mock_requests.post.assert_called_once_with(
             reset_endpoint(HOST),
             json={"job_id": JOB_ID, "new_settings": {"name": "test"}},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_reset_with_acl(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        ACCESS_CONTROL_LIST = [{"permission_level": "CAN_MANAGE", "user_name": "test_user"}]
+        json = {
+            "access_control_list": ACCESS_CONTROL_LIST,
+            "name": "test",
+        }
+
+        self.hook.reset_job(JOB_ID, json)
+
+        mock_requests.post.assert_called_once_with(
+            reset_endpoint(HOST),
+            json={
+                "job_id": JOB_ID,
+                "new_settings": json,
+            },
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        mock_requests.patch.assert_called_once_with(
+            permissions_endpoint(HOST, JOB_ID),
+            json={"access_control_list": ACCESS_CONTROL_LIST},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -1408,7 +1449,6 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
-        self.hook.log.setLevel("DEBUG")
         response = mock_get.return_value.__aenter__.return_value
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})

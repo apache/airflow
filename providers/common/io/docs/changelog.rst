@@ -25,6 +25,51 @@
 Changelog
 ---------
 
+1.6.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix circular import when using ''XComObjectStorageBackend'' (#55805)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
+1.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent FileNotFoundError in deserialize_value of XCom io provider to crash the scheduler (#52702)``
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53298)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Move remaining 'airflow.io' code to Task SDK (#53211)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.1
 .....
 

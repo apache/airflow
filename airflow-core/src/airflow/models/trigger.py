@@ -25,15 +25,16 @@ from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
+from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
-from airflow.models.asset import asset_trigger_association_table
+from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
@@ -104,7 +105,8 @@ class Trigger(Base):
 
     task_instance = relationship("TaskInstance", back_populates="trigger", lazy="selectin", uselist=False)
 
-    assets = relationship("AssetModel", secondary=asset_trigger_association_table, back_populates="triggers")
+    asset_watchers = relationship("AssetWatcherModel", back_populates="trigger")
+    assets = association_proxy("asset_watchers", "asset")
 
     deadline = relationship("Deadline", back_populates="trigger", uselist=False)
 
@@ -193,7 +195,7 @@ class Trigger(Base):
         """Fetch all trigger IDs actively associated with non-task entities like assets and deadlines."""
         from airflow.models import Deadline
 
-        query = select(asset_trigger_association_table.columns.trigger_id).union_all(
+        query = select(AssetWatcherModel.trigger_id).union_all(
             select(Deadline.trigger_id).where(Deadline.trigger_id.is_not(None))
         )
 
@@ -324,6 +326,11 @@ class Trigger(Base):
         capacity -= count
 
         if capacity <= 0:
+            log.info(
+                "Triggerer %s has reached the maximum capacity triggers assigned (%d). Not assigning any more triggers",
+                triggerer_id,
+                count,
+            )
             return
 
         alive_triggerer_ids = select(Job.id).where(

@@ -156,7 +156,7 @@ annotations:
 ```
 
 Make sure that all the release notes changes are submitted as PR and merged. Changes in release notes should
-also automatically (via `pre-commit` trigger updating of the [reproducible_build.yaml](../chart/reproducible_build.yaml))
+also automatically (via `prek` trigger updating of the [reproducible_build.yaml](../chart/reproducible_build.yaml))
 file which is uses to reproducibly build the chart package and source tarball.
 
 You can leave the k8s environment now:
@@ -849,7 +849,7 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 ## Close the milestone
 
-Before closing the milestone on Github, make sure that all PR marked for it are either part of the release (was cherry picked) or
+Before closing the milestone on GitHub, make sure that all PR marked for it are either part of the release (was cherry picked) or
 postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.

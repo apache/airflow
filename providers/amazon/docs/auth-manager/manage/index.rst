@@ -158,15 +158,24 @@ This is equivalent to the :doc:`Viewer role in Flask AppBuilder <apache-airflow-
     principal in Airflow::Group::"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     action in [
       Airflow::Action::"Configuration.GET",
+      Airflow::Action::"Configuration.LIST",
       Airflow::Action::"Connection.GET",
+      Airflow::Action::"Connection.LIST",
       Airflow::Action::"Custom.GET",
+      Airflow::Action::"Custom.LIST",
       Airflow::Action::"Dag.GET",
+      Airflow::Action::"Dag.LIST",
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
+      Airflow::Action::"Pool.LIST",
       Airflow::Action::"Variable.GET",
+      Airflow::Action::"Variable.LIST",
       Airflow::Action::"Asset.GET",
+      Airflow::Action::"Asset.LIST",
       Airflow::Action::"AssetAlias.GET",
+      Airflow::Action::"AssetAlias.LIST",
       Airflow::Action::"Backfill.GET",
+      Airflow::Action::"Backfill.LIST",
       Airflow::Action::"View.GET"
     ],
     resource
@@ -183,17 +192,24 @@ This is equivalent to the :doc:`User role in Flask AppBuilder <apache-airflow-pr
     principal in Airflow::Group::"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     action in [
       Airflow::Action::"Configuration.GET",
+      Airflow::Action::"Configuration.LIST",
       Airflow::Action::"Connection.GET",
+      Airflow::Action::"Connection.LIST",
       Airflow::Action::"Custom.GET",
+      Airflow::Action::"Custom.LIST",
       Airflow::Action::"Dag.GET",
+      Airflow::Action::"Dag.LIST",
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
+      Airflow::Action::"Pool.LIST",
       Airflow::Action::"Variable.GET",
+      Airflow::Action::"Variable.LIST",
       Airflow::Action::"Asset.GET",
+      Airflow::Action::"Asset.LIST",
       Airflow::Action::"View.GET",
       Airflow::Action::"Dag.POST",
       Airflow::Action::"Dag.PUT",
-      Airflow::Action::"Dag.DELETE",
+      Airflow::Action::"Dag.DELETE"
     ],
     resource
   );
@@ -209,13 +225,20 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
     principal in Airflow::Group::"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     action in [
       Airflow::Action::"Configuration.GET",
+      Airflow::Action::"Configuration.LIST",
       Airflow::Action::"Connection.GET",
+      Airflow::Action::"Connection.LIST",
       Airflow::Action::"Custom.GET",
+      Airflow::Action::"Custom.LIST",
       Airflow::Action::"Dag.GET",
+      Airflow::Action::"Dag.LIST",
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
+      Airflow::Action::"Pool.LIST",
       Airflow::Action::"Variable.GET",
+      Airflow::Action::"Variable.LIST",
       Airflow::Action::"Asset.GET",
+      Airflow::Action::"Asset.LIST",
       Airflow::Action::"View.GET",
       Airflow::Action::"Dag.POST",
       Airflow::Action::"Dag.PUT",
@@ -230,19 +253,17 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
       Airflow::Action::"Variable.PUT",
       Airflow::Action::"Variable.DELETE",
       Airflow::Action::"Asset.POST",
-      Airflow::Action::"Asset.PUT",
       Airflow::Action::"Asset.DELETE",
       Airflow::Action::"Backfill.POST",
-      Airflow::Action::"Backfill.PUT",
-
+      Airflow::Action::"Backfill.PUT"
     ],
     resource
   );
 
-Give DAG specific permissions to a group of users
+Give Dag specific permissions to a group of users
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The policy below gives all DAG related permissions of the DAG ``test`` to a group of users.
+The policy below gives all Dag related permissions of the Dag ``test`` to a group of users.
 
  ::
 
@@ -252,7 +273,7 @@ The policy below gives all DAG related permissions of the DAG ``test`` to a grou
     resource == Airflow::Dag::"test"
   );
 
-The policy below gives all DAG related permissions of the DAGs ``financial-1`` and ``financial-2`` to a group of users.
+The policy below gives all Dag related permissions of the Dags ``financial-1`` and ``financial-2`` to a group of users.
 
  ::
 
@@ -262,7 +283,7 @@ The policy below gives all DAG related permissions of the DAGs ``financial-1`` a
     resource in [Airflow::Dag::"financial-1", Airflow::Dag::"financial-2"]
   );
 
-The policy below gives access to logs of the DAG ``test`` to a group of users.
+The policy below gives access to logs of the Dag ``test`` to a group of users.
 
  ::
 
@@ -282,7 +303,7 @@ For example, if both one **permit** and one **forbid** policies match the reques
 This can be useful if, for example, you want to restrict access to a specific user who belongs to a group that is
 granted all permissions.
 
-The policy below removes access of DAGs ``secret-dag-1`` and ``secret-dag-2`` from a specific user.
+The policy below removes access of Dags ``secret-dag-1`` and ``secret-dag-2`` from a specific user.
 
  ::
 

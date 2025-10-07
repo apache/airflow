@@ -69,13 +69,13 @@ export const SearchBar = ({
   return (
     <InputGroup
       {...groupProps}
-      colorPalette="blue"
+      colorPalette="brand"
       endElement={
         <>
           {Boolean(value) ? (
             <CloseButton
               aria-label={translate("search.clear")}
-              colorPalette="gray"
+              colorPalette="brand"
               data-testid="clear-search"
               onClick={() => {
                 setValue("");
@@ -85,7 +85,7 @@ export const SearchBar = ({
             />
           ) : undefined}
           {Boolean(hideAdvanced) ? undefined : (
-            <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
+            <Button fontWeight="normal" height={28} variant="ghost" width={140} {...buttonProps}>
               {translate("search.advanced")}
             </Button>
           )}

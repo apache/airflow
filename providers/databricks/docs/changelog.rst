@@ -26,6 +26,99 @@
 Changelog
 ---------
 
+7.7.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix metadata service check handle 429 (#55462)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.7.2
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks sqlalchemy URL construction (#54478)``
+* ``Ensures DatabricksWorkflowOperator updates ACL (if available) when resetting a job. (#47827)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``chore: change openlineage to optional dependency (#54748)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+7.7.1
+.....
+
+Misc
+~~~~
+
+* ``Bump deltalake to 1.1.3 (#54108)``
+* ``Move imports to version_compat in databricks workflow plugin (#53883)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Refactor Databricks error handling with utility functions (#52704)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix URI Construction in Databricks Hook (#53217)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``fix: Task Group Deprecation error from plugin (#53813)``
+* ``Remove 'api' prefix from update_job_permission in databricks hook (#53039)``
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate API endpoints for improved security and maintainability (#53214)``
+* ``Exclude deltalake 1.1.1 (#53729)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignores in databricks provider where possible (#53265)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Added non-Azure DatabricksBaseHook tests (#53286)``
+   * ``Fix pandas FutureWarning (#53236)``
+   * ``Handle ruff PT028 changes (#53235)``
+
 7.6.0
 .....
 

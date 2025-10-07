@@ -285,13 +285,12 @@ def test_create_ol_event_pair_success(mock_generate_uuid, is_successful):
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
-def test_emit_openlineage_events_for_databricks_queries(mock_now, mock_generate_uuid, mock_version):
+def test_emit_openlineage_events_for_databricks_queries(mock_generate_uuid, mock_version, time_machine):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     query_ids = ["query1", "query2", "query3"]
     original_query_ids = copy.deepcopy(query_ids)
@@ -523,15 +522,14 @@ def test_emit_openlineage_events_for_databricks_queries(mock_now, mock_generate_
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
 def test_emit_openlineage_events_for_databricks_queries_without_metadata(
-    mock_now, mock_generate_uuid, mock_version
+    mock_generate_uuid, mock_version, time_machine
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     query_ids = ["query1"]
     original_query_ids = copy.deepcopy(query_ids)
@@ -642,15 +640,14 @@ def test_emit_openlineage_events_for_databricks_queries_without_metadata(
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
 def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids(
-    mock_now, mock_generate_uuid, mock_version
+    mock_generate_uuid, mock_version, time_machine
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     query_ids = ["query1"]
     hook = mock.MagicMock()
@@ -765,15 +762,14 @@ def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_i
 )
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
 def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids_and_namespace(
-    mock_now, mock_generate_uuid, mock_version, mock_parser
+    mock_generate_uuid, mock_version, mock_parser, time_machine
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     query_ids = ["query1"]
     hook = mock.MagicMock()
@@ -884,15 +880,14 @@ def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_i
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
 def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_ids_and_namespace_raw_ns(
-    mock_now, mock_generate_uuid, mock_version
+    mock_generate_uuid, mock_version, time_machine
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     query_ids = ["query1"]
     hook = DatabricksHook()
@@ -1004,15 +999,14 @@ def test_emit_openlineage_events_for_databricks_queries_without_explicit_query_i
 
 @mock.patch("importlib.metadata.version", return_value="2.3.0")
 @mock.patch("openlineage.client.uuid.generate_new_uuid")
-@mock.patch("airflow.utils.timezone.utcnow")
 def test_emit_openlineage_events_for_databricks_queries_ith_query_ids_and_hook_query_ids(
-    mock_now, mock_generate_uuid, mock_version
+    mock_generate_uuid, mock_version, time_machine
 ):
     fake_uuid = "01958e68-03a2-79e3-9ae9-26865cc40e2f"
     mock_generate_uuid.return_value = fake_uuid
 
     default_event_time = timezone.datetime(2025, 1, 5, 0, 0, 0)
-    mock_now.return_value = default_event_time
+    time_machine.move_to(default_event_time, tick=False)
 
     hook = DatabricksSqlHook()
     hook.query_ids = ["query2", "query3"]

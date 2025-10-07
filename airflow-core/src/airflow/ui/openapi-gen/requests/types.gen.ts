@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**
@@ -244,9 +254,9 @@ export type BulkDeleteAction_BulkTaskInstanceBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -256,9 +266,9 @@ export type BulkDeleteAction_ConnectionBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -268,9 +278,9 @@ export type BulkDeleteAction_PoolBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -280,9 +290,9 @@ export type BulkDeleteAction_VariableBody_ = {
      */
     action: "delete";
     /**
-     * A list of entity id/key to be deleted.
+     * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string)>;
+    entities: Array<(string | BulkTaskInstanceBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -331,6 +341,10 @@ export type BulkUpdateAction_BulkTaskInstanceBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<BulkTaskInstanceBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -343,6 +357,10 @@ export type BulkUpdateAction_ConnectionBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<ConnectionBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -355,6 +373,10 @@ export type BulkUpdateAction_PoolBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<PoolBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -367,6 +389,10 @@ export type BulkUpdateAction_VariableBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<VariableBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -389,6 +415,10 @@ export type ClearTaskInstancesBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -490,13 +520,13 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -538,6 +568,9 @@ export type DAGDetailsResponse = {
     readonly file_token: string;
     /**
      * Return max_active_tasks as concurrency.
+     *
+     * Deprecated: Use max_active_tasks instead.
+     * @deprecated
      */
     readonly concurrency: number;
     /**
@@ -562,13 +595,13 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -594,6 +627,10 @@ export type DAGResponse = {
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     */
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -655,13 +692,26 @@ export type DAGRunsBatchBody = {
     dag_ids?: Array<(string)> | null;
     states?: Array<(DagRunState | null)> | null;
     run_after_gte?: string | null;
+    run_after_gt?: string | null;
     run_after_lte?: string | null;
+    run_after_lt?: string | null;
     logical_date_gte?: string | null;
+    logical_date_gt?: string | null;
     logical_date_lte?: string | null;
+    logical_date_lt?: string | null;
     start_date_gte?: string | null;
+    start_date_gt?: string | null;
     start_date_lte?: string | null;
+    start_date_lt?: string | null;
     end_date_gte?: string | null;
+    end_date_gt?: string | null;
     end_date_lte?: string | null;
+    end_date_lt?: string | null;
+    duration_gte?: number | null;
+    duration_gt?: number | null;
+    duration_lte?: number | null;
+    duration_lt?: number | null;
+    conf_contains?: string | null;
 };
 
 /**
@@ -706,6 +756,7 @@ export type DAGWarningResponse = {
     warning_type: DagWarningType;
     message: string;
     timestamp: string;
+    dag_display_name: string;
 };
 
 /**
@@ -771,6 +822,7 @@ export type DagStatsCollectionResponse = {
  */
 export type DagStatsResponse = {
     dag_id: string;
+    dag_display_name: string;
     stats: Array<DagStatsStateResponse>;
 };
 
@@ -788,6 +840,7 @@ export type DagStatsStateResponse = {
 export type DagTagResponse = {
     name: string;
     dag_id: string;
+    dag_display_name: string;
 };
 
 /**
@@ -811,18 +864,6 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'non-existent pool';
-
-/**
- * Deadline alert serializer for responses.
- */
-export type DeadlineAlertResponse = {
-    reference: string;
-    interval: string;
-    callback: string;
-    callback_kwargs?: {
-    [key: string]: unknown;
-} | null;
-};
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -863,6 +904,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -881,8 +923,8 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     href: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     [key: string]: unknown | string;
 };
 
@@ -930,8 +972,10 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
-    user_id?: string | null;
-    response_at?: string | null;
+    assigned_users?: Array<HITLUser>;
+    created_at: string;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -951,12 +995,20 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    user_id: string;
-    response_at: string;
+    responded_by: HITLUser;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for a Human-in-the-loop users.
+ */
+export type HITLUser = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -1186,10 +1238,12 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance';
     bundle_url: string;
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
     [key: string]: unknown | string;
 };
+
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1287,6 +1341,7 @@ export type TaskInstanceHistoryResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;
@@ -1302,7 +1357,6 @@ export type TaskInstanceResponse = {
     id: string;
     task_id: string;
     dag_id: string;
-    dag_version: DagVersionResponse;
     dag_run_id: string;
     map_index: number;
     logical_date: string | null;
@@ -1322,6 +1376,7 @@ export type TaskInstanceResponse = {
     queue: string | null;
     priority_weight: number | null;
     operator: string | null;
+    operator_name: string | null;
     queued_when: string | null;
     scheduled_when: string | null;
     pid: number | null;
@@ -1334,6 +1389,7 @@ export type TaskInstanceResponse = {
     };
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
+    dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1352,15 +1408,25 @@ export type TaskInstancesBatchBody = {
     task_ids?: Array<(string)> | null;
     state?: Array<(TaskInstanceState | null)> | null;
     run_after_gte?: string | null;
+    run_after_gt?: string | null;
     run_after_lte?: string | null;
+    run_after_lt?: string | null;
     logical_date_gte?: string | null;
+    logical_date_gt?: string | null;
     logical_date_lte?: string | null;
+    logical_date_lt?: string | null;
     start_date_gte?: string | null;
+    start_date_gt?: string | null;
     start_date_lte?: string | null;
+    start_date_lt?: string | null;
     end_date_gte?: string | null;
+    end_date_gt?: string | null;
     end_date_lte?: string | null;
+    end_date_lt?: string | null;
     duration_gte?: number | null;
+    duration_gt?: number | null;
     duration_lte?: number | null;
+    duration_lt?: number | null;
     pool?: Array<(string)> | null;
     queue?: Array<(string)> | null;
     executor?: Array<(string)> | null;
@@ -1447,8 +1513,8 @@ export type TriggerDAGRunPostBody = {
     logical_date: string | null;
     run_after?: string | null;
     conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     note?: string | null;
 };
 
@@ -1551,6 +1617,7 @@ export type XComResponse = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
 };
 
 /**
@@ -1565,6 +1632,7 @@ export type XComResponseNative = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: unknown;
 };
 
@@ -1580,6 +1648,7 @@ export type XComResponseString = {
     dag_id: string;
     run_id: string;
     dag_display_name: string;
+    task_display_name: string;
     value: string | null;
 };
 
@@ -1690,6 +1759,20 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunLightResponse = {
+    id: number;
+    dag_id: string;
+    run_id: string;
+    logical_date: string | null;
+    run_after: string;
+    start_date: string | null;
+    end_date: string | null;
+    state: DagRunState;
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -1726,13 +1809,13 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
     fileloc: string;
     description: string | null;
-    deadline: Array<DeadlineAlertResponse> | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     tags: Array<DagTagResponse>;
@@ -1750,6 +1833,7 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunResponse>;
+    pending_actions: Array<HITLDetail>;
     /**
      * Return file token.
      */
@@ -1803,7 +1887,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -1827,16 +1911,6 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
- * Base Node serializer for responses.
- */
-export type LatestRunResponse = {
-    id: number;
-    dag_id: string;
-    run_id: string;
-    run_after: string;
-};
-
-/**
  * Task Instance Summary model for the Grid UI.
  */
 export type LightGridTaskInstanceSummary = {
@@ -1852,7 +1926,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -1935,7 +2009,10 @@ export type GetAssetsData = {
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
+     */
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -1951,7 +2028,10 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
+     */
+    orderBy?: Array<(string)>;
 };
 
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
@@ -1965,13 +2045,22 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
+     */
+    orderBy?: Array<(string)>;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    timestampGt?: string | null;
     timestampGte?: string | null;
+    timestampLt?: string | null;
     timestampLte?: string | null;
 };
 
@@ -2051,7 +2140,10 @@ export type ListBackfillsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;
@@ -2097,7 +2189,10 @@ export type ListBackfillsUiData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
+    orderBy?: Array<(string)>;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
@@ -2129,7 +2224,10 @@ export type GetConnectionsData = {
     connectionIdPattern?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id`
+     */
+    orderBy?: Array<(string)>;
 };
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
@@ -2195,25 +2293,52 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
+    confContains?: string;
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagVersion?: Array<(number)>;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration`
+     */
+    orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     runIdPattern?: string | null;
     runType?: Array<(string)>;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUserNamePattern?: string | null;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
 };
 
@@ -2289,13 +2414,22 @@ export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
+     */
+    orderBy?: Array<(string)>;
     warningType?: DagWarningType | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
+    /**
+     * Filter Dags by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2304,17 +2438,32 @@ export type GetDagsData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     dagIdPattern?: string | null;
+    dagRunEndDateGt?: string | null;
     dagRunEndDateGte?: string | null;
+    dagRunEndDateLt?: string | null;
     dagRunEndDateLte?: string | null;
+    dagRunStartDateGt?: string | null;
     dagRunStartDateGte?: string | null;
+    dagRunStartDateLt?: string | null;
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    /**
+     * Filter Dags with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2382,7 +2531,10 @@ export type UnfavoriteDagResponse = void;
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     */
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2392,6 +2544,12 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
+    /**
+     * Filter Dags by asset dependency (name or URI)
+     */
+    assetDependency?: string | null;
+    bundleName?: string | null;
+    bundleVersion?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2403,11 +2561,23 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     excludeStale?: boolean;
+    /**
+     * Filter Dags with asset-based scheduling
+     */
+    hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
+    hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
+    orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
@@ -2415,6 +2585,12 @@ export type GetDagsUiData = {
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetLatestRunInfoData = {
+    dagId: string;
+};
+
+export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -2426,16 +2602,39 @@ export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
     dagId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     event?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    eventPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
     includedEvents?: Array<(string)> | null;
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra`
+     */
+    orderBy?: Array<(string)>;
     owner?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    ownerPattern?: string | null;
     runId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     tryNumber?: number | null;
 };
 
@@ -2476,30 +2675,48 @@ export type DeleteTaskInstanceData = {
     taskId: string;
 };
 
-export type DeleteTaskInstanceResponse = null;
+export type DeleteTaskInstanceResponse = unknown;
 
 export type GetMappedTaskInstancesData = {
     dagId: string;
     dagRunId: string;
+    durationGt?: number | null;
     durationGte?: number | null;
+    durationLt?: number | null;
     durationLte?: number | null;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
-    orderBy?: string;
+    operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     taskId: string;
+    tryNumber?: Array<(number)>;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;
 };
@@ -2564,22 +2781,41 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
+    durationGt?: number | null;
     durationGte?: number | null;
+    durationLt?: number | null;
     durationLte?: number | null;
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
     limit?: number;
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
-    orderBy?: string;
+    operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
+    orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
@@ -2587,7 +2823,10 @@ export type GetTaskInstancesData = {
      */
     taskDisplayNamePattern?: string | null;
     taskId?: string | null;
+    tryNumber?: Array<(number)>;
+    updatedAtGt?: string | null;
     updatedAtGte?: string | null;
+    updatedAtLt?: string | null;
     updatedAtLte?: string | null;
     versionNumber?: Array<(number)>;
 };
@@ -2682,6 +2921,64 @@ export type GetExternalLogUrlData = {
 
 export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
+export type UpdateHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateHitlDetailResponse = HITLDetailResponse;
+
+export type GetHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
+    dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number | null;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name`
+     */
+    orderBy?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
+};
+
+export type GetHitlDetailsResponse = HITLDetailCollection;
+
 export type GetImportErrorData = {
     importErrorId: number;
 };
@@ -2689,15 +2986,24 @@ export type GetImportErrorData = {
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    filenamePattern?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace`
+     */
+    orderBy?: Array<(string)>;
 };
 
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    endDateGt?: string | null;
     endDateGte?: string | null;
+    endDateLt?: string | null;
     endDateLte?: string | null;
     executorClass?: string | null;
     hostname?: string | null;
@@ -2706,8 +3012,13 @@ export type GetJobsData = {
     jobType?: string | null;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
+     */
+    orderBy?: Array<(string)>;
+    startDateGt?: string | null;
     startDateGte?: string | null;
+    startDateLt?: string | null;
     startDateLte?: string | null;
 };
 
@@ -2745,7 +3056,10 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool`
+     */
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2796,13 +3110,38 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagDisplayNamePattern?: string | null;
     dagId: string;
     dagRunId: string;
     limit?: number;
+    logicalDateGt?: string | null;
+    logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
+    logicalDateLte?: string | null;
     mapIndex?: number | null;
+    mapIndexFilter?: number | null;
     offset?: number;
+    runAfterGt?: string | null;
+    runAfterGte?: string | null;
+    runAfterLt?: string | null;
+    runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     taskId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
     xcomKey?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    xcomKeyPattern?: string | null;
 };
 
 export type GetXcomEntriesResponse = XComCollectionResponse;
@@ -2853,7 +3192,10 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
+     */
+    orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
@@ -2878,7 +3220,7 @@ export type ReparseDagFileData = {
     fileToken: string;
 };
 
-export type ReparseDagFileResponse = null;
+export type ReparseDagFileResponse = unknown;
 
 export type GetDagVersionData = {
     dagId: string;
@@ -2893,49 +3235,14 @@ export type GetDagVersionsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
+     */
+    orderBy?: Array<(string)>;
     versionNumber?: number;
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
-
-export type UpdateHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateHitlDetailResponse = HITLDetailResponse;
-
-export type GetHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    taskId: string;
-};
-
-export type GetHitlDetailResponse = HITLDetail;
-
-export type UpdateMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateMappedTiHitlDetailResponse = HITLDetailResponse;
-
-export type GetMappedTiHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-};
-
-export type GetMappedTiHitlDetailResponse = HITLDetail;
-
-export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -2952,6 +3259,12 @@ export type LogoutData = {
 };
 
 export type LogoutResponse = unknown;
+
+export type RefreshData = {
+    next?: string | null;
+};
+
+export type RefreshResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
@@ -2985,9 +3298,20 @@ export type GetDagStructureData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
+    orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -2996,9 +3320,20 @@ export type GetGridRunsData = {
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
+    orderBy?: Array<(string)>;
+    runAfterGt?: string | null;
     runAfterGte?: string | null;
+    runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
@@ -3010,16 +3345,12 @@ export type GetGridTiSummariesData = {
 
 export type GetGridTiSummariesResponse = GridTISummaries;
 
-export type GetLatestRunData = {
-    dagId: string;
-};
-
-export type GetLatestRunResponse = LatestRunResponse | null;
-
 export type GetCalendarData = {
     dagId: string;
     granularity?: 'hourly' | 'daily';
+    logicalDateGt?: string | null;
     logicalDateGte?: string | null;
+    logicalDateLt?: string | null;
     logicalDateLte?: string | null;
 };
 
@@ -4538,6 +4869,25 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/{dag_id}/latest_run': {
+        get: {
+            req: GetLatestRunInfoData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGRunLightResponse | null;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/eventLogs/{event_log_id}': {
         get: {
             req: GetEventLogData;
@@ -4680,7 +5030,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Unauthorized
                  */
@@ -5164,6 +5514,85 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails': {
+        patch: {
+            req: UpdateHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails': {
+        get: {
+            req: GetHitlDetailsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailCollection;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -5809,7 +6238,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: null;
+                201: unknown;
                 /**
                  * Unauthorized
                  */
@@ -5883,136 +6312,6 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}': {
-        patch: {
-            req: UpdateHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitl-details/{dag_id}/{dag_run_id}/{task_id}/{map_index}': {
-        patch: {
-            req: UpdateMappedTiHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetMappedTiHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitl-details/': {
-        get: {
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailCollection;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-            };
-        };
-    };
     '/api/v2/monitor/health': {
         get: {
             res: {
@@ -6055,6 +6354,25 @@ export type $OpenApiTs = {
     '/api/v2/auth/logout': {
         get: {
             req: LogoutData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Temporary Redirect
+                 */
+                307: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/auth/refresh': {
+        get: {
+            req: RefreshData;
             res: {
                 /**
                  * Successful Response
@@ -6202,29 +6520,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: GridTISummaries;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/grid/latest_run/{dag_id}': {
-        get: {
-            req: GetLatestRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: LatestRunResponse | null;
                 /**
                  * Bad Request
                  */

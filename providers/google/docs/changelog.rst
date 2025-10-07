@@ -27,8 +27,161 @@
 Changelog
 ---------
 
+18.0.0
+......
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove GoogleDisplayVideo360CreateQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DeleteReportOperator. Reports were replaced with SDF export task in v4 of API``
+  * ``Remove GoogleDisplayVideo360DownloadReportV2Operator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+  * ``Remove GoogleDisplayVideo360RunQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DownloadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360UploadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+
+* Hooks
+
+  * ``Remove GoogleDisplayVideo360Hook.get_conn use airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video instead``
+  * ``Remove GoogleDisplayVideo360Hook.create_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.delete_query``
+  * ``Remove GoogleDisplayVideo360Hook.get_query use airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.list_queries``
+  * ``Remove GoogleDisplayVideo360Hook.run_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.get_report``
+  * ``Remove GoogleDisplayVideo360Hook.upload_line_items use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.download_line_items use airflow.providers.google.marketing_platform.hooks.display_video.download_media instead``
+  * ``Remove AutoMLHook.create_auto_ml_text_training_job. AutoMLText API was deprecated.``
+
+* Sensors
+
+  * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
+
+
+* ``Remove deprecated from google provider scheduled for September 2025 except 30 September 2025. (#55683)``
+
+
+
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for BigQueryToPostgresOperator (#55392)``
+* ``Add OpenLineage support for BigQueryToMySqlOperator (#55219)``
+* ``Add range partitioning option to bigquery operators (#55247)``
+* ``Add CloudComposerTriggerDAGRunOperator for Cloud Composer service (#55256)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Add conversion to timedelta type for self.timeout value for CloudComposerDAGRunSensor (#55570)``
+* ``Fix Cloud Run Async hooks (#55321)``
+* ``Fix CloudComposerAsyncHook to work correctly with Airflow 3 (#54976)``
+* ``Fix: Use GoogleBaseAsyncHook (#55316)``
+
+Misc
+~~~~
+
+* ``Restrict google-ads 28.0.0.post2 (#55640)``
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump mypy to 1.18.1 (#55596)``
+   * ``Fix dataflow java streaming infinite run (#55209)``
+
+17.2.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Added handler for cli command exit code in CloudComposerRunAirflowCLICommandOperator. (#54497)``
+* ``Add 'create_intermediate_dirs' option to 'GCSToSFTPOperator' (#54916)``
+* ``feature: Add OpenLineage support for PubSubPullOperator (#54821)``
+* ``feature: Add OpenLineage support for pubsub create subscription operator - include inputs into OL (#54785)``
+* ``feature: Add OpenLineage support for PubSubPublishMessageOperator (#54764)``
+* ``feature: Add OpenLineage support for pubsub create subscription operator (#54707)``
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
+* ``feature: Add OpenLineage support for BigQueryToMsSqlOperator (#55168)``
+* ``Add GSheetsHook API endpoint support (Part 1) (#54560)``
+* ``Add cluster_tier flag support to Dataproc ClusterGenerator (#54105)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''BigQueryInsertJobOperator'' failure with asset-triggered DAGs (#55092)``
+* ``Fix serialization in google provider (#55014)``
+* ``Fix CloudComposerDAGRunSensor functionality (#54351)``
+* ``Skip provider_session usage in AF3 for BigQuery and Dataproc triggers (#54405)``
+* ``update logic of BQ to be able to use WRITE_TRUNCATE_DATA' (#54417)``
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+* ``Validate Dataproc batch labels max 63 characters (#55196)``
+
+Misc
+~~~~
+
+* ``Add rudimentary support for psycopg3 (#52976)``
+* ``Add get_secret function to the common/utils (#54213)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+* ``Add return row count to SpannerQueryDatabaseInstanceOperator (#55127)``
+* ``Add composer_dag_run_id as optional parameter to CloudComposerDAGRunSensor (#54977)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unneeded isort skip comments (#54979)``
+   * ``Improve google provider example_http_to_gcs system test (#54647)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove unused test file (#54408)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+   * ``Add missing schedule parameter for the system tests of Google provider (#54270)``
+   * ``Update Vertex AI dataset system test (#54220)``
+   * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+   * ``Update google-provider system tests beam sdk to the latest version (#55210)``
+
+17.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Private Service Connect interface support to VertexAI operators (#54170)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix the google provider vertex_ai ImportDataOperator (#53865)``
+* ``Fix the google cloud provider RayHook protobuf compatibility (#54014)``
+* ``Fix the PostgresHook ignoring custom adapters registered (#53707)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix location and timeout for Workflows and Dataproc Metastore system tests (#54167)``
+   * ``Fix ray to be imported conditionally (tests is skipped on Python 3.13) (#54031)``
+
 17.0.0
 ......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
@@ -49,6 +202,55 @@ Changelog
 * Links
 
   * ``Remove LifeSciencesLink as support of the Life Sciences API will be discontinued on July 8, 2025``
+
+* ``Remove deprecated from google provider scheduled for June and July 2025 (#53197)``
+
+Features
+~~~~~~~~
+
+* ``Handle multiple pods to prevent '''KubernetesJobOperator''' falls with parallelism option (#49899)``
+* ``Adjust ray operators in google provider. Add ray package as a dependency. (#53182)``
+* ``Add new operators for Experiment and Experiment run entities for Vertex AI (#52964)``
+* ``feature: Added support for Google cloud log sink management via google provider (#52001)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: DataprocClusterTrigger by passing objects in correct types so that they can be serialized (#53485)``
+* ``fix: Change DataprocAsyncHook parent class to GoogleBaseAsyncHook (#52981)``
+* ``fix: GCSToBigQueryOperator: avoid pushing non-serializable task_instance to XCom (#53094)``
+* ``fix: StackdriverHook channel and policy assignments when creating and updating notifications and policys (#53131)``
+* ``fix: return DataflowJobMessagesSensor and DataflowJobAutoScalingEventsSensor result with xcom_value (#53115)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Refactor google.cloud imports to prevent conflicts with airflow google provider namespace and resolve mypy errors (#53338)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Clean up mypy ignores in google provider (#53249)``
+* ``Use standard library ''typing'' imports for Python 3.10+ (#53158)``
+* ``Make google provider compatible with mypy 1.16.1 (#53148)``
+* ``Deprecate old DV360 operator and modify system test (#53027)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Remove 'MAX_XCOM_SIZE' hardcoded constant from Airflow core  (#52978)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for google (#52809)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove extra slash from endpoint URL (#53755)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+   * ``delete: async_get_operation in test_dataproc (#53531)``
+   * ``add unit tests for google/common (#52965)``
+   * ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+   * ``Clean up in google provider (#53090)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Removed unnecessary shebangs from test files (#52992)``
 
 
 16.1.0

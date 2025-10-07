@@ -65,7 +65,7 @@ apache-airflow-providers-apache-hdfs package
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.10.1
+Release: 4.10.3
 
 Provider package
 ----------------
@@ -76,7 +76,7 @@ All classes for this package are included in the ``airflow.providers.apache.hdfs
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-apache-hdfs``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

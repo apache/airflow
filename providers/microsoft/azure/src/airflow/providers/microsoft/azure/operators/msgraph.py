@@ -247,7 +247,7 @@ class MSGraphAsyncOperator(BaseOperator):
     @classmethod
     def append_result(
         cls,
-        results: list[Any],
+        results: Any,
         result: Any,
         append_result_as_list_if_absent: bool = False,
     ) -> list[Any]:
@@ -347,6 +347,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.defer(
                     trigger=MSGraphTrigger(
                         url=url,
+                        method=self.method,
                         query_parameters=query_parameters,
                         response_type=self.response_type,
                         conn_id=self.conn_id,

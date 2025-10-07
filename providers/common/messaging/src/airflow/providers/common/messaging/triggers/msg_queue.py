@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import importlib
+import warnings
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 
@@ -47,15 +49,36 @@ class MessageQueueTrigger(BaseEventTrigger):
 
     This makes it easy to switch providers without modifying the trigger.
 
-    :param queue: The queue identifier
+    :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
+    :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
+        This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
 
     .. seealso::
         For more information on how to use this trigger, take a look at the guide:
         :ref:`howto/trigger:MessageQueueTrigger`
     """
 
-    def __init__(self, *, queue: str, **kwargs: Any) -> None:
-        self.queue = queue
+    queue: str | None = None
+    scheme: str | None = None
+
+    def __init__(self, *, queue: str | None = None, scheme: str | None = None, **kwargs: Any) -> None:
+        if queue is None and scheme is None:
+            raise ValueError("Either `queue` or `scheme` parameter must be provided.")
+
+        # For backward compatibility, queue takes precedence
+        if queue is not None:
+            warnings.warn(
+                "The `queue` parameter is deprecated and will be removed in future versions. "
+                "Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.queue = queue
+            self.scheme = None
+        else:
+            self.queue = None
+            self.scheme = scheme
+
         self.kwargs = kwargs
 
     @cached_property
@@ -66,27 +89,54 @@ class MessageQueueTrigger(BaseEventTrigger):
                 "Please ensure that you have the necessary providers installed."
             )
             raise ValueError("No message queue providers are available. ")
-        providers = [provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)]
+
+        # Find matching providers based on queue URI or scheme
+        if self.queue is not None:
+            # Use existing queue-based matching for backward compatibility
+            providers = [
+                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)
+            ]
+            identifier = self.queue
+            match_by = "queue"
+        elif self.scheme is not None:
+            # Use new scheme-based matching
+            providers = [
+                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.scheme_matches(self.scheme)
+            ]
+            identifier = self.scheme
+            match_by = "scheme"
+
         if len(providers) == 0:
             self.log.error(
-                "The queue '%s' is not recognized by any of the registered providers. "
+                "The %s '%s' is not recognized by any of the registered providers. "
                 "The available providers are: '%s'.",
-                self.queue,
-                ", ".join([provider for provider in MESSAGE_QUEUE_PROVIDERS]),
+                match_by,
+                identifier,
+                ", ".join([type(provider).__name__ for provider in MESSAGE_QUEUE_PROVIDERS]),
             )
-            raise ValueError("The queue is not recognized by any of the registered providers.")
+            raise ValueError(
+                f"The {match_by} '{identifier}' is not recognized by any of the registered providers."
+            )
+
         if len(providers) > 1:
             self.log.error(
-                "The queue '%s' is recognized by more than one provider. "
+                "The %s '%s' is recognized by more than one provider. "
                 "At least two providers in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
                 "other: '%s'",
-                self.queue,
-                ", ".join([provider for provider in providers]),
+                match_by,
+                identifier,
+                ", ".join([type(provider).__name__ for provider in providers]),
             )
-            raise ValueError(f"The queue '{self.queue}' is recognized by more than one provider.")
-        return providers[0].trigger_class()(
-            **providers[0].trigger_kwargs(self.queue, **self.kwargs), **self.kwargs
-        )
+            raise ValueError(f"The {match_by} '{identifier}' is recognized by more than one provider.")
+
+        # Create trigger instance
+        selected_provider = providers[0]
+        if self.queue is not None:
+            # Pass queue to trigger_kwargs for backward compatibility
+            trigger_kwargs = selected_provider.trigger_kwargs(self.queue, **self.kwargs)
+            return selected_provider.trigger_class()(**trigger_kwargs, **self.kwargs)
+        # For scheme-based matching, we need to pass all current kwargs to the trigger
+        return selected_provider.trigger_class()(**self.kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return self.trigger.serialize()

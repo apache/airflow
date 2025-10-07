@@ -35,11 +35,15 @@ from airflow.exceptions import (
     DagRunAlreadyExists,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, BaseOperatorLink
-from airflow.utils import timezone
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    BaseOperator,
+    BaseOperatorLink,
+    timezone,
+)
 from airflow.utils.state import DagRunState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
@@ -275,8 +279,7 @@ class TriggerDagRunOperator(BaseOperator):
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
-                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-                dag = dag_bag.get_dag(self.trigger_dag_id)
+                dag = SerializedDagModel.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:

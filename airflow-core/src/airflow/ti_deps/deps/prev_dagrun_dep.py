@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import func, or_, select
 
@@ -32,8 +32,11 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.types import Operator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    SchedulerOperator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
 
@@ -107,7 +110,7 @@ class PrevDagrunDep(BaseTIDep):
     @staticmethod
     def _has_unsuccessful_dependants(
         dagrun: DagRun,
-        task: Operator | SerializedBaseOperator,
+        task: SdkOperator | SchedulerOperator,
         *,
         session: Session,
     ) -> bool:

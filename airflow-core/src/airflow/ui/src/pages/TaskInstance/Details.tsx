@@ -29,7 +29,8 @@ import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
@@ -40,20 +41,27 @@ export const Details = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tryNumberParam = searchParams.get("try_number");
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parsedMapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(parsedMapIndex),
+    },
+  );
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
-      searchParams.delete("try_number");
+      searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
-      searchParams.set("try_number", newTryNumber.toString());
+      searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
     }
     setSearchParams(searchParams);
   };
@@ -135,15 +143,11 @@ export const Details = () => {
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("task.operator")}</Table.Cell>
-            <Table.Cell>{tryInstance?.operator}</Table.Cell>
+            <Table.Cell>{tryInstance?.operator_name}</Table.Cell>
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("duration")}</Table.Cell>
-            <Table.Cell>
-              {Boolean(tryInstance?.start_date) // eslint-disable-next-line unicorn/no-null
-                ? getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
-                : ""}
-            </Table.Cell>
+            <Table.Cell>{renderDuration(tryInstance?.duration)}</Table.Cell>
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("startDate")}</Table.Cell>

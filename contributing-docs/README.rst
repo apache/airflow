@@ -31,7 +31,7 @@ Getting Started
 New Contributor
 ...............
 
-If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
+If you are a new contributor, please follow the `Contributors Quick Start <03a_contributors_quick_start_beginners.rst>`__
 guide for a step-by-step introduction to setting up the development environment and making your
 first contribution.
 We also suggest you to check out `Contribution Workflow <18_contribution_workflow.rst>`__ in order to get an overview of how to
@@ -64,7 +64,7 @@ To learn about various roles and communication channels in the Airflow project:
 
 To learn how to setup your environment for development and how to develop and test code:
 
-* `Contributors quick start <03_contributors_quick_start.rst>`__ describes
+* `Contributors quick start <03a_contributors_quick_start_beginners.rst>`__ describes
   how to set up your development environment and make your first contribution.
 
 * `Pull requests <05_pull_requests.rst>`__ describes how you can create pull requests. It also includes the pull request guidelines and the coding standards.
@@ -121,3 +121,6 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Execution API versioning <19_execution_api_versioning.rst>`__ describes how to
   version the Task Execution API and how to add new versions of the API.
+
+* `Debugging Airflow Components <20_debugging_airflow_components.rst>`__ describes how to debug
+  Airflow components using Breeze with debugpy and VSCode integration.

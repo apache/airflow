@@ -24,6 +24,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
+import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -42,7 +43,7 @@ export const DagCard = ({ dag }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
-  const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
+  const refetchInterval = useAutoRefresh({});
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
@@ -50,28 +51,42 @@ export const DagCard = ({ dag }: Props) => {
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
             <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${dag.dag_id}`}>{dag.dag_display_name}</RouterLink>
+              <RouterLink data-testid="dag-id" to={`/dags/${dag.dag_id}`}>
+                {dag.dag_display_name}
+              </RouterLink>
             </Link>
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
+          <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
           <TogglePause
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
             isPaused={dag.is_paused}
             pr={2}
           />
-          <TriggerDAGButton dag={dag} withText={false} />
+          <TriggerDAGButton
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+            isPaused={dag.is_paused}
+            withText={false}
+          />
           <FavoriteDagButton dagId={dag.dag_id} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
-        <Stat label={translate("dagDetails.schedule")}>
-          <Schedule dag={dag} />
+        <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
+          <Schedule
+            assetExpression={dag.asset_expression}
+            dagId={dag.dag_id}
+            latestRunAfter={latestRun?.run_after}
+            timetableDescription={dag.timetable_description}
+            timetableSummary={dag.timetable_summary}
+          />
         </Stat>
-        <Stat label={translate("dagDetails.latestRun")}>
+        <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
@@ -82,12 +97,14 @@ export const DagCard = ({ dag }: Props) => {
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
-                {isStatePending(latestRun.state) && Boolean(refetchInterval) ? <Spinner /> : undefined}
+                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
+                  <Spinner />
+                ) : undefined}
               </RouterLink>
             </Link>
           ) : undefined}
         </Stat>
-        <Stat label={translate("dagDetails.nextRun")}>
+        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
           {Boolean(dag.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag.next_dagrun_logical_date}

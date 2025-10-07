@@ -20,8 +20,8 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING
 
+from airflow._shared.timezones.timezone import convert_to_utc
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.utils.timezone import convert_to_utc
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta

@@ -18,6 +18,7 @@
  */
 import { Box, Flex, GridItem, Heading, HStack, Spinner } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
@@ -33,24 +34,31 @@ type Props = {
   readonly title: ReactNode | string;
 };
 
-export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} ml={2} p={2}>
-    <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
-      <Flex alignItems="center" flexWrap="wrap" gap={2}>
-        <Heading size="xl">{icon}</Heading>
-        <Heading size="lg">{title}</Heading>
-        <Heading size="lg">{subTitle}</Heading>
-        {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
-        {isRefreshing ? <Spinner /> : <div />}
+export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} p={2}>
+      <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
+        <Flex alignItems="center" flexWrap="wrap" gap={2}>
+          <Heading size="xl">{icon}</Heading>
+          <Heading size="lg">{title}</Heading>
+          <Heading size="lg">{subTitle}</Heading>
+          {state === undefined ? undefined : (
+            <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
+          )}
+          {isRefreshing ? <Spinner /> : <div />}
+        </Flex>
+        <HStack gap={1}>{actions}</HStack>
       </Flex>
-      <HStack gap={1}>{actions}</HStack>
-    </Flex>
-    <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
-      {stats.map(({ label, value }) => (
-        <GridItem key={label}>
-          <Stat label={label}>{value}</Stat>
-        </GridItem>
-      ))}
-    </HStack>
-  </Box>
-);
+
+      <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
+        {stats.map(({ label, value }) => (
+          <GridItem key={label}>
+            <Stat label={label}>{value}</Stat>
+          </GridItem>
+        ))}
+      </HStack>
+    </Box>
+  );
+};

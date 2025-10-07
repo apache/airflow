@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -40,8 +39,10 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 else:
-    from airflow.decorators import task, task_group
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
+    from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment]
     from airflow.models.skipmixin import SkipMixin
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -60,10 +61,9 @@ class TestSkipMixin:
     def teardown_method(self):
         self.clean_db()
 
-    @patch("airflow.utils.timezone.utcnow")
-    def test_skip(self, mock_now, dag_maker, session):
+    def test_skip(self, dag_maker, session, time_machine):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
-        mock_now.return_value = now
+        time_machine.move_to(now, tick=False)
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
 
@@ -327,10 +327,21 @@ class TestSkipMixin:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
-        error_message = (
-            r"'branch_task_ids' expected all task IDs are strings. "
-            r"Invalid tasks found: \{\(42, 'int'\)\}\."
-        )
+
+        if AIRFLOW_V_3_0_PLUS:
+            # Improved error message for Airflow 3.0+
+            error_message = (
+                r"Unable to branch to the specified tasks\. "
+                r"The branching function returned invalid 'branch_task_ids': \{\(42, 'int'\)\}\. "
+                r"Please check that your function returns an Iterable of valid task IDs that exist in your DAG\."
+            )
+        else:
+            # Old error message for Airflow 2.x
+            error_message = (
+                r"'branch_task_ids' expected all task IDs are strings\. "
+                r"Invalid tasks found: \{\(42, 'int'\)\}\."
+            )
+
         with pytest.raises(AirflowException, match=error_message):
             SkipMixin().skip_all_except(ti=ti1, branch_task_ids=["task", 42])
 

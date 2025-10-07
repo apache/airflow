@@ -25,6 +25,7 @@ import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
@@ -273,6 +274,54 @@ class TestXComsGetEndpoint:
         assert response.status_code == 200
         assert response.json() == ["f", "o", "b"][key]
 
+    @pytest.mark.parametrize(
+        "include_prior_dates, expected_xcoms",
+        [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],
+    )
+    def test_xcom_get_slice_accepts_include_prior_dates(
+        self, client, dag_maker, session, include_prior_dates, expected_xcoms
+    ):
+        """Test that the slice endpoint accepts include_prior_dates parameter and works correctly."""
+
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+
+        earlier_run = dag_maker.create_dagrun(
+            run_id="earlier_run", logical_date=timezone.parse("2024-01-01T00:00:00Z")
+        )
+        later_run = dag_maker.create_dagrun(
+            run_id="later_run", logical_date=timezone.parse("2024-01-02T00:00:00Z")
+        )
+
+        earlier_ti = earlier_run.get_task_instance("task")
+        later_ti = later_run.get_task_instance("task")
+
+        earlier_xcom = XComModel(
+            key="test_key",
+            value="earlier_value",
+            dag_run_id=earlier_ti.dag_run.id,
+            run_id=earlier_ti.run_id,
+            task_id=earlier_ti.task_id,
+            dag_id=earlier_ti.dag_id,
+        )
+        later_xcom = XComModel(
+            key="test_key",
+            value="later_value",
+            dag_run_id=later_ti.dag_run.id,
+            run_id=later_ti.run_id,
+            task_id=later_ti.task_id,
+            dag_id=later_ti.dag_id,
+        )
+        session.add_all([earlier_xcom, later_xcom])
+        session.commit()
+
+        response = client.get(
+            f"/execution/xcoms/dag/later_run/task/test_key/slice?include_prior_dates={include_prior_dates}"
+        )
+        assert response.status_code == 200
+
+        assert set(response.json()) == set(expected_xcoms)
+
 
 class TestXComsSetEndpoint:
     @pytest.mark.parametrize(
@@ -282,13 +331,17 @@ class TestXComsSetEndpoint:
             ('{"key2": "value2"}', '{"key2": "value2"}'),
             ('{"key2": "value2", "key3": ["value3"]}', '{"key2": "value2", "key3": ["value3"]}'),
             ('["value1"]', '["value1"]'),
+            (None, None),
         ],
     )
     def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
         """
-        Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
-        XCom.set then uses json.dumps to serialize it and store the value in the database.
-        This is done so that Task SDK in multiple languages can use the same API to set XCom values.
+        Test that XCom value is set correctly. The request body can be either:
+        - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
+        - the JSON literal null, which is stored as a None
+
+        This mirrors the Execution API contract where the body is the JSON value itself; Task SDKs may send
+        pre-serialized JSON strings or null.
         """
         ti = create_task_instance()
         session.commit()
@@ -355,12 +408,13 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 201
 
-        stored_value = XComModel.get_many(
-            key="xcom_1",
-            dag_ids=ti.dag_id,
-            task_ids=ti.task_id,
-            run_id=ti.run_id,
-            session=session,
+        stored_value = session.execute(
+            XComModel.get_many(
+                key="xcom_1",
+                dag_ids=ti.dag_id,
+                task_ids=ti.task_id,
+                run_id=ti.run_id,
+            ).with_only_columns(XComModel.value)
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 

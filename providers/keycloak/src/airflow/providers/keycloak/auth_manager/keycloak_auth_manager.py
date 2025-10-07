@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -34,7 +35,7 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, GroupCommand
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
@@ -69,6 +70,17 @@ log = logging.getLogger(__name__)
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 
 
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in KeycloakAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
+
+
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     """
     Keycloak auth manager.
@@ -95,6 +107,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+
+    def get_url_refresh(self) -> str | None:
+        base_url = conf.get("api", "base_url", fallback="/")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/refresh")
 
     def is_authorized_configuration(
         self,
@@ -270,6 +286,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         context_attributes = prune_dict(attributes or {})
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
+        elif method == "GET":
+            method = "LIST"
 
         resp = requests.post(
             self._get_token_url(server_url, realm),

@@ -22,7 +22,7 @@ import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
 import { useColorMode } from "src/context/colorMode";
 
 export const HomePage = () => {
-  const { toggleColorMode } = useColorMode();
+  const { colorMode, setColorMode } = useColorMode();
 
   return (
     <Box p={8} bg="bg.subtle" flexGrow={1} height="100%">
@@ -33,7 +33,7 @@ export const HomePage = () => {
         <Text fontSize="lg" color="fg.muted">
           This project was bootstrapped with the Airflow React Plugin tool.
         </Text>
-        <Button onClick={toggleColorMode} colorPalette="blue">
+        <Button onClick={() => setColorMode(colorMode === "dark" ? "light" : "dark")} colorPalette="brand">
           Toggle Theme
         </Button>
       </VStack>

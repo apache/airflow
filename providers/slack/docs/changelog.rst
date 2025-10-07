@@ -27,6 +27,66 @@
 Changelog
 ---------
 
+9.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid secret false positive from trivy in example dag (#54504)``
+
+9.2.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``AIP-86 - Add async support for Notifiers (#53831)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make slack providers tests db independent (#54660)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+9.1.4
+.....
+
+Misc
+~~~~
+
+* ``Remove deprecated method check send_file usage from slack operators (#54061)``
+* ``Bump slack-sdk to 3.36.0 (#54080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for slack (#52949)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.1.2
 .....
 

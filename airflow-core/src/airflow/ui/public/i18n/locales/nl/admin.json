@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "Omschrijving",
+    "key": "Key",
+    "name": "Naam",
+    "value": "Waarde"
+  },
+  "config": {
+    "columns": {
+      "section": "Sectie"
+    },
+    "title": "Airflow configuratie"
+  },
+  "connections": {
+    "add": "Connectie toevoegen",
+    "columns": {
+      "connectionId": "Connectie ID",
+      "connectionType": "Connectie type",
+      "host": "Host",
+      "port": "Poort"
+    },
+    "connection_one": "Connectie",
+    "connection_other": "Connecties",
+    "delete": {
+      "deleteConnection_one": "Verwijder 1 connectie",
+      "deleteConnection_other": "{{count}} connecties verwijderen",
+      "firstConfirmMessage_one": "Je staat op het punt om de volgende connectie te verwijderen:",
+      "firstConfirmMessage_other": "Je staat op het punt om de volgende connecties te verwijderen:",
+      "title": "Connectie verwijderen"
+    },
+    "edit": "Connectie wijzigen",
+    "form": {
+      "connectionIdRequired": "Connectie ID is verplicht",
+      "connectionIdRequirement": "Connectie ID kan niet bestaan uit enkel spaties",
+      "connectionTypeRequired": "Connectie type is verplicht",
+      "extraFields": "Extra velden",
+      "extraFieldsJson": "Extra velden JSON",
+      "helperText": "Missend connectie type? Controller of je de bijbehorende Airflow Providers Package hebt geïnstalleerd.",
+      "helperTextForRedactedFields": "Gemaskeerde velden ('***') blijven onveranderd als ze niet worden gewijzigd.",
+      "selectConnectionType": "Selecteer connectie type",
+      "standardFields": "Standaard velden"
+    },
+    "nothingFound": {
+      "description": "Connecties gedefinieerd via omgevingsvariabelen of secrets managers worden hier niet weergegeven.",
+      "documentationLink": "Leer meer in de Airflow documentatie.",
+      "learnMore": "Deze worden geresolved tijdens runtime en zijn niet zichtbaar in de UI.",
+      "title": "Geen connectie gevonden!"
+    },
+    "searchPlaceholder": "Connecties zoeken",
+    "test": "Connectie testen",
+    "testDisabled": "Het testen van connecties is uitgeschakeld. Contacteer een administrator om dit in te schakelen.",
+    "typeMeta": {
+      "error": "Mislukt om connectie type meta op te halen",
+      "standardFields": {
+        "description": "Omschrijving",
+        "host": "Host",
+        "login": "Login",
+        "password": "Wachtwoord",
+        "port": "Poort",
+        "url_schema": "Schema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Verwijder",
+    "modal": {
+      "confirmButton": "Ja, verwijder",
+      "secondConfirmMessage": "Deze actie is permanent en kan niet ongedaan gemaakt worden.",
+      "thirdConfirmMessage": " Weet je zeker dat je door wilt gaan?"
+    },
+    "selected": "Geselecteerd",
+    "tooltip": "Verwijder geselecteerde connecties"
+  },
+  "formActions": {
+    "save": "Opslaan"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Bron"
+    },
+    "importError_one": "Plugin import fout",
+    "importError_other": "Plugin import fouten",
+    "searchPlaceholder": "Zoeken op bestand"
+  },
+  "pools": {
+    "add": "Pool toevoegen",
+    "deferredSlotsIncluded": "Deferred Slots meetellen",
+    "delete": {
+      "title": "Pool verwijderen",
+      "warning": "Dit zal alle metadata gerelateerd aan de pool verwijderen en kan effect hebben op Tasks die deze pool gebruiken."
+    },
+    "edit": "Pool wijzigen",
+    "form": {
+      "checkbox": "Vink aan om deferred tasks mee te tellen bij het berekenen van vrije pool slots",
+      "description": "Omschrijving",
+      "includeDeferred": "Deferred meetellen",
+      "nameMaxLength": "Naam mag maximaal 256 karakters bevatten",
+      "nameRequired": "Naam is verplicht",
+      "slots": "Slots"
+    },
+    "noPoolsFound": "Geen pools gevonden",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Pools zoeken",
+    "sort": {
+      "asc": "Naam (A-Z)",
+      "desc": "Naam (Z-A)",
+      "placeholder": "Sorteren op"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Package naam",
+      "version": "Versie"
+    }
+  },
+  "variables": {
+    "add": "Variabele toevoegen",
+    "columns": {
+      "isEncrypted": "Is versleuteld"
+    },
+    "delete": {
+      "deleteVariable_one": "1 variabele verwijderen",
+      "deleteVariable_other": "Verwijder {{count}} variabelen",
+      "firstConfirmMessage_one": "Je staat op het punt om de volgende variabele te verwijderen:",
+      "firstConfirmMessage_other": "Je staat op het punt om de volgende variabelen te verwijderen:",
+      "title": "Verwijder variabele",
+      "tooltip": "Verwijder geselecteerde variabelen"
+    },
+    "edit": "Wijzig variabele",
+    "export": "Exporteer",
+    "exportTooltip": "Exporteer geselecteerde variabelen",
+    "form": {
+      "invalidJson": "Ongeldige JSON",
+      "keyMaxLength": "Sleutel mag maximaal 250 karakters bevatten",
+      "keyRequired": "Sleutel is verplicht",
+      "valueRequired": "Waarde is verplicht"
+    },
+    "import": {
+      "button": "Importeer",
+      "conflictResolution": "Selecteer variabele conflict oplossing",
+      "errorParsingJsonFile": "Fout bij parsen van JSON bestand: Upload een JSON bestand met variabelen (bijv., {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Misluk de import als bestaande variabelen gedetecteerd zijn.",
+          "title": "Mislukken"
+        },
+        "overwrite": {
+          "description": "Overschrijf variabelen in het geval van een conflict.",
+          "title": "Overschrijven"
+        },
+        "skip": {
+          "description": "Sla al bestaande variabelen over.",
+          "title": "Overslaan"
+        }
+      },
+      "title": "Importeer variabelen",
+      "upload": "Upload een JSON bestand",
+      "uploadPlaceholder": "Upload een JSON bestand met variabelen (bijv., {\"sleutel\": \"waarde\", ...})"
+    },
+    "noRowsMessage": "Geen variabelen gevonden",
+    "searchPlaceholder": "Sleutels zoeken",
+    "variable_one": "Variabele",
+    "variable_other": "Variabelen"
+  }
+}

@@ -16,4 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from testcontainers.mongodb import MongoDbContainer
+
 pytest_plugins = "tests_common.pytest_plugin"
+
+
+@pytest.fixture(scope="session")
+def mongodb_container():
+    with MongoDbContainer("mongo:latest") as mongo:
+        yield mongo.get_connection_url()

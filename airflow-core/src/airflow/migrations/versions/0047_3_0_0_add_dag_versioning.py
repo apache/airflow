@@ -31,10 +31,10 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.timezones import timezone
 from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.migrations.utils import ignore_sqlite_value_error
 from airflow.models.base import naming_convention
-from airflow.utils import timezone
 
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"

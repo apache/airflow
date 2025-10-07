@@ -41,7 +41,7 @@ export const HistoricalMetrics = () => {
   const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
 
   const { data, error, isLoading } = useDashboardServiceHistoricalMetrics(
     {
@@ -63,7 +63,7 @@ export const HistoricalMetrics = () => {
 
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
     limit: 6,
-    orderBy: assetSortBy,
+    orderBy: [assetSortBy],
     timestampGte: startDate,
     timestampLte: endDate,
   });

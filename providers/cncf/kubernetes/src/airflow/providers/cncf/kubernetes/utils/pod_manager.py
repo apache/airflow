@@ -23,7 +23,7 @@ import enum
 import json
 import math
 import time
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
@@ -338,6 +338,7 @@ class PodManager(LoggingMixin):
         self._client = kube_client
         self._watch = watch.Watch()
         self._callbacks = callbacks or []
+        self.stop_watching_events = False
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -380,9 +381,8 @@ class PodManager(LoggingMixin):
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
         """Read pod events and writes into log."""
-        self.keep_watching_for_events = True
         num_events = 0
-        while self.keep_watching_for_events:
+        while not self.stop_watching_events:
             events = self.read_pod_events(pod)
             for new_event in events.items[num_events:]:
                 involved_object: V1ObjectReference = new_event.involved_object
@@ -413,7 +413,7 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             pod_status = remote_pod.status
             if pod_status.phase != PodPhase.PENDING:
-                self.keep_watching_for_events = False
+                self.stop_watching_events = True
                 self.log.info("::endgroup::")
                 break
 
@@ -456,6 +456,26 @@ class PodManager(LoggingMixin):
 
             await asyncio.sleep(check_interval)
 
+    def _log_message(
+        self,
+        message: str,
+        container_name: str,
+        container_name_log_prefix_enabled: bool,
+        log_formatter: Callable[[str, str], str] | None,
+    ) -> None:
+        """Log a message with appropriate formatting."""
+        if is_log_group_marker(message):
+            print(message)
+        else:
+            if log_formatter:
+                formatted_message = log_formatter(container_name, message)
+                self.log.info("%s", formatted_message)
+            else:
+                log_message = (
+                    f"[{container_name}] {message}" if container_name_log_prefix_enabled else message
+                )
+                self.log.info("%s", log_message)
+
     def fetch_container_logs(
         self,
         pod: V1Pod,
@@ -464,6 +484,8 @@ class PodManager(LoggingMixin):
         follow=False,
         since_time: DateTime | None = None,
         post_termination_timeout: int = 120,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
     ) -> PodLoggingStatus:
         """
         Follow the logs of container and stream to airflow logging.
@@ -499,13 +521,20 @@ class PodManager(LoggingMixin):
             # can safely resume from a few seconds later
             read_timeout = 60 * 5
             try:
+                since_seconds = None
+                if since_time:
+                    try:
+                        since_seconds = math.ceil((pendulum.now() - since_time).total_seconds())
+                    except TypeError:
+                        self.log.warning(
+                            "Error calculating since_seconds with since_time %s. Using None instead.",
+                            since_time,
+                        )
                 logs = self.read_pod_logs(
                     pod=pod,
                     container_name=container_name,
                     timestamps=True,
-                    since_seconds=(
-                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
-                    ),
+                    since_seconds=since_seconds,
                     follow=follow,
                     post_termination_timeout=post_termination_timeout,
                     _request_timeout=(connection_timeout, read_timeout),
@@ -529,10 +558,12 @@ class PodManager(LoggingMixin):
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
-                                    if is_log_group_marker(message_to_log):
-                                        print(message_to_log)
-                                    else:
-                                        self.log.info("[%s] %s", container_name, message_to_log)
+                                    self._log_message(
+                                        message_to_log,
+                                        container_name,
+                                        container_name_log_prefix_enabled,
+                                        log_formatter,
+                                    )
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -548,10 +579,9 @@ class PodManager(LoggingMixin):
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
-                        if is_log_group_marker(message_to_log):
-                            print(message_to_log)
-                        else:
-                            self.log.info("[%s] %s", container_name, message_to_log)
+                        self._log_message(
+                            message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
+                        )
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -560,10 +590,17 @@ class PodManager(LoggingMixin):
                     return val.add(seconds=2), e
             except HTTPError as e:
                 exception = e
-                self.log.exception(
-                    "Reading of logs interrupted for container %r; will retry.",
-                    container_name,
-                )
+                self._http_error_timestamps = getattr(self, "_http_error_timestamps", [])
+                self._http_error_timestamps = [
+                    t for t in self._http_error_timestamps if t > utcnow() - timedelta(seconds=60)
+                ]
+                self._http_error_timestamps.append(utcnow())
+                # Log only if more than 2 errors occurred in the last 60 seconds
+                if len(self._http_error_timestamps) > 2:
+                    self.log.exception(
+                        "Reading of logs interrupted for container %r; will retry.",
+                        container_name,
+                    )
             return last_captured_timestamp or since_time, exception
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
@@ -630,7 +667,12 @@ class PodManager(LoggingMixin):
         return containers_to_log
 
     def fetch_requested_init_container_logs(
-        self, pod: V1Pod, init_containers: Iterable[str] | str | Literal[True] | None, follow_logs=False
+        self,
+        pod: V1Pod,
+        init_containers: Iterable[str] | str | Literal[True] | None,
+        follow_logs=False,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
     ) -> list[PodLoggingStatus]:
         """
         Follow the logs of containers in the specified pod and publish it to airflow logging.
@@ -650,12 +692,23 @@ class PodManager(LoggingMixin):
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for c in containers_to_log:
             self._await_init_container_start(pod=pod, container_name=c)
-            status = self.fetch_container_logs(pod=pod, container_name=c, follow=follow_logs)
+            status = self.fetch_container_logs(
+                pod=pod,
+                container_name=c,
+                follow=follow_logs,
+                container_name_log_prefix_enabled=container_name_log_prefix_enabled,
+                log_formatter=log_formatter,
+            )
             pod_logging_statuses.append(status)
         return pod_logging_statuses
 
     def fetch_requested_container_logs(
-        self, pod: V1Pod, containers: Iterable[str] | str | Literal[True], follow_logs=False
+        self,
+        pod: V1Pod,
+        containers: Iterable[str] | str | Literal[True],
+        follow_logs=False,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
     ) -> list[PodLoggingStatus]:
         """
         Follow the logs of containers in the specified pod and publish it to airflow logging.
@@ -672,7 +725,13 @@ class PodManager(LoggingMixin):
             pod_name=pod.metadata.name,
         )
         for c in containers_to_log:
-            status = self.fetch_container_logs(pod=pod, container_name=c, follow=follow_logs)
+            status = self.fetch_container_logs(
+                pod=pod,
+                container_name=c,
+                follow=follow_logs,
+                container_name_log_prefix_enabled=container_name_log_prefix_enabled,
+                log_formatter=log_formatter,
+            )
             pod_logging_statuses.append(status)
         return pod_logging_statuses
 

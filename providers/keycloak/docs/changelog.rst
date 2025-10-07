@@ -25,11 +25,31 @@
 Changelog
 ---------
 
-1.0.0
+0.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add 'LIST' scope in Keycloak auth manager (#54998)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs(keycloak): Update documentation for Keycloak auth manager CLI usage and permission management (#54928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+0.0.1
 .....
 
 .. note::
-  This release of provider is only available for Airflow 3.0+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+    Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
 
 * ``Initial version of the provider (#46694)``

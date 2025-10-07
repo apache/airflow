@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -54,6 +54,14 @@ class Log(Base):
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
+    )
+
+    task_instance = relationship(
+        "TaskInstance",
+        viewonly=True,
+        foreign_keys=[task_id],
+        primaryjoin="Log.task_id == TaskInstance.task_id",
+        lazy="noload",
     )
 
     __table_args__ = (

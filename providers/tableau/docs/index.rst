@@ -50,7 +50,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/providers/tableau/tests/system/tableau>
+    Example Dags <https://github.com/apache/airflow/tree/providers-tableau/|version|/providers/tableau/tests/system/tableau>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
     Installing from sources <installing-providers-from-sources>
 
@@ -71,7 +71,7 @@ apache-airflow-providers-tableau package
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 5.1.1
+Release: 5.2.0
 
 Provider package
 ----------------
@@ -82,7 +82,7 @@ All classes for this package are included in the ``airflow.providers.tableau`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-tableau``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -95,5 +95,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.10.0``
-``tableauserverclient``  ``>=0.25``
+``tableauserverclient``  ``>=0.27``
 =======================  ==================

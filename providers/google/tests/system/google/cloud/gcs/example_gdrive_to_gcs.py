@@ -23,15 +23,27 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
@@ -51,9 +63,7 @@ FILE_NAME = "example_upload.txt"
 DRIVE_FILE_NAME = f"example_upload_{DAG_ID}_{ENV_ID}.txt"
 LOCAL_PATH = f"gcs/{FILE_NAME}"
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     DAG_ID,

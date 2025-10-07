@@ -23,16 +23,16 @@ from typing import TYPE_CHECKING
 
 from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -55,6 +55,10 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
+    run_on_latest_version: bool = Field(
+        default=False,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+    )
 
 
 class DAGRunResponse(BaseModel):
@@ -98,18 +102,18 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
-    conf: dict = Field(default_factory=dict)
+    conf: dict | None = Field(default_factory=dict)
     note: str | None = None
 
     @model_validator(mode="after")
-    def check_data_intervals(cls, values):
-        if (values.data_interval_start is None) != (values.data_interval_end is None):
+    def check_data_intervals(self):
+        if (self.data_interval_start is None) != (self.data_interval_end is None):
             raise ValueError(
                 "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
-        return values
+        return self
 
-    def validate_context(self, dag: DAG) -> dict:
+    def validate_context(self, dag: SerializedDAG) -> dict:
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None
@@ -156,11 +160,30 @@ class DAGRunsBatchBody(StrictBaseModel):
     page_limit: NonNegativeInt = 100
     dag_ids: list[str] | None = None
     states: list[DagRunState | None] | None = None
+
     run_after_gte: AwareDatetime | None = None
+    run_after_gt: AwareDatetime | None = None
     run_after_lte: AwareDatetime | None = None
+    run_after_lt: AwareDatetime | None = None
+
     logical_date_gte: AwareDatetime | None = None
+    logical_date_gt: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
+    logical_date_lt: AwareDatetime | None = None
+
     start_date_gte: AwareDatetime | None = None
+    start_date_gt: AwareDatetime | None = None
     start_date_lte: AwareDatetime | None = None
+    start_date_lt: AwareDatetime | None = None
+
     end_date_gte: AwareDatetime | None = None
+    end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
+    end_date_lt: AwareDatetime | None = None
+
+    duration_gte: float | None = None
+    duration_gt: float | None = None
+    duration_lte: float | None = None
+    duration_lt: float | None = None
+
+    conf_contains: str | None = None

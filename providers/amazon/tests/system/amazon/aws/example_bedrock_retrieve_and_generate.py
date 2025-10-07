@@ -22,12 +22,12 @@ import os.path
 import tempfile
 from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING
 from urllib.request import urlretrieve
 
 import boto3
 from botocore.exceptions import ClientError
 from opensearchpy import (
+    AuthenticationException,
     AuthorizationException,
     AWSV4SignerAuth,
     OpenSearch,
@@ -59,21 +59,19 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.decorators import task, task_group
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
-    from airflow.sdk import Label
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, Label, chain, task, task_group
 else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, Label, chain, task, task_group
-    else:
-        # Airflow 2.10 compat
-        from airflow.decorators import task, task_group
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
-        from airflow.sdk import Label
-from airflow.utils.trigger_rule import TriggerRule
+    # Airflow 2 path
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+    from airflow.sdk import Label  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -83,8 +81,9 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-v2"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
+ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -268,7 +267,7 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
             response = oss_client.indices.create(index=index_name, body=json.dumps(index_config))
             log.info("Creating index: %s.", response)
             break
-        except AuthorizationException as e:
+        except (AuthorizationException, AuthenticationException) as e:
             # Index creation can take up to a minute and there is no (apparent?) way to check the current state.
             log.info(
                 "Access denied; policy permissions have likely not yet propagated, %s tries remaining.",
@@ -489,7 +488,13 @@ with DAG(
     invoke_claude_completions = BedrockInvokeModelOperator(
         task_id="invoke_claude_completions",
         model_id=CLAUDE_MODEL_ID,
-        input_data={"max_tokens_to_sample": 4000, "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+        input_data={
+            "max_tokens": 4000,
+            "anthropic_version": ANTHROPIC_VERSION,
+            "messages": [
+                {"role": "user", "content": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+            ],
+        },
     )
     # [END howto_operator_invoke_claude_model]
 
@@ -614,7 +619,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

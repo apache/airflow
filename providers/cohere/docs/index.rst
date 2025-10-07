@@ -71,7 +71,7 @@ apache-airflow-providers-cohere package
 `Cohere <https://docs.cohere.com/docs>`__
 
 
-Release: 1.5.2
+Release: 1.5.3
 
 Provider package
 ----------------
@@ -82,7 +82,7 @@ All classes for this package are included in the ``airflow.providers.cohere`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-cohere``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

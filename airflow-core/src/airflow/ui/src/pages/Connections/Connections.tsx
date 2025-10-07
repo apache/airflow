@@ -68,7 +68,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(row.original.connection_id)}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
       />
     ),
@@ -78,7 +78,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),
@@ -135,7 +135,7 @@ export const Connections = () => {
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "connection_id";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,

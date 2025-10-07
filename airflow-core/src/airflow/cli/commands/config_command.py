@@ -345,6 +345,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_samesite"),
+        renamed_to=ConfigParameter("fab", "cookie_samesite"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "audit_view_included_events"),
@@ -570,6 +572,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
+        renamed_to=ConfigParameter("fab", "cookie_secure"),
+        breaking=True,
         was_deprecated=False,
     ),
     ConfigChange(
@@ -635,6 +639,9 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "allow_trigger_in_future"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "dag_stale_not_seen_duration"),
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "catchup_by_default"),

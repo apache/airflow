@@ -27,11 +27,12 @@ from pathlib import Path
 
 import pytest
 
+from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
-from airflow.models import DagBag, TaskInstance
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import TaskInstance
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils import db
 

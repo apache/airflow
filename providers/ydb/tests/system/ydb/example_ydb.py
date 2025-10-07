@@ -23,13 +23,19 @@ import re
 import ydb
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.ydb.hooks.ydb import YDBHook
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
-# [START ydb_operator_howto_guide]
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
+# [START ydb_operator_howto_guide]
 
 # create_pet_table, populate_pet_table, get_all_pets, and get_birth_date are examples of tasks created by
 # instantiating the YDB Operator

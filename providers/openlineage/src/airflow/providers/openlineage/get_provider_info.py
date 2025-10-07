@@ -34,6 +34,12 @@ def get_provider_info():
                 "tags": ["protocol"],
             }
         ],
+        "operators": [
+            {
+                "integration-name": "OpenLineage",
+                "python-modules": ["airflow.providers.openlineage.operators.empty"],
+            }
+        ],
         "plugins": [
             {
                 "name": "openlineage",

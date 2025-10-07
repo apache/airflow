@@ -21,10 +21,11 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, select, true
+from sqlalchemy.orm import relationship
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.dag import DagModel
-from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -46,6 +47,8 @@ class DagWarning(Base):
     warning_type = Column(String(50), primary_key=True)
     message = Column(Text, nullable=False)
     timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+
+    dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
 
     __tablename__ = "dag_warning"
     __table_args__ = (

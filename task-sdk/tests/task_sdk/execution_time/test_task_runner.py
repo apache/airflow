@@ -34,7 +34,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -46,16 +45,26 @@ from airflow.exceptions import (
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    Connection,
+    dag as dag_decorator,
+    get_current_context,
+    task as task_decorator,
+    timezone,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
+    DagRun,
     DagRunState,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
+from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -71,12 +80,14 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetPreviousDagRun,
     GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
     OKResponse,
+    PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -106,14 +117,11 @@ from airflow.sdk.execution_time.task_runner import (
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
-    get_log_url_from_ti,
     parse,
     run,
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
-from airflow.utils import timezone
-from airflow.utils.types import NOTSET, ArgNotSet
 
 from tests_common.test_utils.mock_operators import AirflowLink
 
@@ -492,7 +500,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
-    """Test running a DAG with templated task."""
+    """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(
@@ -597,7 +605,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
 def test_startup_and_run_dag_with_rtif(
     mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a DAG with various rendered templated fields."""
+    """Test startup of a Dag with various rendered templated fields."""
 
     class CustomOperator(BaseOperator):
         template_fields = tuple(task_params.keys())
@@ -737,6 +745,49 @@ def test_task_run_with_user_impersonation_default_user(
         assert "_AIRFLOW__STARTUP_MSG" not in os.environ
 
 
+def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_process(
+    mocked_parse, make_ti_context, time_machine, mock_supervisor_comms
+):
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    task = CustomOperator(task_id="impersonation_task", run_as_user="airflowuser")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="impersonation_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    mocked_parse(what, "basic_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+
+    mock_os_env = {
+        "KRB5CCNAME": "/tmp/airflow_krb5_ccache",
+        "_AIRFLOW__REEXECUTED_PROCESS": "1",
+        "_AIRFLOW__STARTUP_MSG": what.model_dump_json(),
+    }
+    with mock.patch.dict("os.environ", mock_os_env, clear=True):
+        startup()
+
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+        assert "KRB5CCNAME" not in os.environ
+
+
 @pytest.mark.parametrize(
     ["command", "rendered_command"],
     [
@@ -749,7 +800,7 @@ def test_task_run_with_user_impersonation_default_user(
 def test_startup_and_run_dag_with_templated_fields(
     command, rendered_command, create_runtime_ti, time_machine
 ):
-    """Test startup of a DAG with various templated fields."""
+    """Test startup of a Dag with various templated fields."""
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(task_id="templated_task", bash_command=command)
@@ -840,10 +891,10 @@ def test_run_basic_failed(
 
 def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
     """
-    Test that the DAG parsing context is correctly set during the startup process.
+    Test that the Dag parsing context is correctly set during the startup process.
 
-    This test verifies that the DAG and task IDs are correctly set in the parsing context
-    when a DAG is started up.
+    This test verifies that the Dag and task IDs are correctly set in the parsing context
+    when a Dag is started up.
     """
     dag_id = "dag_parsing_context_test"
     task_id = "conditional_task"
@@ -860,8 +911,8 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
 
     mock_supervisor_comms._get_response.return_value = what
 
-    # Set the environment variable for DAG bundles
-    # We use the DAG defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
+    # Set the environment variable for Dag bundles
+    # We use the Dag defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
     dag_bundle_val = json.dumps(
         [
             {
@@ -875,7 +926,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _, _ = startup()
 
-    # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
+    # Presence of `conditional_task` below means Dag ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
 
@@ -1084,7 +1135,7 @@ class TestRuntimeTaskInstance:
         task = BaseOperator(task_id="hello")
         dag_id = "basic_task"
 
-        # Assign task to DAG
+        # Assign task to Dag
         get_inline_dag(dag_id=dag_id, task=task)
 
         ti_id = uuid7()
@@ -1130,7 +1181,6 @@ class TestRuntimeTaskInstance:
 
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
-        from airflow.utils import timezone
 
         task = BaseOperator(task_id="hello")
 
@@ -1237,7 +1287,7 @@ class TestRuntimeTaskInstance:
         # Access the connection from the context
         conn_from_context = context["conn"].test_conn
 
-        mock_supervisor_comms.send.assert_called_once_with(GetConnection(conn_id="test_conn"))
+        mock_supervisor_comms.send.assert_any_call(GetConnection(conn_id="test_conn"))
 
         assert conn_from_context == Connection(
             conn_id="test_conn",
@@ -1812,6 +1862,130 @@ class TestRuntimeTaskInstance:
         )
         assert states == {"run1": {"task1": "running"}}
 
+    def test_get_previous_dagrun_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request without state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state=None),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_run"
+        assert dr.state == "success"
+
+    def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_dagrun sends the correct request with state filter."""
+
+        task = BaseOperator(task_id="hello")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        dag_run_data = DagRun(
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
+
+        dr = runtime_ti.get_previous_dagrun(state="success")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousDagRun(
+                dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state="success"
+            ),
+        )
+        assert dr.dag_id == "test_dag"
+        assert dr.run_id == "prev_success_run"
+        assert dr.state == "success"
+
+    @pytest.mark.parametrize(
+        "map_index",
+        [
+            pytest.param(-1, id="map_index_negative_one"),
+            pytest.param(0, id="map_index_zero"),
+            pytest.param(5, id="map_index_positive"),
+        ],
+    )
+    def test_xcom_clearing_includes_map_index(self, create_runtime_ti, mock_supervisor_comms, map_index):
+        """Test that XCom clearing during task execution properly passes map_index."""
+
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+
+        # Mock the ti_context_from_server to include xcom_keys_to_clear
+        runtime_ti._ti_context_from_server = TIRunContext(
+            dag_run=runtime_ti._ti_context_from_server.dag_run,
+            task_reschedule_count=0,
+            max_tries=1,
+            should_retry=False,
+            xcom_keys_to_clear=["key1", "key2", "key3"],
+        )
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            # Verify that XCom.delete was called for each key with the correct map_index
+            expected_calls = [
+                mock.call(
+                    key="key1",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key2",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+                mock.call(
+                    key="key3",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=map_index,
+                ),
+            ]
+            mock_delete.assert_has_calls(expected_calls)
+
+    def test_xcom_clearing_without_keys_to_clear(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that no XCom clearing occurs when xcom_keys_to_clear is empty."""
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        assert runtime_ti._ti_context_from_server.xcom_keys_to_clear is None
+
+        with mock.patch.object(XCom, "delete") as mock_delete:
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+            mock_delete.assert_not_called()
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -1998,8 +2172,7 @@ class TestXComAfterTaskExecution:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids="pull_task", key="key")
-                print(f"Pulled XCom Value: {value}")
+                context["ti"].xcom_pull(task_ids="pull_task", key="key")
 
         task = CustomOperator(task_id="pull_task")
         runtime_ti = create_runtime_ti(task=task)
@@ -2010,6 +2183,7 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            include_prior_dates=False,
         )
 
         assert not any(
@@ -2024,6 +2198,81 @@ class TestXComAfterTaskExecution:
                 ),
             )
             for x in mock_supervisor_comms.send.call_args_list
+        )
+
+    def test_get_all_uses_custom_deserialize_value(self, mock_supervisor_comms):
+        """
+        Tests that XCom.get_all() calls the custom deserialize_value method.
+        """
+
+        class CustomXCom(BaseXCom):
+            @classmethod
+            def deserialize_value(cls, result):
+                """Custom deserialization that adds a prefix to show it was called."""
+                original_value = super().deserialize_value(result)
+                return f"from custom xcom deserialize:{original_value}"
+
+        serialized_values = ["value1", "value2", "value3"]
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=serialized_values)
+
+        result = CustomXCom.get_all(key="test_key", dag_id="test_dag", task_id="test_task", run_id="test_run")
+
+        expected = [
+            "from custom xcom deserialize:value1",
+            "from custom xcom deserialize:value2",
+            "from custom xcom deserialize:value3",
+        ]
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("include_prior_dates", "expected_value"),
+        [
+            pytest.param(True, True, id="include_prior_dates_true"),
+            pytest.param(False, False, id="include_prior_dates_false"),
+            pytest.param(None, False, id="include_prior_dates_default"),
+        ],
+    )
+    def test_xcom_pull_with_include_prior_dates(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        include_prior_dates,
+        expected_value,
+    ):
+        """Test that xcom_pull with include_prior_dates parameter correctly behaves as we expect."""
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        value = {"previous_run_data": "test_value"}
+        ser_value = BaseXCom.serialize_value(value)
+
+        def mock_send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg") or args[0]
+            if isinstance(msg, GetXComSequenceSlice):
+                assert msg.include_prior_dates is expected_value, (
+                    f"include_prior_dates should be {expected_value} in GetXComSequenceSlice"
+                )
+                return XComSequenceSliceResult(root=[ser_value])
+            return XComResult(key="test_key", value=None)
+
+        mock_supervisor_comms.send.side_effect = mock_send_side_effect
+        kwargs = {"key": "test_key", "task_ids": "previous_task"}
+        if include_prior_dates is not None:
+            kwargs["include_prior_dates"] = include_prior_dates
+        result = runtime_ti.xcom_pull(**kwargs)
+        assert result == value
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="test_key",
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="previous_task",
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=expected_value,
+            ),
         )
 
 
@@ -2274,7 +2523,6 @@ class TestTaskRunnerCallsListeners:
 
         runtime_ti, context, log = startup()
         assert runtime_ti is not None
-        assert runtime_ti.log_url == get_log_url_from_ti(runtime_ti)
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
@@ -2442,6 +2690,158 @@ class TestTaskRunnerCallsCallbacks:
 
         assert state == expected_state
         assert collected_results == expected_results
+
+    @pytest.mark.parametrize(
+        ["base_url", "expected_url"],
+        [
+            ("http://localhost:8080/", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
+            ("http://localhost:8080", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
+            (
+                "https://airflow.example.com/",
+                "https://airflow.example.com/dags/test_dag/runs/test_run/tasks/test_task",
+            ),
+            (
+                "https://airflow.example.com",
+                "https://airflow.example.com/dags/test_dag/runs/test_run/tasks/test_task",
+            ),
+        ],
+        ids=["localhost_with_slash", "localhost_no_slash", "domain_with_slash", "domain_no_slash"],
+    )
+    def test_runtime_task_instance_log_url_property(self, create_runtime_ti, base_url, expected_url):
+        """Test that RuntimeTaskInstance.log_url property correctly handles various base_url formats."""
+        task = BaseOperator(task_id="test_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
+
+        with patch("airflow.configuration.conf.get", return_value=base_url):
+            log_url = runtime_ti.log_url
+            assert log_url == expected_url
+
+    def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
+        """Test that on_failure_callback context has end_date and duration."""
+        from airflow.exceptions import AirflowException
+
+        def failure_callback(context):
+            ti = context["task_instance"]
+            assert isinstance(ti.end_date, datetime)
+            duration = (ti.end_date - ti.start_date).total_seconds()
+            assert duration is not None
+            assert duration >= 0
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowException("Failing task")
+
+        task = FailingOperator(task_id="failing_task", on_failure_callback=failure_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.FAILED
+
+    def test_task_runner_on_success_callback_context(self, create_runtime_ti):
+        """Test that on_success_callback context has end_date and duration."""
+        callback_data = {}  # Store callback data for inspection
+
+        def success_callback(context):
+            ti = context["task_instance"]
+            callback_data["end_date"] = ti.end_date
+            callback_data["duration"] = (ti.end_date - ti.start_date).total_seconds() if ti.end_date else None
+            callback_data["start_date"] = ti.start_date
+
+        class SuccessOperator(BaseOperator):
+            def execute(self, context):
+                return "success"
+
+        task = SuccessOperator(task_id="success_task", on_success_callback=success_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.SUCCESS
+
+        # Verify callback was called and data was captured
+        assert "end_date" in callback_data, "Success callback should have been called"
+        assert isinstance(callback_data["end_date"], datetime), (
+            f"end_date should be datetime, got {type(callback_data['end_date'])}"
+        )
+        assert callback_data["duration"] is not None, (
+            f"duration should not be None, got {callback_data['duration']}"
+        )
+        assert callback_data["duration"] >= 0, f"duration should be >= 0, got {callback_data['duration']}"
+
+    def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
+        """Test that both success and failure callbacks receive accurate timing information."""
+        import time
+
+        from airflow.exceptions import AirflowException
+
+        success_data = {}
+        failure_data = {}
+
+        def success_callback(context):
+            ti = context["task_instance"]
+            success_data["end_date"] = ti.end_date
+            success_data["start_date"] = ti.start_date
+            success_data["duration"] = (ti.end_date - ti.start_date).total_seconds() if ti.end_date else None
+
+        def failure_callback(context):
+            ti = context["task_instance"]
+            failure_data["end_date"] = ti.end_date
+            failure_data["start_date"] = ti.start_date
+            failure_data["duration"] = (ti.end_date - ti.start_date).total_seconds() if ti.end_date else None
+
+        # Test success callback
+        class SuccessOperator(BaseOperator):
+            def execute(self, context):
+                time.sleep(0.01)  # Add small delay to ensure measurable duration
+                return "success"
+
+        success_task = SuccessOperator(task_id="success_task", on_success_callback=success_callback)
+        success_runtime_ti = create_runtime_ti(dag_id="dag", task=success_task)
+        success_log = mock.MagicMock()
+        success_context = success_runtime_ti.get_template_context()
+
+        success_state, _, success_error = run(success_runtime_ti, success_context, success_log)
+        finalize(success_runtime_ti, success_state, success_context, success_log, success_error)
+
+        # Test failure callback
+        class FailureOperator(BaseOperator):
+            def execute(self, context):
+                time.sleep(0.01)  # Add small delay to ensure measurable duration
+                raise AirflowException("Test failure")
+
+        failure_task = FailureOperator(task_id="failure_task", on_failure_callback=failure_callback)
+        failure_runtime_ti = create_runtime_ti(dag_id="dag", task=failure_task)
+        failure_log = mock.MagicMock()
+        failure_context = failure_runtime_ti.get_template_context()
+
+        failure_state, _, failure_error = run(failure_runtime_ti, failure_context, failure_log)
+        finalize(failure_runtime_ti, failure_state, failure_context, failure_log, failure_error)
+
+        # Assertions for success callback
+        assert success_state == TaskInstanceState.SUCCESS
+        assert "end_date" in success_data, "Success callback should have been called"
+        assert isinstance(success_data["end_date"], datetime)
+        assert isinstance(success_data["start_date"], datetime)
+        assert success_data["duration"] is not None
+        assert success_data["duration"] >= 0.01, (
+            f"Success duration should be >= 0.01, got {success_data['duration']}"
+        )
+
+        # Assertions for failure callback
+        assert failure_state == TaskInstanceState.FAILED
+        assert "end_date" in failure_data, "Failure callback should have been called"
+        assert isinstance(failure_data["end_date"], datetime)
+        assert isinstance(failure_data["start_date"], datetime)
+        assert failure_data["duration"] is not None
+        assert failure_data["duration"] >= 0.01, (
+            f"Failure duration should be >= 0.01, got {failure_data['duration']}"
+        )
 
     @pytest.mark.parametrize(
         "callback_to_test, execute_impl, should_retry, expected_state, expected_results, extra_exceptions",

@@ -25,7 +25,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -34,11 +34,16 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryAssetDependencyFilter,
+    QueryBundleNameFilter,
+    QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
+    QueryHasAssetScheduleFilter,
+    QueryHasImportErrorsFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -67,7 +72,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel
+from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 
@@ -84,7 +89,12 @@ def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    bundle_name: QueryBundleNameFilter,
+    bundle_version: QueryBundleVersionFilter,
+    has_asset_schedule: QueryHasAssetScheduleFilter,
+    asset_dependency: QueryAssetDependencyFilter,
     dag_run_start_date_range: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
     ],
@@ -134,12 +144,17 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            has_import_errors,
             dag_id_pattern,
             dag_display_name_pattern,
             tags,
             is_favorite,
             owners,
             readable_dags_filter,
+            bundle_name,
+            bundle_version,
+            has_asset_schedule,
+            asset_dependency,
         ],
         order_by=order_by,
         offset=offset,
@@ -172,10 +187,7 @@ def get_dag(
     dag_bag: DagBagDep,
 ) -> DAGResponse:
     """Get basic information about a DAG."""
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
-
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
@@ -199,9 +211,7 @@ def get_dag(
 )
 def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:

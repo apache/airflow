@@ -21,13 +21,18 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+import time_machine
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -61,7 +66,7 @@ class TestEdgeExecutor:
     def test__process_tasks_bad_command(self):
         executor, key = self.get_test_executor()
         task_tuple = (key, ["hello", "world"], None, None)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="The command must start with "):
             executor._process_tasks([task_tuple])
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
@@ -246,6 +251,11 @@ class TestEdgeExecutor:
 
         # Prepare some data
         with create_session() as session:
+            # Clear existing workers to avoid unique constraint violation
+            session.query(EdgeWorkerModel).delete()
+            session.commit()
+
+            # Add workers with different states
             for worker_name, state, last_heartbeat in [
                 (
                     "inactive_timed_out_worker",
@@ -275,9 +285,7 @@ class TestEdgeExecutor:
                 )
                 session.commit()
 
-        with patch(
-            "airflow.utils.timezone.utcnow", return_value=datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
-        ):
+        with time_machine.travel(datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc), tick=False):
             with conf_vars({("edge", "heartbeat_interval"): "10"}):
                 executor.sync()
 
@@ -339,3 +347,178 @@ class TestEdgeExecutor:
         with create_session() as session:
             jobs = session.query(EdgeJobModel).all()
             assert len(jobs) == 1
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow <3.0")
+    def test_execute_async_updates_existing_job(self):
+        executor, key = self.get_test_executor()
+
+        # First insert a job with the same key
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    run_id=key.run_id,
+                    task_id=key.task_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.SCHEDULED,
+                    queue="default",
+                    concurrency_slots=1,
+                    command="old-command",
+                    last_update=timezone.utcnow(),
+                )
+            )
+            session.commit()
+
+        # Trigger execute_async which should update the existing job
+        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
+        executor.execute_async(key=key, command=["airflow", "tasks", "run", "new", "command"])
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+            job = jobs[0]
+            assert job.state == TaskInstanceState.QUEUED
+            assert job.command != "old-command"
+            assert "new" in job.command
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
+    def test_queue_workload_updates_existing_job(self):
+        from uuid import uuid4
+
+        from airflow.executors.workloads import ExecuteTask, TaskInstance
+
+        executor = self.get_test_executor()[0]
+
+        key = TaskInstanceKey(dag_id="mock", run_id="mock", task_id="mock", map_index=-1, try_number=1)
+
+        # Insert an existing job
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.SCHEDULED,
+                    queue="default",
+                    command="old-command",
+                    concurrency_slots=1,
+                    last_update=timezone.utcnow(),
+                )
+            )
+            session.commit()
+
+        # Queue a workload with same key
+        workload = ExecuteTask(
+            token="mock",
+            ti=TaskInstance(
+                id=uuid4(),
+                task_id=key.task_id,
+                dag_id=key.dag_id,
+                run_id=key.run_id,
+                try_number=key.try_number,
+                map_index=key.map_index,
+                pool_slots=1,
+                queue="updated-queue",
+                priority_weight=1,
+                start_date=timezone.utcnow(),
+                dag_version_id=uuid4(),
+            ),
+            dag_rel_path="mock.py",
+            log_path="mock.log",
+            bundle_info={"name": "n/a", "version": "no matter"},
+        )
+
+        executor.queue_workload(workload=workload)
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+            job = jobs[0]
+            assert job.queue == "updated-queue"
+            assert job.command != "old-command"
+
+    def test_revoke_task(self):
+        """Test that revoke_task removes task from executor and database."""
+        executor = EdgeExecutor()
+        key = TaskInstanceKey(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+        )
+
+        # Create a mock task instance
+        ti = MagicMock()
+        ti.key = key
+        ti.dag_id = "test_dag"
+        ti.task_id = "test_task"
+        ti.run_id = "test_run"
+        ti.map_index = -1
+        ti.try_number = 1
+
+        # Add task to executor's internal state
+        executor.running.add(key)
+        executor.queued_tasks[key] = [None, None, None, ti]
+        executor.last_reported_state[key] = TaskInstanceState.QUEUED
+
+        # Add corresponding job to database
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id="test_dag",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                    try_number=1,
+                    state=TaskInstanceState.QUEUED,
+                    queue="default",
+                    command="mock",
+                    concurrency_slots=1,
+                )
+            )
+            session.commit()
+
+        # Verify job exists before revoke
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 1
+
+        # Revoke the task
+        executor.revoke_task(ti=ti)
+
+        # Verify task is removed from executor's internal state
+        assert key not in executor.running
+        assert key not in executor.queued_tasks
+        assert key not in executor.last_reported_state
+
+        # Verify job is removed from database
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 0
+
+    def test_revoke_task_nonexistent(self):
+        """Test that revoke_task handles non-existent tasks gracefully."""
+        executor = EdgeExecutor()
+        key = TaskInstanceKey(
+            dag_id="nonexistent_dag",
+            run_id="nonexistent_run",
+            task_id="nonexistent_task",
+            map_index=-1,
+            try_number=1,
+        )
+
+        # Create a mock task instance
+        ti = MagicMock()
+        ti.key = key
+        ti.dag_id = "nonexistent_dag"
+        ti.task_id = "nonexistent_task"
+        ti.run_id = "nonexistent_run"
+        ti.map_index = -1
+        ti.try_number = 1
+
+        # Revoke a task that doesn't exist (should not raise error)
+        executor.revoke_task(ti=ti)
+
+        # Verify nothing breaks
+        assert key not in executor.running
+        assert key not in executor.queued_tasks

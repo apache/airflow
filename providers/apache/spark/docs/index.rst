@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/providers/apache/spark/tests/system/apache/spark>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/providers/apache/spark/tests/system/apache/spark>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-apache-spark package
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 5.3.1
+Release: 5.3.2
 
 Provider package
 ----------------
@@ -88,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.apache.spar
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-apache-spark``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -132,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-spark 5.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-spark 5.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-spark 5.3.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-spark 5.3.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-5.3.2-py3-none-any.whl.sha512>`__)

@@ -68,7 +68,7 @@ apache-airflow-providers-datadog package
 `Datadog <https://www.datadoghq.com/>`__
 
 
-Release: 3.9.1
+Release: 3.9.2
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ All classes for this package are included in the ``airflow.providers.datadog`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-datadog``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -92,5 +92,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.10.0``
-``datadog``         ``>=0.14.0``
+``datadog``         ``>=0.50.0``
 ==================  ==================

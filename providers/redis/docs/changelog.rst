@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-82: Add RedisPubSubMessageQueueProvider (#53556)``
+
+Misc
+~~~~
+
+* ``Refactor Common Queue Interface (#54651)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Update main with Airflow 3.0.4 release details (#54294)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add AwaitMessageTrigger for Redis PubSub (#52917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Resolve OOM When Reading Large Logs in Webserver (#49470)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in redis provider where possible (#53272)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Imported BaseHook from version_compat in Redis (#52789)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 4.1.1
 .....
 

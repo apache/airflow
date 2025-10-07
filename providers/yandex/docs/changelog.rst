@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add environment and oslogin for yandex dataproc create cluster (#52973)``
+
+Misc
+~~~~
+
+* ``Fix unreachable code errors in yandex provider (#53453)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for yandex (#52963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Cleanup type ignores in yandex provider where possible (#53251)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 4.1.1
 .....
 

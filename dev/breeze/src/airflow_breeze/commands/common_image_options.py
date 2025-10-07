@@ -212,7 +212,6 @@ option_github_token_for_images = click.option(
     help="The token used to authenticate to GitHub. You can generate it with "
     "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
     envvar="GITHUB_TOKEN",
-    required=True,
 )
 option_image_file_dir = click.option(
     "--image-file-dir",

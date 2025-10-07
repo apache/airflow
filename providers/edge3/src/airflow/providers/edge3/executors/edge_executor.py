@@ -140,19 +140,39 @@ class EdgeExecutor(BaseExecutor):
         del self.edge_queued_tasks[key]
 
         self.validate_airflow_tasks_run_command(command)  # type: ignore[attr-defined]
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=queue or DEFAULT_QUEUE,
-                concurrency_slots=task_instance.pool_slots,
-                command=str(command),
             )
+            .first()
         )
+
+        if existing_job:
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = queue or DEFAULT_QUEUE
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = str(command)
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=queue or DEFAULT_QUEUE,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=str(command),
+                )
+            )
 
     @provide_session
     def queue_workload(
@@ -168,19 +188,39 @@ class EdgeExecutor(BaseExecutor):
 
         task_instance = workload.ti
         key = task_instance.key
-        session.add(
-            EdgeJobModel(
+
+        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+        existing_job = (
+            session.query(EdgeJobModel)
+            .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
                 map_index=key.map_index,
                 try_number=key.try_number,
-                state=TaskInstanceState.QUEUED,
-                queue=task_instance.queue,
-                concurrency_slots=task_instance.pool_slots,
-                command=workload.model_dump_json(),
             )
+            .first()
         )
+
+        if existing_job:
+            existing_job.state = TaskInstanceState.QUEUED
+            existing_job.queue = task_instance.queue
+            existing_job.concurrency_slots = task_instance.pool_slots
+            existing_job.command = workload.model_dump_json()
+        else:
+            session.add(
+                EdgeJobModel(
+                    dag_id=key.dag_id,
+                    task_id=key.task_id,
+                    run_id=key.run_id,
+                    map_index=key.map_index,
+                    try_number=key.try_number,
+                    state=TaskInstanceState.QUEUED,
+                    queue=task_instance.queue,
+                    concurrency_slots=task_instance.pool_slots,
+                    command=workload.model_dump_json(),
+                )
+            )
 
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
@@ -358,6 +398,35 @@ class EdgeExecutor(BaseExecutor):
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
+
+    @provide_session
+    def revoke_task(self, *, ti: TaskInstance, session: Session = NEW_SESSION):
+        """
+        Revoke a task instance from the executor.
+
+        This method removes the task from the executor's internal state and deletes
+        the corresponding EdgeJobModel record to prevent edge workers from picking it up.
+
+        :param ti: Task instance to revoke
+        :param session: Database session
+        """
+        # Remove from executor's internal state
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
+        if ti.key in self.last_reported_state:
+            del self.last_reported_state[ti.key]
+
+        # Delete the job from the database to prevent edge workers from picking it up
+        session.execute(
+            delete(EdgeJobModel).where(
+                EdgeJobModel.dag_id == ti.dag_id,
+                EdgeJobModel.task_id == ti.task_id,
+                EdgeJobModel.run_id == ti.run_id,
+                EdgeJobModel.map_index == ti.map_index,
+                EdgeJobModel.try_number == ti.try_number,
+            )
+        )
+        self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

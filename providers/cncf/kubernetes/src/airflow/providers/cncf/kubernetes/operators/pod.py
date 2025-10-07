@@ -80,7 +80,12 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_succeeded,
     get_container_termination_message,
 )
-from airflow.providers.cncf.kubernetes.version_compat import XCOM_RETURN_KEY, BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -235,6 +240,11 @@ class KubernetesPodOperator(BaseOperator):
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
     :param trigger_kwargs: additional keyword parameters passed to the trigger
+    :param container_name_log_prefix_enabled: if True, will prefix container name to each log line.
+        Default to True.
+    :param log_formatter: custom log formatter function that takes two string arguments:
+        the first string is the container_name and the second string is the message_to_log.
+        The function should return a formatted string. If None, the default formatting will be used.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -343,6 +353,8 @@ class KubernetesPodOperator(BaseOperator):
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -438,6 +450,8 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
+        self.log_formatter = log_formatter
 
     @cached_property
     def _incluster_namespace(self):
@@ -608,22 +622,21 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
-            loop = asyncio.get_event_loop()
-            events_task = asyncio.ensure_future(
-                self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
-            )
-            loop.run_until_complete(
-                self.pod_manager.await_pod_start(
+
+            async def _await_pod_start():
+                events_task = self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
+                pod_start_task = self.pod_manager.await_pod_start(
                     pod=pod,
                     schedule_timeout=self.schedule_timeout_seconds,
                     startup_timeout=self.startup_timeout_seconds,
                     check_interval=self.startup_check_interval_seconds,
                 )
-            )
-            loop.run_until_complete(events_task)
-            loop.close()
+                await asyncio.gather(pod_start_task, events_task)
+
+            asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
             if self.log_events_on_failure:
+                self._read_pod_container_states(pod, reraise=False)
                 self._read_pod_events(pod, reraise=False)
             raise
 
@@ -741,6 +754,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     init_containers=self.init_container_logs,
                     follow_logs=True,
+                    container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                    log_formatter=self.log_formatter,
                 )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
@@ -757,6 +772,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     containers=self.container_logs,
                     follow_logs=True,
+                    container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                    log_formatter=self.log_formatter,
                 )
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
@@ -819,7 +836,6 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
@@ -833,6 +849,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
+        self.convert_config_file_to_dict()
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
@@ -932,6 +949,8 @@ class KubernetesPodOperator(BaseOperator):
                         container_name=self.base_container_name,
                         follow=follow,
                         since_time=last_log_time,
+                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                        log_formatter=self.log_formatter,
                     )
 
                     self.invoke_defer_method(pod_log_status.last_log_time)
@@ -1042,6 +1061,7 @@ class KubernetesPodOperator(BaseOperator):
                 context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
 
             if self.log_events_on_failure:
+                self._read_pod_container_states(pod, reraise=False)
                 self._read_pod_events(pod, reraise=False)
 
         self.process_pod_deletion(remote_pod, reraise=False)
@@ -1084,10 +1104,46 @@ class KubernetesPodOperator(BaseOperator):
         """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
-                if event.type == PodEventType.NORMAL.value:
-                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
+                if event.type == PodEventType.WARNING.value:
+                    self.log.warning("Pod Event: %s - %s", event.reason, event.message)
                 else:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                    # events.k8s.io/v1 at this stage will always be Normal
+                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
+
+    def _read_pod_container_states(self, pod, *, reraise=True) -> None:
+        """Log detailed container states of pod for debugging."""
+        with _optionally_suppress(reraise=reraise):
+            remote_pod = self.pod_manager.read_pod(pod)
+            pod_phase = getattr(remote_pod.status, "phase", None)
+            pod_reason = getattr(remote_pod.status, "reason", None)
+            self.log.info("Pod phase: %s, reason: %s", pod_phase, pod_reason)
+
+            container_statuses = getattr(remote_pod.status, "container_statuses", None) or []
+            for status in container_statuses:
+                name = status.name
+                state = status.state
+                if state.terminated:
+                    level = self.log.error if state.terminated.exit_code != 0 else self.log.info
+                    level(
+                        "Container '%s': state='TERMINATED', reason='%s', exit_code=%s, message='%s'",
+                        name,
+                        state.terminated.reason,
+                        state.terminated.exit_code,
+                        state.terminated.message,
+                    )
+                elif state.waiting:
+                    self.log.warning(
+                        "Container '%s': state='WAITING', reason='%s', message='%s'",
+                        name,
+                        state.waiting.reason,
+                        state.waiting.message,
+                    )
+                elif state.running:
+                    self.log.info(
+                        "Container '%s': state='RUNNING', started_at=%s",
+                        name,
+                        state.running.started_at,
+                    )
 
     def is_istio_enabled(self, pod: V1Pod) -> bool:
         """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""

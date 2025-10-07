@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/mssql/tests/system/microsoft/mssql>
+    Example Dags <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/mssql/tests/system/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,7 +78,7 @@ apache-airflow-providers-microsoft-mssql package
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 
-Release: 4.3.1
+Release: 4.3.2
 
 Provider package
 ----------------
@@ -89,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.microsoft.m
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-microsoft-mssql``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -104,6 +104,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.23.0``
 ``pymssql``                              ``>=2.3.5``
+``methodtools``                          ``>=0.4.7``
 =======================================  ==================
 
 Cross provider package dependencies
@@ -132,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-mssql 4.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-mssql 4.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.3.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.3.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.3.2-py3-none-any.whl.sha512>`__)

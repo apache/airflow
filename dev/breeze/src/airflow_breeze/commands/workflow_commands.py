@@ -89,6 +89,19 @@ def workflow_run():
     default=None,
     type=str,
 )
+@click.option(
+    "--apply-commits",
+    help="Apply commits before building the docs - for example to patch fixes "
+    "to the docs (comma separated list of commits). ",
+    default=None,
+    type=str,
+)
+@click.option(
+    "--workflow-branch",
+    help="Branch to run the workflow on. Defaults to 'main'.",
+    default="main",
+    type=str,
+)
 @argument_doc_packages
 def workflow_run_publish(
     ref: str,
@@ -99,7 +112,14 @@ def workflow_run_publish(
     skip_write_to_stable_folder: bool = False,
     airflow_version: str | None = None,
     airflow_base_version: str | None = None,
+    apply_commits: str | None = None,
+    workflow_branch: str = "main",
 ):
+    if len(doc_packages) == 0:
+        get_console().print(
+            "[red]Error: No doc packages provided. Please provide at least one doc package.[/red]",
+        )
+        sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
         get_console().print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
         get_console().print(
@@ -165,6 +185,7 @@ def workflow_run_publish(
         "exclude-docs": exclude_docs,
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
         "build-sboms": "true" if "apache-airflow" in doc_packages else "false",
+        "apply-commits": apply_commits if apply_commits else "",
     }
 
     if airflow_version:
@@ -175,7 +196,7 @@ def workflow_run_publish(
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["publish-docs"],
         repo=APACHE_AIRFLOW_REPO,
-        branch="main",
+        branch=workflow_branch,
         **workflow_fields,
     )
 

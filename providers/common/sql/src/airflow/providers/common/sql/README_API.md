@@ -30,7 +30,7 @@ The approach we take is similar to one that has been applied by Android OS team 
 and it is based on storing the current version of API and flagging changes that are potentially breaking.
 This is done by comparing the previous API (store in stub files) and the upcoming API from the PR.
 The upcoming API is automatically extracted from `common.sql` Python files using `update-common-sql-api-stubs`
-pre-commit using mypy `stubgen` and stored as `.pyi` files in the `airflow.providers.common.sql` package.
+prek hook using mypy `stubgen` and stored as `.pyi` files in the `airflow.providers.common.sql` package.
 We also post-process the `.pyi` files to add some historically exposed methods that should be also
 considered as public API.
 
@@ -40,22 +40,22 @@ to review the changes and manually regenerate the stub files.
 The details of the workflow are as follows:
 
 1) The previous API is stored in the (committed to repository) stub files.
-2) Every time when common.sql Python files are modified the `update-common-sql-api-stubs` pre-commit
+2) Whenever common.sql Python files are modified the `update-common-sql-api-stubs` prek hook
   regenerates the stubs (including post-processing it) and looks for potentially breaking changes
    (removals or updates of the existing classes/methods).
-3) If the check reveals there are no changes to the API, nothing happens, pre-commit succeeds.
-4) If there are only additions, the pre-commit automatically updates the stub files,
-   asks the contributor to commit resulting updates and fails the pre-commit. This is very similar to
+3) If the check reveals there are no changes to the API, nothing happens, prek hook succeeds.
+4) If there are only additions, the prek hook automatically updates the stub files,
+   asks the contributor to commit resulting updates and fails the prek hook. This is very similar to
    other static checks that automatically modify/fix source code.
-5) If the pre-commit detects potentially breaking changes, the process is a bit more involved for the
-   contributor. The pre-commit flags such changes to the contributor by failing the pre-commit and
+5) If the prek hook detects potentially breaking changes, the process is a bit more involved for the
+   contributor. The prek hook flags such changes to the contributor by failing the prek hook and
    asks the contributor to review the change looking specifically for breaking compatibility with previous
    providers (and fix any backwards compatibility). Once this is completed, the contributor is asked to
-   manually and explicitly regenerate and commit the new version of the stubs by running the pre-commit
+   manually and explicitly regenerate and commit the new version of the stubs by running the prek hook
    with manually added environment variable:
 
 ```shell
-UPDATE_COMMON_SQL_API=1 pre-commit run update-common-sql-api-stubs
+UPDATE_COMMON_SQL_API=1 prek update-common-sql-api-stubs
 ```
 
 # Verifying other providers to use only public API of the `common.sql` provider

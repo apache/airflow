@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+4.11.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Added support for Windows paths in SambaHook (#54459)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix windows path joining in sambahook (#54573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+4.10.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: make samba hook open_file method return (#54107)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.10.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in samba provider where possible (#53269)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Bugfix/fix mypy samba (#53113)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for samba (#52913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removed unnecessary shebangs from test files (#52992)``
+
 4.10.1
 ......
 

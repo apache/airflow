@@ -298,6 +298,16 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
+        access_control_list = json.get("access_control_list", None)
+        if access_control_list:
+            self.log.info(
+                "Updating job permission for Databricks workflow job id %s with access_control_list %s",
+                job_id,
+                access_control_list,
+            )
+            acl_json = {"access_control_list": access_control_list}
+            self.update_job_permission(job_id=int(job_id), json=acl_json)
+
         self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def update_job(self, job_id: str, json: dict) -> None:

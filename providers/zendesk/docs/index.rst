@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-zendesk/|version|/providers/zendesk/tests/system/zendesk/example_zendesk_custom_get.py>
+    Example Dags <https://github.com/apache/airflow/tree/providers-zendesk/|version|/providers/zendesk/tests/system/zendesk/example_zendesk_custom_get.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-zendesk/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-zendesk package
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.10.1
+Release: 4.10.2
 
 Provider package
 ----------------
@@ -87,7 +87,7 @@ All classes for this package are included in the ``airflow.providers.zendesk`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-zendesk``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

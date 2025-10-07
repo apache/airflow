@@ -23,15 +23,27 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
 
@@ -46,9 +58,7 @@ SPREADSHEET = {
 }
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     DAG_ID,

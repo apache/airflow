@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands.definition import (
-        ROLES_COMMANDS,
-        SYNC_PERM_COMMAND,
-        USERS_COMMANDS,
-    )
+from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    ROLES_COMMANDS,
+    SYNC_PERM_COMMAND,
+    USERS_COMMANDS,
+)
 
 
 class TestCliDefinition:

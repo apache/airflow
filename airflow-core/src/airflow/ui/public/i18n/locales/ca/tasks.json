@@ -1,0 +1,10 @@
+{
+  "mapped": "Mapejat",
+  "notMapped": "No mapejat",
+  "retries": "Reintents",
+  "searchTasks": "Cercar tasques",
+  "selectMapped": "Seleccionar mapejats",
+  "selectOperator": "Seleccionar operadors",
+  "selectRetryValues": "Seleccionar valors de reintents",
+  "selectTriggerRules": "Seleccionar regles d'execució"
+}

@@ -24,9 +24,43 @@ from socket import socketpair
 import msgspec
 import pytest
 
-from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails, _ResponseFrame
+from airflow.sdk import timezone
+from airflow.sdk.execution_time.comms import BundleInfo, MaskSecret, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
-from airflow.utils import timezone
+
+
+class TestCommsModels:
+    """Test Pydantic models used in task communication for proper validation."""
+
+    @pytest.mark.parametrize(
+        "object_to_mask",
+        [
+            {
+                "key_path": "/files/airflow-breeze-config/keys2/keys.json",
+                "scope": "https://www.googleapis.com/auth/cloud-platform",
+                "project": "project_id",
+                "num_retries": 6,
+            },
+            ["iter1", "iter2", {"key": "value"}],
+            "string",
+            {
+                "key1": "value1",
+            },
+        ],
+    )
+    def test_mask_secret_with_objects(self, object_to_mask):
+        mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
+        assert mask_secret_object.value == object_to_mask
+
+    def test_mask_secret_with_list(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
+
+    def test_mask_secret_with_iterable(self):
+        example_dict = ["test"]
+        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
+        assert mask_secret_object.value == example_dict
 
 
 class TestCommsDecoder:
@@ -57,6 +91,7 @@ class TestCommsDecoder:
                     "run_after": "2024-12-01T01:00:00Z",
                     "end_date": None,
                     "run_type": "manual",
+                    "state": "success",
                     "conf": None,
                     "consumed_asset_events": [],
                 },

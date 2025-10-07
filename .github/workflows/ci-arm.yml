@@ -50,6 +50,8 @@ jobs:
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
+      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
@@ -85,11 +87,6 @@ jobs:
       mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
-      needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
-      needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
-      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
-      only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -101,21 +98,24 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
+      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
+      run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
-      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
+      run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
+      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
-      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
-      arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       selected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
-      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      shared-distributions-as-json: ${{ steps.selective-checks.outputs.shared-distributions-as-json }}
+      skip-prek-hooks: ${{ steps.selective-checks.outputs.skip-prek-hooks }}
       skip-providers-tests: ${{ steps.selective-checks.outputs.skip-providers-tests }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -131,8 +131,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -141,8 +139,6 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Get information about the Workflow"
         id: source-run-info
@@ -161,7 +157,14 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-
+      - name: "Install and cache prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ steps.breeze.outputs.host-python-version }}
+          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
+          platform: "linux/arm64"
+          save-cache: true
   basic-tests:
     name: "Basic tests"
     needs: [build-info]
@@ -170,13 +173,15 @@ jobs:
       runners: ${{ needs.build-info.outputs.arm-runners }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
-      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
+      run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
+      platform: "linux/arm64"
+      shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
 
   build-ci-images:
     name: Build CI images
@@ -218,7 +223,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -284,7 +289,7 @@ jobs:
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      needs.build-info.outputs.run-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
@@ -314,7 +319,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-postgres-providers:
     name: "Postgres tests: providers"
@@ -342,7 +348,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-sqlite-core:
     name: "Sqlite tests: core"
@@ -372,7 +379,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-sqlite-providers:
     name: "Sqlite tests: providers"
@@ -402,7 +410,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
 
   tests-non-db-core:
@@ -432,7 +441,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   tests-non-db-providers:
     name: "Non-DB tests: providers"
@@ -461,7 +471,8 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-tests == 'true'
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
 
   build-prod-images:
     name: Build PROD images
@@ -506,7 +517,7 @@ jobs:
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true')
+      needs.build-info.outputs.run-helm-tests == 'true')
 
   tests-go-sdk:
     name: "Go SDK tests"
@@ -516,10 +527,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: >
-      ( needs.build-info.outputs.run-go-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true' &&
-      needs.build-info.outputs.only-new-ui-files != 'true')
+    if: needs.build-info.outputs.run-go-sdk-tests == 'true'
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -530,17 +538,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.5.0
         with:
           go-version: 1.24
           cache-dependency-path: go-sdk/go.sum
-
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
-
       - name: Run Go tests
         working-directory: ./go-sdk
         run: go test -v ./...
@@ -601,10 +606,10 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Scheduled CI Failure Alert (AMD) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Failure Alert: Scheduled CI (ARM) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Scheduled CI Failure Alert (ARM) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Failure Alert: Scheduled CI (ARM) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length

@@ -33,3 +33,6 @@ export * from "./Toaster";
 export * from "./Breadcrumb";
 export * from "./Clipboard";
 export * from "./Popover";
+export * from "./Checkbox";
+export * from "./ResetButton";
+export * from "./InputWithAddon";

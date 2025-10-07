@@ -15,6 +15,77 @@
     specific language governing permissions and limitations
     under the License.
 
+
+Changelog
+---------
+
+0.0.8
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix https access token repo url (#54643)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.0.7
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Catch Exception in git hook instantiation (#55079)``
+* ``Fix process leaks in 'GitDagBundle' repository management (#54997)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing changelog provider for Git (#54496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix git connection test by adding required conn_type field (#54681)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+0.0.6
+.....
+
+Misc
+~~~~
+
+* ``Refactor bundle view_url to not instaniate bundle on server components (#52876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.0.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: always create GitHook even when 'repo_url' is provided (#52897)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Moving BaseHook usages to version_compat for git (#52944)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.0.4
 .....
 

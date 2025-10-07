@@ -25,6 +25,36 @@
 Changelog
 ---------
 
+1.7.4
+.....
+
+
+Misc
+~~~~
+
+* ``Bump mypy to 1.18.1 (#55596)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+
+1.7.3
+.....
+
+Misc
+~~~~
+
+* ``fix unreachable mypy warnings (#53575)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.7.2
 .....
 

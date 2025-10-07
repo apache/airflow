@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-drill``
 
-Release: ``3.1.1``
+Release: ``3.1.2``
 
 
 `Apache Drill <https://drill.apache.org/>`__.
@@ -36,12 +36,12 @@ This is a provider package for ``apache.drill`` provider. All classes for this p
 are in ``airflow.providers.apache.drill`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-drill/3.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-drill/3.1.2/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-drill``
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-drill/3.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-drill/3.1.2/changelog.html>`_.

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
@@ -27,6 +28,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -34,14 +36,25 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace, add_debug_span
-from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import JobState
+
+
+class JobState(str, Enum):
+    """All possible states that a Job can be in."""
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 if TYPE_CHECKING:
     import datetime

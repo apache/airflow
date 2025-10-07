@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.hooks.databricks import RunState
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 
 
 def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
@@ -46,6 +46,58 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     param_type = type(content)
     msg = f"Type {param_type} used for parameter {json_path} is not a number or a string"
     raise AirflowException(msg)
+
+
+def extract_failed_task_errors(
+    hook: DatabricksHook, run_info: dict, run_state: RunState
+) -> list[dict[str, str | int]]:
+    """
+    Extract error information from failed tasks in a Databricks run (synchronous version).
+
+    :param hook: Databricks hook instance for making API calls
+    :param run_info: Run information dictionary from Databricks API
+    :param run_state: Run state object
+    :return: List of failed task information with task_key, run_id, and error
+    """
+    failed_tasks = []
+    if run_state.result_state == "FAILED":
+        for task in run_info.get("tasks", []):
+            if task.get("state", {}).get("result_state", "") == "FAILED":
+                task_run_id = task["run_id"]
+                task_key = task["task_key"]
+                run_output = hook.get_run_output(task_run_id)
+                if "error" in run_output:
+                    error = run_output["error"]
+                else:
+                    error = run_state.state_message
+                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+    return failed_tasks
+
+
+async def extract_failed_task_errors_async(
+    hook: DatabricksHook, run_info: dict, run_state: RunState
+) -> list[dict[str, str | int]]:
+    """
+    Extract error information from failed tasks in a Databricks run (asynchronous version).
+
+    :param hook: Databricks hook instance for making API calls
+    :param run_info: Run information dictionary from Databricks API
+    :param run_state: Run state object
+    :return: List of failed task information with task_key, run_id, and error
+    """
+    failed_tasks = []
+    if run_state.result_state == "FAILED":
+        for task in run_info.get("tasks", []):
+            if task.get("state", {}).get("result_state", "") == "FAILED":
+                task_run_id = task["run_id"]
+                task_key = task["task_key"]
+                run_output = await hook.a_get_run_output(task_run_id)
+                if "error" in run_output:
+                    error = run_output["error"]
+                else:
+                    error = run_state.state_message
+                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+    return failed_tasks
 
 
 def validate_trigger_event(event: dict):

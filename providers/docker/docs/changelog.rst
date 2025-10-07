@@ -28,6 +28,55 @@ Changelog
 ---------
 
 
+4.4.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'version_compat' for Docker decorator with Airflow 3.0.X (#55447)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in Docker (#52802)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Cleanup mypy ignore in docker provider where possible (#53273)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
 4.4.1
 .....
 

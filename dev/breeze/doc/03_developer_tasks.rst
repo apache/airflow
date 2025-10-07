@@ -171,7 +171,7 @@ Remote Debugging in IDE
 One of the possibilities (albeit only easy if you have a paid version of IntelliJ IDEs for example) with
 Breeze is an option to run remote debugging in your IDE graphical interface.
 
-When you run tests, airflow, example DAGs, even if you run them using unit tests, they are run in a separate
+When you run tests, airflow, example Dags, even if you run them using unit tests, they are run in a separate
 container. This makes it a little harder to use with IDE built-in debuggers.
 Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
 See additional details on
@@ -192,6 +192,12 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 .. image:: images/source_code_mapping_ide.png
     :align: center
     :alt: Source code mapping
+
+.. note::
+
+   For comprehensive debugging documentation using the new ``--debug`` and ``--debugger`` flags
+   with VSCode and debugpy, see the `Debugging Airflow Components <../../contributing-docs/20_debugging_airflow_components.rst>`__
+   guide.
 
 Building the documentation
 --------------------------
@@ -259,32 +265,30 @@ as the short hand operator.
 Running static checks
 ---------------------
 
-You can run static checks via Breeze. You can also run them via pre-commit command but with auto-completion
-Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
-you have auto-complete setup you should see auto-completable list of all checks available.
+You can run static checks via prek.
 
 For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow
+     prek mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
 Selecting files to run static checks on
 ---------------------------------------
 
-Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+Prek hooks run by default on staged changes that you have locally changed. It will run it on all the
 files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
 If you want to run it on all your modified files you should add them with ``git add`` command.
 
 With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
 want to be sure they will not fail in CI, or when you just rebased your changes and want to
-re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
+re-run latest prek hooks on your changes, but it can take a long time (few minutes) to wait for the result.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --all-files
+     prek mypy-airflow --all-files
 
 The above will run mypy check for all files.
 
@@ -293,50 +297,28 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     prek mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
 However, often you do not remember files you modified and you want to run checks for files that belong
-to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+to specific commits you already have in your branch. You can use ``prek`` to run the checks
 only on changed files you have already committed to your branch - either for specific commit, for last
 commit, for all changes in your branch since you branched off from main or for specific range
 of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --last-commit
+     prek mypy-airflow --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-airflow --only-my-changes
-
-The above will run mypy check for all commits in your branch which were added since you branched off from main.
-
-.. code-block:: bash
-
-     breeze static-checks --type mypy-airflow --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
-
-The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
-Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
-
-.. code-block:: bash
-
-     breeze static-checks --type identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+     prek identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
 
 The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
 in ``--from-ref`` and ``--to-ref`` flags.
-
-
-These are all available flags of ``static-checks`` command:
-
-.. image:: ./images/output_static-checks.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_static-checks.svg
-  :width: 100%
-  :alt: Breeze static checks
-
 
 .. note::
 
@@ -344,13 +326,28 @@ These are all available flags of ``static-checks`` command:
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
     get broken, in which case you should run ``breeze down`` to clean up the cache.
 
-
 .. note::
 
     You cannot change Python version for static checks that are run within Breeze containers.
     The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
     The main reason is to keep consistency in the results of static checks and to make sure that
     our code is fine when running the lowest supported version.
+
+Compiling ui assets
+--------------------
+
+Before starting Airflow, Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
+command takes care about it. This is needed when you want to run API server inside of the breeze.
+
+.. image:: ./images/output_compile-ui-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
+  :width: 100%
+  :alt: Breeze compile-ui-assets
+
+Note
+
+This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#configuring-prek>`__.
+
 
 Starting Airflow
 ----------------
@@ -395,6 +392,29 @@ These are all available flags of ``start-airflow`` command:
   :width: 100%
   :alt: Breeze start-airflow
 
+Running External System Integrations with Breeze
+------------------------------------------------
+
+You can run Airflow alongside external systems in Breeze, such as Kafka, Cassandra, MongoDB, and more.
+
+To start Airflow with an integration, use the following command:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration <integration_name>
+
+For example, to run Airflow with Kafka:
+
+.. code-block:: bash
+
+    breeze --python 3.10 --backend postgres --integration kafka
+
+Check the available integrations by running:
+
+.. code-block:: bash
+
+    breeze --integration --help
+
 Launching multiple terminals in the same environment
 ----------------------------------------------------
 
@@ -421,20 +441,6 @@ These are all available flags of ``exec`` command:
   :alt: Breeze exec
 
 
-Compiling ui assets
---------------------
-
-Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
-command takes care about it. This is needed when you want to run API server inside of the breeze.
-
-.. image:: ./images/output_compile-ui-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
-  :width: 100%
-  :alt: Breeze compile-ui-assets
-
-Note
-
-This command requires the ``pre-commit`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-pre-commit>`__.
 
 Breeze cleanup
 --------------

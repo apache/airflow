@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-papermill``
 
-Release: ``3.11.1``
+Release: ``3.11.3``
 
 
 `Papermill <https://github.com/nteract/papermill>`__
@@ -36,12 +36,12 @@ This is a provider package for ``papermill`` provider. All classes for this prov
 are in ``airflow.providers.papermill`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-papermill``
 
@@ -81,5 +81,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.3/changelog.html>`_.

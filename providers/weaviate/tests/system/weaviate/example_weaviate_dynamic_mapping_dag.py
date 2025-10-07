@@ -19,7 +19,11 @@ from __future__ import annotations
 import pendulum
 from weaviate.collections.classes.config import Configure
 
-from airflow.decorators import dag, setup, task, teardown
+try:
+    from airflow.sdk import dag, setup, task, teardown
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAMES = ["Weaviate_DTM_example_collection_1", "Weaviate_DTM_example_collection_2"]

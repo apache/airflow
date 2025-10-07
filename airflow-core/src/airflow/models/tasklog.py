@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from sqlalchemy import Column, Integer, Text
 
+from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 

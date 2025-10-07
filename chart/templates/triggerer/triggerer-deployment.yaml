@@ -54,7 +54,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ .Release.Name }}-triggerer
+  serviceName: {{ include "airflow.fullname" . }}-triggerer
   {{- end }}
   {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
@@ -192,6 +192,9 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -257,6 +260,9 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+              {{- if .Values.logs.persistence.subPath }}
+              subPath: {{ .Values.logs.persistence.subPath }}
+              {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}

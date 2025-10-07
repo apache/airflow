@@ -38,18 +38,17 @@ export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps
       borderWidth="1px"
       display="flex"
       flexDirection="column"
-      height="100%"
       justifyContent="center"
+      maxWidth="200px"
       overflow="hidden"
       px={4}
       py={3}
-      width="100%"
     >
-      <VStack>
+      <VStack gap={0}>
         {latestRuns.length > 0 ? (
           <RecentRuns latestRuns={latestRuns} />
         ) : (
-          <Text color="gray.500" fontSize="sm" overflowWrap="anywhere" textAlign="center">
+          <Text color="fg.muted" fontSize="sm" overflowWrap="anywhere" textAlign="center">
             {translate("favorite.noDagRuns")}
           </Text>
         )}

@@ -24,7 +24,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import dag, task
 else:
-    from airflow.decorators import dag, task
+    from airflow.decorators import dag, task  # type: ignore[attr-defined,no-redef]
 from airflow.models import DAG
 from airflow.providers.openlineage.utils.selective_enable import (
     DISABLE_OL_PARAM,

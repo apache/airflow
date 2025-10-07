@@ -24,17 +24,20 @@ import pendulum
 import pytest
 from sqlalchemy import and_, func, select
 
-from airflow.models import DagBag, DagModel, DagRun
+from airflow._shared.timezones import timezone
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -55,6 +58,7 @@ def _clean_db():
     clear_db_backfills()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -92,10 +96,16 @@ def to_iso(val):
 class TestBackfillEndpoint:
     @provide_session
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name=bundle_name,
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",

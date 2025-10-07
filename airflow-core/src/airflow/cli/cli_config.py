@@ -29,12 +29,13 @@ from typing import NamedTuple
 
 import lazy_object_proxy
 
+from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
+from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
-from airflow.utils.state import DagRunState, JobState
-from airflow.utils.timezone import parse as parsedate
+from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -304,6 +305,8 @@ ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", 
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
+# teams
+ARG_TEAM_NAME = Arg(("name",), help="Team name")
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -339,6 +342,14 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
         "created for the date. Default is none."
     ),
     choices=("none", "completed", "failed"),
+)
+ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
+    ("--run-on-latest-version",),
+    help=(
+        "(Experimental) If set, the backfill will run tasks using the latest bundle version instead of "
+        "the version that was active when the original Dag run was created."
+    ),
+    action="store_true",
 )
 
 
@@ -532,7 +543,7 @@ ARG_VAR_DESCRIPTION = Arg(
 )
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
-ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from .env, .json, .yaml or .yml file")
 ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file",
@@ -968,6 +979,7 @@ BACKFILL_COMMANDS = (
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_RUN_ON_LATEST_VERSION,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),
@@ -1379,6 +1391,26 @@ VARIABLES_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_export"),
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
+    ),
+)
+TEAMS_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
+        args=(ARG_TEAM_NAME, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="delete",
+        help="Delete a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_delete"),
+        args=(ARG_TEAM_NAME, ARG_YES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="list",
+        help="List teams",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 DB_COMMANDS = (
@@ -1824,6 +1856,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name="teams",
+        help="Manage teams",
+        subcommands=TEAMS_COMMANDS,
     ),
     GroupCommand(
         name="jobs",

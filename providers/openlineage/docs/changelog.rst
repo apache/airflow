@@ -26,6 +26,129 @@
 Changelog
 ---------
 
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``Adjust OpenLineage utils to be compatible with Airflow 3.1.0 (#56040)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+   * ``Move DagBag to airflow/dag_processing (#55139)``
+
+2.7.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
+Misc
+~~~~
+
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Decouple secrets_masker project from airflow configuration (#55259)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.7.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``add tasksDuration to state run facet (#53644)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+
+Misc
+~~~~
+
+* ``Decouple serialization and deserialization code for tasks (#54569)``
+* ``Move secrets_masker over to airflow_shared distribution (#54449)``
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``docs: fix broken link on OpenLineage developer section (#54356)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``chore: add more test cases to OpenLineage system tests (#55138)``
+   * ``chore: update ol system tests after bug fix in AF3 (#54629)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove SDK BaseOperator in TaskInstance (#53223)``
+   * ``chore: Adjust OL system tests to latest changes (#54352)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Move email notifications from scheduler to DAG processor (#55238)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+2.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow secrets redact function to have different redaction than '***' (#53977)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for EmptyOperator (#53730)``
+* ``feat: Add new documentation facet to all OL events (#52343)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust emits_ol_events to account for inlets check since AF3.0.2 (#53449)``
+* ``fix: Check dynamic transport env vars in is_disabled() (#53370)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Fix Task Group Deprecation error from plugin (#53813)``
+
+Misc
+~~~~
+
+* ``Updating openlineage-integration-common and openlineage-python dependencies for apache-airflow-providers-openlineage provider. (#53671)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in openlineage provider where possible (#53284)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make openlineage compatible with mypy 1.16.1 (#53119)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore ''get_previous_dagrun'' functionality for task context (#53655)``
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Update main with Airflow 3.0.3 release details (#53349)``
+   * ``Cleanup mypy ignores in openlineage test_listener (#53326)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``fix: Adjust OL system test to latest changes (#52971)``
+
 2.5.0
 .....
 

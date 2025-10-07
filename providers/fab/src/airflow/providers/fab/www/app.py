@@ -21,7 +21,7 @@ from datetime import timedelta
 from os.path import isabs
 
 from flask import Flask
-from flask_appbuilder import SQLA
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
@@ -61,6 +61,12 @@ def create_app(enable_plugins: bool):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    if conf.has_option("fab", "COOKIE_SECURE"):
+        flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("fab", "COOKIE_SECURE")
+    if conf.has_option("fab", "COOKIE_SAMESITE"):
+        flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("fab", "COOKIE_SAMESITE")
+
     webserver_config = conf.get_mandatory_value("fab", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():
@@ -78,9 +84,8 @@ def create_app(enable_plugins: bool):
 
     csrf.init_app(flask_app)
 
-    db = SQLA()
+    db = SQLAlchemy(flask_app)
     db.session = settings.Session
-    db.init_app(flask_app)
 
     configure_logging()
     configure_manifest_files(flask_app)
@@ -101,8 +106,8 @@ def create_app(enable_plugins: bool):
         elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
+            init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_airflow_session_interface(flask_app)
         init_wsgi_middleware(flask_app)
     return flask_app
 

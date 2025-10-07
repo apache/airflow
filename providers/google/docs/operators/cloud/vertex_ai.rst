@@ -239,7 +239,7 @@ How to run AutoML Image Training Job
 Before start running this Job you must prepare and create ``Image`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
@@ -860,6 +860,19 @@ To delete experiment run you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_experiment_run_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_experiment_run_operator]
+
+Use Private Service Connect interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can configure Private Service Connect interface connections for
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator` and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`
+operators in Vertex AI. For doing it you must first configure the PSC interface by following the provided
+`documentation <https://cloud.google.com/vertex-ai/docs/general/vpc-psc-i-setup>`__.
+Then, specify the PSC configuration in the ``psc_interface_config`` parameter.
+
 
 Reference
 ^^^^^^^^^

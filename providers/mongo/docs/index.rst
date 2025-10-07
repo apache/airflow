@@ -62,7 +62,7 @@ apache-airflow-providers-mongo package
 `MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 5.2.1
+Release: 5.2.2
 
 Provider package
 ----------------
@@ -73,7 +73,7 @@ All classes for this package are included in the ``airflow.providers.mongo`` pyt
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-mongo``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -82,10 +82,10 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-==================  ===================
+==================  ==================
 PIP package         Version required
-==================  ===================
+==================  ==================
 ``apache-airflow``  ``>=2.10.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=4.0.0,<4.11.0``
-==================  ===================
+``pymongo``         ``>=4.13.2``
+==================  ==================
