@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-06T19:46:09.122303
+# This constraints file was automatically generated on 2025-10-07T07:47:05.972301
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -43,7 +43,7 @@ aenum==3.1.16
 aiobotocore==2.24.2
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.12.15
+aiohttp==3.13.0
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -91,7 +91,7 @@ azure-common==1.1.28
 azure-core==1.35.1
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.25.0
+azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
 azure-kusto-data==5.0.5
 azure-mgmt-containerinstance==10.1.0
@@ -373,7 +373,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.40.17
-mypy-boto3-rds==1.40.42
+mypy-boto3-rds==1.40.46
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.26
 mypy==1.18.2
@@ -387,7 +387,7 @@ nbformat==5.10.4
 neo4j==6.0.2
 nest-asyncio==1.6.0
 networkx==3.5
-nh3==0.3.0
+nh3==0.3.1
 nodeenv==1.9.1
 numpy==2.2.6
 oauthlib==3.3.1
@@ -409,7 +409,7 @@ opentelemetry-proto==1.37.0
 opentelemetry-sdk==1.37.0
 opentelemetry-semantic-conventions==0.58b0
 opsgenie-sdk==2.1.5
-oracledb==3.3.0
+oracledb==3.4.0
 ordered-set==4.1.0
 orjson==3.11.3
 oss2==2.19.1
@@ -558,7 +558,7 @@ shapely==2.1.2
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
-slack_sdk==3.36.0
+slack_sdk==3.37.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
@@ -609,7 +609,7 @@ text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
-tiktoken==0.11.0
+tiktoken==0.12.0
 time-machine==2.19.0
 tinycss2==1.4.0
 tokenizers==0.22.1
