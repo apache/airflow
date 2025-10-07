@@ -21,28 +21,56 @@
 ## Airflow Worker Service
 #################################
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+
+{{- /* Build worker groups list: use celeryQueueGroups if defined, otherwise create default worker */ -}}
+{{- $workerGroups := list }}
+{{- if .Values.workers.celeryQueueGroups }}
+  {{- $workerGroups = .Values.workers.celeryQueueGroups }}
+{{- else }}
+  {{- $defaultWorker := dict "name" "" }}
+  {{- $workerGroups = list $defaultWorker }}
+{{- end }}
+
+{{- /* Loop through all worker groups (either celeryQueueGroups or default) */ -}}
+{{- range $groupIndex, $workerGroup := $workerGroups }}
+{{- if $groupIndex }}
+---
+{{- end }}
+
+{{- /* Set variables based on whether this is default worker or custom group */ -}}
+{{- $isDefaultWorker := eq $workerGroup.name "" }}
+{{- $workerName := ternary "worker" (printf "worker-%s" $workerGroup.name) $isDefaultWorker }}
+{{- $groupLabels := $workerGroup.labels | default dict }}
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" $ }}-{{ $workerName }}
   labels:
     tier: airflow
     component: worker
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.workers.labels) }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if not $isDefaultWorker }}
+    worker-group: {{ $workerGroup.name }}
+    {{- end }}
+    release: {{ $.Release.Name }}
+    chart: "{{ $.Chart.Name }}-{{ $.Chart.Version }}"
+    heritage: {{ $.Release.Service }}
+    {{- if or ($.Values.labels) ($.Values.workers.labels) ($groupLabels) }}
+      {{- mustMerge $groupLabels $.Values.workers.labels $.Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   clusterIP: None
   selector:
     tier: airflow
     component: worker
-    release: {{ .Release.Name }}
+    {{- if not $isDefaultWorker }}
+    worker-group: {{ $workerGroup.name }}
+    {{- end }}
+    release: {{ $.Release.Name }}
   ports:
     - name: worker-logs
       protocol: TCP
-      port: {{ .Values.ports.workerLogs }}
-      targetPort: {{ .Values.ports.workerLogs }}
+      port: {{ $.Values.ports.workerLogs }}
+      targetPort: {{ $.Values.ports.workerLogs }}
+{{- end }}
 {{- end }}
