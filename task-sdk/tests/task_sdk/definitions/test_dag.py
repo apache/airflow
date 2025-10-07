@@ -17,16 +17,18 @@
 from __future__ import annotations
 
 import re
+import sys
 import warnings
 import weakref
 from datetime import datetime, timedelta, timezone
+from types import ModuleType
 from typing import Any
 
 import pytest
 
 from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
+from airflow.sdk.definitions.dag import DAG, DAG_PARSING_ERRORS_ATTR, dag as dag_decorator, safe_dag
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 
@@ -848,3 +850,113 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+
+class TestSafeDag:
+    """Test the safe_dag context manager functionality."""
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Create a mock module to simulate the environment where safe_dag stores errors."""
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        test_module = ModuleType("test_module")
+        sys.modules["test_module"] = test_module
+
+        original_module_name = DagContext.current_autoregister_module_name
+        DagContext.current_autoregister_module_name = "test_module"
+        self.test_module = test_module
+
+        yield
+
+        # Cleanup: Restore original state and clear any error attributes
+        DagContext.current_autoregister_module_name = original_module_name
+        if hasattr(test_module, DAG_PARSING_ERRORS_ATTR):
+            delattr(test_module, DAG_PARSING_ERRORS_ATTR)
+        if "test_module" in sys.modules:
+            del sys.modules["test_module"]
+
+    def test_safe_dag_stores_errors_in_module(self):
+        """Test that errors are stored in module.__airflow_dag_parsing_errors."""
+        assert not hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+
+        with safe_dag():
+            raise RuntimeError("Test error")
+
+        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert isinstance(errors, list)
+        assert len(errors) == 1
+        error_msg = errors[0]
+        assert error_msg.startswith("Failed to create DAG at line")
+        assert "Test error" in error_msg
+        assert "Traceback (most recent call last):" in error_msg
+
+    def test_safe_dag_catches_dag_creation_errors(self):
+        """Test that safe_dag catches exceptions during DAG creation."""
+        with safe_dag():
+            raise ValueError("Invalid DAG configuration")
+
+        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert len(errors) == 1
+
+    def test_safe_dag_catches_task_creation_errors(self):
+        """Test that safe_dag catches exceptions during task creation."""
+        with safe_dag():
+            dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+            BaseOperator(task_id="invalid task id with spaces", dag=dag)
+
+        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert len(errors) == 1
+
+    def test_safe_dag_allows_multiple_error_blocks(self):
+        """Test that multiple safe_dag blocks can each fail independently."""
+        with safe_dag():
+            raise ValueError("First error")
+
+        with safe_dag():
+            raise TypeError("Second error")
+
+        with safe_dag():
+            dag = DAG("successful_dag", schedule=None, start_date=DEFAULT_DATE)
+            BaseOperator(task_id="task1", dag=dag)
+
+        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert len(errors) == 2
+
+        assert "First error" in errors[0]
+        assert "Second error" in errors[1]
+        assert "ValueError" in errors[0]
+        assert "TypeError" in errors[1]
+
+    def test_safe_dag_successful_execution(self):
+        """Test that safe_dag doesn't interfere with successful DAG creation."""
+        dag = None
+        task = None
+
+        with safe_dag():
+            dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+            task = BaseOperator(task_id="task1", dag=dag)
+
+        assert dag is not None
+        assert dag.dag_id == "test_dag"
+        assert task is not None
+        assert task.task_id == "task1"
+        assert task.dag is dag
+
+        assert not hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+
+    def test_safe_dag_preserves_existing_errors(self):
+        """Test that safe_dag preserves existing errors in the module."""
+        setattr(self.test_module, DAG_PARSING_ERRORS_ATTR, ["Existing error"])
+
+        with safe_dag():
+            raise RuntimeError("New error")
+
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert len(errors) == 2
+        assert "Existing error" in errors[0]
+        assert "New error" in errors[1]
