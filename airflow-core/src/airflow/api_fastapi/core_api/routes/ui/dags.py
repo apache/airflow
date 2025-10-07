@@ -158,12 +158,10 @@ def get_dags(
 
     # Fetch favorite status for each DAG for the current user
     user_id = str(user.get_id())
-    favorite_dag_ids = set()
-    if dags:
-        favorites_select = select(DagFavorite.dag_id).where(
-            DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
-        )
-        favorite_dag_ids = {dag_id for dag_id in session.scalars(favorites_select)}
+    favorites_select = select(DagFavorite.dag_id).where(
+        DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
+    )
+    favorite_dag_ids = set(session.scalars(favorites_select))
 
     # Populate the last 'dag_runs_limit' DagRuns for each DAG
     recent_runs_subquery = (

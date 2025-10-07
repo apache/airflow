@@ -2041,6 +2041,11 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Owner Links'
         },
+        is_favorite: {
+            type: 'boolean',
+            title: 'Is Favorite',
+            default: false
+        },
         file_token: {
             type: 'string',
             title: 'File Token',
