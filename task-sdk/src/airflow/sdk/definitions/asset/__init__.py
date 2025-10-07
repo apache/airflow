@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 import attrs
 
 from airflow.sdk.api.datamodels._generated import AssetProfile
-from airflow.sdk.execution_time.asset_helpers import normalize_asset_metadata
+from airflow.sdk.definitions.asset.normalizer import normalize_asset_metadata
 from airflow.serialization.dag_dependency import DagDependency
 
 if TYPE_CHECKING:

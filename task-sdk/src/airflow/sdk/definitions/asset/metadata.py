@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.sdk.execution_time.asset_helpers import normalize_asset_metadata
+from airflow.sdk.definitions.asset.normalizer import normalize_asset_metadata
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias
