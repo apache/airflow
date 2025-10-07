@@ -558,16 +558,13 @@ class DAG:
 
     @tags.validator
     def _validate_tags(self, _, tags: Collection[str]) -> None:
-        if tags:
-            for tag in tags:
-                if len(tag) > TAG_MAX_LEN:
-                    from airflow.exceptions import AirflowException
-                    # Trim very long tag previews to keep error messages manageable
-                    tag_preview = tag[:30] + "..." if len(tag) > 30 else tag
-                    raise AirflowException(
-                        f"DAG tag '{tag_preview}' is {len(tag)} characters long, "
-                        f"exceeding the maximum limit of {TAG_MAX_LEN} characters"
-                    )
+        for tag in (tags or ()):
+            if len(tag) > TAG_MAX_LEN:
+                preview = (tag[:30] + "...") if len(tag) > 30 else tag
+                raise ValueError(
+                    f"DAG tag '{preview}' is {len(tag)} characters, "
+                    f"exceeding the {TAG_MAX_LEN}-character limit"
+                )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):

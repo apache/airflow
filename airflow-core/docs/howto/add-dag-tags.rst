@@ -26,6 +26,10 @@ Add tags to Dags and use it for filtering in the UI
 In order to filter Dags (e.g by team), you can add tags in each Dag.
 The filter is saved in a cookie and can be reset by the reset button.
 
+.. note::
+   Each **individual** DAG tag can be at most **100 characters** long.
+   Tags of 100 characters are allowed; 101 or more will raise a ``ValueError`` at DAG parse time.
+
 For example:
 
 In your Dag file, pass a list of tags you want to add to the Dag object:

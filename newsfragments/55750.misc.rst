@@ -1,0 +1,1 @@
+Validate DAG tags individually: raise ValueError if any single tag exceeds 100 characters; clarify docs to state the per-tag limit.

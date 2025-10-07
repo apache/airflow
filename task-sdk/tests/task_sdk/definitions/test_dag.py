@@ -405,22 +405,18 @@ def test_invalid_type_for_args(attr: str, value: Any):
         DAG("invalid-default-args", **{attr: value})
 
 
-@pytest.mark.parametrize(
-    "tags, should_pass",
-    [
-        pytest.param([], True, id="empty tags"),
-        pytest.param(["a normal tag"], True, id="one tag"),
-        pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
-        pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
-        pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
-    ],
-)
-def test__tags_length(tags: list[str], should_pass: bool):
-    if should_pass:
-        DAG("test-dag", schedule=None, tags=tags)
-    else:
-        with pytest.raises(ValueError):
-            DAG("test-dag", schedule=None, tags=tags)
+def test__tags_length():
+    long_tag = "x" * 101
+    with pytest.raises(ValueError) as e:
+        DAG(dag_id="x", tags=[long_tag])
+    msg = str(e.value)
+    assert "exceeding the 100-character limit" in msg
+    assert "101" in msg  # actual length
+    # preview check: 30 chars + "..."
+    assert re.search(r"'x{30}\.\.\.'", msg)
+
+def test__tags_length_boundary_ok():
+    DAG(dag_id="ok", tags=["y" * 100])
 
 
 @pytest.mark.parametrize(
