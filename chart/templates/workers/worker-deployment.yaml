@@ -104,10 +104,10 @@ spec:
   {{- if $persistence }}
   serviceName: {{ include "airflow.fullname" $ }}-{{ $workerName }}
   {{- end }}
-  {{- if and $isDefaultWorker (not $keda) (not $hpa) }}
+  {{- if not $isDefaultWorker }}
   replicas: {{ $groupReplicas }}
-  {{- else }}
-  replicas: {{ $groupReplicas }}
+  {{- else if and (not $keda) (not $hpa) }}
+  replicas: {{ $.Values.workers.replicas }}
   {{- end }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
