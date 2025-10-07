@@ -44,7 +44,7 @@ export const GridButton = ({
 }: Props) =>
   isGroup ? (
     <Flex
-      background={`${state}.solid`}
+      background={state ? `${state}.solid` : "grid.defaultState"}
       borderRadius={2}
       height="10px"
       minW="14px"
@@ -64,7 +64,7 @@ export const GridButton = ({
       }}
     >
       <Flex
-        background={`${state}.solid`}
+        background={state ? `${state}.solid` : "grid.defaultState"}
         borderRadius={2}
         height="10px"
         pb="2px"

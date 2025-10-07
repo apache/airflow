@@ -49,6 +49,10 @@ const ActionButton = ({
       {/* Extra div required for the Tooltip to be properly positioned if the ActionButton is used inside a Menu component*/}
       <div>
         <ButtonComponent
+          _hover={{
+            bg: "colorPalette.emphasized",
+            borderColor: "colorPalette.emphasized",
+          }}
           aria-label={actionName}
           colorPalette={withText ? colorPalette : "brand"}
           disabled={disabled}

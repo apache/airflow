@@ -19,6 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -34,7 +35,6 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
-import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -64,14 +64,15 @@ export const Graph = () => {
 
   const selectedVersion = useSelectedVersion();
 
-  // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
-  const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "bg",
-    "fg",
-    "bg.muted",
-    "bg.emphasized",
-    "bg.muted",
-    "bg.emphasized",
+  const [groupOdd, groupEven, selectedStroke, bg, pattern, controlsBg, controlsHover, minimapBg] = useToken("colors", [
+    "graph.minimap.group.odd",
+    "graph.minimap.group.even",
+    "graph.selected.stroke",
+    "graph.bg",
+    "graph.pattern",
+    "graph.controls.bg.default",
+    "graph.controls.bg.hover",
+    "graph.minimap.bg",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
@@ -79,7 +80,6 @@ export const Graph = () => {
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
-  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
@@ -151,6 +151,14 @@ export const Graph = () => {
     },
   }));
 
+  const reactFlowStyle: CSSProperties = {
+    "--xy-background-color": bg,
+    "--xy-background-pattern-color": pattern,
+    "--xy-controls-button-background-color": controlsBg,
+    "--xy-controls-button-background-color-hover": controlsHover,
+    "--xy-minimap-background-color": minimapBg,
+  } as CSSProperties;
+
   return (
     <ReactFlow
       colorMode={colorMode}
@@ -165,20 +173,16 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
-      style={getReactFlowThemeStyle(colorMode)}
+      style={reactFlowStyle}
     >
       <Background />
       <Controls showInteractive={false} />
       <MiniMap
         nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          nodeColor(
-            node,
-            colorMode === "dark" ? evenDark : evenLight,
-            colorMode === "dark" ? oddDark : oddLight,
-          )
+          nodeColor(node, groupEven, groupOdd)
         }
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+          node.data.isSelected && selectedStroke !== undefined ? selectedStroke : ""
         }
         nodeStrokeWidth={15}
         pannable
