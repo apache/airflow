@@ -161,7 +161,6 @@
     },
     "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
   },
-  "seconds": "{{count}}sn",
   "security": {
     "actions": "Eylemler",
     "permissions": "İzinler",
