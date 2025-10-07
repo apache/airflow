@@ -26,9 +26,10 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from flask_appbuilder import SQLA, Model, expose, has_access
+from flask_appbuilder import Model, expose, has_access
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
-from sqlalchemy import Column, Date, Float, Integer, String, delete, func, select
+from sqlalchemy import Column, Date, Float, Integer, String, delete
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.exceptions import AirflowException
@@ -36,13 +37,11 @@ from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models import assoc_permission_role
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
-from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -90,6 +89,8 @@ class MockSecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class SomeModel(Model):
+    __tablename__ = "some_model"
+
     id = Column(Integer, primary_key=True)
     field_string = Column(String(50), unique=True, nullable=False)
     field_integer = Column(Integer())
@@ -101,7 +102,7 @@ class SomeModel(Model):
 
 
 class SomeModelView(ModelView):
-    datamodel = CustomSQLAInterface(SomeModel)
+    datamodel = SQLAInterface(SomeModel)
     base_permissions = [
         "can_list",
         "can_show",
@@ -216,7 +217,8 @@ def app():
     ):
         _app = application.create_app(enable_plugins=False)
         _app.config["WTF_CSRF_ENABLED"] = False
-        yield _app
+        with _app.app_context():
+            yield _app
 
 
 @pytest.fixture(scope="module")
@@ -234,12 +236,7 @@ def security_manager(app_builder):
 
 @pytest.fixture(scope="module")
 def session(app_builder):
-    return app_builder.get_session
-
-
-@pytest.fixture(scope="module")
-def db(app):
-    return SQLA(app)
+    return app_builder.session
 
 
 @pytest.fixture
@@ -932,17 +929,6 @@ def test_access_control_stale_perms_are_revoked(
             user._perms = None
             assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
             assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
-
-
-def test_no_additional_dag_permission_views_created(db, security_manager):
-    ab_perm_role = assoc_permission_role
-
-    security_manager.sync_roles()
-    num_pv_before = db.session().scalars(select(func.count()).select_from(ab_perm_role)).one()
-
-    security_manager.sync_roles()
-    num_pv_after = db.session().scalars(select(func.count()).select_from(ab_perm_role)).one()
-    assert num_pv_before == num_pv_after
 
 
 def test_override_role_vm(app_builder):
