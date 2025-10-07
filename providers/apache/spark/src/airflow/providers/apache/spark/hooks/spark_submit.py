@@ -268,9 +268,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
             if conn.port:
-                conn_data["master"] = f"{conn.host}:{conn.port}"
+                conn_data["master"] = f"{conn.conn_type}://{conn.host}:{conn.port}"
             else:
-                conn_data["master"] = conn.host
+                conn_data["master"] = f"{conn.conn_type}://conn.host"
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
