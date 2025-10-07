@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-07T07:47:57.304318
+# This constraints file was automatically generated on 2025-10-07T13:57:28.202420
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -137,7 +137,7 @@ cachelib==0.13.0
 cachetools==6.2.0
 cadwyn==5.4.4
 cassandra-driver==3.29.2
-cattrs==25.2.0
+cattrs==25.3.0
 celery==5.5.3
 certifi==2025.10.5
 cffi==1.17.1
@@ -185,7 +185,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
 docutils==0.21.2
-duckdb==1.4.0
+duckdb==1.4.1
 durationpy==0.10
 elastic-transport==8.17.1
 elasticsearch==8.19.1
@@ -465,7 +465,7 @@ polars==1.34.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.2.3
+prek==0.2.4
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
