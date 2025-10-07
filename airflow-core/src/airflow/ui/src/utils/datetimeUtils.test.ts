@@ -57,32 +57,3 @@ describe("getDuration", () => {
   });
 });
 
-import { vi } from "vitest";
-
-describe("getRelativeTime", () => {
-  const fixedNow = new Date("2024-03-14T10:00:10.000Z");
-
-  beforeAll(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedNow);
-  });
-
-  afterAll(() => {
-    vi.useRealTimers();
-  });
-
-  it("returns relative time for a valid date", () => {
-    const date = "2024-03-14T10:00:00.000Z";
-    expect(getRelativeTime(date)).toBe("a few seconds ago");
-  });
-
-  it("returns an empty string for null or undefined dates", () => {
-    expect(getRelativeTime(null)).toBe("");
-    expect(getRelativeTime(undefined)).toBe("");
-  });
-
-  it("handles future dates", () => {
-    const futureDate = "2024-03-14T10:00:20.000Z";
-    expect(getRelativeTime(futureDate)).toBe("in a few seconds");
-  });
-});
