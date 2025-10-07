@@ -17,6 +17,7 @@
  * under the License.
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
+import Ansi from "ansi-to-react";
 import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -51,28 +52,31 @@ type RenderStructuredLogProps = {
   translate: TFunction;
 };
 
-const addLinks = (line: string) => {
-  const matches = [...line.matchAll(urlRegex)];
+const addAnsiWithLinks = (line: string) => {
+  const urlMatches = [...line.matchAll(urlRegex)];
+
+  if (!urlMatches.length) {
+    return <Ansi>{line}</Ansi>;
+  }
+
   let currentIndex = 0;
   const elements: Array<JSX.Element | string> = [];
 
-  if (!matches.length) {
-    return line;
-  }
+  urlMatches.forEach((match) => {
+    const { index: startIndex } = match;
 
-  matches.forEach((match) => {
-    const startIndex = match.index;
-
-    // Add text before the URL
+    // Add ANSI-processed text before the URL
     if (startIndex > currentIndex) {
-      elements.push(line.slice(currentIndex, startIndex));
+      elements.push(
+        <Ansi key={`ansi-${currentIndex}-${startIndex}`}>{line.slice(currentIndex, startIndex)}</Ansi>,
+      );
     }
 
     elements.push(
       <Link
         color="fg.info"
         href={match[0]}
-        key={match[0]}
+        key={`link-${match[0]}-${startIndex}`}
         rel="noopener noreferrer"
         target="_blank"
         textDecoration="underline"
@@ -84,9 +88,9 @@ const addLinks = (line: string) => {
     currentIndex = startIndex + match[0].length;
   });
 
-  // Add remaining text after the last URL
+  // Add remaining ANSI-processed text after the last URL
   if (currentIndex < line.length) {
-    elements.push(line.slice(currentIndex));
+    elements.push(<Ansi key={`ansi-${currentIndex}-end`}>{line.slice(currentIndex)}</Ansi>);
   }
 
   return elements;
@@ -107,7 +111,7 @@ export const renderStructuredLog = ({
   if (typeof logMessage === "string") {
     return (
       <chakra.span key={index} lineHeight={1.5}>
-        {addLinks(logMessage)}
+        {addAnsiWithLinks(logMessage)}
       </chakra.span>
     );
   }
@@ -180,7 +184,7 @@ export const renderStructuredLog = ({
 
   elements.push(
     <chakra.span className="event" key={2} whiteSpace="pre-wrap">
-      {addLinks(event)}
+      {addAnsiWithLinks(event)}
     </chakra.span>,
   );
 
