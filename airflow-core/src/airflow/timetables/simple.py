@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+import pendulum
 
 from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -251,6 +254,44 @@ class IdentityMapper(PartitionMapper):
 
     def to_upstream(self, key: str) -> Iterable[str]:
         yield key
+
+
+class DayToWeekMapper(PartitionMapper):
+    """Partition mapper that rolls up daily runs into a weekly partition."""
+
+    def to_downstream(self, key):
+        dt = datetime.datetime.strptime(key, "%Y-%m-%d")
+        dt_p = pendulum.instance(dt)
+        return dt_p.start_of("week").to_date_string()
+
+    def to_upstream(self, key):
+        dt = pendulum.parse(key)
+        for num in range(7):
+            yield dt.add(days=num).to_date_string()
+
+
+class FiveMinuteMapper(PartitionMapper):
+    """Partition mapper that bins minutely keys to a five-minutely key."""
+
+    def _bin(self, key) -> datetime:
+        dt_p = pendulum.parse(key)
+        if TYPE_CHECKING:
+            assert isinstance(dt_p, datetime)
+        minutes = dt_p.minute
+        minutes = int(minutes / 5) * 5
+        dt_p = dt_p.replace(minute=minutes, second=0, microsecond=0, tzinfo=None)
+        return dt_p
+
+    def to_downstream(self, key):
+        dt_p = self._bin(key)
+        out = dt_p.strftime("%Y-%m-%d %H:%M")
+        return out
+
+    def to_upstream(self, key):
+        dt = self._bin(key)
+        for num in range(5):
+            out = dt.add(minutes=num)
+            yield out.strftime("%Y-%m-%d %H:%M")
 
 
 class PartitionedAssetTimetable(AssetTriggeredTimetable):

@@ -85,7 +85,7 @@ from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1678,6 +1678,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
+        time.sleep(2)  # todo: AIP-76 remove
+
         evaluator = AssetEvaluator(session)
 
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
@@ -1699,16 +1701,51 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not dag:
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
-
-            key_logs = session.scalars(
+            timetable = dag.timetable
+            if TYPE_CHECKING:
+                assert isinstance(timetable, PartitionedAssetTimetable)
+            partition_mapper = timetable.partition_mapper
+            expected_keys = set(partition_mapper.to_upstream(apdr.partition_key))
+            self.log.info(
+                "evaluating partitioned dag run",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                expected_keys=sorted(expected_keys),
+            )
+            key_logs: list[PartitionedAssetKeyLog] = session.scalars(
                 select(PartitionedAssetKeyLog).where(
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
                 )
             )
-            assets = session.scalars(
-                select(AssetModel).where(AssetModel.id.in_(x.asset_id for x in key_logs))
-            )
-            statuses = {AssetUniqueKey.from_asset(a): True for a in assets}
+            asset_key_presence = defaultdict(set)
+            for k in key_logs:
+                asset_key_presence[k.asset_id].add(k.source_partition_key)
+            assets = session.scalars(select(AssetModel).where(AssetModel.id.in_(asset_key_presence.keys())))
+
+            def _eval_asset(asset_id):
+                # todo: AIP-76 right now we assume every asset has same mapping
+                #  but we may want to set mappings for individual assets
+                keys = asset_key_presence[asset_id]
+                diff = expected_keys.difference(keys)
+                if diff:
+                    self.log.info(
+                        "found missing keys",
+                        dag_id=apdr.target_dag_id,
+                        asset_id=asset_id,
+                        missing_keys=sorted(diff),
+                    )
+                    return False
+                return True
+
+            statuses = {AssetUniqueKey.from_asset(a): _eval_asset(a.id) for a in assets}
+            # todo: AIP-76 partition window deps
+            #  we need some way to know, for a given partition ref, that the dag depends on a range of partitions
+            #  the AssetPartitionDagRun is the parent entity for the target dag / partition
+            #  the PartitionedAssetKeyLog records document partition fulfillment
+            #  but what will tell us partition dependencies
+            #  We need something that will tell us, for each target key, what are the source keys
+            #  that we depend on
+
             # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
             #  but, we ultimately need rollup ability
             #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
