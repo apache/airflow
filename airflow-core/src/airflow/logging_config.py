@@ -106,6 +106,7 @@ def configure_logging():
         )
         configure_logging(
             log_level=level,
+            namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
             stdlib_config=logging_config,
             log_format=log_fmt,
             callsite_parameters=callsite_params,

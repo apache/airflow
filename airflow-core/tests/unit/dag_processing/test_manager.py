@@ -42,13 +42,14 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, DbCallbackRequest
+from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -1168,6 +1169,7 @@ class TestDagFileProcessorManager:
         bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
         assert bundle_names_being_parsed == expected
 
+    @conf_vars({("core", "multi_team"): "true"})
     def test_bundles_with_team(self, session):
         team1_name = "test_team1"
         team2_name = "test_team2"

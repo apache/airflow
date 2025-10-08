@@ -43,7 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as 
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
-    EmailNotificationRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
@@ -59,10 +59,10 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
-    asset_trigger_association_table,
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
@@ -959,7 +959,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Sending email request for task %s to DAG Processor",
                         ti,
                     )
-                    email_request = EmailNotificationRequest(
+                    email_request = EmailRequest(
                         filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
                         bundle_version=ti.dag_version.bundle_version,
@@ -2470,7 +2470,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(Trigger)
             .where(
-                Trigger.id.not_in(select(asset_trigger_association_table.c.trigger_id)),
+                Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
                 Trigger.id.not_in(select(Deadline.trigger_id)),
                 Trigger.id.not_in(select(TaskInstance.trigger_id)),
             )

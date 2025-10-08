@@ -23,6 +23,17 @@ import warnings
 from types import ModuleType
 
 
+class DeprecatedImportWarning(FutureWarning):
+    """
+    Warning class for deprecated imports in Airflow.
+
+    This warning is raised when users import deprecated classes or functions
+    from Airflow modules that have been moved to better locations.
+    """
+
+    ...
+
+
 def getattr_with_deprecation(
     imports: dict[str, str],
     module: str,
@@ -59,7 +70,7 @@ def getattr_with_deprecation(
     message = f"The `{module}.{name}` attribute is deprecated. Please use `{warning_class_name!r}`."
     if extra_message:
         message += f" {extra_message}."
-    warnings.warn(message, DeprecationWarning, stacklevel=2)
+    warnings.warn(message, DeprecatedImportWarning, stacklevel=2)
 
     # Import and return the target attribute
     new_module, new_class_name = target_class_full_name.rsplit(".", 1)

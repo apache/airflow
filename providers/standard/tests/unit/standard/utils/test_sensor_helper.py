@@ -25,8 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.models import DAG, TaskInstance
-from airflow.models.dagbag import DagBag
+from airflow.models import DAG, DagBag, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.sensor_helper import (
     _count_stmt,

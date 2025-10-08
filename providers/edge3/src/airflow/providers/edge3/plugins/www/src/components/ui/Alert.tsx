@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable no-extra-boolean-cast */
 import { Alert as ChakraAlert } from "@chakra-ui/react";
 import { forwardRef } from "react";

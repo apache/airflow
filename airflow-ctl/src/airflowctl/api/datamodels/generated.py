@@ -49,6 +49,16 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetWatcherResponse(BaseModel):
+    """
+    Asset watcher serializer for responses.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    trigger_id: Annotated[int, Field(title="Trigger Id")]
+    created_date: Annotated[datetime, Field(title="Created Date")]
+
+
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
@@ -1047,6 +1057,7 @@ class AssetResponse(BaseModel):
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     consuming_tasks: Annotated[list[TaskInletAssetReference], Field(title="Consuming Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
     last_asset_event: LastAssetEventResponse | None = None
 
 
@@ -1153,6 +1164,13 @@ class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
     entities: Annotated[
         list[BulkTaskInstanceBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1166,6 +1184,13 @@ class BulkUpdateActionConnectionBody(BaseModel):
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1179,6 +1204,13 @@ class BulkUpdateActionPoolBody(BaseModel):
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1192,6 +1224,13 @@ class BulkUpdateActionVariableBody(BaseModel):
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
@@ -1381,6 +1420,11 @@ class DAGRunsBatchBody(BaseModel):
     end_date_gt: Annotated[datetime | None, Field(title="End Date Gt")] = None
     end_date_lte: Annotated[datetime | None, Field(title="End Date Lte")] = None
     end_date_lt: Annotated[datetime | None, Field(title="End Date Lt")] = None
+    duration_gte: Annotated[float | None, Field(title="Duration Gte")] = None
+    duration_gt: Annotated[float | None, Field(title="Duration Gt")] = None
+    duration_lte: Annotated[float | None, Field(title="Duration Lte")] = None
+    duration_lt: Annotated[float | None, Field(title="Duration Lt")] = None
+    conf_contains: Annotated[str | None, Field(title="Conf Contains")] = None
 
 
 class DAGVersionCollectionResponse(BaseModel):

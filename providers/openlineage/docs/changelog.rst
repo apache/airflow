@@ -26,11 +26,22 @@
 Changelog
 ---------
 
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``Adjust OpenLineage utils to be compatible with Airflow 3.1.0 (#56040)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+   * ``Move DagBag to airflow/dag_processing (#55139)``
+
 2.7.1
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
@@ -49,8 +60,6 @@ Misc
 2.7.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
