@@ -196,18 +196,18 @@ def get_dag_structure(
         return ids
 
     existing_ids = _collect_ids(merged_nodes)
-    historical_task_ids = session.scalars(
-        select(TaskInstance.task_id)
+    historical_tasks = session.execute(
+        select(TaskInstance.task_id, TaskInstance.task_display_name)
         .join(TaskInstance.dag_run)
         .where(TaskInstance.dag_id == dag_id, DagRun.id.in_(run_ids))
         .distinct()
     )
-    for task_id in historical_task_ids:
+    for task_id, task_display_name in historical_tasks:
         if task_id not in existing_ids:
             merged_nodes.append(
                 {
                     "id": task_id,
-                    "label": task_id,
+                    "label": task_display_name,
                     "is_mapped": None,
                     "children": None,
                 }
