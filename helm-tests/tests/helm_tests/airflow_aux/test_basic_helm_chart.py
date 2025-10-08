@@ -591,6 +591,10 @@ class TestBaseChartTest:
         for obj in objs_with_image:
             image: str = obj["image"]
             if image.startswith(image_repo):
+                # Skip init containers that need special commands (like fix-sqlite-permissions)
+                # These are internal helper containers that must run with specific commands
+                if obj.get("name") == "fix-sqlite-permissions":
+                    continue
                 assert "command" not in obj
 
     @pytest.mark.parametrize(

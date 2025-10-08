@@ -1053,7 +1053,7 @@ def _deploy_helm_chart(
             "--set",
             "sqliteShared.persistence.enabled=true",
             "--set",
-            "sqliteShared.persistence.accessMode=ReadWriteOnce",
+            "sqliteShared.persistence.accessMode=ReadWriteMany",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
