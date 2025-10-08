@@ -454,6 +454,7 @@ def run_compile_ui_assets(
     dev: bool,
     run_in_background: bool,
     force_clean: bool,
+    additional_ui_hooks: list[str],
 ):
     if force_clean:
         clean_ui_assets()
@@ -470,6 +471,7 @@ def run_compile_ui_assets(
         "--hook-stage",
         "manual",
         "compile-ui-assets-dev" if dev else "compile-ui-assets",
+        *additional_ui_hooks,
         "--all-files",
         "--verbose",
     ]

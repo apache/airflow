@@ -78,5 +78,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
 ==============================================================================================================  ===============
 
+Optional dependencies
+----------------------
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``apache.hive``  ``apache-airflow-providers-apache-hive``
+===============  ========================================
+
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.3.0/changelog.html>`_.

@@ -947,6 +947,7 @@ repos:
       - id: compile-edge-assets
         name: Compile Edge provider assets
         language: node
+        stages: ['manual']
         files: ^providers/edge3/.*/www/
         entry: ./scripts/ci/prek/compile_provider_assets.py edge
         pass_filenames: false
