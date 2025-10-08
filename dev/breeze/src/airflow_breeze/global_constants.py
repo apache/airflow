@@ -203,7 +203,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.22"
+UV_VERSION = "0.9.0"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -806,7 +806,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.18",
     "3.11": "3.11.13",
     "3.12": "3.12.11",
-    "3.13": "3.13.7",
+    "3.13": "3.13.8",
 }
 
 # Number of slices for low dep tests
