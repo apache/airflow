@@ -117,7 +117,7 @@ class TestResultBackendConnectionSecret:
         self._assert_for_old_version(
             version,
             value=connection,
-            expected_value="db+sqlite://:@release-name-postgresql:0//opt/airflow/airflow.db",
+            expected_value="db+sqlite://:@release-name-postgresql:0//opt/airflow/shared-db/airflow.db",
         )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])

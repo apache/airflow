@@ -213,7 +213,8 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[0]", docs[0]) == {
+        # The fix-sqlite-permissions init container is at index 0, extraInitContainers come after
+        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
             "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         }
