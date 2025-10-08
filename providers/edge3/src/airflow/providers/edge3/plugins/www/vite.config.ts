@@ -43,6 +43,7 @@ export default defineConfig(({ command }) => {
               globals: {
                 react: "React",
                 "react-dom": "ReactDOM",
+                "react-router-dom": "ReactRouterDOM",
                 "react/jsx-runtime": "ReactJSXRuntime",
               },
             },
