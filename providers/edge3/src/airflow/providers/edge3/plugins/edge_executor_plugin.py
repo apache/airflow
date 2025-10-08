@@ -240,10 +240,6 @@ def _get_base_url_path(path: str) -> str:
 
     # Normalize paths: remove trailing slash from base, ensure leading slash on path
     base_path = base_path.rstrip("/")
-    if not path.startswith("/"):
-        path = "/" + path
-
-    # Combine paths
     return base_path + path
 
 
