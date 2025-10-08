@@ -56,7 +56,7 @@ const addAnsiWithLinks = (line: string) => {
   const urlMatches = [...line.matchAll(urlRegex)];
 
   if (!urlMatches.length) {
-    return <Ansi>{line}</Ansi>;
+    return <Ansi useClasses>{line}</Ansi>;
   }
 
   let currentIndex = 0;
@@ -68,7 +68,9 @@ const addAnsiWithLinks = (line: string) => {
     // Add ANSI-processed text before the URL
     if (startIndex > currentIndex) {
       elements.push(
-        <Ansi key={`ansi-${currentIndex}-${startIndex}`}>{line.slice(currentIndex, startIndex)}</Ansi>,
+        <Ansi key={`ansi-${currentIndex}-${startIndex}`} useClasses>
+          {line.slice(currentIndex, startIndex)}
+        </Ansi>,
       );
     }
 
@@ -90,7 +92,11 @@ const addAnsiWithLinks = (line: string) => {
 
   // Add remaining ANSI-processed text after the last URL
   if (currentIndex < line.length) {
-    elements.push(<Ansi key={`ansi-${currentIndex}-end`}>{line.slice(currentIndex)}</Ansi>);
+    elements.push(
+      <Ansi key={`ansi-${currentIndex}-end`} useClasses>
+        {line.slice(currentIndex)}
+      </Ansi>,
+    );
   }
 
   return elements;
