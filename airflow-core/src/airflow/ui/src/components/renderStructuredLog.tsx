@@ -17,11 +17,12 @@
  * under the License.
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
-import Ansi from "ansi-to-react";
 import type { TFunction } from "i18next";
+import * as React from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage } from "openapi/requests/types.gen";
+import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
 import { urlRegex } from "src/constants/urlRegex";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
@@ -56,21 +57,26 @@ const addAnsiWithLinks = (line: string) => {
   const urlMatches = [...line.matchAll(urlRegex)];
 
   if (!urlMatches.length) {
-    return <Ansi useClasses>{line}</Ansi>;
+    return (
+      <AnsiRenderer linkify={false} useClasses={true}>
+        {line}
+      </AnsiRenderer>
+    );
   }
 
   let currentIndex = 0;
-  const elements: Array<JSX.Element | string> = [];
+  const elements: Array<React.ReactNode> = [];
 
   urlMatches.forEach((match) => {
     const { index: startIndex } = match;
 
-    // Add ANSI-processed text before the URL
     if (startIndex > currentIndex) {
+      const textBeforeUrl = line.slice(currentIndex, startIndex);
+
       elements.push(
-        <Ansi key={`ansi-${currentIndex}-${startIndex}`} useClasses>
-          {line.slice(currentIndex, startIndex)}
-        </Ansi>,
+        <AnsiRenderer key={`ansi-before-${textBeforeUrl}`} linkify={false} useClasses={true}>
+          {textBeforeUrl}
+        </AnsiRenderer>,
       );
     }
 
@@ -90,12 +96,13 @@ const addAnsiWithLinks = (line: string) => {
     currentIndex = startIndex + match[0].length;
   });
 
-  // Add remaining ANSI-processed text after the last URL
   if (currentIndex < line.length) {
+    const textAfterUrl = line.slice(currentIndex);
+
     elements.push(
-      <Ansi key={`ansi-${currentIndex}-end`} useClasses>
-        {line.slice(currentIndex)}
-      </Ansi>,
+      <AnsiRenderer key="ansi-after" linkify={false} useClasses={true}>
+        {textAfterUrl}
+      </AnsiRenderer>,
     );
   }
 
@@ -209,12 +216,9 @@ export const renderStructuredLog = ({
       const val = reStructured[key] as boolean | number | object | string | null;
 
       elements.push(
-        " ",
-        <span data-key={key}>
-          <chakra.span color="fg.info" key={`prop_${key}`}>
-            {key === "logger" ? "source" : key}
-          </chakra.span>
-          =
+        <React.Fragment key={`space_${key}`}> </React.Fragment>,
+        <span data-key={key} key={`struct_${key}`}>
+          <chakra.span color="fg.info">{key === "logger" ? "source" : key}</chakra.span>=
           <span data-value>
             {
               // Let strings, ints, etc through as is, but JSON stringify anything more complex
