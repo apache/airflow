@@ -24,10 +24,10 @@ inputs:
     default: "3.10"
   uv-version:
     description: 'uv version to use'
-    default: "0.8.22"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.9.0"  # Keep this comment to allow automatic replacement of uv version
   prek-version:
     description: 'prek version to use'
-    default: "0.2.3"  # Keep this comment to allow automatic replacement of prek version
+    default: "0.2.4"  # Keep this comment to allow automatic replacement of prek version
   skip-prek-hooks:
     description: "Skip some prek hooks from installation"
     default: ""
