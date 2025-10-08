@@ -644,7 +644,7 @@ def remove_docker_volumes(volumes: list[str] | None = None) -> None:
 # and it does not require the user to belong to the "docker" group.
 # The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
 # user running the docker command.
-PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "default"]
+PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "rancher-desktop", "default"]
 
 
 def autodetect_docker_context():
