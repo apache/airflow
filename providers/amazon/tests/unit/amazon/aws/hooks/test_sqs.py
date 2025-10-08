@@ -31,10 +31,109 @@ MESSAGE_ID_KEY = "MessageId"
 
 
 class TestSqsHook:
+    @pytest.fixture(autouse=True)
+    def setup_test_queue(self):
+        """Create a test queue before each test."""
+        with mock_aws():
+            hook = SqsHook(aws_conn_id="aws_default")
+            self.queue_url = hook.create_queue(queue_name="test-queue")
+            yield
+
+    @pytest.fixture
+    def hook(self):
+        """Fixture to provide a SqsHook instance."""
+        with mock_aws():
+            yield SqsHook(aws_conn_id="aws_default")
+
     @mock_aws
     def test_get_conn(self):
         hook = SqsHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
+
+    def test_create_queue(self, hook):
+        """Test that create_queue creates a queue and returns the queue URL."""
+        queue_name = "test-create-queue"
+        queue_url = hook.create_queue(queue_name=queue_name)
+
+        assert queue_url is not None
+        assert isinstance(queue_url, str)
+        assert queue_name in queue_url
+
+    def test_create_queue_with_attributes(self, hook):
+        """Test creating a queue with custom attributes."""
+        queue_name = "test-queue-with-attributes"
+        attributes = {
+            "DelaySeconds": "5",
+            "MaximumMessageSize": "262144",
+        }
+
+        queue_url = hook.create_queue(queue_name=queue_name, attributes=attributes)
+
+        assert isinstance(queue_url, str)
+        assert queue_name in queue_url
+
+        # Verify attributes were actually set on the queue
+        queue_attrs = hook.get_conn().get_queue_attributes(
+            QueueUrl=queue_url, AttributeNames=["DelaySeconds", "MaximumMessageSize"]
+        )
+        assert queue_attrs["Attributes"]["DelaySeconds"] == "5"
+        assert queue_attrs["Attributes"]["MaximumMessageSize"] == "262144"
+
+    def test_send_message(self, hook):
+        """Test sending a message to a queue."""
+        response = hook.send_message(queue_url=self.queue_url, message_body=MESSAGE_BODY)
+
+        assert response is not None
+        assert isinstance(response, dict)
+        assert MESSAGE_ID_KEY in response
+        assert "MD5OfMessageBody" in response
+
+    def test_send_message_with_attributes(self, hook):
+        """Test sending a message with message attributes."""
+        message_attributes = {
+            "Author": {
+                "StringValue": "test-user",
+                "DataType": "String",
+            },
+            "Priority": {
+                "StringValue": "1",
+                "DataType": "Number",
+            },
+        }
+
+        response = hook.send_message(
+            queue_url=self.queue_url,
+            message_body=MESSAGE_BODY,
+            message_attributes=message_attributes,
+        )
+
+        assert isinstance(response, dict)
+        assert MESSAGE_ID_KEY in response
+
+        # Verify attributes were actually attached to the message
+        received = hook.get_conn().receive_message(QueueUrl=self.queue_url, MessageAttributeNames=["All"])
+        assert "Messages" in received
+        message = received["Messages"][0]
+        assert message["MessageAttributes"]["Author"]["StringValue"] == "test-user"
+        assert message["MessageAttributes"]["Priority"]["StringValue"] == "1"
+
+    def test_send_message_with_delay(self, hook):
+        """Test sending a message with a delay."""
+        delay_seconds = 5
+
+        response = hook.send_message(
+            queue_url=self.queue_url,
+            message_body=MESSAGE_BODY,
+            delay_seconds=delay_seconds,
+        )
+
+        assert isinstance(response, dict)
+        assert MESSAGE_ID_KEY in response
+
+        # Verify the message is not immediately available (due to delay)
+        # Immediate receive should return no messages
+        immediate_receive = hook.get_conn().receive_message(QueueUrl=self.queue_url, WaitTimeSeconds=0)
+        assert "Messages" not in immediate_receive or len(immediate_receive.get("Messages", [])) == 0
 
 
 @pytest.mark.asyncio
