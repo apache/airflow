@@ -157,16 +157,16 @@ class SFTPToGCSOperator(BaseOperator):
                 self._copy_single_object(gcs_hook, self.sftp_hook, file, destination_path)
 
         else:
-            if not self.sftp_hook.path_exists(self.source_path):
-                if self.fail_on_file_not_exist:
-                    raise FileNotFoundError()
-                self.log.info("File %s not found on SFTP server. Skipping transfer.", self.source_path)
-                return
             destination_object = (
                 self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
             )
-            self._copy_single_object(gcs_hook, self.sftp_hook, self.source_path, destination_object)
-
+            try:
+                self._copy_single_object(gcs_hook, self.sftp_hook, self.source_path, destination_object)
+            except FileNotFoundError as e:
+                if self.fail_on_file_not_exist:
+                    raise e
+                self.log.info("File %s not found on SFTP server. Skipping transfer.", self.source_path)
+                return
     def _copy_single_object(
         self,
         gcs_hook: GCSHook,
