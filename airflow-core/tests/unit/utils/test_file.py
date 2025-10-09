@@ -154,9 +154,6 @@ class TestListPyFilesPath:
         assert actual_included_filenames == should_not_ignore, (
             f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
-        # assert len([filepath for filepath in actual_files if os.path.basename(filepath) in should_not_ignore]) == len(
-        #     should_not_ignore
-        # )
 
     def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
         ignore_list_file = ".airflowignore"
