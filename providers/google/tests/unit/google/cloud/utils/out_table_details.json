@@ -1,0 +1,30 @@
+{
+    "kind": "bigquery#table",
+    "etag": "/xPW+XqH9yYTFhR/MQSm+Q==",
+    "id": "bq-airflow-openlineage:new_dataset.output_table_3",
+    "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/bq-airflow-openlineage/datasets/new_dataset/tables/output_table_3",
+    "tableReference": {
+        "projectId": "bq-airflow-openlineage",
+        "datasetId": "new_dataset",
+        "tableId": "output_table"
+    },
+    "schema": {
+        "fields": [{
+            "name": "name",
+            "type": "STRING",
+            "mode": "NULLABLE"
+        }, {
+            "name": "total_people",
+            "type": "INTEGER",
+            "mode": "NULLABLE"
+        }]
+    },
+    "numBytes": "321",
+    "numLongTermBytes": "0",
+    "numRows": "20",
+    "creationTime": "1604622520179",
+    "expirationTime": "1609806520179",
+    "lastModifiedTime": "1607406385965",
+    "type": "TABLE",
+    "location": "US"
+}

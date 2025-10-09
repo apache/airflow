@@ -1,0 +1,121 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Cleanup Pods CronJob
+#################################
+{{- if .Values.cleanup.enabled }}
+{{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
+{{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.cleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.cleanup) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.cleanup) }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "airflow.fullname" . }}-cleanup
+  labels:
+    tier: airflow
+    component: airflow-cleanup-pods
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.cleanup.jobAnnotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: "{{ tpl .Values.cleanup.schedule . }}"
+  # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
+  concurrencyPolicy: Forbid
+  {{- if not ( eq .Values.cleanup.failedJobsHistoryLimit nil) }}
+  failedJobsHistoryLimit: {{ .Values.cleanup.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if not (eq .Values.cleanup.successfulJobsHistoryLimit nil) }}
+  successfulJobsHistoryLimit: {{ .Values.cleanup.successfulJobsHistoryLimit }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            tier: airflow
+            component: airflow-cleanup-pods
+            release: {{ .Release.Name }}
+            {{- if or (.Values.labels) (.Values.cleanup.labels) }}
+              {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}
+            {{- end }}
+          annotations:
+            sidecar.istio.io/inject: "false"
+            {{- if .Values.airflowPodAnnotations }}
+              {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
+            {{- end }}
+            {{- if .Values.cleanup.podAnnotations }}
+              {{- toYaml .Values.cleanup.podAnnotations | nindent 12 }}
+            {{- end }}
+        spec:
+          restartPolicy: Never
+          {{- if .Values.cleanup.priorityClassName }}
+          priorityClassName: {{ .Values.cleanup.priorityClassName }}
+          {{- end }}
+          nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
+          affinity: {{- toYaml $affinity | nindent 12 }}
+          {{- if .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
+          tolerations: {{- toYaml $tolerations | nindent 12 }}
+          topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
+          serviceAccountName: {{ include "cleanup.serviceAccountName" . }}
+          {{- if or .Values.registry.secretName .Values.registry.connection }}
+          imagePullSecrets:
+            - name: {{ template "registry_secret" . }}
+          {{- end }}
+          securityContext: {{ $securityContext | nindent 12 }}
+          containers:
+            - name: airflow-cleanup-pods
+              image: {{ template "airflow_image" . }}
+              imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+              securityContext: {{ $containerSecurityContext | nindent 16 }}
+              {{- if .Values.cleanup.command }}
+              command: {{ tpl (toYaml .Values.cleanup.command) . | nindent 16 }}
+              {{- end }}
+              {{- if .Values.cleanup.args }}
+              args: {{ tpl (toYaml .Values.cleanup.args) . | nindent 16 }}
+              {{- end }}
+              env:
+                {{- include "standard_airflow_environment" . | indent 12 }}
+                {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 12 }}
+              volumeMounts:
+                {{- include "airflow_config_mount" . | nindent 16 }}
+                {{- if .Values.volumeMounts }}
+                  {{- toYaml .Values.volumeMounts | nindent 16 }}
+                {{- end }}
+              resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
+          volumes:
+            - name: config
+              configMap:
+                name: {{ template "airflow_config" . }}
+            {{- if .Values.volumes }}
+              {{- toYaml .Values.volumes | nindent 12 }}
+            {{- end }}
+{{- end }}

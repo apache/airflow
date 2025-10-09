@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "Description",
+    "key": "Key",
+    "name": "Name",
+    "value": "Value"
+  },
+  "config": {
+    "columns": {
+      "section": "Section"
+    },
+    "title": "Airflow Configuration"
+  },
+  "connections": {
+    "add": "Add Connection",
+    "columns": {
+      "connectionId": "Connection ID",
+      "connectionType": "Connection Type",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_one": "Connection",
+    "connection_other": "Connections",
+    "delete": {
+      "deleteConnection_one": "Delete 1 connection",
+      "deleteConnection_other": "Delete {{count}} connections",
+      "firstConfirmMessage_one": "You are about to delete the following connection:",
+      "firstConfirmMessage_other": "You are about to delete the following connections:",
+      "title": "Delete Connection"
+    },
+    "edit": "Edit Connection",
+    "form": {
+      "connectionIdRequired": "Connection ID is required",
+      "connectionIdRequirement": "Connection ID cannot contain only spaces",
+      "connectionTypeRequired": "Connection Type is required",
+      "extraFields": "Extra Fields",
+      "extraFieldsJson": "Extra Fields JSON",
+      "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "helperTextForRedactedFields": "Redacted fields ('***') will remain unchanged if not modified.",
+      "selectConnectionType": "Select Connection Type",
+      "standardFields": "Standard Fields"
+    },
+    "nothingFound": {
+      "description": "Connections defined via environment variables or secrets managers are not listed here.",
+      "documentationLink": "Learn more in the Airflow documentation.",
+      "learnMore": "These are resolved at runtime and are not visible in the UI.",
+      "title": "No connection found!"
+    },
+    "searchPlaceholder": "Search Connections",
+    "test": "Test Connection",
+    "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
+    "typeMeta": {
+      "error": "Failed to retrieve Connection Type Meta",
+      "standardFields": {
+        "description": "Description",
+        "host": "Host",
+        "login": "Login",
+        "password": "Password",
+        "port": "Port",
+        "url_schema": "Schema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Delete",
+    "modal": {
+      "confirmButton": "Yes, Delete",
+      "secondConfirmMessage": "This action is permanent and cannot be undone.",
+      "thirdConfirmMessage": " Are you sure you want to proceed?"
+    },
+    "selected": "Selected",
+    "tooltip": "Delete selected connections"
+  },
+  "formActions": {
+    "save": "Save"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Source"
+    },
+    "importError_one": "Plugin Import Error",
+    "importError_other": "Plugin Import Errors",
+    "searchPlaceholder": "Search by file"
+  },
+  "pools": {
+    "add": "Add Pool",
+    "deferredSlotsIncluded": "Deferred Slots Included",
+    "delete": {
+      "title": "Delete Pool",
+      "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
+    },
+    "edit": "Edit Pool",
+    "form": {
+      "checkbox": "Check to include deferred tasks when calculating open pool slots",
+      "description": "Description",
+      "includeDeferred": "Include Deferred",
+      "nameMaxLength": "Name can contain a maximum of 256 characters",
+      "nameRequired": "Name is required",
+      "slots": "Slots"
+    },
+    "noPoolsFound": "No pools found",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Search Pools",
+    "sort": {
+      "asc": "Name (A-Z)",
+      "desc": "Name (Z-A)",
+      "placeholder": "Sort by"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Package Name",
+      "version": "Version"
+    }
+  },
+  "variables": {
+    "add": "Add Variable",
+    "columns": {
+      "isEncrypted": "Is Encrypted"
+    },
+    "delete": {
+      "deleteVariable_one": "Delete 1 Variable",
+      "deleteVariable_other": "Delete {{count}} Variables",
+      "firstConfirmMessage_one": "You are about to delete the following variable:",
+      "firstConfirmMessage_other": "You are about to delete the following variables:",
+      "title": "Delete Variable",
+      "tooltip": "Delete selected variables"
+    },
+    "edit": "Edit Variable",
+    "export": "Export",
+    "exportTooltip": "Export selected variables",
+    "form": {
+      "invalidJson": "Invalid JSON",
+      "keyMaxLength": "Key can contain a maximum of 250 characters",
+      "keyRequired": "Key is required",
+      "valueRequired": "Value is required"
+    },
+    "import": {
+      "button": "Import",
+      "conflictResolution": "Select Variable Conflict Resolution",
+      "errorParsingJsonFile": "Error Parsing JSON File: Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Fails the import if any existing variables are detected.",
+          "title": "Fail"
+        },
+        "overwrite": {
+          "description": "Overwrites the variable in case of a conflict.",
+          "title": "Overwrite"
+        },
+        "skip": {
+          "description": "Skips importing variables that already exist.",
+          "title": "Skip"
+        }
+      },
+      "title": "Import Variables",
+      "upload": "Upload a JSON File",
+      "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "No variables found",
+    "searchPlaceholder": "Search Keys",
+    "variable_one": "Variable",
+    "variable_other": "Variables"
+  }
+}

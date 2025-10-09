@@ -1,0 +1,154 @@
+{
+  "allRuns": "所有執行",
+  "blockingDeps": {
+    "dependency": "依賴 (Dependencies)",
+    "reason": "原因",
+    "title": "依賴 (Dependencies) 阻礙任務排程"
+  },
+  "calendar": {
+    "daily": "每日",
+    "hourly": "每小時",
+    "legend": {
+      "less": "較少",
+      "mixed": "混合",
+      "more": "較多"
+    },
+    "navigation": {
+      "nextMonth": "下一月",
+      "nextYear": "下一年",
+      "previousMonth": "上一月",
+      "previousYear": "上一年"
+    },
+    "noData": "沒有可用的資料",
+    "noFailedRuns": "無失敗的執行",
+    "noRuns": "無執行",
+    "totalRuns": "總執行數",
+    "week": "第 {{weekNumber}} 週",
+    "weekdays": {
+      "friday": "五",
+      "monday": "一",
+      "saturday": "六",
+      "sunday": "日",
+      "thursday": "四",
+      "tuesday": "二",
+      "wednesday": "三"
+    }
+  },
+  "code": {
+    "bundleUrl": "套件包網址",
+    "noCode": "找不到程式碼",
+    "parseDuration": "解析時長：",
+    "parsedAt": "解析時間："
+  },
+  "extraLinks": "額外連結",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "重設為最新",
+      "toggleGroup": "切換群組狀態"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "進階功能",
+      "dagDocs": "Dag 文件"
+    }
+  },
+  "logs": {
+    "allLevels": "所有日誌等級",
+    "allSources": "所有來源",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "全螢幕",
+      "tooltip": "按下 {{hotkey}} 進入全螢幕"
+    },
+    "info": "INFO",
+    "noTryNumber": "無嘗試次數",
+    "settings": "日誌設定",
+    "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "導航: {{arrow}}",
+    "toggleGroup": "展開/收合群組: 空白鍵"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "失敗的執行",
+      "failedRun_other": "失敗的執行",
+      "failedTask_one": "失敗的任務",
+      "failedTask_other": "失敗的任務",
+      "failedTaskInstance_one": "失敗的任務實例",
+      "failedTaskInstance_other": "失敗的任務實例"
+    },
+    "charts": {
+      "assetEvent_one": "已建立資源事件",
+      "assetEvent_other": "已建立資源事件"
+    },
+    "failedLogs": {
+      "hideLogs": "隱藏日誌",
+      "showLogs": "顯示日誌",
+      "title": "最近失敗任務的日誌",
+      "viewFullLogs": "檢視完整日誌"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "選項",
+      "showGantt": "顯示甘特圖",
+      "showGraphShortcut": "顯示圖表 (按 g)",
+      "showGridShortcut": "顯示網格 (按 g)"
+    },
+    "dagRuns": {
+      "label": "Dag 執行次數"
+    },
+    "dependencies": {
+      "label": "依賴 (Dependencies)",
+      "options": {
+        "allDagDependencies": "所有 Dag 相依性",
+        "externalConditions": "外部條件",
+        "onlyTasks": "僅限任務"
+      },
+      "placeholder": "依賴 (Dependencies)"
+    },
+    "graphDirection": {
+      "label": "圖表方向"
+    }
+  },
+  "paramsFailed": "載入參數失敗",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag 解析請求失敗。可能還有待處理的解析請求。",
+        "title": "Dag 重新解析失敗"
+      },
+      "success": {
+        "description": "Dag 即將重新解析。",
+        "title": "已成功提交重新解析請求"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "資源事件",
+    "auditLog": "審計日誌",
+    "backfills": "回填",
+    "calendar": "日曆",
+    "code": "程式碼",
+    "details": "詳細資訊",
+    "logs": "日誌",
+    "mappedTaskInstances_one": "任務實例 [{{count}}]",
+    "mappedTaskInstances_other": "任務實例 [{{count}}]",
+    "overview": "總覽",
+    "renderedTemplates": "渲染後的範本",
+    "requiredActions": "待回應的任務實例",
+    "runs": "執行紀錄",
+    "taskInstances": "任務實例",
+    "tasks": "任務",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "收合所有任務群組",
+    "expandAll": "展開所有任務群組"
+  }
+}

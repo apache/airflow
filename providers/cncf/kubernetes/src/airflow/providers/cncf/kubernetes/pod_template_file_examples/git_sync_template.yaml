@@ -1,0 +1,95 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is used for documentation purposes. Example can be found at docs/executor/kubernetes.rst
+#
+# [START git_sync_template]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy-name
+spec:
+  initContainers:
+    - name: git-sync
+      image: "registry.k8s.io/git-sync/git-sync:v3.6.3"
+      env:
+        - name: GIT_SYNC_BRANCH
+          value: "v2-2-stable"
+        - name: GIT_SYNC_REPO
+          value: "https://github.com/apache/airflow.git"
+        - name: GIT_SYNC_DEPTH
+          value: "1"
+        - name: GIT_SYNC_ROOT
+          value: "/git"
+        - name: GIT_SYNC_DEST
+          value: "repo"
+        - name: GIT_SYNC_ADD_USER
+          value: "true"
+        - name: GIT_SYNC_ONE_TIME
+          value: "true"
+      volumeMounts:
+        - name: airflow-dags
+          mountPath: /git
+  containers:
+    - env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: LocalExecutor
+        # Hard Coded Airflow Envs
+        - name: AIRFLOW__CORE__FERNET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: RELEASE-NAME-fernet-key
+              key: fernet-key
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: RELEASE-NAME-airflow-metadata
+              key: connection
+        - name: AIRFLOW_CONN_AIRFLOW_DB
+          valueFrom:
+            secretKeyRef:
+              name: RELEASE-NAME-airflow-metadata
+              key: connection
+      image: dummy_image
+      imagePullPolicy: IfNotPresent
+      name: base
+      volumeMounts:
+        - mountPath: "/opt/airflow/logs"
+          name: airflow-logs
+        - mountPath: /opt/airflow/dags
+          name: airflow-dags
+          subPath: repo/airflow/example_dags
+          readOnly: false
+        - mountPath: /opt/airflow/airflow.cfg
+          name: airflow-config
+          readOnly: true
+          subPath: airflow.cfg
+  restartPolicy: Never
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 50000
+  serviceAccountName: "RELEASE-NAME-worker-serviceaccount"
+  volumes:
+    - name: airflow-dags
+      emptyDir: {}
+    - name: airflow-logs
+      emptyDir: {}
+    - configMap:
+        name: RELEASE-NAME-airflow-config
+      name: airflow-config
+# [END git_sync_template]

@@ -1,0 +1,30 @@
+{
+  "consumingDags": "사용 중인 Dags",
+  "createEvent": {
+    "button": "이벤트 생성",
+    "manual": {
+      "description": "에셋 이벤트를 수동으로 생성",
+      "extra": "에셋 이벤트 추가 정보",
+      "label": "수동 생성"
+    },
+    "materialize": {
+      "description": "이 에셋의 상위 Dag을 트리거합니다",
+      "descriptionWithDag": "이 에셋의 상위 Dag을 트리거합니다: {{dagName}}",
+      "label": "구체화",
+      "unpauseDag": "트리거 시 {{dagName}}의 일시중지를 해제합니다"
+    },
+    "success": {
+      "manualDescription": "에셋 이벤트가 성공적으로 수동 생성되었습니다.",
+      "manualTitle": "에셋 이벤트 생성 완료",
+      "materializeDescription": "상위 Dag {{dagId}}가 성공적으로 트리거되었습니다.",
+      "materializeTitle": "에셋 구체화 중"
+    },
+    "title": "{{name}}에 대한 에셋 이벤트 생성"
+  },
+  "group": "그룹",
+  "lastAssetEvent": "마지막 에셋 이벤트",
+  "name": "이름",
+  "producingTasks": "생성하는 태스크",
+  "scheduledDags": "스케줄 된 Dags",
+  "searchPlaceholder": "에셋 검색"
+}

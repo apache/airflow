@@ -1,0 +1,67 @@
+{
+    "version": 2,
+    "waiters": {
+        "export_table": {
+            "operation": "DescribeExport",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "expected": "COMPLETED",
+                    "argument": "ExportDescription.ExportStatus",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "FAILED",
+                    "argument": "ExportDescription.ExportStatus",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "IN_PROGRESS",
+                    "argument": "ExportDescription.ExportStatus",
+                    "state": "retry"
+                }
+            ]
+        },
+        "import_table": {
+            "operation": "DescribeImport",
+            "delay": 30,
+            "maxAttempts": 240,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "expected": "COMPLETED",
+                    "argument": "ImportTableDescription.ImportStatus",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "CANCELLING",
+                    "argument": "ImportTableDescription.ImportStatus",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "CANCELLED",
+                    "argument": "ImportTableDescription.ImportStatus",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "FAILED",
+                    "argument": "ImportTableDescription.ImportStatus",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "expected": "IN_PROGRESS",
+                    "argument": "ImportTableDescription.ImportStatus",
+                    "state": "retry"
+                }
+            ]
+        }
+    }
+}

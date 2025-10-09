@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "{{total}}개 에셋 중 {{count}}개 업데이트됨",
+  "dagActions": {
+    "delete": {
+      "button": "Dag 삭제",
+      "warning": "실행 및 작업를 포함하여 Dag과(와) 관련된 모든 메타데이터가 제거됩니다."
+    }
+  },
+  "favoriteDag": "Dag 즐겨찾기",
+  "filters": {
+    "allRunTypes": "모든 실행 유형",
+    "allStates": "모든 상태",
+    "favorite": {
+      "all": "전체",
+      "favorite": "즐겨찾기",
+      "unfavorite": "즐겨찾기 해제"
+    },
+    "paused": {
+      "active": "활성",
+      "all": "모두",
+      "paused": "일시 중지됨"
+    },
+    "runIdPatternFilter": "Dag 실행 검색",
+    "triggeringUserNameFilter": "트리거한 사용자로 검색"
+  },
+  "ownerLink": "{{owner}}의 소유자 링크",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "작업를 찾을 수 없습니다.",
+      "title": "영향을 받는 작업: {{count}}"
+    },
+    "clear": {
+      "button": "{{type}} 지우기",
+      "buttonTooltip": "Shift+C를 눌러 지우기",
+      "error": "{{type}}을(를) 지우지 못했습니다.",
+      "title": "{{type}} 지우기"
+    },
+    "delete": {
+      "button": "{{type}} 삭제",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} 삭제",
+        "warning": "{{type}}과(와) 관련된 모든 메타데이터가 제거됩니다."
+      },
+      "error": "{{type}} 삭제 오류",
+      "success": {
+        "description": "{{type}} 삭제 요청이 성공했습니다.",
+        "title": "{{type}} 삭제 완료"
+      }
+    },
+    "markAs": {
+      "button": "{{type}}을(를) ...으로 표시",
+      "buttonTooltip": {
+        "failed": "Shift+F를 눌러 실패로 표시",
+        "success": "Shift+S를 눌러 성공으로 표시"
+      },
+      "title": "{{type}}을(를) {{state}}으로 표시"
+    },
+    "options": {
+      "downstream": "다운스트림",
+      "existingTasks": "기존 작업 지우기",
+      "future": "미래",
+      "onlyFailed": "실패한 작업만 지우기",
+      "past": "과거",
+      "queueNew": "새 작업 대기열에 추가",
+      "runOnLatestVersion": "최신 번들 버전으로 실행",
+      "upstream": "업스트림"
+    }
+  },
+  "search": {
+    "advanced": "고급 검색",
+    "clear": "검색 지우기",
+    "dags": "Dag 검색",
+    "hotkey": "+K",
+    "tasks": "작업 검색"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "표시 이름으로 정렬 (A-Z)",
+      "desc": "표시 이름으로 정렬 (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "최신 실행 시작 날짜로 정렬 (이전-최신)",
+      "desc": "최신 실행 시작 날짜로 정렬 (최신-이전)"
+    },
+    "lastRunState": {
+      "asc": "최신 실행 상태로 정렬 (A-Z)",
+      "desc": "최신 실행 상태로 정렬 (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "다음 Dag 실행으로 정렬 (이전-최신)",
+      "desc": "다음 Dag 실행으로 정렬 (최신-이전)"
+    },
+    "placeholder": "정렬 기준"
+  },
+  "unfavoriteDag": "Dag 즐겨찾기 해제"
+}

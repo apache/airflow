@@ -1,0 +1,435 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://airflow.apache.com/schemas/serialized-dags.json",
+  "definitions": {
+    "datetime": {
+      "description": "A date time, stored as fractional seconds since the epoch",
+      "type": "number"
+    },
+    "timedelta": {
+      "type": "number",
+      "minimum": 0
+    },
+    "typed_timedelta": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "timedelta"
+        },
+        "__var": { "$ref": "#/definitions/timedelta" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "typed_relativedelta": {
+      "type": "object",
+      "description": "A dateutil.relativedelta.relativedelta object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "relativedelta"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "weekday": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "minItems": 1,
+              "maxItems": 2
+            }
+          },
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "timezone": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer" }
+      ]
+    },
+    "asset_definition": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        },
+        "watchers": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/trigger" }
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
+    "asset": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
+    "typed_asset": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+            "constant": "asset"
+        },
+        "__var": { "$ref": "#/definitions/asset" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "typed_asset_cond": {
+      "type": "object",
+      "properties": {
+        "__type": {
+            "anyOf": [{
+                "type": "string",
+                "constant": "asset_or"
+            },
+            {
+                "type": "string",
+                "constant": "asset_and"
+            }
+            ]
+        },
+        "__var": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {"$ref": "#/definitions/typed_asset"},
+                    {    "$ref": "#/definitions/typed_asset_cond"}
+                    ]
+            }
+        }
+      },
+    "required": [
+        "__type",
+        "__var"
+        ],
+        "additionalProperties": false
+    },
+    "trigger": {
+      "type": "object",
+      "properties": {
+        "classpath": { "type": "string" },
+        "kwargs": { "$ref": "#/definitions/dict" }
+      },
+      "required": [ "classpath", "kwargs" ]
+    },
+    "dict": {
+      "description": "A python dictionary containing values of any type",
+      "type": "object"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[a-fA-F0-9]{3,6}$"
+    },
+    "extra_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1
+      }
+    },
+    "dag_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "dag": {
+      "type": "object",
+      "properties": {
+        "params": { "$ref": "#/definitions/params" },
+        "dag_id": { "type": "string" },
+        "tasks": {  "$ref": "#/definitions/tasks" },
+        "timezone": { "$ref": "#/definitions/timezone" },
+        "owner_links": { "type": "object" },
+        "timetable": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "value": { "$ref": "#/definitions/dict" }
+          }
+        },
+        "catchup": { "type": "boolean", "default": false },
+        "fail_fast": { "type": "boolean", "default": false },
+        "fileloc": { "type" : "string"},
+        "relative_fileloc": { "type" : "string"},
+        "_processor_dags_folder": {
+            "anyOf": [
+                { "type": "null" },
+                { "type": "string" }
+            ]
+        },
+        "dag_display_name": { "type" : "string"},
+        "description": { "type" : "string"},
+        "deadline": {
+            "anyOf": [
+                { "$ref": "#/definitions/dict" },
+                {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/dict" }
+                },
+                { "type": "null" }
+            ]
+        },
+        "_concurrency": { "type" : "number"},
+        "max_active_tasks": { "type" : "number", "default": 16},
+        "max_active_runs": { "type" : "number", "default": 16},
+        "max_consecutive_failed_dag_runs": { "type" : "number", "default": 0},
+        "default_args": { "$ref": "#/definitions/dict" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
+        "doc_md": { "type" : "string"},
+        "access_control": {"$ref": "#/definitions/dict" },
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "has_on_success_callback":  { "type": "boolean", "default": false },
+        "has_on_failure_callback":  { "type": "boolean", "default": false },
+        "render_template_as_native_obj":  { "type": "boolean", "default": false },
+        "tags": { "type": "array" },
+        "task_group": {"anyOf": [
+          { "type": "null" },
+          { "$ref": "#/definitions/task_group" }
+        ]},
+        "edge_info": { "$ref": "#/definitions/edge_info" },
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
+        "disable_bundle_versioning": {"type":  "boolean", "default": false }
+      },
+      "required": [
+        "dag_id",
+        "fileloc",
+        "tasks"
+      ],
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "array",
+      "additionalProperties": { "$ref": "#/definitions/operator" }
+    },
+    "params": {
+      "type": "array",
+      "prefixItems": [
+          { "type": "string" },
+          { "$ref": "#/definitions/param" }
+      ],
+      "unevaluatedItems": false
+    },
+    "param": {
+      "$comment": "A param for a dag / operator",
+      "type": "object",
+      "required": [
+        "__class",
+        "default"
+      ],
+      "properties": {
+        "__class": { "type": "string" },
+        "default": {},
+        "description": {"anyOf": [{"type":"string"}, {"type":"null"}]},
+        "schema": { "$ref": "#/definitions/dict" }
+      }
+    },
+    "operator": {
+      "$comment": "A task/operator in a DAG",
+      "type": "object",
+      "required": [
+        "task_type",
+        "_task_module",
+        "task_id",
+        "ui_color",
+        "ui_fgcolor",
+        "template_fields"
+      ],
+      "properties": {
+        "task_type": { "type": "string", "default": "BaseOperator"},
+        "_task_module": { "type": "string" },
+        "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
+        "task_id": { "type": "string" },
+        "_task_display_name": { "type": "string" },
+        "owner": { "type": "string", "default": "airflow" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "trigger_rule": { "type": "string", "default": "all_success" },
+        "depends_on_past": { "type": "boolean", "default": false },
+        "ignore_first_depends_on_past": { "type": "boolean", "default": false },
+        "wait_for_past_depends_before_skipping": { "type": "boolean", "default": false },
+        "wait_for_downstream": { "type": "boolean", "default": false },
+        "retries": { "type": "number", "default": 0 },
+        "queue": { "type": "string", "default": "default" },
+        "pool": { "type": "string", "default": "default_pool" },
+        "pool_slots": { "type": "number", "default": 1 },
+        "execution_timeout": { "$ref": "#/definitions/timedelta" },
+        "retry_delay": { "$ref": "#/definitions/timedelta", "default": 300.0 },
+        "retry_exponential_backoff": { "type": "boolean", "default": false },
+        "max_retry_delay": { "$ref": "#/definitions/timedelta" },
+        "params": { "$ref": "#/definitions/params" },
+        "priority_weight": { "type": "number", "default": 1 },
+        "weight_rule": { "type": "string", "default": "downstream" },
+        "executor": { "type": "string" },
+        "executor_config": { "$ref": "#/definitions/dict" },
+        "do_xcom_push": { "type": "boolean", "default": true },
+        "email_on_failure": { "type": "boolean", "default": true },
+        "email_on_retry": { "type": "boolean", "default": true },
+        "ui_color": { "type": "string", "default": "#fff" },
+        "ui_fgcolor": { "type": "string", "default": "#000" },
+        "template_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "template_ext": {"type": "array", "default": []},
+        "template_fields_renderers": {"$ref": "#/definitions/dict", "default": {}},
+        "downstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "doc":  { "type": "string" },
+        "doc_md":  { "type": "string" },
+        "doc_json":  { "type": "string" },
+        "doc_yaml":  { "type": "string" },
+        "doc_rst":  { "type": "string" },
+        "_logger_name": { "type": "string" },
+        "_needs_expansion": { "type": "boolean"},
+        "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
+        "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
+        "partial_kwargs": { "type": "object" },
+        "_disallow_kwargs_override": { "type": "boolean"},
+        "_expand_input_attr": { "type": "string" },
+        "map_index_template": { "type": "string" },
+        "allow_nested_operators": { "type": "boolean", "default": true },
+        "inlets": {"type":  "array", "default": []},
+        "outlets": {"type":  "array", "default": []},
+        "has_on_execute_callback": {"type": "boolean", "default": false},
+        "has_on_failure_callback": {"type": "boolean", "default": false},
+        "has_on_skipped_callback": {"type": "boolean", "default": false},
+        "has_on_success_callback": {"type": "boolean", "default": false},
+        "has_on_retry_callback": {"type": "boolean", "default": false},
+        "multiple_outputs": {"type": "boolean", "default": false},
+        "start_from_trigger": {"type": "boolean", "default": false},
+        "start_trigger_args": {"type": "object", "default": null},
+        "is_setup": {"type": "boolean", "default": false},
+        "is_teardown": {"type": "boolean", "default": false},
+        "on_failure_fail_dagrun": {"type": "boolean", "default": false},
+        "max_active_tis_per_dag": {"type": "integer"},
+        "max_active_tis_per_dagrun": {"type": "integer"}
+      },
+      "dependencies": {
+        "expand_input": ["partial_kwargs", "_is_mapped"],
+        "partial_kwargs": ["expand_input", "_is_mapped"],
+        "_is_mapped": ["expand_input", "partial_kwargs"]
+      },
+      "additionalProperties": true
+    },
+    "task_group": {
+      "$comment": "A TaskGroup containing tasks",
+      "type": "object",
+      "required": [
+        "_group_id",
+        "group_display_name",
+        "prefix_group_id",
+        "children",
+        "tooltip",
+        "ui_color",
+        "ui_fgcolor",
+        "upstream_group_ids",
+        "downstream_group_ids",
+        "upstream_task_ids",
+        "downstream_task_ids"
+      ],
+      "properties": {
+        "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "group_display_name": {"type": "string" },
+        "is_mapped": { "type": "boolean" },
+        "prefix_group_id": { "type": "boolean" },
+        "children":  { "$ref": "#/definitions/dict" },
+        "tooltip": { "type": "string" },
+        "ui_color": { "type": "string" },
+        "ui_fgcolor": { "type": "string" },
+        "upstream_group_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "downstream_group_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "upstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "downstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "edge_info": {
+      "$comment": "Metadata about DAG edges",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" }
+          },
+          "required": ["label"],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "__version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "dag": { "$ref": "#/definitions/dag" },
+        "client_defaults": {
+          "type": "object",
+          "description": "SDK-specific default values that differ from schema defaults",
+          "properties": {
+            "tasks": {
+              "type": "object",
+              "description": "Task-level default overrides"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [ "__version", "dag" ]
+    }
+  ]
+}

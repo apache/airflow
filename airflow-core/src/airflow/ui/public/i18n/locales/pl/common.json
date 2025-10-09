@@ -1,0 +1,339 @@
+{
+  "admin": {
+    "Config": "Konfiguracja",
+    "Connections": "Połączenia",
+    "Plugins": "Wtyczki",
+    "Pools": "Pule",
+    "Providers": "Providery",
+    "Variables": "Zmienne"
+  },
+  "allOperators": "Wszystkie operatory",
+  "appearance": {
+    "appearance": "Wygląd",
+    "darkMode": "Tryb ciemny",
+    "lightMode": "Tryb jasny",
+    "systemMode": "Użyj ustawień systemu"
+  },
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
+  "assetEvent_few": "Zdarzenia zasobów",
+  "assetEvent_many": "Zdarzeń zasobów",
+  "assetEvent_one": "Zdarzenie Zasobu",
+  "assetEvent_other": "Zdarzenia Zasobów",
+  "backfill_few": "Wypełnienia wsteczne",
+  "backfill_many": "Wypełnień wstecznych",
+  "backfill_one": "Wypełnienie wsteczne",
+  "backfill_other": "Wypełnienia wsteczne",
+  "browse": {
+    "auditLog": "Log audytu",
+    "requiredActions": "Wymagane akcje",
+    "xcoms": "XComy"
+  },
+  "collapseDetailsPanel": "Zwiń panel szczegółów",
+  "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
+  "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
+  "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
+  "createdAssetEvent_other": "Utworzone zdarzenia zasobów",
+  "dag_few": "Dagi",
+  "dag_many": "Dagów",
+  "dag_one": "Dag",
+  "dag_other": "Dagi",
+  "dagDetails": {
+    "catchup": "Nadrabianie zaległości",
+    "dagRunTimeout": "Limit czasu wykonania",
+    "defaultArgs": "Domyślne argumenty",
+    "description": "Opis",
+    "documentation": "Dokumentacja Daga",
+    "fileLocation": "Lokalizacja pliku",
+    "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
+    "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
+    "lastParsed": "Ostatnia analiza",
+    "latestDagVersion": "Najnowsza wersja Daga",
+    "latestRun": "Ostatnie wykonanie",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
+    "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
+    "nextRun": "Następne Wykonanie",
+    "owner": "Właściciel",
+    "params": "Parametry",
+    "schedule": "Harmonogram",
+    "tags": "Etykiety"
+  },
+  "dagId": "Identyfikator Daga",
+  "dagRun": {
+    "conf": "Konfiguracja",
+    "dagVersions": "Wersje Daga",
+    "dataIntervalEnd": "Koniec interwału danych",
+    "dataIntervalStart": "Początek interwału danych",
+    "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "queuedAt": "Zakolejkowano o",
+    "runAfter": "Wykonaj po",
+    "runType": "Typ wykonania",
+    "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
+    "triggeredBy": "Uruchomiony jako",
+    "triggeringUser": "Użytkownik który uruchomił"
+  },
+  "dagRun_few": "Wykonania",
+  "dagRun_many": "Wykonań",
+  "dagRun_one": "Wykonanie",
+  "dagRun_other": "Wykonania",
+  "dagRunId": "Identyfikator wykonania",
+  "dagWarnings": "Ostrzeżenia/Błędy Daga",
+  "defaultToGraphView": "Domyślnie widok grafu",
+  "defaultToGridView": "Domyślnie widok siatki",
+  "direction": "Kierunek",
+  "docs": {
+    "documentation": "Dokumentacja",
+    "githubRepo": "Repozytorium GitHub",
+    "restApiReference": "Dokuentacja REST API"
+  },
+  "duration": "Czas trwania",
+  "endDate": "Data zakończenia",
+  "error": {
+    "back": "Powrót",
+    "defaultMessage": "Wystąpił nieoczekiwany błąd",
+    "home": "Strona główna",
+    "notFound": "Nie znaleziono strony",
+    "title": "Błąd"
+  },
+  "expand": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń",
+    "hotkey": "e",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
+  },
+  "expression": {
+    "all": "Wszystkie",
+    "and": "ORAZ",
+    "any": "Dowolne",
+    "or": "LUB"
+  },
+  "filter": "Filtr",
+  "filters": {
+    "logicalDateFrom": "Data logiczna od",
+    "logicalDateTo": "Data logiczna do",
+    "runAfterFrom": "Uruchom po (od)",
+    "runAfterTo": "Uruchom po (do)"
+  },
+  "logicalDate": "Data logiczna",
+  "logout": "Wyloguj",
+  "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
+  "mapIndex": "Indeks mapowania",
+  "modal": {
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "delete": {
+      "button": "Usuń",
+      "confirmation": "Jesteś pewien, że chcesz usunąć {{resourceName}}? Ta operacja nie może być cofnięta."
+    }
+  },
+  "nav": {
+    "admin": "Admin",
+    "assets": "Zasoby",
+    "browse": "Przegląd",
+    "dags": "Dagi",
+    "docs": "Pomoc",
+    "home": "Pulpit",
+    "legacyFabViews": "Widoki Fab z Airflow 2",
+    "plugins": "Wtyczki",
+    "security": "Dostęp"
+  },
+  "noItemsFound": "Nie znaleziono modelu {{modelName}}",
+  "note": {
+    "add": "Dodaj notatkę",
+    "dagRun": "Notatki wykonania",
+    "label": "Notatka",
+    "placeholder": "Dodaj notatkę...",
+    "taskInstance": "Notatka instancji zadania"
+  },
+  "pools": {
+    "deferred": "Odłożone",
+    "open": "Otwarte",
+    "pools_few": "Pule",
+    "pools_many": "Puli",
+    "pools_one": "Pula",
+    "pools_other": "Pule",
+    "queued": "W kolejce",
+    "running": "W trakcie",
+    "scheduled": "Zaplanowane"
+  },
+  "reset": "Resetuj",
+  "runId": "Identyfikator wykonania",
+  "runTypes": {
+    "asset_triggered": "Uruchomiony przez zasób",
+    "backfill": "Wypełnienie wsteczne",
+    "manual": "Ręcznie",
+    "scheduled": "Według harmonogramu"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "dół",
+      "top": "góra"
+    },
+    "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
+  },
+  "seconds": "{{count}}s",
+  "security": {
+    "actions": "Akcje",
+    "permissions": "Uprawnienia",
+    "resources": "Zasoby",
+    "roles": "Role",
+    "users": "Użytkownicy"
+  },
+  "selectLanguage": "Wybierz język",
+  "showDetailsPanel": "Pokaż panel szczegółów",
+  "source": {
+    "hide": "Ukryj źródła",
+    "hotkey": "s",
+    "show": "Pokaż źródła"
+  },
+  "sourceAssetEvent_few": "Zdarzenia źródłowych zasobów",
+  "sourceAssetEvent_many": "Zdarzeń źródłowych zasobów",
+  "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
+  "sourceAssetEvent_other": "Zdarzenia źródłowych zasobów",
+  "startDate": "Data rozpoczęcia",
+  "state": "Stan",
+  "states": {
+    "deferred": "Odłożone",
+    "failed": "Niepowodzenie",
+    "no_status": "Brak stanu",
+    "none": "Brak stanu",
+    "planned": "Zaplanowane",
+    "queued": "W kolejce",
+    "removed": "Usunięte",
+    "restarting": "Restartowanie",
+    "running": "Wykonane",
+    "scheduled": "Zaplanowane",
+    "skipped": "Pominięte",
+    "success": "Sukces",
+    "up_for_reschedule": "Do ponownego zaplanowania",
+    "up_for_retry": "Do ponownej próby",
+    "upstream_failed": "Niepowodzenie poprzednika"
+  },
+  "table": {
+    "completedAt": "Zakończono o",
+    "createdAt": "Utworzono o",
+    "filterByTag": "Filtruj Dagi według tagu",
+    "filterColumns": "Filtruj kolumny tabeli",
+    "filterReset_few": "Resetuj filtry",
+    "filterReset_many": "Resetuj filtry",
+    "filterReset_one": "Resetuj filtr",
+    "filterReset_other": "Resetuj filtry",
+    "from": "Od",
+    "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "noTagsFound": "Nie znaleziono etykiet",
+    "tagMode": {
+      "all": "Wszystkie",
+      "any": "Dowolne"
+    },
+    "tagPlaceholder": "Filtruj według etykiety",
+    "to": "Do"
+  },
+  "task": {
+    "documentation": "Dokumentacja zadania",
+    "lastInstance": "Ostatnia instancja zadania",
+    "operator": "Operator",
+    "triggerRule": "Reguła zależności"
+  },
+  "task_few": "Zadania",
+  "task_many": "Zadań",
+  "task_one": "Zadanie",
+  "task_other": "Zadania",
+  "taskGroup": "Grupa zadań",
+  "taskId": "Identyfikator Zadania",
+  "taskInstance": {
+    "dagVersion": "Wersja Daga",
+    "executor": "Wykonawca",
+    "executorConfig": "Konfiguracja wykonawcy",
+    "hostname": "Nazwa hosta",
+    "maxTries": "Maksymalna liczba prób",
+    "pid": "PID",
+    "pool": "Pula",
+    "poolSlots": "Sloty puli",
+    "priorityWeight": "Waga priorytetu",
+    "queue": "Kolejka",
+    "queuedWhen": "Zakolejkowano o",
+    "scheduledWhen": "Zaplanowano o",
+    "triggerer": {
+      "assigned": "Przypisany wyzwalacz",
+      "class": "Klasa wyzwalacza",
+      "createdAt": "Czas utworzenia wyzwalacza",
+      "id": "Identyfikator wyzwalacza",
+      "latestHeartbeat": "Ostatni heartbeat wyzwalacza",
+      "title": "Informacje o wyzwalaczu"
+    },
+    "unixname": "Nazwa użytkownika systemu Unix"
+  },
+  "taskInstance_few": "Instancje Zadań",
+  "taskInstance_many": "Instancji Zadań",
+  "taskInstance_one": "Instancja Zadania",
+  "taskInstance_other": "Instancje Zadań",
+  "timeRange": {
+    "last12Hours": "Ostatnie 12 godzin",
+    "last24Hours": "Ostatnie 24 godziny",
+    "lastHour": "Ostatnia godzina",
+    "pastWeek": "Poprzedni tydzień"
+  },
+  "timestamp": {
+    "hide": "Ukryj znaczniki czasu",
+    "hotkey": "t",
+    "show": "Pokaż znaczniki czasu"
+  },
+  "timezone": "Strefa czasowa",
+  "timezoneModal": {
+    "current-timezone": "Obecny czas w",
+    "placeholder": "Wybierz strefę czasową",
+    "title": "Wybierz strefę czasową",
+    "utc": "UTC (Uniwersalny Czas Koordynowany)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "Nie udało się wykonać żądania utworzenia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie utworzono {{resourceName}}.",
+        "title": "Wysłano żądanie utworzenia {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "Nie udało się wykonać żądania usunięcia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie usunięto {{resourceName}}.",
+        "title": "Wysłano żądanie usunięcia {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "Nie udało się wykonać żądania importu {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "title": "Wysłano żądanie importu {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "Nie udało się wykonać żądania aktualizacji {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaktualizowano {{resourceName}}.",
+        "title": "Wysłano żądanie aktualizacji {{resourceName}}"
+      }
+    }
+  },
+  "total": "Wszystkie {{state}}",
+  "triggered": "Uruchomiony",
+  "tryNumber": "Numer próby",
+  "user": "Profil",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
+    "unwrap": "Wyłącz zawijanie",
+    "wrap": "Włącz zawijanie"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "mapped": "映射",
+  "notMapped": "非映射",
+  "retries": "重試",
+  "searchTasks": "搜尋任務",
+  "selectMapped": "選擇是否映射",
+  "selectOperator": "選擇任務操作器",
+  "selectRetryValues": "選擇第幾次重試",
+  "selectTriggerRules": "選擇觸發規則"
+}

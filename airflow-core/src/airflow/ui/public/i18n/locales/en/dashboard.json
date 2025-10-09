@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "First {{count}} favorite Dag",
+    "favoriteDags_other": "First {{count}} favorite Dags",
+    "noDagRuns": "There is no DagRun for this dag yet.",
+    "noFavoriteDags": "No favorites yet. Click the star icon next to a Dag in the list to add it to your favorites."
+  },
+  "group": "Group",
+  "health": {
+    "dagProcessor": "Dag Processor",
+    "health": "Health",
+    "healthy": "Healthy",
+    "lastHeartbeat": "Last Heartbeat",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "status": "Status",
+    "triggerer": "Triggerer",
+    "unhealthy": "Unhealthy"
+  },
+  "history": "History",
+  "importErrors": {
+    "dagImportError_one": "Dag Import Error",
+    "dagImportError_other": "Dag Import Errors",
+    "searchByFile": "Search by file",
+    "timestamp": "Timestamp"
+  },
+  "managePools": "Manage Pools",
+  "noAssetEvents": "No Asset Events found.",
+  "poolSlots": "Pool Slots",
+  "sortBy": {
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First"
+  },
+  "source": "Source",
+  "stats": {
+    "activeDags": "Active Dags",
+    "failedDags": "Failed Dags",
+    "queuedDags": "Queued Dags",
+    "requiredActions": "Required Actions",
+    "runningDags": "Running Dags",
+    "stats": "Stats"
+  },
+  "uri": "Uri",
+  "welcome": "Welcome"
+}

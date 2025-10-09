@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Dags consomatteurs",
+  "createEvent": {
+    "button": "Créer un événement",
+    "manual": {
+      "description": "Créer directement un événement d'Asset",
+      "extra": "Champs supplémentaires de l'événement",
+      "label": "Manuel"
+    },
+    "materialize": {
+      "description": "Déclencher le Dag en amont de cet asset",
+      "descriptionWithDag": "Déclencher le Dag en amont de cet asset : {{dagName}}",
+      "label": "Matérialiser",
+      "unpauseDag": "Réactiver {{dagName}} lors du déclenchement"
+    },
+    "success": {
+      "manualDescription": "La création manuelle de l'événement a été réussie.",
+      "manualTitle": "Événement d'Asset créé",
+      "materializeDescription": "Le Dag en amont {{dagId}} a été déclenché avec succès.",
+      "materializeTitle": "Matérialisation de l'Asset"
+    },
+    "title": "Créer un événement d'Asset pour {{name}}"
+  },
+  "group": "Group",
+  "lastAssetEvent": "Dernier événement d'Asset",
+  "name": "Nom",
+  "producingTasks": "Tasks productrices",
+  "scheduledDags": "Dags planifiés",
+  "searchPlaceholder": "Rechercher des Assets"
+}

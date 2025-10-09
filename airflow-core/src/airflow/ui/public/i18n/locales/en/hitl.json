@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "All",
+      "pending": "Pending",
+      "received": "Reviewed"
+    }
+  },
+  "requiredAction_one": "Required Action",
+  "requiredAction_other": "Required Actions",
+  "requiredActionCount_one": "Required Action ({{count}})",
+  "requiredActionCount_other": "Required Actions ({{count}})",
+  "requiredActionState": "Required Action State",
+  "response": {
+    "error": "Response failed",
+    "optionsDescription": "Choose your options for this task instance",
+    "optionsLabel": "Options",
+    "received": "Response received at ",
+    "respond": "Respond",
+    "success": "{{taskId}} response successful",
+    "title": "Human Task Instance - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Approval Received",
+    "approvalRequired": "Approval Required",
+    "choiceReceived": "Choice Received",
+    "choiceRequired": "Choice Required",
+    "noResponseReceived": "No Response Received",
+    "rejectionReceived": "Rejection Received",
+    "responseReceived": "Response Received",
+    "responseRequired": "Response Required"
+  },
+  "subject": "Subject"
+}

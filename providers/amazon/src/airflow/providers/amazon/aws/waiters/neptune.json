@@ -1,0 +1,85 @@
+{
+    "version": 2,
+    "waiters": {
+        "cluster_available": {
+            "operation": "DescribeDBClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "available",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "deleting",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "inaccessible-encryption-credentials",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "inaccessible-encryption-credentials-recoverable",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "migration-failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "stopped",
+                    "state": "retry"
+                }
+            ]
+        },
+        "cluster_stopped": {
+            "operation": "DescribeDBClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "deleting",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "inaccessible-encryption-credentials",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "inaccessible-encryption-credentials-recoverable",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DBClusters[0].Status",
+                    "expected": "migration-failed",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

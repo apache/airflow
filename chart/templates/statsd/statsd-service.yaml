@@ -1,0 +1,58 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow StatsD Service
+#################################
+{{- if .Values.statsd.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "airflow.fullname" . }}-statsd
+  labels:
+    tier: airflow
+    component: statsd
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.ports.statsdScrape | quote }}
+    {{- if .Values.statsd.service.extraAnnotations }}
+      {{- toYaml .Values.statsd.service.extraAnnotations | nindent 4 }}
+    {{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    tier: airflow
+    component: statsd
+    release: {{ .Release.Name }}
+  ports:
+    - name: statsd-ingest
+      protocol: UDP
+      port: {{ .Values.ports.statsdIngest }}
+      targetPort: {{ .Values.ports.statsdIngest }}
+    - name: statsd-scrape
+      protocol: TCP
+      port: {{ .Values.ports.statsdScrape }}
+      targetPort: {{ .Values.ports.statsdScrape }}
+{{- end }}

@@ -1,0 +1,36 @@
+{
+   "kind": "bigquery#job",
+   "etag": "123",
+   "id": "project-id:EU.bquxjob_2894c210_18e85d7a86e",
+   "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/project-id/jobs/bquxjob_2894c210_18e85d7a86e?location=EU",
+   "configuration": {
+      "query": {
+         "query": "DECLARE\n  start_ts TIMESTAMP;\nSET\n  start_ts = TIMESTAMP(\"2020-01-04 12:00:00 UTC\"); \nCREATE OR REPLACE TABLE ...",
+         "priority": "INTERACTIVE",
+         "allowLargeResults": false
+      },
+      "jobType": "QUERY"
+   },
+   "jobReference": {
+      "projectId": "project-id",
+      "jobId": "bquxjob_2894c210_18e85d7a86e",
+      "location": "EU"
+   },
+   "statistics": {
+      "creationTime": 1711642487190.0,
+      "startTime": 1711642487224.0,
+      "endTime": 1711642490618.0,
+      "totalBytesProcessed": "119672332",
+      "query": {
+         "totalBytesProcessed": "119672332",
+         "totalBytesBilled": "120586240",
+         "totalSlotMs": "31441",
+         "statementType": "SCRIPT"
+      },
+      "totalSlotMs": "31441",
+      "numChildJobs": "1"
+   },
+   "status": {
+      "state": "DONE"
+   }
+}

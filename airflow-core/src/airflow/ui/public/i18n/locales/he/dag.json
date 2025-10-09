@@ -1,0 +1,157 @@
+{
+  "allRuns": "כל ההרצות",
+  "blockingDeps": {
+    "dependency": "תלות",
+    "reason": "סיבה",
+    "title": "תלויות החוסמות את תזמון המשימה"
+  },
+  "calendar": {
+    "daily": "יומי",
+    "hourly": "שעתי",
+    "legend": {
+      "less": "פחות",
+      "more": "יותר"
+    },
+    "navigation": {
+      "nextMonth": "החודש הבא",
+      "nextYear": "השנה הבאה",
+      "previousMonth": "החודש הקודם",
+      "previousYear": "השנה הקודמת"
+    },
+    "noData": "אין נתונים זמינים",
+    "noRuns": "אין הרצות",
+    "totalRuns": "סה״כ הרצות",
+    "week": "שבוע {{weekNumber}}",
+    "weekdays": {
+      "friday": "ו׳",
+      "monday": "ב׳",
+      "saturday": "ש׳",
+      "sunday": "א׳",
+      "thursday": "ה׳",
+      "tuesday": "ג׳",
+      "wednesday": "ד׳"
+    }
+  },
+  "code": {
+    "bundleUrl": "כתובת החבילה",
+    "noCode": "לא נמצא קוד",
+    "parseDuration": "משך זמן הניתוח:",
+    "parsedAt": "נותח בשעה:"
+  },
+  "extraLinks": "קישורים נוספים",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "אפס לגרסה האחרונה",
+      "toggleGroup": "החלף מצב קבוצה"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "מתקדם",
+      "dagDocs": "תיעוד Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "כל רמות הרישום",
+    "allSources": "כל המקורות",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "מסך מלא",
+      "tooltip": "לחץ {{hotkey}} למסך מלא"
+    },
+    "info": "INFO",
+    "noTryNumber": "אין מספר ניסיון",
+    "settings": "הגדרות רישום",
+    "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "ניווט: {{arrow}}",
+    "toggleGroup": "החלפת קבוצה: רווח"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "ריצה שנכשלה",
+      "failedRun_other": "ריצות שנכשלו",
+      "failedRun_two": "ריצות שנכשלו",
+      "failedTask_one": "משימה שנכשלה",
+      "failedTask_other": "משימות שנכשלו",
+      "failedTask_two": "משימות שנכשלו",
+      "failedTaskInstance_one": "מופע משימה שנכשל",
+      "failedTaskInstance_other": "מופעי משימות שנכשלו",
+      "failedTaskInstance_two": "מופעי משימות שנכשלו"
+    },
+    "charts": {
+      "assetEvent_one": "אירוע בנכס שנוצר",
+      "assetEvent_other": "אירועי בנכסים שנוצרו",
+      "assetEvent_two": "אירועים בנכסים שנוצרו"
+    },
+    "failedLogs": {
+      "hideLogs": "הסתר רישומים",
+      "showLogs": "הצג רישומים",
+      "title": "רישומים אחרונים של משימות שנכשלו",
+      "viewFullLogs": "צפה ברישומים המלאים"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "אפשרויות",
+      "showGantt": "הצג גאנט",
+      "showGraphShortcut": "הצג תרשים (לחץ g)",
+      "showGridShortcut": "הצג רשת (לחץ g)"
+    },
+    "dagRuns": {
+      "label": "מספר הרצות Dag"
+    },
+    "dependencies": {
+      "label": "תלויות",
+      "options": {
+        "allDagDependencies": "כל תלויות ה-Dag",
+        "externalConditions": "תנאים חיצוניים",
+        "onlyTasks": "משימות בלבד"
+      },
+      "placeholder": "תלויות"
+    },
+    "graphDirection": {
+      "label": "כיוון התרשים"
+    }
+  },
+  "paramsFailed": "טעינת הפרמטרים נכשלה",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "ניתוח ה-Dag נכשל. ייתכן שישנן בקשות ניתוח ממתינות.",
+        "title": "ניתוח מחדש של ה-Dag נכשל"
+      },
+      "success": {
+        "description": "ה-Dag יתנתח מחדש בקרוב.",
+        "title": "בקשת הניתוח מחדש נשלחה בהצלחה"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "אירועי משאבים",
+    "auditLog": "יומן ביקורת",
+    "backfills": "השלמות רטרואקטיביות",
+    "calendar": "לוח שנה",
+    "code": "קוד תכנות",
+    "details": "פרטים",
+    "logs": "רישומים",
+    "mappedTaskInstances_one": "מופע משימה [{{count}}]",
+    "mappedTaskInstances_other": "מופעי משימה [{{count}}]",
+    "mappedTaskInstances_two": "מופעי משימה [{{count}}]",
+    "overview": "סקירה כללית",
+    "renderedTemplates": "תבניות מעובדות",
+    "requiredActions": "פעולות נדרשות",
+    "runs": "הרצות",
+    "taskInstances": "מופעי משימות",
+    "tasks": "משימות",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "כווץ את כל קבוצות המשימות",
+    "expandAll": "הרחב את כל קבוצות המשימות"
+  }
+}

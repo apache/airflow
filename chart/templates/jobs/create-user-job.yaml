@@ -1,0 +1,141 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Create User Job
+#################################
+{{- if .Values.webserver.defaultUser.enabled }}
+{{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
+{{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.createUserJob) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.createUserJob) }}
+{{- $containerLifecycleHooks := or .Values.createUserJob.containerLifecycleHooks .Values.containerLifecycleHooks }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "airflow.fullname" . }}-create-user
+  labels:
+    tier: airflow
+    component: create-user-job
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.createUserJob.useHelmHooks }}
+    {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "2" }}
+    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- with $annotations := merge $annotations .Values.createUserJob.jobAnnotations }}
+  annotations: {{- $annotations | toYaml | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not (kindIs "invalid" .Values.createUserJob.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.createUserJob.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: create-user-job
+        release: {{ .Release.Name }}
+        {{- if or (.Values.labels) (.Values.createUserJob.labels) }}
+          {{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
+      annotations:
+        {{- if .Values.airflowPodAnnotations }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.createUserJob.annotations }}
+          {{- toYaml .Values.createUserJob.annotations | nindent 8 }}
+        {{- end }}
+      {{- end }}
+    spec:
+      securityContext: {{ $securityContext | nindent 8 }}
+      restartPolicy: {{ .Values.createUserJob.restartPolicy }}
+      {{- if .Values.createUserJob.priorityClassName }}
+      priorityClassName: {{ .Values.createUserJob.priorityClassName }}
+      {{- end }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      {{- if .Values.createUserJob.extraInitContainers }}
+      initContainers:
+        {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: create-user
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.createUserJob.command }}
+          command: {{ tpl (toYaml .Values.createUserJob.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.createUserJob.args }}
+          args: {{ tpl (toYaml .Values.createUserJob.args) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.createUserJob.applyCustomEnv }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env: {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- else }}
+          env:
+          {{- end }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "container_extra_envs" (list . .Values.createUserJob.env) | indent 10 }}
+          resources: {{- toYaml .Values.createUserJob.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.createUserJob.extraVolumeMounts }}
+              {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+        {{- if .Values.createUserJob.extraContainers }}
+          {{- tpl (toYaml .Values.createUserJob.extraContainers) . | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.createUserJob.extraVolumes }}
+          {{- tpl (toYaml .Values.createUserJob.extraVolumes) . | nindent 8 }}
+        {{- end }}
+{{- end }}

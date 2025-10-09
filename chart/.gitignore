@@ -1,0 +1,9 @@
+# User overrides
+config.yaml
+config.yml
+
+# Build dir
+repository
+
+# Never check in tmpcharts
+tmpcharts

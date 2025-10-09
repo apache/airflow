@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "विवरण",
+    "key": "कुंजी",
+    "name": "नाम",
+    "value": "मान"
+  },
+  "config": {
+    "columns": {
+      "section": "सेक्शन"
+    },
+    "title": "Airflow विन्यास"
+  },
+  "connections": {
+    "add": "कनेक्शन जोड़ें",
+    "columns": {
+      "connectionId": "कनेक्शन ID",
+      "connectionType": "कनेक्शन प्रकार",
+      "host": "होस्ट",
+      "port": "पोर्ट"
+    },
+    "connection_one": "कनेक्शन",
+    "connection_other": "कनेक्शन्स",
+    "delete": {
+      "deleteConnection_one": "1 कनेक्शन हटाएं",
+      "deleteConnection_other": "{{count}} कनेक्शन्स हटाएं",
+      "firstConfirmMessage_one": "आप निम्नलिखित कनेक्शन को हटाने वाले हैं:",
+      "firstConfirmMessage_other": "आप निम्नलिखित कनेक्शन्स को हटाने वाले हैं:",
+      "title": "कनेक्शन हटाएं"
+    },
+    "edit": "कनेक्शन संपादित करें",
+    "form": {
+      "connectionIdRequired": "कनेक्शन ID आवश्यक है",
+      "connectionIdRequirement": "कनेक्शन ID में केवल अंतरिक्ष कुंजियाँ नहीं हो सकते",
+      "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
+      "extraFields": "अतिरिक्त फ़ील्ड",
+      "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
+      "helperText": "कनेक्शन प्रकार गायब है? सुनिश्चित करें कि आपने संबंधित Airflow Providers Package इंस्टॉल किया है।",
+      "helperTextForRedactedFields": "संपादित फ़ील्ड ('***') अपरिवर्तित रहेंगे यदि संशोधित नहीं किए गए।",
+      "selectConnectionType": "कनेक्शन प्रकार चुनें",
+      "standardFields": "मानक फ़ील्ड"
+    },
+    "nothingFound": {
+      "description": "एनवायरनमेंट वेरिएबल या सीक्रेट मैनेजर के माध्यम से परिभाषित कनेक्शन यहां सूचीबद्ध नहीं हैं।",
+      "documentationLink": "Airflow प्रलेखन में और जानें।",
+      "learnMore": "ये तभी लोड किए जाते हैं जब कोई टास्क्स, जो इन्हें उपयोग करता है, चलाया जाता है और इसलिए ये इस दृश्य में दिखाई नहीं देते।",
+      "title": "कोई कनेक्शन नहीं मिला!"
+    },
+    "searchPlaceholder": "कनेक्शन खोजें",
+    "test": "कनेक्शन टेस्ट करें",
+    "testDisabled": "टेस्ट कनेक्शन सुविधा अक्षम है। कृपया इसे सक्षम करने के लिए एडमिनिस्ट्रेटर से संपर्क करें।",
+    "typeMeta": {
+      "error": "कनेक्शन प्रकार मेटा प्राप्त करने में विफल",
+      "standardFields": {
+        "description": "विवरण",
+        "host": "होस्ट",
+        "login": "लॉगिन",
+        "password": "पासवर्ड",
+        "port": "पोर्ट",
+        "url_schema": "स्कीमा"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "हटाएं",
+    "modal": {
+      "confirmButton": "हां, हटाएं",
+      "secondConfirmMessage": "यह क्रिया स्थायी है और इसे पूर्ववत नहीं किया जा सकता।",
+      "thirdConfirmMessage": " क्या आप वास्तव में आगे बढ़ना चाहते हैं?"
+    },
+    "selected": "चयनित",
+    "tooltip": "चयनित कनेक्शन्स हटाएं"
+  },
+  "formActions": {
+    "save": "सेव करें"
+  },
+  "plugins": {
+    "columns": {
+      "source": "स्रोत"
+    },
+    "importError_one": "प्लगइन आयात त्रुटि",
+    "importError_other": "प्लगइन आयात त्रुटियां",
+    "searchPlaceholder": "फ़ाइल द्वारा खोजें"
+  },
+  "pools": {
+    "add": "पूल जोड़ें",
+    "deferredSlotsIncluded": "स्थगित स्लॉट्स शामिल",
+    "delete": {
+      "title": "पूल हटाएं",
+      "warning": "यह पूल से संबंधित सभी मेटाडेटा को हटा देगा और इस पूल का उपयोग करने वाले टास्क्स को प्रभावित कर सकता है।"
+    },
+    "edit": "पूल संपादित करें",
+    "form": {
+      "checkbox": "खुले पूल स्लॉट्स की गणना करते समय स्थगित टास्क्स को शामिल करने के लिए चेक करें",
+      "description": "विवरण",
+      "includeDeferred": "स्थगित शामिल करें",
+      "nameMaxLength": "नाम में अधिकतम 256 वर्ण हो सकते हैं",
+      "nameRequired": "नाम आवश्यक है",
+      "slots": "स्लॉट्स"
+    },
+    "noPoolsFound": "कोई पूल नहीं मिले",
+    "pool_one": "पूल",
+    "pool_other": "पूल्स",
+    "searchPlaceholder": "पूल्स खोजें",
+    "sort": {
+      "asc": "नाम (A-Z)",
+      "desc": "नाम (Z-A)",
+      "placeholder": "सॉर्ट करें"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "पैकेज नाम",
+      "version": "संस्करण"
+    }
+  },
+  "variables": {
+    "add": "वेरिएबल जोड़ें",
+    "columns": {
+      "isEncrypted": "एन्क्रिप्टेड है"
+    },
+    "delete": {
+      "deleteVariable_one": "1 वेरिएबल हटाएं",
+      "deleteVariable_other": "{{count}} वेरिएबल्स हटाएं",
+      "firstConfirmMessage_one": "आप निम्नलिखित वेरिएबल को हटाने वाले हैं:",
+      "firstConfirmMessage_other": "आप निम्नलिखित वेरिएबल्स को हटाने वाले हैं:",
+      "title": "वेरिएबल हटाएं",
+      "tooltip": "चयनित वेरिएबल हटाएं"
+    },
+    "edit": "वेरिएबल संपादित करें",
+    "export": "निर्यात",
+    "exportTooltip": "चयनित वेरिएबल निर्यात करें",
+    "form": {
+      "invalidJson": "अमान्य JSON",
+      "keyMaxLength": "कुंजी में अधिकतम 250 वर्ण हो सकते हैं",
+      "keyRequired": "कुंजी आवश्यक है",
+      "valueRequired": "मान आवश्यक है"
+    },
+    "import": {
+      "button": "आयात करें",
+      "conflictResolution": "वेरिएबल कॉन्फ़्लिक्ट रिज़ॉल्यूशन चुनें",
+      "errorParsingJsonFile": "JSON फ़ाइल पार्स करने में त्रुटि: वेरिएबल वाली JSON फ़ाइल अपलोड करें (जैसे, {\"key\": \"value\", ...})।",
+      "options": {
+        "fail": {
+          "description": "यदि कोई मौजूदा वेरिएबल पाया जाता है तो आयात विफल हो जाता है।",
+          "title": "विफल"
+        },
+        "overwrite": {
+          "description": "कॉन्फ़्लिक्ट की स्थिति में वेरिएबल को अधिलेखित करता है।",
+          "title": "अधिलेखित"
+        },
+        "skip": {
+          "description": "पहले से मौजूद वेरिएबल का आयात छोड़ देता है।",
+          "title": "छोड़ें"
+        }
+      },
+      "title": "वेरिएबल आयात करें",
+      "upload": "JSON फ़ाइल अपलोड करें",
+      "uploadPlaceholder": "वेरिएबल वाली JSON फ़ाइल अपलोड करें (जैसे, {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "कोई वेरिएबल नहीं मिले",
+    "searchPlaceholder": "कुंजियां खोजें",
+    "variable_one": "वेरिएबल",
+    "variable_other": "वेरिएबल्स"
+  }
+}

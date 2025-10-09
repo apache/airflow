@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "dagActions": {
+    "delete": {
+      "button": "Usuń Daga",
+      "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań Dagów i zadań zostaną usunięte."
+    }
+  },
+  "favoriteDag": "Ulubiony Dag",
+  "filters": {
+    "allRunTypes": "Wszystkie Typy Wykonań Dagów",
+    "allStates": "Wszystkie Stany",
+    "favorite": {
+      "all": "Wszystkie",
+      "favorite": "Ulubione",
+      "unfavorite": "Nieulubione"
+    },
+    "paused": {
+      "active": "Aktywne",
+      "all": "Wszystkie",
+      "paused": "Wstrzymane"
+    },
+    "runIdPatternFilter": "Szukaj Wykonań Dagów",
+    "triggeringUserNameFilter": "Szukaj według użytkownika wywołującego"
+  },
+  "ownerLink": "Link do właściciela {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Nie znaleziono zadań.",
+      "title": "Liczba wybranych zadań: {{count}}"
+    },
+    "clear": {
+      "button": "Wyczyść {{type}}",
+      "buttonTooltip": "Użyj shift+c żeby wyczyścić",
+      "error": "Nie udało się wyczyścić {{type}}",
+      "title": "Wyczyść {{type}}"
+    },
+    "delete": {
+      "button": "Usuń {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Usuń {{type}}",
+        "warning": "Wzystkie metadane związane z tym {{type}} zostaną usunięte"
+      },
+      "error": "Błąd usuwania {{type}}",
+      "success": {
+        "description": "{{type}} został usunięty pomyślnie.",
+        "title": "{{type}} usunięto."
+      }
+    },
+    "markAs": {
+      "button": "Ustaw {{type}} jako...",
+      "buttonTooltip": {
+        "failed": "Użyj shift+f aby oznaczyć jako nieudane",
+        "success": "Użyj shift+s aby oznaczyć jako udane"
+      },
+      "title": "Ustaw {{type}} jako {{state}}"
+    },
+    "options": {
+      "downstream": "Taski podrzędne",
+      "existingTasks": "Wyczyść istniejące zadania",
+      "future": "Przyszłe zadania",
+      "onlyFailed": "Wyczyść tylko nieudane zadania",
+      "past": "Przeszłe zadania",
+      "queueNew": "Kolejkuj nowe zadania",
+      "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
+      "upstream": "Taski nadrzędne"
+    }
+  },
+  "search": {
+    "advanced": "Wyszukiwanie zaawansowane",
+    "clear": "Wyczyść wyszukiwanie",
+    "dags": "Szukaj Dagów",
+    "hotkey": "+K",
+    "tasks": "Szukaj instancji zadań"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Sortuj według Nazwy Wyświetlanej (A-Z)",
+      "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
+    },
+    "lastRunState": {
+      "asc": "Sortuj według Stanu Ostatniego Wykonania (A-Z)",
+      "desc": "Sortuj według Stanu Ostatniego Wykonania (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sortuj według Następnego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Następnego Wykonania (Najnowsze-Najwcześniejsze)"
+    },
+    "placeholder": "Sortuj według"
+  },
+  "unfavoriteDag": "Usuń Daga z ulubionych"
+}

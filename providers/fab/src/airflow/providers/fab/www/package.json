@@ -1,0 +1,77 @@
+{
+  "name": "airflow-www",
+  "version": "1.0.0",
+  "description": "Apache Airflow is a platform to programmatically author, schedule and monitor workflows.",
+  "scripts": {
+    "test": "jest",
+    "dev": "NODE_ENV=development webpack --watch --progress --devtool eval-cheap-source-map --mode development",
+    "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js --mode production --progress",
+    "build": "NODE_ENV=production webpack --progress --mode production",
+    "lint": "eslint --ignore-path=.eslintignore --max-warnings=0 --ext .js .",
+    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js .",
+    "format": "yarn prettier --write ."
+  },
+  "author": "Apache",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apache/airflow.git"
+  },
+  "homepage": "https://airflow.apache.org/",
+  "keywords": [
+    "big",
+    "data",
+    "workflow",
+    "airflow",
+    "database",
+    "flask"
+  ],
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/eslint-parser": "^7.28.4",
+    "@babel/plugin-transform-runtime": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "babel-loader": "^10.0.0",
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "7.1.2",
+    "css-minimizer-webpack-plugin": "^7.0.2",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-html": "^8.1.3",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-standard": "^5.0.0",
+    "file-loader": "^6.0.0",
+    "mini-css-extract-plugin": "^2.9.4",
+    "moment": "^2.29.4",
+    "moment-locales-webpack-plugin": "^1.2.0",
+    "prettier": "^3.6.2",
+    "stylelint": "^16.24.0",
+    "terser-webpack-plugin": "<6.0.0",
+    "url-loader": "4.1.1",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^6.0.1",
+    "webpack-license-plugin": "^4.2.1",
+    "webpack-manifest-plugin": "^5.0.1"
+  },
+  "dependencies": {
+    "jquery-ui": "^1.14.1",
+    "moment-timezone": "^0.6.0"
+  },
+  "resolutions": {
+    "moment-timezone": ">=0.5.35"
+  }
+}

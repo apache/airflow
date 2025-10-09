@@ -1,0 +1,182 @@
+{
+  "columns": {
+    "description": "Opis",
+    "key": "Klucz",
+    "name": "Nazwa",
+    "value": "Wartość"
+  },
+  "config": {
+    "columns": {
+      "section": "Sekcja"
+    },
+    "title": "Konfiguracja Airflowa"
+  },
+  "connections": {
+    "add": "Dodaj połączenie",
+    "columns": {
+      "connectionId": "Identyfikator połączenia",
+      "connectionType": "Typ połączenia",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_few": "Połączenia",
+    "connection_many": "Połączeń",
+    "connection_one": "Połączenie",
+    "connection_other": "Połączenia",
+    "delete": {
+      "deleteConnection_few": "Usuń {{count}} połączenia",
+      "deleteConnection_many": "Usuń {{count}} połączeń",
+      "deleteConnection_one": "Usuń 1 połączenie",
+      "deleteConnection_other": "Usuń {{count}} połączenia",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące połączenia:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące połączenia:",
+      "firstConfirmMessage_one": "Zamierzasz usunąć następujące połączenie:",
+      "firstConfirmMessage_other": "Zamierzasz usunąć następujące połączenia:",
+      "title": "Usuń połączenie"
+    },
+    "edit": "Edytuj połączenie",
+    "form": {
+      "connectionIdRequired": "Identyfikator połączenia jest wymagany",
+      "connectionIdRequirement": "Identyfikator połączenia nie może zawierać wyłącznie spacji",
+      "connectionTypeRequired": "Typ połączenia jest wymagany",
+      "extraFields": "Dodatkowe pola",
+      "extraFieldsJson": "Dodatkowe pola JSON",
+      "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
+      "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
+      "selectConnectionType": "Wybierz typ połączenia",
+      "standardFields": "Standardowe pola"
+    },
+    "nothingFound": {
+      "description": "Połączenia zdefiniowane za pomocą zmiennych środowiskowych lub menedżerów sekretów nie są tutaj wyświetlane.",
+      "documentationLink": "Dowiedz się więcej w dokumentacji Airflow.",
+      "learnMore": "Są one rozwiązywane w czasie wykonywania i nie są widoczne w interfejsie użytkownika.",
+      "title": "Nie znaleziono połączeń!"
+    },
+    "searchPlaceholder": "Szukaj połączeń",
+    "test": "Test połączenia",
+    "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",
+    "typeMeta": {
+      "error": "Nie udało się pobrać metadanych typu połączenia",
+      "standardFields": {
+        "description": "Opis",
+        "host": "Host",
+        "login": "Login",
+        "password": "Hasło",
+        "port": "Port",
+        "url_schema": "Schemat"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Usuń",
+    "modal": {
+      "confirmButton": "Tak, usuń",
+      "secondConfirmMessage": "Ta akcja jest nieodwracalna.",
+      "thirdConfirmMessage": "Czy na pewno chcesz kontynuować?"
+    },
+    "selected": "Wybrano",
+    "tooltip": "Usuń wybrane połączenia"
+  },
+  "formActions": {
+    "save": "Zapisz"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Źródło"
+    },
+    "importError_few": "Błędy importu wtyczek",
+    "importError_many": "Błędów importu wtyczek",
+    "importError_one": "Błąd importu wtyczki",
+    "importError_other": "Błędy importu wtyczek",
+    "searchPlaceholder": "Szukaj po pliku"
+  },
+  "pools": {
+    "add": "Dodaj pulę",
+    "deferredSlotsIncluded": "Uwzględniono odroczone miejsca",
+    "delete": {
+      "title": "Usuń pulę",
+      "warning": "To usunie wszystkie metadane związane z pulą i może wpłynąć na zadania korzystające z tej puli."
+    },
+    "edit": "Edytuj pulę",
+    "form": {
+      "checkbox": "Zaznacz, aby uwzględnić zadania odroczone przy obliczaniu wolnych miejsc w puli",
+      "description": "Opis",
+      "includeDeferred": "Uwzględnij odroczone",
+      "nameMaxLength": "Nazwa może zawierać maksymalnie 256 znaków",
+      "nameRequired": "Nazwa jest wymagana",
+      "slots": "Miejsca"
+    },
+    "noPoolsFound": "Nie znaleziono pul",
+    "pool_few": "Pule",
+    "pool_many": "Puli",
+    "pool_one": "Pula",
+    "pool_other": "Pule",
+    "searchPlaceholder": "Szukaj pul",
+    "sort": {
+      "asc": "Nazwa (A-Z)",
+      "desc": "Nazwa (Z-A)",
+      "placeholder": "Sortuj według"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Nazwa paczki",
+      "version": "Wersja"
+    }
+  },
+  "variables": {
+    "add": "Dodaj zmienną",
+    "columns": {
+      "isEncrypted": "Zaszyfrowana"
+    },
+    "delete": {
+      "deleteVariable_few": "Usuń {{count}} zmienne",
+      "deleteVariable_many": "Usuń {{count}} zmiennych",
+      "deleteVariable_one": "Usuń 1 zmienną",
+      "deleteVariable_other": "Usuń {{count}} zmienne",
+      "firstConfirmMessage_few": "Zamierzasz usunąć następujące zmienne:",
+      "firstConfirmMessage_many": "Zamierzasz usunąć następujące zmienne:",
+      "firstConfirmMessage_one": "Zamierzasz usunąć następującą zmienną:",
+      "firstConfirmMessage_other": "Zamierzasz usunąć następujące zmienne:",
+      "title": "Usuń zmienną",
+      "tooltip": "Usuń wybrane zmienne"
+    },
+    "edit": "Edytuj zmienną",
+    "export": "Eksportuj",
+    "exportTooltip": "Eksportuj zmienne",
+    "form": {
+      "invalidJson": "Nieprawidłowy JSON",
+      "keyMaxLength": "Klucz może zawierać maksymalnie 250 znaków",
+      "keyRequired": "Klucz jest wymagany",
+      "valueRequired": "Wartość jest wymagana"
+    },
+    "import": {
+      "button": "Importuj",
+      "conflictResolution": "Wybierz sposób rozwiązywania konfliktów zmiennych",
+      "errorParsingJsonFile": "Błąd podczas przetwarzania pliku JSON: Prześlij plik JSON zawierający zmienne (np. {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Import nie powiedzie się, jeśli wykryte zostaną istniejące zmienne.",
+          "title": "Przerwij"
+        },
+        "overwrite": {
+          "description": "Nadpisuje zmienną w przypadku konfliktu.",
+          "title": "Nadpisz"
+        },
+        "skip": {
+          "description": "Pomija import zmiennych, które już istnieją.",
+          "title": "Pomiń"
+        }
+      },
+      "title": "Importuj zmienne",
+      "upload": "Prześlij plik JSON",
+      "uploadPlaceholder": "Prześlij plik JSON zawierający zmienne (np. {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "Nie znaleziono zmiennych",
+    "searchPlaceholder": "Szukaj kluczy",
+    "variable_few": "Zmienne",
+    "variable_many": "Zmiennych",
+    "variable_one": "Zmienna",
+    "variable_other": "Zmienne"
+  }
+}

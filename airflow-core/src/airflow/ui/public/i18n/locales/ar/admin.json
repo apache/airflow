@@ -1,0 +1,198 @@
+{
+  "columns": {
+    "description": "الوصف",
+    "key": "المفتاح",
+    "name": "الاسم",
+    "value": "القيمة"
+  },
+  "config": {
+    "columns": {
+      "section": "القسم"
+    },
+    "title": "Airflow إعدادات"
+  },
+  "connections": {
+    "add": "إضافة موَّصل",
+    "columns": {
+      "connectionId": "معرِّف الموَّصل",
+      "connectionType": "نوع الموَّصل",
+      "host": "المضيف",
+      "port": "المنفذ"
+    },
+    "connection_few": "موَّصل",
+    "connection_many": "موَّصلات",
+    "connection_one": "موَّصل",
+    "connection_other": "موَّصلات",
+    "connection_two": "موَّصلان",
+    "connection_zero": "لا يوجد أي موصل",
+    "delete": {
+      "deleteConnection_few": "حذف {{count}} موَّصلات",
+      "deleteConnection_many": "حذف {{count}} موَّصل",
+      "deleteConnection_one": "حذف موَّصل واحد",
+      "deleteConnection_other": "حذف {{count}} موَّصل",
+      "deleteConnection_two": "حذف موَّصلين",
+      "deleteConnection_zero": "لا يوجد أي موَّصل للحذف",
+      "firstConfirmMessage_few": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_many": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_one": "أنت على وشك حذف الموَّصل التالي:",
+      "firstConfirmMessage_other": "أنت على وشك حذف الموَّصلات التالية:",
+      "firstConfirmMessage_two": "أنت على وشك حذف الموَّصلين التاليين:",
+      "firstConfirmMessage_zero": "لا يوجد أي موصل للحذف",
+      "title": "حذف الموَّصل"
+    },
+    "edit": "تعديل الموَّصل",
+    "form": {
+      "connectionIdRequired": "مطلوب معرِّف الموَّصل",
+      "connectionIdRequirement": "لا يمكن أن يحتوي معرِّف الموَّصل على مسافات فقط",
+      "connectionTypeRequired": "مطلوب نوع الموَّصل",
+      "extraFields": "حقول إضافية",
+      "extraFieldsJson": "JSON حقول إضافية بصيغة",
+      "helperText": "نوع الموَّصل مفقود؟ تأكد من تثبيت حزمة Airflow المناسبة.",
+      "helperTextForRedactedFields": "لن تتغير الحقول المحجوبة ('***') إذا لم يتم تعديلها.",
+      "selectConnectionType": "اختر نوع الموَّصل",
+      "standardFields": "حقول قياسية"
+    },
+    "nothingFound": {
+      "description": "الموصلات المعرّفة عبر متغيرات البيئة أو مدراء الأسرار غير مدرجة هنا.",
+      "documentationLink": "تعلم المزيد في وثائق Airflow.",
+      "learnMore": "يتم حل هذه المشاكل في وقت التشغيل وهي غير مرئية في واجهة المستخدم",
+      "title": "لا توجد موَّصلات متاحة"
+    },
+    "searchPlaceholder": "البحث عن موَّصلات",
+    "test": "اختبار الموَّصل",
+    "testDisabled": "اختبار الموَّصل معطل. تواصل مع المسؤول لتفعيله.",
+    "typeMeta": {
+      "error": "فشل في استرداد نوع الموَّصل",
+      "standardFields": {
+        "description": "الوصف",
+        "host": "المضيف",
+        "login": "معرف الدخول",
+        "password": "كلمة المرور",
+        "port": "المنفذ",
+        "url_schema": "المخطط"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "حذف",
+    "modal": {
+      "confirmButton": "نعم، حذف الموَّصلات",
+      "secondConfirmMessage": "هذا الإجراء دائم و لا يمكن التراجع عنه.",
+      "thirdConfirmMessage": "هل أنت متأكد أنك تريد المواصلة؟"
+    },
+    "selected": "المحدد",
+    "tooltip": "حذف الموَّصلات المحددة"
+  },
+  "formActions": {
+    "save": "حفظ"
+  },
+  "plugins": {
+    "columns": {
+      "source": "المصدر"
+    },
+    "importError_few": "خطأ في استيراد المكوّن الإضافي",
+    "importError_many": "أخطاء في استيراد المكوّن الإضافي",
+    "importError_one": "خطأ في استيراد المكوّن الإضافي",
+    "importError_other": "أخطاء في استيراد المكوّن الإضافي",
+    "importError_two": "خطأان في استيراد المكوّن الإضافي",
+    "importError_zero": "لا يوجد أي خطأ في استيراد المكوّن الإضافي",
+    "searchPlaceholder": "البحث عن الملفات"
+  },
+  "pools": {
+    "add": "إضافة حصص",
+    "deferredSlotsIncluded": "شمل الحصص المؤجلة",
+    "delete": {
+      "title": "حذف مجموعة",
+      "warning": "هذا الإجراء سيؤدي إلى حذف المجموعة المحددة و من الممكن أن يؤثر على المهام الجارية."
+    },
+    "edit": "تعديل المجموعة",
+    "form": {
+      "checkbox": "حدد لشمل المهام المؤجلة عند حساب حصص المجموعة المفتوحة",
+      "description": "الوصف",
+      "includeDeferred": "شمل المهام المؤجلة",
+      "nameMaxLength": "الاسم يمكن أن يحتوي على 250 حرف كحد أقصى",
+      "nameRequired": "الاسم مطلوب",
+      "slots": "حصص"
+    },
+    "noPoolsFound": "لا توجد مجموعات موارد متاحة",
+    "pool_few": "مجموعات",
+    "pool_many": "مجموعة",
+    "pool_one": "مجموعة",
+    "pool_other": "مجموعة",
+    "pool_two": "مجموعتان",
+    "pool_zero": "لا يوجد أي مجموعة",
+    "searchPlaceholder": "البحث عن مجموعات",
+    "sort": {
+      "asc": "الاسم (A-Z)",
+      "desc": "الاسم (Z-A)",
+      "placeholder": "الفرز حسب"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "اسم الحزمة",
+      "version": "الإصدار"
+    }
+  },
+  "variables": {
+    "add": "إضافة متغير",
+    "columns": {
+      "isEncrypted": "مُشفر"
+    },
+    "delete": {
+      "deleteVariable_few": "حذف {{count}} متغيرات",
+      "deleteVariable_many": "حذف {{count}} متغير",
+      "deleteVariable_one": "حذف متغير واحد",
+      "deleteVariable_other": "حذف {{count}} متغير",
+      "deleteVariable_two": "حذف متغيرين",
+      "deleteVariable_zero": "لا يوجد أي متغير للحذف",
+      "firstConfirmMessage_few": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_many": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_one": "أنت على وشك حذف المتغير التالي:",
+      "firstConfirmMessage_other": "أنت على وشك حذف المتغيرات التالية:",
+      "firstConfirmMessage_two": "أنت على وشك حذف المتغيرين التاليين:",
+      "firstConfirmMessage_zero": "لا يوجد أي متغير للحذف",
+      "title": "حذف المتغير",
+      "tooltip": "حذف المتغيرات المحددة"
+    },
+    "edit": "تعديل المتغير",
+    "export": "تصدير",
+    "exportTooltip": "تصدير المتغيرات المحددة",
+    "form": {
+      "invalidJson": "JSON غير صالح",
+      "keyMaxLength": "المفتاح يمكن أن يحتوي على 250 حرف كحد أقصى",
+      "keyRequired": "المفتاح مطلوب",
+      "valueRequired": "القيمة مطلوبة"
+    },
+    "import": {
+      "button": "استيراد",
+      "conflictResolution": "اختيار حل تعارض المتغير",
+      "errorParsingJsonFile": "خطأ في تحليل ملف JSON: حمل ملف JSON يحتوي علي متغيرات (مثال: {\"key\": \"value\", ...})",
+      "options": {
+        "fail": {
+          "description": "يفشل في استيراد المتغير في حالة وجود مسبقاً.",
+          "title": "فشل"
+        },
+        "overwrite": {
+          "description": "يستبدل المتغير في حالة وجود تعارض.",
+          "title": "استبدال"
+        },
+        "skip": {
+          "description": "يتخطى المتغير في حالة وجود مسبقاً",
+          "title": "تخطي"
+        }
+      },
+      "title": "استيراد المتغيرات",
+      "upload": "تحميل ملف JSON",
+      "uploadPlaceholder": "حمل ملف JSON يحتوي علي متغيرات (مثال: {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "لا توجد متغيرات",
+    "searchPlaceholder": "البحث عن متغيرات",
+    "variable_few": "متغيرات",
+    "variable_many": "متغيرات",
+    "variable_one": "متغير",
+    "variable_other": "متغيرات",
+    "variable_two": "متغيران",
+    "variable_zero": "لا يوجد أي متغير"
+  }
+}

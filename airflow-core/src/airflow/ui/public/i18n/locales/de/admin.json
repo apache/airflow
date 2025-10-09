@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "Beschreibung",
+    "key": "Name",
+    "name": "Name",
+    "value": "Wert"
+  },
+  "config": {
+    "columns": {
+      "section": "Abschnitt"
+    },
+    "title": "Airflow Konfiguration"
+  },
+  "connections": {
+    "add": "Verbindung hinzufügen",
+    "columns": {
+      "connectionId": "Verbindungs-ID",
+      "connectionType": "Verbindungstyp",
+      "host": "Hostname",
+      "port": "Port"
+    },
+    "connection_one": "Verbindung",
+    "connection_other": "Verbindungen",
+    "delete": {
+      "deleteConnection_one": "1 Verbindung löschen",
+      "deleteConnection_other": "{{count}} Verbindungen löschen",
+      "firstConfirmMessage_one": "Die folgende Verbindung wird gelöscht:",
+      "firstConfirmMessage_other": "Die folgenden Verbindungen werden gelöscht:",
+      "title": "Verbindung löschen"
+    },
+    "edit": "Verbindung bearbeiten",
+    "form": {
+      "connectionIdRequired": "Verbindungs-ID ist erforderlich",
+      "connectionIdRequirement": "Die Verbindungs-ID kann nicht nur aus Leerzeichen bestehen",
+      "connectionTypeRequired": "Die Auswahl eines Verbindungstyps ist erforderlich",
+      "extraFields": "Weitere Felder",
+      "extraFieldsJson": "JSON Ansicht der weiteren Felder",
+      "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
+      "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
+      "selectConnectionType": "Verbindungstyp auswählen",
+      "standardFields": "Standardfelder"
+    },
+    "nothingFound": {
+      "description": "Verbindungen, die durch Secret-Managers oder Umgebungsvariablen definiert sind werden hier nicht gelistet.",
+      "documentationLink": "Mehr Details sind in der Airflow-Dokumentation beschrieben.",
+      "learnMore": "Diese Verbindungen werden erst eingelesen, wenn ein Task, der sie verwendet ausgeführt wird und sie sind daher in dieser Ansicht nicht sichtbar.",
+      "title": "Keine Verbindungen gefunden!"
+    },
+    "searchPlaceholder": "Verbindungen suchen",
+    "test": "Verbindung testen",
+    "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten.",
+    "typeMeta": {
+      "error": "Fehler beim Abrufen der Liste der Verbindungstypen",
+      "standardFields": {
+        "description": "Beschreibung",
+        "host": "Hostname",
+        "login": "Benutzername",
+        "password": "Passwort",
+        "port": "Port",
+        "url_schema": "Verbindungsschema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Löschen",
+    "modal": {
+      "confirmButton": "Ja, löschen",
+      "secondConfirmMessage": "Diese Aktion kann nicht rückgängig gemacht werden. ",
+      "thirdConfirmMessage": "Sind Sie sich sicher?"
+    },
+    "selected": "Ausgewählt",
+    "tooltip": "Ausgewählte Verbindungen löschen"
+  },
+  "formActions": {
+    "save": "Speichern"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Quelle"
+    },
+    "importError_one": "Fehler beim Laden eines Plug-ins",
+    "importError_other": "Fehler beim Laden von Plug-ins",
+    "searchPlaceholder": "Nach Datei suchen"
+  },
+  "pools": {
+    "add": "Pool hinzufügen",
+    "deferredSlotsIncluded": "Delegierte Tasks einschließen",
+    "delete": {
+      "title": "Pool löschen",
+      "warning": "Dies wird alle Metadaten zu diesem Pool entfernen. Dies kann Tasks beeinträchtigen, die diesen Pool nutzen. Ein Task, der einem nicht existenten Pool zugewiesen ist, kann nicht geplant werden."
+    },
+    "edit": "Pool bearbeiten",
+    "form": {
+      "checkbox": "Delegierte Tasks sollen in die Berechnung der Pool-Belegung berücksichtigt werden",
+      "description": "Beschreibung",
+      "includeDeferred": "Delegierte Tasks",
+      "nameMaxLength": "Der Name kann maximal 256 Zeichen lang sein",
+      "nameRequired": "Ein Name ist erforderlich",
+      "slots": "Plätze im Pool"
+    },
+    "noPoolsFound": "Keine Pools gefunden",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Pools suchen",
+    "sort": {
+      "asc": "Name (A-Z)",
+      "desc": "Name (Z-A)",
+      "placeholder": "Sortierung"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Paketname",
+      "version": "Version"
+    }
+  },
+  "variables": {
+    "add": "Variable hinzufügen",
+    "columns": {
+      "isEncrypted": "Wert ist verschlüsselt"
+    },
+    "delete": {
+      "deleteVariable_one": "1 Variable löschen",
+      "deleteVariable_other": "{{count}} Variablen löschen",
+      "firstConfirmMessage_one": "Die folgende Variable wird gelöscht:",
+      "firstConfirmMessage_other": "Die folgenden Variablen werden gelöscht:",
+      "title": "Variable löschen",
+      "tooltip": "Ausgewählte Variablen löschen"
+    },
+    "edit": "Variable bearbeiten",
+    "export": "Exportieren",
+    "exportTooltip": "Ausgewählte Variablen exportieren",
+    "form": {
+      "invalidJson": "JSON ist ungültig",
+      "keyMaxLength": "Der Name kann maximal 250 Zeichen lang sein",
+      "keyRequired": "Name ist erforderlich",
+      "valueRequired": "Wert ist erforderlich"
+    },
+    "import": {
+      "button": "Importieren",
+      "conflictResolution": "Konfliktlösung für Import auswählen",
+      "errorParsingJsonFile": "JSON-Datei kann nicht gelesen werden: Die Datei muss Schlüssel-/Wertpaare enthalten (z.B., {\"name\": \"wert\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Import abbrechen, wenn eine Variable mit dem gleichen Namen bereits existiert.",
+          "title": "Abbrechen"
+        },
+        "overwrite": {
+          "description": "Variable überschreiben, wenn eine Variable mit dem gleichen Namen bereits existiert (der Wert der importierten Variable wird übernommen).",
+          "title": "Überschreiben"
+        },
+        "skip": {
+          "description": "Variable überspringen, wenn eine Variable mit dem gleichen Namen bereits existiert (der Wert der bestehenden Variable wird nicht verändert).",
+          "title": "Überspringen"
+        }
+      },
+      "title": "Variablen importieren",
+      "upload": "JSON-Datei hochladen",
+      "uploadPlaceholder": "JSON-Datei mit Variablen auswählen (z.B., {\"name\": \"wert\", ...})"
+    },
+    "noRowsMessage": "Keine Variablen gefunden",
+    "searchPlaceholder": "Nach Namen suchen",
+    "variable_one": "Variable",
+    "variable_other": "Variablen"
+  }
+}

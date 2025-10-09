@@ -1,0 +1,172 @@
+{
+  "allRuns": "جميع التشغيلات",
+  "blockingDeps": {
+    "dependency": "التبعية",
+    "reason": "السبب",
+    "title": "التبعيات التي تمنع جدولة المهمة"
+  },
+  "calendar": {
+    "daily": "يومي",
+    "hourly": "ساعي",
+    "legend": {
+      "less": "أقل",
+      "more": "أكثر"
+    },
+    "navigation": {
+      "nextMonth": "الشهر التالي",
+      "nextYear": "السنة التالية",
+      "previousMonth": "الشهر السابق",
+      "previousYear": "السنة السابقة"
+    },
+    "noData": "لا توجد بيانات متاحة",
+    "noRuns": "لا توجد تشغيلات",
+    "totalRuns": "إجمالي التشغيلات",
+    "week": "الأسبوع {{weekNumber}}",
+    "weekdays": {
+      "friday": "الجمعة",
+      "monday": "الاثنين",
+      "saturday": "السبت",
+      "sunday": "الأحد",
+      "thursday": "الخميس",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء"
+    }
+  },
+  "code": {
+    "bundleUrl": "حزمة URL",
+    "noCode": "'لا توجد 'كود",
+    "parseDuration": "مدة التحليل:",
+    "parsedAt": "تم تحليلها في:"
+  },
+  "extraLinks": "روابط إضافية",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "إعادة تعيين إلى الأحدث",
+      "toggleGroup": "تفعيل المجموعة"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "متقدم",
+      "dagDocs": "وثائق Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "جميع مستويات السجل",
+    "allSources": "جميع المصادر",
+    "critical": "حرِج",
+    "debug": "تصحيح",
+    "error": "خطأ",
+    "fullscreen": {
+      "button": "ملء الشاشة",
+      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
+    },
+    "info": "معلومات",
+    "noTryNumber": "لا يوجد رقم محاولة",
+    "settings": "سجل الإعدادات",
+    "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
+    "warning": "تحذير"
+  },
+  "navigation": {
+    "navigation": "التنقل: {{arrow}}",
+    "toggleGroup": "تبديل المجموعة: المسافة"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_few": "فشل تشغيلات",
+      "failedRun_many": "فشل تشغيلات",
+      "failedRun_one": "فشل تشغيل",
+      "failedRun_other": "فشل تشغيلات",
+      "failedRun_two": "فشل تشغيلين",
+      "failedRun_zero": "لا يوجد أي فشل في التشغيل",
+      "failedTask_few": "فشل مهام",
+      "failedTask_many": "فشل مهام",
+      "failedTask_one": "فشل مهمة",
+      "failedTask_other": "فشل مهام",
+      "failedTask_two": "فشل مهمتين",
+      "failedTask_zero": "لا يوجد أي فشل في المهمة",
+      "failedTaskInstance_few": "فشل مثيلات مهمة",
+      "failedTaskInstance_many": "فشل مثيلات مهمة",
+      "failedTaskInstance_one": "فشل مثيل مهمة",
+      "failedTaskInstance_other": "فشل مثيلات مهمة",
+      "failedTaskInstance_two": "فشل مثيلين مهمة",
+      "failedTaskInstance_zero": "لا يوجد أي فشل في مثيلات مهمة"
+    },
+    "charts": {
+      "assetEvent_few": "تم إنشاء واقعات أصل",
+      "assetEvent_many": "تم إنشاء واقعات أصل",
+      "assetEvent_one": "تم إنشاء واقعة أصل",
+      "assetEvent_other": "تم إنشاء واقعات أصل",
+      "assetEvent_two": "تم إنشاء واقعتين أصل",
+      "assetEvent_zero": "لا توجد أي واقعة أصل"
+    },
+    "failedLogs": {
+      "hideLogs": "إخفاء السجلات",
+      "showLogs": "إظهار السجلات",
+      "title": "سجلات المهام الفاشلة الأخيرة",
+      "viewFullLogs": "عرض السجلات الكاملة"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "خيارات",
+      "showGantt": "عرض مخطط غانت",
+      "showGraphShortcut": "عرض الرسم البياني (اضغط g)",
+      "showGridShortcut": "عرض الشبكة (اضغط g)"
+    },
+    "dagRuns": {
+      "label": "عدد تشغيلات Dag"
+    },
+    "dependencies": {
+      "label": "التبعيات",
+      "options": {
+        "allDagDependencies": "جميع تبعيات Dag",
+        "externalConditions": "الشروط الخارجية",
+        "onlyTasks": "المهام فقط"
+      },
+      "placeholder": "التبعيات"
+    },
+    "graphDirection": {
+      "label": "اتجاه الرسم البياني"
+    }
+  },
+  "paramsFailed": "فشل في تحميل المعلمات",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "فشل في إعادة تحليل Dag. يمكن أن يكون بسبب تحليل جاري حالياً",
+        "title": "فشل في إعادة تحليل Dag"
+      },
+      "success": {
+        "description": "Dag سوف يعاد تحليله قريباً.",
+        "title": "تم إعادة تحليل Dag بنجاح"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "أحداث الأصول",
+    "auditLog": "سجل التدقيق",
+    "backfills": "التعبئة الرجعية",
+    "calendar": "التقويم",
+    "code": "الكود",
+    "details": "التفاصيل",
+    "logs": "السجلات",
+    "mappedTaskInstances_few": "مثيلات مهمة [{{count}}]",
+    "mappedTaskInstances_many": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_other": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_two": "مثيلان لمهمة",
+    "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
+    "overview": "نظرة عامة",
+    "renderedTemplates": "القوالب المعروضة",
+    "requiredActions": "إجراءات مطلوبة",
+    "runs": "تشغيلات",
+    "taskInstances": "مثيلات المهام",
+    "tasks": "المهام",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "طي جميع مجموعات المهام",
+    "expandAll": "توسيع جميع مجموعات المهام"
+  }
+}

@@ -1,0 +1,24 @@
+{
+    "version": 2,
+    "waiters": {
+        "all_nodegroups_deleted": {
+            "operation": "ListNodegroups",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "length(nodegroups[]) == `0`",
+                    "expected": true,
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "expected": true,
+                    "argument": "length(nodegroups[]) > `0`",
+                    "state": "retry"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,157 @@
+{
+  "allRuns": "Todas las Ejecuciones",
+  "blockingDeps": {
+    "dependency": "Dependencia",
+    "reason": "Razón",
+    "title": "Dependencias que bloquean la tarea de ser programada"
+  },
+  "calendar": {
+    "daily": "Diario",
+    "hourly": "Cada hora",
+    "legend": {
+      "less": "Menos",
+      "more": "Más"
+    },
+    "navigation": {
+      "nextMonth": "Mes siguiente",
+      "nextYear": "Año siguiente",
+      "previousMonth": "Mes anterior",
+      "previousYear": "Año anterior"
+    },
+    "noData": "No hay datos disponibles",
+    "noRuns": "No hay ejecuciones",
+    "totalRuns": "Total de Ejecuciones",
+    "week": "Semana {{weekNumber}}",
+    "weekdays": {
+      "friday": "Vie",
+      "monday": "Lun",
+      "saturday": "Sáb",
+      "sunday": "Dom",
+      "thursday": "Jue",
+      "tuesday": "Mar",
+      "wednesday": "Mié"
+    }
+  },
+  "code": {
+    "bundleUrl": "URL del Bundle",
+    "noCode": "No se encontró código",
+    "parseDuration": "Duración del parseo:",
+    "parsedAt": "Parseado en:"
+  },
+  "extraLinks": "Enlaces Extra",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reiniciar a la última",
+      "toggleGroup": "Alternar grupo"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Avanzado",
+      "dagDocs": "Documentacion del Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "Todos los niveles de log",
+    "allSources": "Todas las fuentes",
+    "critical": "CRÍTICO",
+    "debug": "DEPURACIÓN",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Pantalla completa",
+      "tooltip": "Presiona {{hotkey}} para pantalla completa"
+    },
+    "info": "INFO",
+    "noTryNumber": "No hay número de intento",
+    "settings": "Configuración de logs",
+    "viewInExternal": "Ver logs en {{name}} (intento {{attempt}})",
+    "warning": "ADVERTENCIA"
+  },
+  "navigation": {
+    "navigation": "Navegación: Shift+{{arrow}}",
+    "toggleGroup": "Alternar grupo: Espacio"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_many": "Ejecuciones Fallidas",
+      "failedRun_one": "Ejecución Fallida",
+      "failedRun_other": "Ejecuciones Fallidas",
+      "failedTask_many": "Tareas Fallidas",
+      "failedTask_one": "Tarea Fallida",
+      "failedTask_other": "Tareas Fallidas",
+      "failedTaskInstance_many": "Instancias de Tarea Fallidas",
+      "failedTaskInstance_one": "Instancia de Tarea Fallida",
+      "failedTaskInstance_other": "Instancias de Tarea Fallidas"
+    },
+    "charts": {
+      "assetEvent_many": "Eventos de Asset Creados",
+      "assetEvent_one": "Evento de Asset Creado",
+      "assetEvent_other": "Eventos de Asset Creados"
+    },
+    "failedLogs": {
+      "hideLogs": "Ocultar Logs",
+      "showLogs": "Mostrar Logs",
+      "title": "Logs de Tareas Fallidas Recientes",
+      "viewFullLogs": "Ver logs completos"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opciones",
+      "showGantt": "Mostrar Gantt",
+      "showGraphShortcut": "Mostrar Gráfico (Presiona g)",
+      "showGridShortcut": "Mostrar cuadrícula (Presiona g)"
+    },
+    "dagRuns": {
+      "label": "Número de Ejecuciones de Dag"
+    },
+    "dependencies": {
+      "label": "Dependencias",
+      "options": {
+        "allDagDependencies": "Todas las Dependencias de Dag",
+        "externalConditions": "Condiciones Externas",
+        "onlyTasks": "Solo tareas"
+      },
+      "placeholder": "Dependencias"
+    },
+    "graphDirection": {
+      "label": "Dirección del Gráfico"
+    }
+  },
+  "paramsFailed": "Error al cargar los parámetros",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "El Dag no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
+        "title": "El Dag no pudo ser reparado"
+      },
+      "success": {
+        "description": "El Dag debería reparsearse pronto.",
+        "title": "Solicitud de reparsing enviada exitosamente"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Eventos de Asset",
+    "auditLog": "Auditoría de Log",
+    "backfills": "Backfills",
+    "calendar": "Calendario",
+    "code": "Código",
+    "details": "Detalles",
+    "logs": "Logs",
+    "mappedTaskInstances_many": "Instancias de Tarea [{{count}}]",
+    "mappedTaskInstances_one": "Instancia de Tarea [{{count}}]",
+    "mappedTaskInstances_other": "Instancias de Tarea [{{count}}]",
+    "overview": "Resumen",
+    "renderedTemplates": "Plantillas Renderizadas",
+    "requiredActions": "Acciones Requeridas",
+    "runs": "Ejecuciones",
+    "taskInstances": "Instancias de Tarea",
+    "tasks": "Tareas",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Colapsar todos los grupos de tareas",
+    "expandAll": "Expandir todos los grupos de tareas"
+  }
+}

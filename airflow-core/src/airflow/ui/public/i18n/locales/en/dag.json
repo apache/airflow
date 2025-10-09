@@ -1,0 +1,154 @@
+{
+  "allRuns": "All Runs",
+  "blockingDeps": {
+    "dependency": "Dependency",
+    "reason": "Reason",
+    "title": "Dependencies Blocking Task From Getting Scheduled"
+  },
+  "calendar": {
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "legend": {
+      "less": "Less",
+      "mixed": "Mixed",
+      "more": "More"
+    },
+    "navigation": {
+      "nextMonth": "Next month",
+      "nextYear": "Next year",
+      "previousMonth": "Previous month",
+      "previousYear": "Previous year"
+    },
+    "noData": "No data available",
+    "noFailedRuns": "No failed runs",
+    "noRuns": "No runs",
+    "totalRuns": "Total Runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Fri",
+      "monday": "Mon",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "thursday": "Thu",
+      "tuesday": "Tue",
+      "wednesday": "Wed"
+    }
+  },
+  "code": {
+    "bundleUrl": "Bundle Url",
+    "noCode": "No Code Found",
+    "parseDuration": "Parse Duration:",
+    "parsedAt": "Parsed at:"
+  },
+  "extraLinks": "Extra Links",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reset to latest",
+      "toggleGroup": "Toggle group"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Advanced",
+      "dagDocs": "Dag Docs"
+    }
+  },
+  "logs": {
+    "allLevels": "All Log Levels",
+    "allSources": "All Sources",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Full screen",
+      "tooltip": "Press {{hotkey}} for fullscreen"
+    },
+    "info": "INFO",
+    "noTryNumber": "No try number",
+    "settings": "Log Settings",
+    "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "Navigation: Shift+{{arrow}}",
+    "toggleGroup": "Toggle group: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Failed Run",
+      "failedRun_other": "Failed Runs",
+      "failedTask_one": "Failed Task",
+      "failedTask_other": "Failed Tasks",
+      "failedTaskInstance_one": "Failed Task Instance",
+      "failedTaskInstance_other": "Failed Task Instances"
+    },
+    "charts": {
+      "assetEvent_one": "Created Asset Event",
+      "assetEvent_other": "Created Asset Events"
+    },
+    "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
+      "title": "Recent Failed Task Logs",
+      "viewFullLogs": "View full logs"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Options",
+      "showGantt": "Show Gantt",
+      "showGraphShortcut": "Show Graph (Press g)",
+      "showGridShortcut": "Show Grid (Press g)"
+    },
+    "dagRuns": {
+      "label": "Number of Dag Runs"
+    },
+    "dependencies": {
+      "label": "Dependencies",
+      "options": {
+        "allDagDependencies": "All Dag Dependencies",
+        "externalConditions": "External conditions",
+        "onlyTasks": "Only tasks"
+      },
+      "placeholder": "Dependencies"
+    },
+    "graphDirection": {
+      "label": "Graph Direction"
+    }
+  },
+  "paramsFailed": "Failed to load params",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag parsing request failed. There could be pending parsing requests yet to be processed.",
+        "title": "Dag Failed to Reparse"
+      },
+      "success": {
+        "description": "Dag should reparse soon.",
+        "title": "Reparsing request submitted successfully"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Audit Log",
+    "backfills": "Backfills",
+    "calendar": "Calendar",
+    "code": "Code",
+    "details": "Details",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "overview": "Overview",
+    "renderedTemplates": "Rendered Templates",
+    "requiredActions": "Required Actions",
+    "runs": "Runs",
+    "taskInstances": "Task Instances",
+    "tasks": "Tasks",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Collapse all task groups",
+    "expandAll": "Expand all task groups"
+  }
+}

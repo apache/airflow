@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Consumerende Dags",
+  "createEvent": {
+    "button": "Event aanmaken",
+    "manual": {
+      "description": "Handmatig een Asset Event aanmaken",
+      "extra": "Asset Event extra",
+      "label": "Handmatig"
+    },
+    "materialize": {
+      "description": "Trigger de Dag upstream van deze Asset",
+      "descriptionWithDag": "Trigger de Dag upstream van deze Asset: {{dagName}}",
+      "label": "Materialiseren",
+      "unpauseDag": "Hervat {{dagName}} op trigger"
+    },
+    "success": {
+      "manualDescription": "Handmatig Asset event succesvol aangemaakt.",
+      "manualTitle": "Asset Event aangemaakt",
+      "materializeDescription": "Upstream Dag {{dagId}} werd succesvol geactiveerd.",
+      "materializeTitle": "Asset materialiseren"
+    },
+    "title": "Asset Event voor {{name}} aanmaken"
+  },
+  "group": "Groep",
+  "lastAssetEvent": "Laatste Asset Event",
+  "name": "Naam",
+  "producingTasks": "Producerende taken",
+  "scheduledDags": "Geplande Dags",
+  "searchPlaceholder": "Assets zoeken"
+}

@@ -1,0 +1,140 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Redis StatefulSet
+#################################
+{{- if and .Values.redis.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.redis.affinity .Values.affinity }}
+{{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "localPodSecurityContext" .Values.redis }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
+{{- $containerLifecycleHooks := .Values.redis.containerLifecycleHooks }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "airflow.fullname" . }}-redis
+  labels:
+    tier: airflow
+    component: redis
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.redis.annotations }}
+  annotations: {{- toYaml .Values.redis.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ include "airflow.fullname" . }}-redis
+  selector:
+    matchLabels:
+      tier: airflow
+      component: redis
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: redis
+        release: {{ .Release.Name }}
+        {{- with .Values.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
+      annotations:
+        {{- if .Values.redis.podAnnotations }}
+          {{- toYaml .Values.redis.podAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.redis.safeToEvict }}
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- end }}
+      {{- end }}
+    spec:
+      {{- if .Values.redis.priorityClassName }}
+      priorityClassName: {{ .Values.redis.priorityClassName }}
+      {{- end }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.redis.terminationGracePeriodSeconds }}
+      serviceAccountName: {{ include "redis.serviceAccountName" . }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      securityContext: {{ $securityContext | nindent 8 }}
+      containers:
+        - name: redis
+          image: {{ template "redis_image" . }}
+          imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
+          command: ["/bin/sh"]
+          resources: {{- toYaml .Values.redis.resources | nindent 12 }}
+          args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+          ports:
+            - name: redis-db
+              containerPort: {{ .Values.ports.redisDB }}
+          volumeMounts:
+            - name: redis-db
+              mountPath: /data
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "redis_password_secret" . }}
+                  key: password
+  {{- if not .Values.redis.persistence.enabled }}
+      volumes:
+        - name: redis-db
+          emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
+  {{- else if .Values.redis.persistence.existingClaim }}
+      volumes:
+        - name: redis-db
+          persistentVolumeClaim:
+            claimName: {{ .Values.redis.persistence.existingClaim }}
+  {{- else }}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-db
+        {{- if .Values.redis.persistence.annotations }}
+        annotations: {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        {{- if .Values.redis.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.redis.persistence.storageClassName . | quote }}
+        {{- end }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redis.persistence.size }}
+  {{- end }}
+{{- end }}

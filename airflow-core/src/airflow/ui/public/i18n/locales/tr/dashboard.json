@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "İlk {{count}} favori Dag(lar)",
+    "favoriteDags_other": "İlk {{count}} favori Dag(lar)",
+    "noDagRuns": "Bu dag için henüz Dag Çalıştırması yok.",
+    "noFavoriteDags": "Henüz favori yok. Favorilere eklemek için listede bir Dag'ın yanındaki yıldız simgesine tıklayın."
+  },
+  "group": "Grup",
+  "health": {
+    "dagProcessor": "Dag İşlemcisi",
+    "health": "Sağlık",
+    "healthy": "Sağlıklı",
+    "lastHeartbeat": "Son Kalp Atışı",
+    "metaDatabase": "Meta Veritabanı",
+    "scheduler": "Zamanlayıcı",
+    "status": "Durum",
+    "triggerer": "Tetikleyici",
+    "unhealthy": "Sağlıksız"
+  },
+  "history": "Geçmiş",
+  "importErrors": {
+    "dagImportError_one": "Dag İçe Aktarma Hatası",
+    "dagImportError_other": "Dag İçe Aktarma Hataları",
+    "searchByFile": "Dosyaya Göre Ara",
+    "timestamp": "Zaman Damgası"
+  },
+  "managePools": "Havuzları Yönet",
+  "noAssetEvents": "Varlık Etkinliği Bulunamadı",
+  "poolSlots": "Havuz Slotları",
+  "sortBy": {
+    "newestFirst": "Önce En Yeni",
+    "oldestFirst": "Önce En Eski"
+  },
+  "source": "Kaynak",
+  "stats": {
+    "activeDags": "Aktif Dag'ler",
+    "failedDags": "Başarısız Dag'ler",
+    "queuedDags": "Kuyruktaki Dag'ler",
+    "requiredActions": "Gerekli Eylemler",
+    "runningDags": "Çalışan Dag'ler",
+    "stats": "İstatistikler"
+  },
+  "uri": "URI",
+  "welcome": "Hoş Geldiniz"
+}

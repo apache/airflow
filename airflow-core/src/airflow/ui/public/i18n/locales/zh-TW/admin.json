@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "描述",
+    "key": "鍵",
+    "name": "名稱",
+    "value": "值"
+  },
+  "config": {
+    "columns": {
+      "section": "區段"
+    },
+    "title": "Airflow 設定"
+  },
+  "connections": {
+    "add": "新增連線",
+    "columns": {
+      "connectionId": "連線 ID",
+      "connectionType": "連線類型",
+      "host": "主機",
+      "port": "埠"
+    },
+    "connection_one": "連線",
+    "connection_other": "連線",
+    "delete": {
+      "deleteConnection_one": "刪除 1 個連線",
+      "deleteConnection_other": "刪除 {{count}} 個連線",
+      "firstConfirmMessage_one": "您即將刪除以下連線：",
+      "firstConfirmMessage_other": "您即將刪除以下連線：",
+      "title": "刪除連線"
+    },
+    "edit": "編輯連線",
+    "form": {
+      "connectionIdRequired": "連線 ID 是必填的",
+      "connectionIdRequirement": "連線 ID 不能只包含空格",
+      "connectionTypeRequired": "連線類型是必填的",
+      "extraFields": "額外欄位",
+      "extraFieldsJson": "額外欄位 JSON",
+      "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow Providers 套件。",
+      "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
+      "selectConnectionType": "選擇連線類型",
+      "standardFields": "標準欄位"
+    },
+    "nothingFound": {
+      "description": "透過環境變數或密鑰管理器定義的連線不會列在此處。",
+      "documentationLink": "在 Airflow 文件中了解更多。",
+      "learnMore": "這些連線會在執行時間解析，不會在 UI 顯示。",
+      "title": "找不到連線"
+    },
+    "searchPlaceholder": "搜尋連線",
+    "test": "測試連線",
+    "testDisabled": "測試連線功能已停用。請聯繫管理員以啟用。",
+    "typeMeta": {
+      "error": "取得連線類型中繼資料失敗",
+      "standardFields": {
+        "description": "描述",
+        "host": "主機",
+        "login": "登入",
+        "password": "密碼",
+        "port": "埠",
+        "url_schema": "Schema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "刪除",
+    "modal": {
+      "confirmButton": "確定刪除",
+      "secondConfirmMessage": "此動作無法復原。",
+      "thirdConfirmMessage": "您確定要繼續嗎？"
+    },
+    "selected": "已選取",
+    "tooltip": "刪除所選連線"
+  },
+  "formActions": {
+    "save": "儲存"
+  },
+  "plugins": {
+    "columns": {
+      "source": "來源"
+    },
+    "importError_one": "外掛匯入錯誤",
+    "importError_other": "外掛匯入錯誤",
+    "searchPlaceholder": "搜尋檔案"
+  },
+  "pools": {
+    "add": "新增資源池",
+    "deferredSlotsIncluded": "包含延後任務",
+    "delete": {
+      "title": "刪除資源池",
+      "warning": "這將刪除所有與此資源池相關的系統資料，可能會影響使用此資源池的任務。"
+    },
+    "edit": "編輯資源池",
+    "form": {
+      "checkbox": "計算可用資源池配額時，將包含延後的任務",
+      "description": "描述",
+      "includeDeferred": "包含延後任務",
+      "nameMaxLength": "名稱最多只能包含 256 個字元",
+      "nameRequired": "名稱是必填的",
+      "slots": "配額"
+    },
+    "noPoolsFound": "找不到資源池",
+    "pool_one": "資源池",
+    "pool_other": "資源池",
+    "searchPlaceholder": "搜尋資源池",
+    "sort": {
+      "asc": "名稱 (A-Z)",
+      "desc": "名稱 (Z-A)",
+      "placeholder": "排序方式"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "套件名稱",
+      "version": "版本"
+    }
+  },
+  "variables": {
+    "add": "新增變數",
+    "columns": {
+      "isEncrypted": "是否加密"
+    },
+    "delete": {
+      "deleteVariable_one": "刪除 1 個變數",
+      "deleteVariable_other": "刪除 {{count}} 個變數",
+      "firstConfirmMessage_one": "您即將刪除以下變數：",
+      "firstConfirmMessage_other": "您即將刪除以下變數：",
+      "title": "刪除變數",
+      "tooltip": "刪除所選變數"
+    },
+    "edit": "編輯變數",
+    "export": "匯出",
+    "exportTooltip": "匯出所選變數",
+    "form": {
+      "invalidJson": "無效的 JSON",
+      "keyMaxLength": "鍵最多只能包含 250 個字元",
+      "keyRequired": "鍵是必填的",
+      "valueRequired": "值是必填的"
+    },
+    "import": {
+      "button": "匯入",
+      "conflictResolution": "選擇變數衝突解決方式",
+      "errorParsingJsonFile": "解析 JSON 檔案時發生錯誤：請上傳包含變數的 JSON 檔案 (例如：{\"key\": \"value\", ...})。",
+      "options": {
+        "fail": {
+          "description": "如果偵測到任何已存在的變數，則匯入失敗。",
+          "title": "失敗"
+        },
+        "overwrite": {
+          "description": "發生衝突時覆蓋變數。",
+          "title": "覆蓋"
+        },
+        "skip": {
+          "description": "略過匯入已存在的變數。",
+          "title": "跳過"
+        }
+      },
+      "title": "匯入變數",
+      "upload": "上傳 JSON 檔案",
+      "uploadPlaceholder": "上傳包含變數的 JSON 檔案 (例如：{\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "找不到變數",
+    "searchPlaceholder": "搜尋鍵",
+    "variable_one": "變數",
+    "variable_other": "變數"
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "columns": {
+    "description": "Descripción",
+    "key": "Clave",
+    "name": "Nombre",
+    "value": "Valor"
+  },
+  "config": {
+    "columns": {
+      "section": "Sección"
+    },
+    "title": "Configuración de Airflow"
+  },
+  "connections": {
+    "add": "Agregar Conexión",
+    "columns": {
+      "connectionId": "ID de la Conexión",
+      "connectionType": "Tipo de Conexión",
+      "host": "Host",
+      "port": "Puerto"
+    },
+    "connection_many": "Conexiones",
+    "connection_one": "Conexión",
+    "connection_other": "Conexiones",
+    "delete": {
+      "deleteConnection_many": "Eliminar {{count}} conexiones",
+      "deleteConnection_one": "Eliminar 1 conexión",
+      "deleteConnection_other": "Eliminar {{count}} conexiones",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes conexiones:",
+      "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
+      "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
+      "title": "Eliminar Conexión"
+    },
+    "edit": "Editar Conexión",
+    "form": {
+      "connectionIdRequired": "El ID de la conexión es requerido",
+      "connectionIdRequirement": "El ID de la conexión no puede contener solo espacios",
+      "connectionTypeRequired": "El Tipo de Conexión es requerido",
+      "extraFields": "Campos Extra",
+      "extraFieldsJson": "Campos Extra (tipo JSON)",
+      "helperText": "¿Falta el Tipo de conexión? Asegúrate de haber instalado el paquete de proveedores de Airflow correspondiente.",
+      "helperTextForRedactedFields": "Los campos redactados ('***') permanecerán sin cambios si no se modifican.",
+      "selectConnectionType": "Seleccionar Tipo de Conexión",
+      "standardFields": "Campos Estándar"
+    },
+    "nothingFound": {
+      "description": "Las conexiones definidas a través de variables de entorno o gestores de secretos no se muestran aquí.",
+      "documentationLink": "Aprende más en la documentación de Airflow.",
+      "learnMore": "Estas se resuelven en tiempo de ejecución y no se muestran en la interfaz de usuario.",
+      "title": "No se encontraron conexiones!"
+    },
+    "searchPlaceholder": "Buscar Conexiones",
+    "test": "Prueba de Conexión",
+    "testDisabled": "La función de prueba de conexión está desactivada. Por favor, contacta a un administrador para activarla.",
+    "typeMeta": {
+      "error": "Error al recuperar la Metadata del Tipo de Conexión",
+      "standardFields": {
+        "description": "Descripción",
+        "host": "Host",
+        "login": "Login",
+        "password": "Contraseña",
+        "port": "Puerto",
+        "url_schema": "Esquema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Eliminar",
+    "modal": {
+      "confirmButton": "Sí, Eliminar",
+      "secondConfirmMessage": "Esta acción es permanente y no se puede deshacer.",
+      "thirdConfirmMessage": "¿Confirmas de que quieres proceder?"
+    },
+    "selected": "Seleccionado",
+    "tooltip": "Eliminar conexiones seleccionadas"
+  },
+  "formActions": {
+    "save": "Guardar"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Origen"
+    },
+    "importError_many": "Errores de Importación de Plugins",
+    "importError_one": "Error de Importación de Plugin",
+    "importError_other": "Errores de Importación de Plugins",
+    "searchPlaceholder": "Buscar por archivo"
+  },
+  "pools": {
+    "add": "Agregar Pool",
+    "deferredSlotsIncluded": "Slots Diferidos Incluidos",
+    "delete": {
+      "title": "Eliminar Pool",
+      "warning": "Esto eliminará toda la metadata relacionada con el pool y puede afectar a las tareas que usan este pool."
+    },
+    "edit": "Editar Pool",
+    "form": {
+      "checkbox": "Marcar para incluir tareas diferidas cuando se calculan los slots abiertos del pool",
+      "description": "Descripción",
+      "includeDeferred": "Incluir diferidos",
+      "nameMaxLength": "El nombre puede contener un máximo de 256 caracteres",
+      "nameRequired": "El nombre es requerido",
+      "slots": "Slots"
+    },
+    "noPoolsFound": "No se encontraron pools",
+    "pool_many": "Pools",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Buscar Pools",
+    "sort": {
+      "asc": "Nombre (A-Z)",
+      "desc": "Nombre (Z-A)",
+      "placeholder": "Ordenar por"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Nombre del Paquete",
+      "version": "Versión"
+    }
+  },
+  "variables": {
+    "add": "Agregar Variable",
+    "columns": {
+      "isEncrypted": "Está encriptada"
+    },
+    "delete": {
+      "deleteVariable_many": "Eliminar {{count}} Variables",
+      "deleteVariable_one": "Eliminar 1 Variable",
+      "deleteVariable_other": "Eliminar {{count}} Variables",
+      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes variables:",
+      "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
+      "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
+      "title": "Eliminar Variable",
+      "tooltip": "Eliminar variables seleccionadas"
+    },
+    "edit": "Editar Variable",
+    "export": "Exportar",
+    "exportTooltip": "Exportar variables seleccionadas",
+    "form": {
+      "invalidJson": "JSON inválido",
+      "keyMaxLength": "La clave puede contener un máximo de 250 caracteres",
+      "keyRequired": "La clave es requerida",
+      "valueRequired": "El valor es requerido"
+    },
+    "import": {
+      "button": "Import",
+      "conflictResolution": "Seleccionar Resolución de Conflicto de Variables",
+      "errorParsingJsonFile": "Error al analizar el archivo JSON: Cargar un archivo JSON que contenga variables (e.g., {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Falla la importación si se detectan variables existentes.",
+          "title": "Fallar"
+        },
+        "overwrite": {
+          "description": "Sobrescribe la variable en caso de conflicto.",
+          "title": "Sobrescribir"
+        },
+        "skip": {
+          "description": "Omite la importación de variables que ya existen.",
+          "title": "Omitir"
+        }
+      },
+      "title": "Importar Variables",
+      "upload": "Cargar un Archivo JSON",
+      "uploadPlaceholder": "Cargar un archivo JSON que contenga variables (e.g., {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "No se encontraron variables",
+    "searchPlaceholder": "Buscar Claves",
+    "variable_many": "Variables",
+    "variable_one": "Variable",
+    "variable_other": "Variables"
+  }
+}

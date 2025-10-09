@@ -1,0 +1,26 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "Colapsar todos los extra json",
+      "expandAllExtra": "Expandir todos los extra json"
+    },
+    "columns": {
+      "event": "Evento",
+      "extra": "Extra",
+      "user": "Usuario",
+      "when": "Cuando"
+    },
+    "filters": {
+      "eventType": "Tipo de evento"
+    },
+    "title": "Auditar Log"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Clave",
+      "value": "Valor"
+    },
+    "title": "XCom"
+  }
+}

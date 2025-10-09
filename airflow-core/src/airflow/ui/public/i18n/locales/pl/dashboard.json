@@ -1,0 +1,49 @@
+{
+  "favorite": {
+    "favoriteDags_few": "Pierwsze {{count}} ulubione Dagi",
+    "favoriteDags_many": "Pierwsze {{count}} ulubionych Dagów",
+    "favoriteDags_one": "Pierwszy ulubiony Dag",
+    "favoriteDags_other": "Pierwsze {{count}} ulubione Dagi",
+    "noDagRuns": "Brak uruchomień dla tego Daga.",
+    "noFavoriteDags": "Brak ulubionych. Kliknij ikonę gwiazdki obok Daga na liście, aby dodać go do ulubionych."
+  },
+  "group": "Grupa",
+  "health": {
+    "dagProcessor": "Processor Dagów",
+    "health": "Stan Systemu",
+    "healthy": "Prawidłowy",
+    "lastHeartbeat": "Ostatni czas sprawdzenia",
+    "metaDatabase": "Baza Danych Meta",
+    "scheduler": "Planer zadań",
+    "status": "Stan",
+    "triggerer": "Cyngiel",
+    "unhealthy": "Nieprawidłowy"
+  },
+  "history": "Historia",
+  "importErrors": {
+    "dagImportError_few": "Błędy importu Dagów",
+    "dagImportError_many": "Błędów importu Dagów",
+    "dagImportError_one": "Błąd importu Daga",
+    "dagImportError_other": "Błędy importu Dagów",
+    "searchByFile": "Szukaj według plików",
+    "timestamp": "Znacznik czasu"
+  },
+  "managePools": "Zarządzaj pulami",
+  "noAssetEvents": "Nie znaleziono zdarzeń zasobów.",
+  "poolSlots": "",
+  "sortBy": {
+    "newestFirst": "Najnowsze Pierwsze",
+    "oldestFirst": "Najstarsze Pierwsze"
+  },
+  "source": "Kod źródłowy",
+  "stats": {
+    "activeDags": "Aktywne Dagi",
+    "failedDags": "Nieudane Dagi",
+    "queuedDags": "Zakolejkowane Dagi",
+    "requiredActions": "Wymagane akcje",
+    "runningDags": "Wykonane Dagi",
+    "stats": "Statystyki"
+  },
+  "uri": "Uri",
+  "welcome": "Witaj"
+}

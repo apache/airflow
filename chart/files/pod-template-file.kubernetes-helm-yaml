@@ -1,0 +1,289 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+---
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
+{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
+{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
+{{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: placeholder-name
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- toYaml $podAnnotations | nindent 4 }}
+    {{- if .Values.workers.kerberosInitContainer.enabled }}
+    checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
+    {{- end }}
+spec:
+  initContainers:
+    {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+      {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.extraInitContainers }}
+      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
+    {{- end }}
+    {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+    - name: kerberos-init
+      image: {{ template "airflow_image" . }}
+      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      args: ["kerberos", "-o"]
+      resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 8 }}
+      volumeMounts:
+        - name: logs
+          mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
+        {{- include "airflow_config_mount" . | nindent 8 }}
+        - name: config
+          mountPath: {{ .Values.kerberos.configPath | quote }}
+          subPath: krb5.conf
+          readOnly: true
+        - name: kerberos-keytab
+          subPath: "kerberos.keytab"
+          mountPath: {{ .Values.kerberos.keytabPath | quote }}
+          readOnly: true
+        - name: kerberos-ccache
+          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+          readOnly: false
+        {{- if .Values.volumeMounts }}
+          {{- toYaml .Values.volumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.extraVolumeMounts }}
+          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- end }}
+        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- else }}
+          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- end }}
+      envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
+      env:
+        - name: KRB5_CONFIG
+          value:  {{ .Values.kerberos.configPath | quote }}
+        - name: KRB5CCNAME
+          value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- include "custom_airflow_environment" . | indent 6 }}
+        {{- include "standard_airflow_environment" . | indent 6 }}
+    {{- end }}
+  containers:
+    - envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
+      env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: {{ .Values.executor | quote }}
+        {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled}}
+        - name: KRB5_CONFIG
+          value:  {{ .Values.kerberos.configPath | quote }}
+        - name: KRB5CCNAME
+          value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- end }}
+        {{- include "standard_airflow_environment" . | indent 6}}
+        {{- include "custom_airflow_environment" . | indent 6 }}
+        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+      image: {{ template "pod_template_image" . }}
+      imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
+      securityContext: {{ $containerSecurityContext | nindent 8 }}
+      {{- if $containerLifecycleHooks }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
+      {{- end }}
+      name: base
+      {{- if .Values.workers.command }}
+      command: {{ tpl (toYaml .Values.workers.command) . | nindent 8 }}
+      {{- end }}
+      resources: {{- toYaml .Values.workers.resources | nindent 8 }}
+      volumeMounts:
+        - mountPath: {{ template "airflow_logs" . }}
+          name: logs
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
+        {{- include "airflow_config_mount" . | nindent 8 }}
+        {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+          {{- include "airflow_dags_mount" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.volumeMounts }}
+          {{- toYaml .Values.volumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.extraVolumeMounts }}
+          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.kerberos.enabled }}
+        - name: kerberos-keytab
+          subPath: "kerberos.keytab"
+          mountPath: {{ .Values.kerberos.keytabPath | quote }}
+          readOnly: true
+        - name: config
+          mountPath: {{ .Values.kerberos.configPath | quote }}
+          subPath: krb5.conf
+          readOnly: true
+        - name: kerberos-ccache
+          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+          readOnly: true
+        {{- end }}
+    {{- if .Values.workers.kerberosSidecar.enabled }}
+    - name: worker-kerberos
+      image: {{ template "airflow_image" . }}
+      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 8 }}
+      {{- if $containerLifecycleHooksKerberosSidecar }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 8 }}
+      {{- end }}
+      args: ["kerberos"]
+      resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 8 }}
+      volumeMounts:
+        - name: logs
+          mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
+        {{- include "airflow_config_mount" . | nindent 8 }}
+        - name: config
+          mountPath: {{ .Values.kerberos.configPath | quote }}
+          subPath: krb5.conf
+          readOnly: true
+        - name: kerberos-keytab
+          subPath: "kerberos.keytab"
+          mountPath: {{ .Values.kerberos.keytabPath | quote }}
+          readOnly: true
+        - name: kerberos-ccache
+          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+          readOnly: false
+        {{- if .Values.volumeMounts }}
+          {{- toYaml .Values.volumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.extraVolumeMounts }}
+          {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
+        {{- end }}
+        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- else }}
+          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- end }}
+      envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
+      env:
+        - name: KRB5_CONFIG
+          value:  {{ .Values.kerberos.configPath | quote }}
+        - name: KRB5CCNAME
+          value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- include "custom_airflow_environment" . | indent 6 }}
+        {{- include "standard_airflow_environment" . | indent 6 }}
+    {{- end }}
+    {{- if .Values.workers.extraContainers }}
+      {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.workers.priorityClassName }}
+  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- end }}
+  {{- if .Values.workers.runtimeClassName }}
+  runtimeClassName: {{ .Values.workers.runtimeClassName }}
+  {{- end }}
+  {{- if or .Values.registry.secretName .Values.registry.connection }}
+  imagePullSecrets:
+    - name: {{ template "registry_secret" . }}
+  {{- end }}
+  {{- if .Values.workers.hostAliases }}
+  hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
+  {{- end }}
+  restartPolicy: Never
+  securityContext: {{ $securityContext | nindent 4 }}
+  nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
+  affinity: {{- toYaml $affinity | nindent 4 }}
+  {{- if $schedulerName }}
+  schedulerName: {{ $schedulerName }}
+  {{- end }}
+  terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
+  tolerations: {{- toYaml $tolerations | nindent 4 }}
+  topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
+  {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
+  serviceAccountName: {{ include "worker.kubernetes.serviceAccountName" . }}
+  {{- else }}
+  serviceAccountName: {{ include "worker.serviceAccountName" . }}
+  {{- end }}
+  volumes:
+  {{- if .Values.dags.persistence.enabled }}
+  - name: dags
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_dags_volume_claim" . }}
+  {{- else if .Values.dags.gitSync.enabled }}
+  - name: dags
+    emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 6 }}
+  {{- end }}
+  {{- if .Values.logs.persistence.enabled }}
+  - name: logs
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_logs_volume_claim" . }}
+  {{- else }}
+  - emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 6 }}
+    name: logs
+  {{- end }}
+  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+    {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
+  {{- end }}
+  - configMap:
+      name: {{ include "airflow_config" . }}
+    name: config
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+    {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  - name: api-server-config
+    configMap:
+      name: {{ template "airflow_api_server_config_configmap_name" . }}
+    {{- end }}
+  {{- else }}
+    {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  - name: webserver-config
+    configMap:
+      name: {{ template "airflow_webserver_config_configmap_name" . }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.volumes }}
+    {{- toYaml .Values.volumes | nindent 2 }}
+  {{- end }}
+  {{- if .Values.kerberos.enabled }}
+  - name: kerberos-keytab
+    secret:
+      secretName: {{ include "kerberos_keytab_secret" . | quote }}
+  - name: kerberos-ccache
+    emptyDir: {}
+  {{- end }}
+  {{- if .Values.workers.extraVolumes }}
+    {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
+  {{- end }}

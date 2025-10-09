@@ -1,0 +1,167 @@
+{
+    "version": 2,
+    "waiters": {
+        "notebook_running": {
+            "operation": "DescribeNotebookExecution",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "RUNNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FINISHED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "notebook_stopped": {
+            "operation": "DescribeNotebookExecution",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "STOPPED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FINISHED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "job_flow_waiting": {
+            "operation": "DescribeCluster",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "WAITING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "RUNNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED_WITH_ERRORS",
+                    "state": "failure"
+                }
+            ]
+        },
+        "job_flow_terminated": {
+            "operation": "DescribeCluster",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED_WITH_ERRORS",
+                    "state": "failure"
+                }
+            ]
+        },
+        "step_wait_for_terminal": {
+            "operation": "DescribeStep",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Step.Status.State",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Step.Status.State",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Step.Status.State",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Step.Status.State",
+                    "expected": "INTERRUPTED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "steps_wait_for_terminal": {
+            "operation": "ListSteps",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Steps[].Status.State",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
+                    "expected": "INTERRUPTED",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,68 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Worker KEDA Scaler
+#################################
+{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "airflow.fullname" . }}-worker
+  labels:
+    tier: airflow
+    component: worker-horizontalpodautoscaler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    deploymentName: {{ .Release.Name }}-worker
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  scaleTargetRef:
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    name: {{ include "airflow.fullname" . }}-worker
+    envSourceContainerName: worker
+  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
+  {{- if .Values.workers.keda.advanced }}
+  advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
+  {{- end }}
+  triggers:
+    {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
+    - type: "mysql"
+      metadata:
+        queryValue: "1"
+        connectionStringFromEnv: KEDA_DB_CONN
+        query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- else }}
+    - type: "postgresql"
+      metadata:
+        targetQueryValue: "1"
+        {{- if and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+        connectionFromEnv: KEDA_DB_CONN
+        {{- else }}
+        connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
+        {{- end }}
+        query: {{ tpl .Values.workers.keda.query . | quote }}
+    {{- end }}
+{{- end }}

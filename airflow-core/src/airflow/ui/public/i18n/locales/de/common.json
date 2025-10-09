@@ -1,0 +1,317 @@
+{
+  "admin": {
+    "Config": "Konfiguration",
+    "Connections": "Verbindungen",
+    "Plugins": "Plug-ins",
+    "Pools": "Pools",
+    "Providers": "Providers",
+    "Variables": "Variablen"
+  },
+  "allOperators": "Alle Operatoren",
+  "appearance": {
+    "appearance": "Darstellung",
+    "darkMode": "Dunkelmodus",
+    "lightMode": "Hellmodus",
+    "systemMode": "Systemeinstellung folgen"
+  },
+  "asset_one": "Datenset (Asset)",
+  "asset_other": "Datensets (Assets)",
+  "assetEvent_one": "Ereignis zu Datensets (Asset)",
+  "assetEvent_other": "Ereignisse zu Datensets (Asset)",
+  "backfill_one": "Auffüllung",
+  "backfill_other": "Auffüllungen",
+  "browse": {
+    "auditLog": "Prüf-Log",
+    "requiredActions": "Erforderliche Interaktionen",
+    "xcoms": "Task Kommunikation (XComs)"
+  },
+  "collapseDetailsPanel": "Detailansicht ausblenden",
+  "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
+  "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Nachgeholt",
+    "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
+    "defaultArgs": "Standard-Parameter",
+    "description": "Beschreibung",
+    "documentation": "Dag Dokumentation",
+    "fileLocation": "Ablagepfad",
+    "hasTaskConcurrencyLimits": "Hat der Task Limitierungen zur Parallelität",
+    "lastExpired": "Letztmaliger Ablauf",
+    "lastParseDuration": "Letzte Dag Einlesedauer",
+    "lastParsed": "Letztmalig Eingelesen",
+    "latestDagVersion": "Letzte Dag Version",
+    "latestRun": "Letzter Lauf",
+    "maxActiveRuns": "Maximal aktive Läufe",
+    "maxActiveTasks": "Maximal aktive Tasks",
+    "maxConsecutiveFailedDagRuns": "Maximal fortlaufende fehlerhafte Dag Läufe",
+    "nextRun": "Nächster Lauf",
+    "owner": "Eigentümer",
+    "params": "Parameter",
+    "schedule": "Zeitplan",
+    "tags": "Markierungen"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Konfiguration",
+    "dagVersions": "Dag Versionen",
+    "dataIntervalEnd": "Datenintervall Ende",
+    "dataIntervalStart": "Datenintervall Start",
+    "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "queuedAt": "Wartend seit",
+    "runAfter": "Gelaufen ab",
+    "runType": "Typ des Laufs",
+    "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
+    "triggeredBy": "Ausgelöst durch",
+    "triggeringUser": "Benutzer der ausgelöst hat"
+  },
+  "dagRun_one": "Dag Lauf",
+  "dagRun_other": "Dag Läufe",
+  "dagRunId": "Dag Lauf ID",
+  "dagWarnings": "Dag Warnungen und Fehler",
+  "defaultToGraphView": "Graph-Ansicht als Standard",
+  "defaultToGridView": "Gitter-Ansicht als Standard",
+  "direction": "Richtung",
+  "docs": {
+    "documentation": "Dokumentation",
+    "githubRepo": "GitHub Ablage",
+    "restApiReference": "REST API Referenz"
+  },
+  "duration": "Laufzeit",
+  "endDate": "Enddatum",
+  "error": {
+    "back": "Zurück",
+    "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
+    "home": "Start",
+    "notFound": "Seite nicht gefunden",
+    "title": "Fehler"
+  },
+  "expand": {
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "hotkey": "e",
+    "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
+  },
+  "expression": {
+    "all": "Alle",
+    "and": "UND",
+    "any": "Jeder",
+    "or": "ODER"
+  },
+  "filter": "Filter",
+  "filters": {
+    "logicalDateFrom": "Logisches Datum Von",
+    "logicalDateTo": "Logisches Datum Bis",
+    "runAfterFrom": "Gelaufen-nach von filtern",
+    "runAfterTo": "Gelaufen-nach bis filtern"
+  },
+  "logicalDate": "Logisches Datum",
+  "logout": "Abmelden",
+  "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
+  "mapIndex": "Planungs-Index",
+  "modal": {
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "delete": {
+      "button": "Löschen",
+      "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Aktion kann nicht rückgängig gemacht werden."
+    }
+  },
+  "nav": {
+    "admin": "Verwaltung",
+    "assets": "Datensets (Assets)",
+    "browse": "Browsen",
+    "dags": "Dags",
+    "docs": "Doku",
+    "home": "Start",
+    "legacyFabViews": "Alte Ansichten",
+    "plugins": "Plug-ins",
+    "security": "Sicherheit"
+  },
+  "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
+  "note": {
+    "add": "Eine Notiz hinzufügen",
+    "dagRun": "Notizen zum Dag Lauf",
+    "label": "Notiz",
+    "placeholder": "Eine Notiz hinzufügen...",
+    "taskInstance": "Notizen zu Task Instanzen"
+  },
+  "pools": {
+    "deferred": "Delegiert",
+    "open": "Frei",
+    "pools_one": "Pool",
+    "pools_other": "Pools",
+    "queued": "Wartend",
+    "running": "Laufende",
+    "scheduled": "Geplant"
+  },
+  "reset": "Zurücksetzen",
+  "runId": "Lauf Id",
+  "runTypes": {
+    "asset_triggered": "Durch Datenset (Asset) ausgelöst",
+    "backfill": "Nachträglich Aufgefüllt",
+    "manual": "Manuell",
+    "scheduled": "Geplant"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "unten",
+      "top": "oben"
+    },
+    "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
+  },
+  "seconds": "{{count}}s",
+  "security": {
+    "actions": "Aktionen",
+    "permissions": "Berechtigungen",
+    "resources": "Ressourcen",
+    "roles": "Rollen",
+    "users": "Benutzer"
+  },
+  "selectLanguage": "Sprache wählen",
+  "showDetailsPanel": "Detailansicht einblenden",
+  "source": {
+    "hide": "Log-Quelle ausblenden",
+    "hotkey": "s",
+    "show": "Log-Quelle einblenden"
+  },
+  "sourceAssetEvent_one": "Urspung des Datenset (Asset) Ereignisses",
+  "sourceAssetEvent_other": "Urspung der Datenset (Asset) Ereignisse",
+  "startDate": "Startdatum",
+  "state": "Status",
+  "states": {
+    "deferred": "Delegiert",
+    "failed": "Fehlgeschlagen",
+    "no_status": "Kein Status",
+    "none": "Kein Status",
+    "planned": "Geplant",
+    "queued": "Wartend",
+    "removed": "Entfernt",
+    "restarting": "Im Neustart",
+    "running": "Laufend",
+    "scheduled": "Geplant",
+    "skipped": "Übersprungen",
+    "success": "Erfolgreich",
+    "up_for_reschedule": "Wartet auf Neuplanung",
+    "up_for_retry": "Wartet auf neuen Versuch",
+    "upstream_failed": "Vorgelagerte fehlgeschlagen"
+  },
+  "table": {
+    "completedAt": "Abgeschlossen um",
+    "createdAt": "Erstellt um",
+    "filterByTag": "Dags nach Markierung filtern",
+    "filterColumns": "Tabellenspalten filtern",
+    "filterReset_one": "Filter zurücksetzen",
+    "filterReset_other": "Filter zurücksetzen",
+    "from": "Von",
+    "maxActiveRuns": "Maximal aktive Läufe",
+    "noTagsFound": "Keine Markierungen gefunden",
+    "tagMode": {
+      "all": "Alle",
+      "any": "Einer"
+    },
+    "tagPlaceholder": "Dags nach Markierung filtern",
+    "to": "Zu"
+  },
+  "task": {
+    "documentation": "Task Dokumentation",
+    "lastInstance": "Letzte Task Instanz",
+    "operator": "Operator",
+    "triggerRule": "Auslöse-Regel"
+  },
+  "task_one": "Task",
+  "task_other": "Tasks",
+  "taskGroup": "Task Gruppe",
+  "taskId": "Task ID",
+  "taskInstance": {
+    "dagVersion": "Dag Version",
+    "executor": "Ausführungsumgebung",
+    "executorConfig": "Konfiguration der Ausführungsumgebung",
+    "hostname": "Hostname",
+    "maxTries": "Maximale Versuche",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Pool Belegung",
+    "priorityWeight": "Priorität",
+    "queue": "Warteschlange",
+    "queuedWhen": "Wartend seit",
+    "scheduledWhen": "Geplant ab",
+    "triggerer": {
+      "assigned": "Zugewiesene Abrufumgebung",
+      "class": "Abruf-Klasse",
+      "createdAt": "Zeitpunkt der Erstellung",
+      "id": "Abrufungs ID",
+      "latestHeartbeat": "Letztes Lebenszeichen",
+      "title": "Abrufumgebungs-Information"
+    },
+    "unixname": "Unix Name"
+  },
+  "taskInstance_one": "Task Instanz",
+  "taskInstance_other": "Task Instanzen",
+  "timeRange": {
+    "last12Hours": "Letzte 12 Stunden",
+    "last24Hours": "Letzte 24 Stunden",
+    "lastHour": "Letzte Stunde",
+    "pastWeek": "Letzte Woche"
+  },
+  "timestamp": {
+    "hide": "Zeitstempel ausblenden",
+    "hotkey": "t",
+    "show": "Zeitstempel einblenden"
+  },
+  "timezone": "Zeitzone",
+  "timezoneModal": {
+    "current-timezone": "Aktuelle Zeit in",
+    "placeholder": "Wählen Sie eine Zeitzone",
+    "title": "Auswahl der Zeitzone",
+    "utc": "UTC (Koordinierte Weltzeit)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
+        "title": "Massenlöschung von {{resourceName}} gestartet"
+      }
+    },
+    "create": {
+      "error": "Erstellung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich erstellt.",
+        "title": "Erstellung von {{resourceName}} gestartet"
+      }
+    },
+    "delete": {
+      "error": "Löschen von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich gelöscht.",
+        "title": "Löschung von {{resourceName}} gestartet"
+      }
+    },
+    "import": {
+      "error": "Import von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
+        "title": "Import von {{resourceName}} gestartet"
+      }
+    },
+    "update": {
+      "error": "Aktualisierung von {{resourceName}} fehlgeschlagen",
+      "success": {
+        "description": "{{resourceName}} wurde erfolgreich aktualisiert.",
+        "title": "Aktualisierung von {{resourceName}} gestartet"
+      }
+    }
+  },
+  "total": "Gesamt {{state}}",
+  "triggered": "Ausgelöst",
+  "tryNumber": "Versuch Nummer",
+  "user": "Benutzer",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
+    "unwrap": "Kein Zeilenumbruch",
+    "wrap": "Zeilenumbruch"
+  }
+}

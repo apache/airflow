@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/catalog/v1.json",
+    "dbt_version": "1.6.1"
+  },
+  "nodes": {
+    "model.test_project.my_first_dbt_model": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "CLOUD",
+        "name": "MY_FIRST_DBT_MODEL",
+        "database": "DBT_TEST",
+        "comment": null,
+        "owner": "ACCOUNTADMIN"
+      },
+      "columns": {
+        "ID": {
+          "type": "NUMBER",
+          "index": 1,
+          "name": "ID",
+          "comment": null
+        }
+      },
+      "stats": {
+        "last_modified": {
+          "id": "last_modified",
+          "label": "Last Modified",
+          "value": "2023-08-31 13:19UTC",
+          "include": true,
+          "description": "The timestamp for last update/change"
+        },
+        "bytes": {
+          "id": "bytes",
+          "label": "Approximate Size",
+          "value": 1024.0,
+          "include": true,
+          "description": "Approximate size of the table as reported by Snowflake"
+        },
+        "row_count": {
+          "id": "row_count",
+          "label": "Row Count",
+          "value": 2.0,
+          "include": true,
+          "description": "An approximate count of rows in this table"
+        },
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": true,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.test_project.my_first_dbt_model"
+    }
+  },
+  "sources": {},
+  "errors": null
+}

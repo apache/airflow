@@ -1,0 +1,11 @@
+{
+  "PERF_DAG_PREFIX": "tiny_workflow",
+  "PERF_DAGS_COUNT": "10",
+  "PERF_TASKS_COUNT": "2",
+  "PERF_START_AGO": "1d",
+  "PERF_SCHEDULE_INTERVAL": "@once",
+  "PERF_SHAPE": "linear",
+  "PERF_SLEEP_TIME": "0",
+  "PERF_OPERATOR_TYPE": "python",
+  "PERF_OPERATOR_EXTRA_KWARGS": "{\"doc_md\": \"Test extra kwargs\"}"
+}

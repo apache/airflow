@@ -1,0 +1,149 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+spark:
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  version: v1beta2
+  kind: SparkApplication
+  apiGroup: sparkoperator.k8s.io
+  metadata:
+    namespace: default
+  spec:
+    type: Python
+    pythonVersion: "3"
+    mode: cluster
+    sparkVersion: 3.0.0
+    successfulRunHistoryLimit: 1
+    restartPolicy:
+      type: Never
+    imagePullPolicy: Always
+    hadoopConf: {}
+    imagePullSecrets: []
+    dynamicAllocation:
+      enabled: false
+      initialExecutors: 1
+      minExecutors: 1
+      maxExecutors: 1
+    labels: {}
+    driver:
+      serviceAccount: default
+      container_resources:
+        gpu:
+          name: null
+          quantity: 0
+        cpu:
+          request: null
+          limit: null
+        memory:
+          request: null
+          limit: null
+    executor:
+      instances: 1
+      container_resources:
+        gpu:
+          name: null
+          quantity: 0
+        cpu:
+          request: null
+          limit: null
+        memory:
+          request: null
+          limit: null
+kubernetes:
+  # example:
+  # env_vars:
+  # - name: TEST_NAME
+  #   value: TEST_VALUE
+  env_vars: []
+
+  # example:
+  # env_from:
+  # - name: test
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: mongo-secret
+  #       key: mongo-password
+  env_from: []
+
+  # example:
+  # node_selector:
+  #   karpenter.sh/provisioner-name: spark-group
+  node_selector: {}
+
+  # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: beta.kubernetes.io/instance-type
+  #           operator: In
+  #           values:
+  #           - r5.xlarge
+  affinity:
+    nodeAffinity: {}
+    podAffinity: {}
+    podAntiAffinity: {}
+
+  # example: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  # type: list
+  # tolerations:
+  # - key: "key1"
+  #   operator: "Equal"
+  #   value: "value1"
+  #   effect: "NoSchedule"
+  tolerations: []
+
+  # example:
+  # config_map_mounts:
+  #   snowflake-default: /mnt/tmp
+  config_map_mounts: {}
+
+  # example:
+  # volumeMounts:
+  # - name: config
+  #   mountPath: /path
+  volume_mounts: []
+
+  # https://kubernetes.io/docs/concepts/storage/volumes/
+  # example:
+  # volumes:
+  # - name: config
+  #   persistentVolumeClaim:
+  #     claimName: claim-name
+  volumes: []
+
+  # read config map into an env variable
+  # example:
+  # from_env_config_map:
+  # - configmap_1
+  # - configmap_2
+  from_env_config_map: []
+
+  # load secret into an env variable
+  # example:
+  # from_env_secret:
+  # - secret_1
+  # - secret_2
+  from_env_secret: []
+
+  image_pull_secrets: ''
+  in_cluster: true
+  conn_id: kubernetes_default
+  kube_config_file: null
+  cluster_context: null

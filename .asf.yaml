@@ -1,0 +1,177 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
+---
+github:
+  description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
+  homepage: https://airflow.apache.org/
+  # Social media preview image is not supported by GitHub API/asf.yaml, need to be uploaded
+  # manually in GitHub repository --> Settings --> click "Edit" in "Social preview"
+  # See also:
+  # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview
+  # social_media_preview: docs/apache-airflow/img/logos/github_repository_social_image.png
+  labels:
+    # Note that GitHub only supports <=20 labels/topics per repo! Pipeline will fail if you add more.
+    - airflow
+    - apache
+    - apache-airflow
+    - automation
+    - dag
+    - data-engineering
+    - data-integration
+    - data-orchestrator
+    - data-pipelines
+    - data-science
+    - elt
+    - etl
+    - machine-learning
+    - mlops
+    - orchestration
+    - python
+    - scheduler
+    - workflow
+    - workflow-engine
+    - workflow-orchestration
+  features:
+    # Enable issues management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
+    # Enable wiki for documentation
+    wiki: false
+    # Enable discussions
+    discussions: true
+
+  enabled_merge_buttons:
+    squash: true
+    merge: false
+    rebase: false
+
+  pull_requests:
+    # allow auto-merge
+    allow_auto_merge: false
+    # auto-delete head branches after being merged
+    del_branch_on_merge: true
+
+  protected_branches:
+    main:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
+      required_signatures: false
+    v1-10-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_signatures: false
+    v2-0-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-1-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-3-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-4-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-5-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-6-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-7-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-8-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-9-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-10-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v2-11-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v3-0-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    v3-1-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+    providers-fab/v1-5:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
+      required_signatures: false
+  collaborators:
+    # Max 10 collaborators allowed
+    # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
+    # Procedure for adding new member is listed in
+    # https://github.com/apache/airflow/blob/main/ISSUE_TRIAGE_PROCESS.rst#L97
+    - aritra24
+    - omkar-foss
+    - nathadfield
+    - sunank200
+    - cmarteepants
+    - karenbraganz
+    - gyli
+    - jroachgolf84
+
+notifications:
+  jobs: jobs@airflow.apache.org
+  commits: commits@airflow.apache.org
+  issues: commits@airflow.apache.org
+  pullrequests: commits@airflow.apache.org
+  discussions: commits@airflow.apache.org

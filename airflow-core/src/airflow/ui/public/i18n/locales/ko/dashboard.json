@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "{{count}}개의 즐겨찾기 Dag",
+    "favoriteDags_other": "{{count}}개의 즐겨찾기 Dags",
+    "noDagRuns": "이 Dag에는 아직 실행된 DagRun이 없습니다.",
+    "noFavoriteDags": "아직 즐겨찾기가 없습니다. 목록에서 Dag 옆의 별 아이콘을 클릭하여 즐겨찾기에 추가하세요."
+  },
+  "group": "그룹",
+  "health": {
+    "dagProcessor": "Dag 프로세서",
+    "health": "상태",
+    "healthy": "정상",
+    "lastHeartbeat": "마지막 Heartbeat",
+    "metaDatabase": "메타데이터베이스",
+    "scheduler": "스케줄러",
+    "status": "상태",
+    "triggerer": "트리거러",
+    "unhealthy": "비정상"
+  },
+  "history": "기록",
+  "importErrors": {
+    "dagImportError_one": "Dag 가져오기 오류",
+    "dagImportError_other": "Dag 가져오기 오류들",
+    "searchByFile": "파일로 검색",
+    "timestamp": "타임스탬프"
+  },
+  "managePools": "풀 관리",
+  "noAssetEvents": "에셋 이벤트를 찾을 수 없습니다.",
+  "poolSlots": "풀 슬롯",
+  "sortBy": {
+    "newestFirst": "최신순",
+    "oldestFirst": "오래된 순"
+  },
+  "source": "소스",
+  "stats": {
+    "activeDags": "활성 Dags",
+    "failedDags": "실패한 Dags",
+    "queuedDags": "대기 중인 Dags",
+    "requiredActions": "필수 작업",
+    "runningDags": "실행 중인 Dags",
+    "stats": "통계"
+  },
+  "uri": "Uri",
+  "welcome": "환영합니다"
+}

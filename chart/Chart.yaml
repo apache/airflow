@@ -1,0 +1,123 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# apiVersion v2 is Helm 3
+---
+apiVersion: v2
+name: airflow
+version: 1.19.0-dev
+appVersion: 3.1.0
+description: The official Helm chart to deploy Apache Airflow, a platform to
+  programmatically author, schedule, and monitor workflows
+home: https://airflow.apache.org/
+sources:
+  - https://github.com/apache/airflow
+icon: https://airflow.apache.org/images/airflow_dark_bg.png
+keywords:
+  - apache
+  - airflow
+  - workflow
+  - scheduler
+dependencies:
+  - name: postgresql
+    version: 13.2.24
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+maintainers:
+  - email: dev@airflow.apache.org
+    name: Apache Airflow PMC
+type: application
+annotations:
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://airflow.apache.org/docs/helm-chart/1.19.0/
+  artifacthub.io/screenshots: |
+    - title: Home Page
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/home_dark.png
+    - title: DAG Overview Dashboard
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/dag_overview_dashboard.png
+    - title: DAGs View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/dags.png
+    - title: Assets View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/asset_view.png
+    - title: Grid View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/dag_overview_grid.png
+    - title: Graph View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/dag_overview_graph.png
+    - title: Variable View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/variable_hidden.png
+    - title: Code View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.0/_images/dag_overview_code.png
+  artifacthub.io/changes: |
+    - description: Allow ConfigMap and Secret references in ``apiServer.env``
+      kind: changed
+      links:
+      - name: '#51191'
+        url: https://github.com/apache/airflow/pull/51191
+    - description: Add custom annotations to JWT Secret
+      kind: changed
+      links:
+      - name: '#52166'
+        url: https://github.com/apache/airflow/pull/52166
+    - description: Allow ``valuesFrom`` in ``gitSync.env``
+      kind: changed
+      links:
+      - name: '#50228'
+        url: https://github.com/apache/airflow/pull/50228
+    - description: Fix JWT secret name
+      kind: fixed
+      links:
+      - name: '#52268'
+        url: https://github.com/apache/airflow/pull/52268
+    - description: Use ``api-server`` instead of ``webserver`` in NOTES.txt for Airflow
+        3.0+
+      kind: fixed
+      links:
+      - name: '#52194'
+        url: https://github.com/apache/airflow/pull/52194
+    - description: Change default executor in pod template to support executor parameter
+        in task
+      kind: fixed
+      links:
+      - name: '#49433'
+        url: https://github.com/apache/airflow/pull/49433
+    - description: Use ``merged`` to render airflow.cfg and include computed defaults
+      kind: fixed
+      links:
+      - name: '#51828'
+        url: https://github.com/apache/airflow/pull/51828
+    - description: Use ``[api] secret_key`` for Airflow 3.0+ instead of ``[webserver]
+        secret_key``
+      kind: fixed
+      links:
+      - name: '#52269'
+        url: https://github.com/apache/airflow/pull/52269
+    - description: Fix for ``fernetkey`` and add test of its value
+      kind: fixed
+      links:
+      - name: '#52977'
+        url: https://github.com/apache/airflow/pull/52977
+    - description: 'Docs: Update supported executors in docs'
+      kind: changed
+      links:
+      - name: '#52132'
+        url: https://github.com/apache/airflow/pull/52132
+    - description: 'Docs: Update service name for port-forward of Airflow UI'
+      kind: changed
+      links:
+      - name: '#51945'
+        url: https://github.com/apache/airflow/pull/51945

@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "Erster favorisierter Dag",
+    "favoriteDags_other": "Top {{count}} favorisierte Dags",
+    "noDagRuns": "Noch kein Lauf für dieses Dag.",
+    "noFavoriteDags": "Noch keine favorisierten Dags. Mit dem Stern-Symbol neben einem Dag kann man das Dag zu den Favoriten hinzufügen."
+  },
+  "group": "Gruppe",
+  "health": {
+    "dagProcessor": "Dag Prozessor",
+    "health": "System-Gesundheit",
+    "healthy": "Gut",
+    "lastHeartbeat": "Letztes Lebenszeichen",
+    "metaDatabase": "Meta-Datenbank",
+    "scheduler": "Planer",
+    "status": "Status",
+    "triggerer": "Triggerer",
+    "unhealthy": "Nicht in Ordnung"
+  },
+  "history": "Historie",
+  "importErrors": {
+    "dagImportError_one": "Fehler beim Laden des Dags",
+    "dagImportError_other": "Fehler beim Laden der Dags",
+    "searchByFile": "Nach Datei suchen",
+    "timestamp": "Zeitstempel"
+  },
+  "managePools": "Pools verwalten",
+  "noAssetEvents": "Keine Ereignisse zu Datensets vorliegend.",
+  "poolSlots": "Pool Belegung",
+  "sortBy": {
+    "newestFirst": "Neueste zuerst",
+    "oldestFirst": "Älteste zuerst"
+  },
+  "source": "Quellcode",
+  "stats": {
+    "activeDags": "Aktive Dags",
+    "failedDags": "Fehlgeschlagene Dags",
+    "queuedDags": "Dags in Warteschlange",
+    "requiredActions": "Erforderliche Interaktionen",
+    "runningDags": "Laufende Dags",
+    "stats": "Statistiken"
+  },
+  "uri": "Uri",
+  "welcome": "Willkommen"
+}

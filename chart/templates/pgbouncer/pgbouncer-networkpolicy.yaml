@@ -1,0 +1,77 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Pgbouncer NetworkPolicy
+#################################
+{{- $workersKedaEnabled := and .Values.workers.keda.enabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- $triggererEnabled := and (semverCompare ">=2.2.0" .Values.airflowVersion) .Values.triggerer.enabled }}
+{{- $triggererKedaEnabled := and $triggererEnabled .Values.triggerer.keda.enabled }}
+{{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "airflow.fullname" . }}-pgbouncer-policy
+  labels:
+    tier: airflow
+    component: airflow-pgbouncer-policy
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+      {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: airflow
+      component: pgbouncer
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: airflow
+          release: {{ .Release.Name }}
+    {{- if or $workersKedaEnabled  $triggererKedaEnabled }}
+    {{- if and $workersKedaEnabled .Values.workers.keda.namespaceLabels }}
+    - namespaceSelector:
+       matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
+      podSelector:
+    {{- else if and $triggererEnabled .Values.triggerer.keda.namespaceLabels }}
+    - namespaceSelector:
+        matchLabels: {{- toYaml .Values.triggerer.keda.namespaceLabels | nindent 10 }}
+      podSelector:
+    {{- else }}
+    - podSelector:
+    {{- end }}
+        matchLabels:
+          app: keda-operator
+    {{- end }}
+    {{- if .Values.pgbouncer.extraNetworkPolicies}}
+      {{- toYaml .Values.pgbouncer.extraNetworkPolicies | nindent 4 }}
+    {{- end }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.pgbouncer }}
+    - protocol: TCP
+      port: {{ .Values.ports.pgbouncerScrape }}
+{{- end }}

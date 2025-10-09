@@ -1,0 +1,85 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow ConfigMap
+#################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "airflow_config" . }}
+  labels:
+    tier: airflow
+    component: config
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end -}}
+  {{- if .Values.airflowConfigAnnotations }}
+  annotations: {{- toYaml .Values.airflowConfigAnnotations | nindent 4 }}
+  {{- end }}
+{{- $Global := . }}
+data:
+  {{- $config := deepCopy .Values.config | merge (dict "core" dict) }}
+  {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
+    {{- $basePath := "" -}}
+    {{- if not (hasKey $config.core "execution_api_server_url") -}}
+      {{-  if (and $config.api $config.api.base_url) -}}
+        {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
+      {{- end -}}
+      {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
+    {{- end -}}
+  {{- end -}}
+  # These are system-specified config overrides.
+  airflow.cfg: |-
+    {{- range $section, $settings := $config }}
+    [{{ $section }}]
+    {{- range $key, $val := $settings }}
+    {{ $key }} = {{ tpl ($val | toString) $Global }}
+    {{- end }}
+    {{ end }}
+
+  {{- if .Values.airflowLocalSettings }}
+  airflow_local_settings.py: |-
+    {{- tpl .Values.airflowLocalSettings . | nindent 4 }}
+  {{- end }}
+
+  {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.knownHosts }}
+  known_hosts: |-
+    {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
+  {{- end }}
+
+{{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
+{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
+  pod_template_file.yaml: |-
+    {{- if .Values.podTemplate }}
+      {{- tpl .Values.podTemplate . | nindent 4 }}
+    {{- else }}
+      {{- tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}
+
+  {{- if .Values.kerberos.enabled }}
+  krb5.conf: |-
+    {{- tpl .Values.kerberos.config . | nindent 4 }}
+  {{- end }}

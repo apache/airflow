@@ -1,0 +1,174 @@
+{
+  "columns": {
+    "description": "תיאור",
+    "key": "מפתח",
+    "name": "שם",
+    "value": "ערך"
+  },
+  "config": {
+    "columns": {
+      "section": "קטגוריה"
+    },
+    "title": "תצורת Airflow"
+  },
+  "connections": {
+    "add": "הוסף חיבור חדש",
+    "columns": {
+      "connectionId": "מזהה חיבור",
+      "connectionType": "סוג חיבור",
+      "host": "כתובת",
+      "port": "פורט"
+    },
+    "connection_one": "חיבור",
+    "connection_other": "חיבורים",
+    "connection_two": "חיבורים",
+    "delete": {
+      "deleteConnection_one": "מחק חיבור",
+      "deleteConnection_other": "מחק {{count}} חיבורים",
+      "deleteConnection_two": "מחק שני חיבורים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
+      "title": "מחק חיבור"
+    },
+    "edit": "ערוך חיבור",
+    "form": {
+      "connectionIdRequired": "נדרש מזהה חיבור",
+      "connectionIdRequirement": "מזהה חיבור אינו יכול להכיל רווחים בלבד",
+      "connectionTypeRequired": "נדרש סוג חיבור",
+      "extraFields": "שדות נוספים",
+      "extraFieldsJson": "שדות נוספים JSON",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
+      "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
+      "selectConnectionType": "בחר סוג חיבור",
+      "standardFields": "שדות סטנדרטיים"
+    },
+    "nothingFound": {
+      "description": "חיבורים המוגדרים באמצעות משתני סביבה או מנהלי סודות אינם מוצגים כאן.",
+      "documentationLink": "למד עוד בתיעוד של Airflow.",
+      "learnMore": "אלה נפתרים בזמן ריצה ואינם גלויים בממשק המשתמש.",
+      "title": "לא נמצאו חיבורים"
+    },
+    "searchPlaceholder": "חפש חיבורים",
+    "test": "בדוק חיבור",
+    "testDisabled": "אפשרות זו אינה זמינה. פנו למנהל המערכת להפעלתה",
+    "typeMeta": {
+      "error": "נכשל באחזור מטא סוג חיבור",
+      "standardFields": {
+        "description": "תיאור",
+        "host": "מארח",
+        "login": "מזהה התחברות",
+        "password": "סיסמה",
+        "port": "פורט",
+        "url_schema": "סכימה"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "מחק",
+    "modal": {
+      "confirmButton": "אשר מחיקה",
+      "secondConfirmMessage": "פעולה זו איננה הפיכה",
+      "thirdConfirmMessage": " האם אתה בטוח שברצונך להמשיך?"
+    },
+    "selected": "נבחר",
+    "tooltip": "מחק חיבורים נבחרים"
+  },
+  "formActions": {
+    "save": "שמור"
+  },
+  "plugins": {
+    "columns": {
+      "source": "מקור"
+    },
+    "importError_one": "שגיאה בייבוא תוסף",
+    "importError_other": "שגיאות בייבוא תוסף",
+    "importError_two": "שגיאות בייבוא תוסף",
+    "searchPlaceholder": "חפש לפי קובץ"
+  },
+  "pools": {
+    "add": "הוסף מאגר משאבים",
+    "deferredSlotsIncluded": "כולל מקומות שמורים למשימות מושהות",
+    "delete": {
+      "title": "מחק מאגר משאבים",
+      "warning": "זה יימחק את כל המטא-נתונים המקושרים עם המאגר ועלולים להשפיע על משימות המקושרות עם המאגר"
+    },
+    "edit": "ערוך מאגר משאבים",
+    "form": {
+      "checkbox": "סמן כדי לכלול משימות מושהות",
+      "description": "תיאור",
+      "includeDeferred": "כלול משימות מושהות",
+      "nameMaxLength": "השם יכול לכלול 256 תווים לכל היותר",
+      "nameRequired": "נדרש שם",
+      "slots": "מקומות שמורים"
+    },
+    "noPoolsFound": "לא נמצאו מאגרי משאבים",
+    "pool_one": "מאגר משאבים",
+    "pool_other": "מאגרי משאבים",
+    "pool_two": "מאגרי משאבים",
+    "searchPlaceholder": "חפש מאגרי משאבים",
+    "sort": {
+      "asc": "שם (A-Z)",
+      "desc": "שם (Z-A)",
+      "placeholder": "סדר לפי"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "שם חבילה",
+      "version": "גירסה"
+    }
+  },
+  "variables": {
+    "add": "הוסף משתנה",
+    "columns": {
+      "isEncrypted": "האם מוצפן?"
+    },
+    "delete": {
+      "deleteVariable_one": "מחר משתנה אחד",
+      "deleteVariable_other": "מחק {{count}} משתנים",
+      "deleteVariable_two": "מחק שני משתנים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
+      "title": "מחק מאגר משאבים",
+      "tooltip": "מחר משתנים נבחרים"
+    },
+    "edit": "ערוך משתנה",
+    "export": "ייצא",
+    "exportTooltip": "ייצא משתנים נבחרים",
+    "form": {
+      "invalidJson": "JSON לא תקין",
+      "keyMaxLength": "מפתח יכול להכיל מקסימום 250 תווים",
+      "keyRequired": "נדרש מפתח",
+      "valueRequired": "נדרש ערך"
+    },
+    "import": {
+      "button": "ייבא",
+      "conflictResolution": "בחר מנגנון ליישוב קונפליקט משתנים",
+      "errorParsingJsonFile": "שגיאה בניתוח קובץ JSON: העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "הכשלת הייבוא אם מזוהים משתנים קיימים.",
+          "title": "הכשל"
+        },
+        "overwrite": {
+          "description": "שכתוב (Overwrite) של המשתנה במקרה של קונפליקט.",
+          "title": "שכתב"
+        },
+        "skip": {
+          "description": "דילוג על ייבוא משתנים שכבר קיימים.",
+          "title": "דלג"
+        }
+      },
+      "title": "ייבא משתנים",
+      "upload": "העלה קובץ JSON",
+      "uploadPlaceholder": "העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "לא נמצאו משתנים",
+    "searchPlaceholder": "חפש מאגרי משאבים",
+    "variable_one": "משתנה",
+    "variable_other": "משתנים",
+    "variable_two": "משתנים"
+  }
+}

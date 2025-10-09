@@ -1,0 +1,26 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "Alle Extra JSON Daten einklappen",
+      "expandAllExtra": "Alle Extra JSON Daten ausklappen"
+    },
+    "columns": {
+      "event": "Ereignis",
+      "extra": "Extra JSON Daten",
+      "user": "Benutzer",
+      "when": "Datum und Uhrzeit"
+    },
+    "filters": {
+      "eventType": "Ereignis Typ"
+    },
+    "title": "Prüf-Log"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Name",
+      "value": "Wert"
+    },
+    "title": "Task Kommunikation (XComs)"
+  }
+}

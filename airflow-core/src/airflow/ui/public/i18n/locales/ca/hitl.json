@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "Totes",
+      "pending": "Pendents",
+      "received": "Revisades"
+    }
+  },
+  "requiredAction_one": "Acció requerida",
+  "requiredAction_other": "Accions requerides",
+  "requiredActionCount_one": "Accions requerides ({{count}})",
+  "requiredActionCount_other": "Accions requerides ({{count}})",
+  "requiredActionState": "Estat de l'acció requerida",
+  "response": {
+    "error": "Resposta fallida",
+    "optionsDescription": "Escull les teves opcions per a aquesta instància de tasca",
+    "optionsLabel": "Opcions",
+    "received": "Resposta rebuda a ",
+    "respond": "Respondre",
+    "success": "Resposta de {{taskId}} exitosa",
+    "title": "Instància de tasca humana - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Aprovació rebuda",
+    "approvalRequired": "Aprovació requerida",
+    "choiceReceived": "Elecció rebuda",
+    "choiceRequired": "Elecció requerida",
+    "noResponseReceived": "No s'ha rebut cap resposta",
+    "rejectionReceived": "Rebuig rebut",
+    "responseReceived": "Resposta rebuda",
+    "responseRequired": "Resposta requerida"
+  },
+  "subject": "Assumpte"
+}

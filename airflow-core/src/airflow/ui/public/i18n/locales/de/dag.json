@@ -1,0 +1,152 @@
+{
+  "allRuns": "Alle Läufe",
+  "blockingDeps": {
+    "dependency": "Abhängigkeiten",
+    "reason": "Grund",
+    "title": "Abhängigkeiten die die Planung des Task blockieren"
+  },
+  "calendar": {
+    "daily": "Täglich",
+    "hourly": "Stündlich",
+    "legend": {
+      "less": "Weniger",
+      "more": "Mehr"
+    },
+    "navigation": {
+      "nextMonth": "Nächster Monat",
+      "nextYear": "Nächstes Jahr",
+      "previousMonth": "Vorheriger Monat",
+      "previousYear": "Vorheriges Jahr"
+    },
+    "noData": "Keine Daten verfügbar",
+    "noRuns": "Keine Läufe",
+    "totalRuns": "Gesamtzahl der Läufe",
+    "week": "Kalenderwoche {{weekNumber}}",
+    "weekdays": {
+      "friday": "Freitag",
+      "monday": "Montag",
+      "saturday": "Samstag",
+      "sunday": "Sonntag",
+      "thursday": "Donnerstag",
+      "tuesday": "Dienstag",
+      "wednesday": "Mittwoch"
+    }
+  },
+  "code": {
+    "bundleUrl": "Bündel Url",
+    "noCode": "Kein Programmcode gefunden",
+    "parseDuration": "Einlesedauer:",
+    "parsedAt": "Eingelesen um:"
+  },
+  "extraLinks": "Extra Links",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Auf Letzten zurücksetzen",
+      "toggleGroup": "Gruppen umschalten"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Erweitert",
+      "dagDocs": "Dag Dokumentation"
+    }
+  },
+  "logs": {
+    "allLevels": "Alle Protokoll-Stufen",
+    "allSources": "Alle Quellen",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Vollbild",
+      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
+    },
+    "info": "INFO",
+    "noTryNumber": "Keine Versuchsnummer",
+    "settings": "Protokoll-Ansicht",
+    "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "Navigation: Umschalttaste+{{arrow}}",
+    "toggleGroup": "Gruppen umschalten: Leertaste"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Fehlgeschlagener Lauf",
+      "failedRun_other": "Fehlgeschlagene Läufe",
+      "failedTask_one": "Fehlgeschlagener Task",
+      "failedTask_other": "Fehlgeschlagene Tasks",
+      "failedTaskInstance_one": "Fehlgeschlagene Task Instanz",
+      "failedTaskInstance_other": "Fehlgeschlagene Task Instanzen"
+    },
+    "charts": {
+      "assetEvent_one": "Erstelltes Datenset-Ereignis",
+      "assetEvent_other": "Erstellte Datenset-Ereignisse"
+    },
+    "failedLogs": {
+      "hideLogs": "Protokolle ausblenden",
+      "showLogs": "Protokolle anzeigen",
+      "title": "Protokolle kürzlich fehlgeschlagener Tasks",
+      "viewFullLogs": "Vollständige Protokolle ansehen"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Optionen",
+      "showGantt": "Gantt zeigen",
+      "showGraphShortcut": "Graph zeigen (Taste g)",
+      "showGridShortcut": "Gitter zeigen (Taste g)"
+    },
+    "dagRuns": {
+      "label": "Anzahl von Dag Läufen"
+    },
+    "dependencies": {
+      "label": "Abhängigkeiten",
+      "options": {
+        "allDagDependencies": "Alle Dag Abhängigkeiten",
+        "externalConditions": "Externe Bedingungen",
+        "onlyTasks": "Nur Tasks"
+      },
+      "placeholder": "Abhängigkeiten"
+    },
+    "graphDirection": {
+      "label": "Richtung des Graph"
+    }
+  },
+  "paramsFailed": "Laden der Parameter fehlgeschlagen",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Die Anfrage zum Parsen des Dag ist fehlgeschlagen. Eventuell gibt es schon bestehende Anfragen.",
+        "title": "Neues Parsen des Dag fehlgeschlagen"
+      },
+      "success": {
+        "description": "Das Dag sollte gleich neu geparst sein.",
+        "title": "Anfrage zu Dag parsen erfolgreich gestartet"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Ereignisse zu Datensets (Asset)",
+    "auditLog": "Prüf-Log",
+    "backfills": "Auffüllungen",
+    "calendar": "Kalender",
+    "code": "Programmcode",
+    "details": "Details",
+    "logs": "Protokolle",
+    "mappedTaskInstances_one": "Task Instanz [{{count}}]",
+    "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
+    "overview": "Übersicht",
+    "renderedTemplates": "Ausgefüllte Vorlagen",
+    "requiredActions": "Interaktionen",
+    "runs": "Läufe",
+    "taskInstances": "Task Instanzen",
+    "tasks": "Tasks",
+    "xcom": "Task Kommunikation (XComs)"
+  },
+  "taskGroups": {
+    "collapseAll": "Alle Task-Gruppen einklappen",
+    "expandAll": "Alle Task-Gruppen aufklappen"
+  }
+}

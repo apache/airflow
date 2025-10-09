@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+if [ ! -e /usr/local/bin/stop_airflow ]; then
+    ln -s "/opt/airflow/scripts/in_container/stop_tmux_airflow.sh" /usr/local/bin/stop_airflow || true
+fi
+# Use LocalExecutor if not set and if backend is not sqlite as it gives
+# better performance
+if [[ ${BACKEND} != "sqlite"  ]]; then
+    export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+fi
+
+
+export TMUX_TMPDIR=~/.tmux/tmp
+if [ -e ~/.tmux/tmp ]; then
+    rm -rf ~/.tmux/tmp
+fi
+mkdir -p ~/.tmux/tmp
+chmod 777 -R ~/.tmux/tmp
+
+# Creating a new tmux session (below) will start a new login shell and /etc/profile
+# will overwrite the custom Dockerfile PATH variable. Adding the custom PATH export
+# to home directory profile here will take precedence.
+echo "export PATH=$PATH" >> ~/.profile
+
+# Set Session Name
+export TMUX_SESSION="Airflow"
+
+# Start New Session with our name
+tmux new-session -d -s "${TMUX_SESSION}"
+
+tmux set -g pane-border-format "#{pane_index}: #{@airflow_component}"
+tmux set -g pane-border-status "top"
+
+# Enable mouse interaction with tmux. This allows selecting between the panes
+# by clicking with the mouse and also allows scrolling back through terminal
+# output with the mouse wheel.
+tmux set mouse on
+
+# Name first Pane and start bash
+tmux rename-window -t 0 'Main'
+tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
+
+tmux split-window -v
+tmux select-pane -t 1
+if [[ ${BREEZE_DEBUG_SCHEDULER} == "true" ]]; then
+    tmux set-option -p @airflow_component "Scheduler(Debug Mode)"
+    tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_SCHEDULER_PORT} --wait-for-client -m airflow scheduler" C-m
+else
+tmux set-option -p @airflow_component Scheduler
+    tmux send-keys "airflow scheduler" C-m
+fi
+
+if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
+  tmux split-window -h
+  tmux select-pane -t 2
+    if [[ ${BREEZE_DEBUG_APISERVER} == "true" ]]; then
+        tmux set-option -p @airflow_component "API Server(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_APISERVER_PORT} --wait-for-client -m airflow api-server -d" C-m
+    else
+  tmux set-option -p @airflow_component "API Server"
+    if [[ ${DEV_MODE=} == "true" ]]; then
+        tmux send-keys 'airflow api-server -d' C-m
+    else
+        tmux send-keys 'airflow api-server' C-m
+    fi
+    fi
+else
+  tmux split-window -h
+  tmux select-pane -t 3
+    if [[ ${BREEZE_DEBUG_WEBSERVER} == "true" ]]; then
+        tmux set-option -p @airflow_component "Webserver(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_WEBSERVER_PORT} --wait-for-client -m airflow webserver" C-m
+    else
+  tmux set-option -p @airflow_component Webserver
+  if [[ ${DEV_MODE=} == "true" ]]; then
+      tmux send-keys 'airflow webserver -d' C-m
+  else
+      tmux send-keys 'airflow webserver' C-m
+  fi
+fi
+fi
+
+tmux select-pane -t 0
+tmux split-window -h
+if [[ ${BREEZE_DEBUG_TRIGGERER} == "true" ]]; then
+    tmux set-option -p @airflow_component "Triggerer(Debug Mode)"
+    tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_TRIGGERER_PORT} --wait-for-client -m airflow triggerer" C-m
+else
+tmux set-option -p @airflow_component Triggerer
+tmux send-keys 'airflow triggerer' C-m
+fi
+
+if [[ ${INTEGRATION_CELERY} == "true" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    if [[ ${BREEZE_DEBUG_CELERY_WORKER} == "true" ]]; then
+        tmux set-option -p @airflow_component "Celery Worker(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_CELERY_WORKER_PORT} --wait-for-client -m airflow celery worker" C-m
+    else
+    tmux set-option -p @airflow_component "Celery Worker"
+    tmux send-keys 'airflow celery worker' C-m
+fi
+fi
+
+if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    if [[ ${BREEZE_DEBUG_FLOWER} == "true" ]]; then
+        tmux set-option -p @airflow_component "Flower(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_FLOWER_PORT} --wait-for-client -m airflow celery flower" C-m
+    else
+    tmux set-option -p @airflow_component Flower
+    tmux send-keys 'airflow celery flower' C-m
+fi
+fi
+
+if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge3.executors.edge_executor.EdgeExecutor" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    if [[ ${BREEZE_DEBUG_EDGE} == "true" ]]; then
+        tmux set-option -p @airflow_component "Edge Worker(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_EDGE_PORT} --wait-for-client -m airflow edge worker --edge-hostname breeze --queues default" C-m
+    else
+    tmux set-option -p @airflow_component "Edge Worker"
+
+    # Ensure we are not leaking any DB connection information to Edge Worker process
+    tmux send-keys 'unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN' C-m
+    tmux send-keys 'unset AIRFLOW__CELERY__RESULT_BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
+    tmux send-keys 'unset BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_VERSION' C-m
+
+    # Ensure logs are smelling like Remote and are not visible to other components
+    tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
+
+    # Start Edge Worker and make a "breeze" hostname, let it pick only default queue
+    tmux send-keys 'airflow edge worker --edge-hostname breeze --queues default' C-m
+fi
+fi
+
+if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    if [[ ${BREEZE_DEBUG_DAG_PROCESSOR} == "true" ]]; then
+        tmux set-option -p @airflow_component "DAG Processor(Debug Mode)"
+        tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_DAG_PROCESSOR_PORT} --wait-for-client -m airflow dag-processor" C-m
+    else
+    tmux set-option -p @airflow_component "DAG Processor"
+    tmux send-keys 'airflow dag-processor' C-m
+fi
+fi
+
+# Attach Session, on the Main window
+tmux select-pane -t 0
+tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m
+
+tmux attach-session -t "${TMUX_SESSION}":0
+rm /usr/local/bin/stop_airflow

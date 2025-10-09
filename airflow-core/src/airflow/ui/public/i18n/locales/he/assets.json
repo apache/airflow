@@ -1,0 +1,30 @@
+{
+  "consumingDags": "צורכים Dags",
+  "createEvent": {
+    "button": "יצירת אירוע",
+    "manual": {
+      "description": "יצירה ידנית של אירוע בנכס",
+      "extra": "תוכן אירוע בנכס",
+      "label": "ידני"
+    },
+    "materialize": {
+      "description": "הפעלת ה-Dag שנמצא במעלה הזרם של נכס זה",
+      "descriptionWithDag": "הפעלת ה-Dag שנמצא במעלה הזרם של נכס זה: {{dagName}}",
+      "label": "מימוש",
+      "unpauseDag": "בטל השהייה של {{dagName}} בהפעלה"
+    },
+    "success": {
+      "manualDescription": "יצירה ידנית של אירוע בנכס הושלמה בהצלחה.",
+      "manualTitle": "אירוע בנכס נוצר",
+      "materializeDescription": "Dag {{dagId}} במעלה הזרם הופעל בהצלחה.",
+      "materializeTitle": "מבצע מימוש לנכס"
+    },
+    "title": "יצירת אירוע בנכס עבור {{name}}"
+  },
+  "group": "קבוצה",
+  "lastAssetEvent": "אירוע אחרון בנכס",
+  "name": "שם",
+  "producingTasks": "מייצר משימות",
+  "scheduledDags": "Dags מתוזמנים",
+  "searchPlaceholder": "חיפוש נכסים"
+}

@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "Leírás",
+    "key": "Kulcs",
+    "name": "Név",
+    "value": "Érték"
+  },
+  "config": {
+    "columns": {
+      "section": "Szakasz"
+    },
+    "title": "Airflow konfiguráció"
+  },
+  "connections": {
+    "add": "Kapcsolat hozzáadása",
+    "columns": {
+      "connectionId": "Kapcsolat azonosító",
+      "connectionType": "Kapcsolat típus",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_one": "Kapcsolat",
+    "connection_other": "Kapcsolatok",
+    "delete": {
+      "deleteConnection_one": "1 kapcsolat törlése",
+      "deleteConnection_other": "{{count}} kapcsolat törlése",
+      "firstConfirmMessage_one": "A következő kapcsolat törlésére készül:",
+      "firstConfirmMessage_other": "A következő kapcsolatok törlésére készül:",
+      "title": "Kapcsolat törlése"
+    },
+    "edit": "Kapcsolat szerkesztése",
+    "form": {
+      "connectionIdRequired": "Kapcsolat azonosító szükséges",
+      "connectionIdRequirement": "Kapcsolat azonosító nem tartalmazhat szóközöket",
+      "connectionTypeRequired": "Kapcsolat típus szükséges",
+      "extraFields": "Extra mezők",
+      "extraFieldsJson": "Extra mezők JSON",
+      "helperText": "Hiányzó kapcsolat típus? Győződjön meg róla, hogy a megfelelő Airflow Providers Package telepítésre került.",
+      "helperTextForRedactedFields": "A kitakart mezők ('***') változatlanok maradnak, ha nem módosítja őket.",
+      "selectConnectionType": "Kapcsolat típus kiválasztása",
+      "standardFields": "Alapértelmezett mezők"
+    },
+    "nothingFound": {
+      "description": "A környezeti változókon vagy secret kezelőkön keresztül meghatározott kapcsolatok itt nem jelennek meg.",
+      "documentationLink": "További információkért tekintse meg az Airflow dokumentációját.",
+      "learnMore": "Ezek futásidőben kerülnek feldogozásra, és nem láthatók a felhasználói felületen.",
+      "title": "Nem található kapcsolat!"
+    },
+    "searchPlaceholder": "Kapcsolatok keresése",
+    "test": "Kapcsolat tesztelése",
+    "testDisabled": "A kapcsolat tesztelése funkció le van tiltva. Kérjük, forduljon az adminisztrátorhoz az engedélyezéshez.",
+    "typeMeta": {
+      "error": "Nem sikerült lekérni a kapcsolat típus metaadatait",
+      "standardFields": {
+        "description": "Leírás",
+        "host": "Host",
+        "login": "Bejelentkezés",
+        "password": "Jelszó",
+        "port": "Port",
+        "url_schema": "Séma"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Törlés",
+    "modal": {
+      "confirmButton": "Igen, törlöm",
+      "secondConfirmMessage": "Ez a művelet végleges és nem visszavonható.",
+      "thirdConfirmMessage": "Biztosan folytatni szeretné?"
+    },
+    "selected": "Kijelölve",
+    "tooltip": "Kijelölt kapcsolatok törlése"
+  },
+  "formActions": {
+    "save": "Mentés"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Forrás"
+    },
+    "importError_one": "Plugin importálási hiba",
+    "importError_other": "Plugin importálási hibák",
+    "searchPlaceholder": "Keresés fájl szerint"
+  },
+  "pools": {
+    "add": "Pool hozzáadása",
+    "deferredSlotsIncluded": "Várakozó slotok beleszámítva",
+    "delete": {
+      "title": "Pool törlése",
+      "warning": "Ez eltávolít minden poolhoz kapcsolódó metaadatot, és hatással lehet a poolt használó feladatokra."
+    },
+    "edit": "Pool szerkesztése",
+    "form": {
+      "checkbox": "Jelölje be, ha a várakozó feladatokat is bele szeretné számítani a nyitott slotokba",
+      "description": "Leírás",
+      "includeDeferred": "Várakozó feladatok belefoglalása",
+      "nameMaxLength": "A név maximum 256 karakter hosszú lehet",
+      "nameRequired": "Név megadása kötelező",
+      "slots": "Slotok"
+    },
+    "noPoolsFound": "Nem található pool",
+    "pool_one": "Pool",
+    "pool_other": "Poolok",
+    "searchPlaceholder": "Poolok keresése",
+    "sort": {
+      "asc": "Név (A-Z)",
+      "desc": "Név (Z-A)",
+      "placeholder": "Rendezés"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Csomag neve",
+      "version": "Verzió"
+    }
+  },
+  "variables": {
+    "add": "Változó hozzáadása",
+    "columns": {
+      "isEncrypted": "Titkosított"
+    },
+    "delete": {
+      "deleteVariable_one": "1 változó törlése",
+      "deleteVariable_other": "{{count}} változó törlése",
+      "firstConfirmMessage_one": "A következő változó törlésére készül:",
+      "firstConfirmMessage_other": "A következő változók törlésére készül:",
+      "title": "Változó törlése",
+      "tooltip": "Kijelölt változók törlése"
+    },
+    "edit": "Változó szerkesztése",
+    "export": "Exportálás",
+    "exportTooltip": "Kijelölt változók exportálása",
+    "form": {
+      "invalidJson": "Érvénytelen JSON",
+      "keyMaxLength": "A kulcs maximum 250 karakter hosszú lehet",
+      "keyRequired": "Kulcs megadása kötelező",
+      "valueRequired": "Érték megadása kötelező"
+    },
+    "import": {
+      "button": "Importálás",
+      "conflictResolution": "Válassza ki a változó konfliktuskezelést",
+      "errorParsingJsonFile": "Hiba a JSON fájl feldolgozásakor: Töltsön fel egy JSON fájlt változókkal (pl. {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Az import hibát jelez, ha létező változókat talál.",
+          "title": "Hiba"
+        },
+        "overwrite": {
+          "description": "Felülírja a változót konfliktus esetén.",
+          "title": "Felülírás"
+        },
+        "skip": {
+          "description": "Kihagyja a már létező változók importálását.",
+          "title": "Kihagyás"
+        }
+      },
+      "title": "Változók importálása",
+      "upload": "JSON fájl feltöltése",
+      "uploadPlaceholder": "Töltsön fel egy JSON fájlt változókkal (pl. {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "Nincs találat",
+    "searchPlaceholder": "Kulcsok keresése",
+    "variable_one": "Változó",
+    "variable_other": "Változók"
+  }
+}

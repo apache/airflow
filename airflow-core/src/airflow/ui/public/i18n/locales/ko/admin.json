@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "설명",
+    "key": "키",
+    "name": "이름",
+    "value": "값"
+  },
+  "config": {
+    "columns": {
+      "section": "섹션"
+    },
+    "title": "Airflow 구성"
+  },
+  "connections": {
+    "add": "커넥션 추가",
+    "columns": {
+      "connectionId": "커넥션 ID",
+      "connectionType": "커넥션 유형",
+      "host": "호스트",
+      "port": "포트"
+    },
+    "connection_one": "커넥션",
+    "connection_other": "커넥션들",
+    "delete": {
+      "deleteConnection_one": "커넥션 1개 삭제",
+      "deleteConnection_other": "커넥션 {{count}}개 삭제",
+      "firstConfirmMessage_one": "다음 커넥션을 삭제하려고 합니다:",
+      "firstConfirmMessage_other": "다음 커넥션들을 삭제하려고 합니다:",
+      "title": "커넥션 삭제"
+    },
+    "edit": "커넥션 편집",
+    "form": {
+      "connectionIdRequired": "커넥션 ID는 필수 항목입니다",
+      "connectionIdRequirement": "커넥션 ID는 공백만으로 구성될 수 없습니다",
+      "connectionTypeRequired": "커넥션 유형은 필수 항목입니다",
+      "extraFields": "추가 필드",
+      "extraFieldsJson": "추가 필드 JSON",
+      "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
+      "helperTextForRedactedFields": "('***')로 마스킹된 필드는 수정하지 않으면 그대로 유지됩니다.",
+      "selectConnectionType": "커넥션 유형 선택",
+      "standardFields": "기본 필드"
+    },
+    "nothingFound": {
+      "description": "환경 변수나 시크릿 매니저를 통해 정의된 커넥션은 여기에 표시되지 않습니다.",
+      "documentationLink": "자세한 내용은 Airflow 문서를 참고하세요.",
+      "learnMore": "이러한 커넥션은 런타임 시점에 해결되며 UI에는 표시되지 않습니다.",
+      "title": "커넥션을 찾을 수 없습니다."
+    },
+    "searchPlaceholder": "커넥션 검색",
+    "test": "커넥션 테스트",
+    "testDisabled": "커넥션 테스트 기능이 비활성화되어 있습니다. 관리자에게 활성화를 요청하세요.",
+    "typeMeta": {
+      "error": "커넥션 유형 메타 정보를 가져오지 못했습니다",
+      "standardFields": {
+        "description": "설명",
+        "host": "호스트",
+        "login": "로그인",
+        "password": "비밀번호",
+        "port": "포트",
+        "url_schema": "스키마"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "삭제",
+    "modal": {
+      "confirmButton": "네, 삭제합니다",
+      "secondConfirmMessage": "이 작업은 영구적으로 삭제되며 되돌릴 수 없습니다.",
+      "thirdConfirmMessage": "정말로 계속하시겠습니까?"
+    },
+    "selected": "선택됨",
+    "tooltip": "선택된 커넥션들 삭제"
+  },
+  "formActions": {
+    "save": "저장"
+  },
+  "plugins": {
+    "columns": {
+      "source": "소스"
+    },
+    "importError_one": "플러그인 가져오기 오류",
+    "importError_other": "플러그인 가져오기 오류들",
+    "searchPlaceholder": "파일로 검색"
+  },
+  "pools": {
+    "add": "풀 추가",
+    "deferredSlotsIncluded": "연기된 슬롯 포함됨",
+    "delete": {
+      "title": "풀 삭제",
+      "warning": "이 작업은 풀과 관련된 모든 메타데이터를 제거하며, 해당 풀을 사용하는 태스크에 영향을 줄 수 있습니다."
+    },
+    "edit": "풀 편집",
+    "form": {
+      "checkbox": "열린 풀 슬롯 게산시 연기된 작업 포함",
+      "description": "설명",
+      "includeDeferred": "연기됨 포함",
+      "nameMaxLength": "이름은 최대 256자까지 입력할 수 있습니다",
+      "nameRequired": "이름은 필수입니다",
+      "slots": "슬롯"
+    },
+    "noPoolsFound": "풀을 찾을 수 없습니다",
+    "pool_one": "풀",
+    "pool_other": "풀",
+    "searchPlaceholder": "풀 검색",
+    "sort": {
+      "asc": "이름 (A-Z)",
+      "desc": "이름 (Z-A)",
+      "placeholder": "정렬 기준"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "패키지 이름",
+      "version": "버전"
+    }
+  },
+  "variables": {
+    "add": "변수 추가",
+    "columns": {
+      "isEncrypted": "암호화됨 여부"
+    },
+    "delete": {
+      "deleteVariable_one": "변수 1개 삭제",
+      "deleteVariable_other": "변수 {{count}}개 삭제",
+      "firstConfirmMessage_one": "다음 변수를 삭제하려고 합니다:",
+      "firstConfirmMessage_other": "다음 변수들을 삭제하려고 합니다:",
+      "title": "변수 삭제",
+      "tooltip": "선택된 변수들 삭제"
+    },
+    "edit": "변수 편집",
+    "export": "내보내기",
+    "exportTooltip": "선택된 변수들 내보내기",
+    "form": {
+      "invalidJson": "유효하지 않은 JSON입니다",
+      "keyMaxLength": "키는 최대 250자까지 입력할 수 있습니다",
+      "keyRequired": "키는 필수입니다",
+      "valueRequired": "값은 필수입니다"
+    },
+    "import": {
+      "button": "가져오기",
+      "conflictResolution": "변수 충돌 해결 방법 선택",
+      "errorParsingJsonFile": "JSON 파일 구문 분석 오류: 변수들이 포함된 JSON 파일을 업로드하세요 (예: {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "기존 변수가 존재하는 경우 가져오기를 실패합니다.",
+          "title": "실패"
+        },
+        "overwrite": {
+          "description": "충돌 시 해당 변수를 덮어씁니다.",
+          "title": "덮어쓰기"
+        },
+        "skip": {
+          "description": "이미 존재하는 변수는 가져오기를 건너뜁니다.",
+          "title": "건너뛰기"
+        }
+      },
+      "title": "변수 가져오기",
+      "upload": "JSON 파일 업로드",
+      "uploadPlaceholder": "변수를 포함한 JSON 파일 업로드 (e.g., {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "변수를 찾을 수 없습니다",
+    "searchPlaceholder": "키 검색",
+    "variable_one": "변수",
+    "variable_other": "변수들"
+  }
+}

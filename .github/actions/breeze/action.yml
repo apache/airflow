@@ -1,0 +1,58 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Setup Breeze'
+description: 'Sets up Python and Breeze'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    default: "3.10"
+outputs:
+  host-python-version:
+    description: Python version used in host
+    value: ${{ steps.host-python-version.outputs.host-python-version }}
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup python"
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
+    # so low overhead, that just running upload cache/restore cache is slower than installing it from scratch
+    - name: "Install Breeze"
+      shell: bash
+      run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: "${{ inputs.python-version }}"
+    - name: "Free space"
+      shell: bash
+      run: breeze ci free-space
+      env:
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"
+    - name: "Get Python version"
+      shell: bash
+      run: >
+        echo "host-python-version=$(python -c 'import platform; print(platform.python_version())')"
+        >> ${GITHUB_OUTPUT}
+      id: host-python-version
+    - name: "Disable cheatsheet"
+      shell: bash
+      run: breeze setup config --no-cheatsheet --no-asciiart
+      env:
+        AIRFLOW_ROOT_PATH: "${{ github.workspace }}"

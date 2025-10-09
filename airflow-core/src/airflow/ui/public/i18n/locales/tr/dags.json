@@ -1,0 +1,97 @@
+{
+  "assetSchedule": "{{total}} varlıktan {{count}} tanesi güncellendi",
+  "dagActions": {
+    "delete": {
+      "button": "Dag'ı Sil",
+      "warning": "Bu işlem, Çalıştırmalar ve Görevler dahil olmak üzere Dag ile ilgili tüm meta verileri kaldıracaktır."
+    }
+  },
+  "favoriteDag": "Favori Dag",
+  "filters": {
+    "allRunTypes": "Tüm Çalıştırma Tipleri",
+    "allStates": "Tüm Durumlar",
+    "favorite": {
+      "all": "Tümü",
+      "favorite": "Favori",
+      "unfavorite": "Favoriden Çıkar"
+    },
+    "paused": {
+      "active": "Aktif",
+      "all": "Tümü",
+      "paused": "Duraklatılmış"
+    },
+    "runIdPatternFilter": "Dag Çalıştırmalarında Ara",
+    "triggeringUserNameFilter": "Tetikleyen Kullanıcıya Göre Ara"
+  },
+  "ownerLink": "{{owner}} için sahip bağlantısı",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Görev bulunamadı.",
+      "title": "Etkilenen Görevler: {{count}}"
+    },
+    "clear": {
+      "button": "{{type}} Temizle",
+      "buttonTooltip": "Temizlemek için shift+c tuşuna basın",
+      "error": "{{type}} temizlenemedi",
+      "title": "{{type}} Temizle"
+    },
+    "delete": {
+      "button": "{{type}} Sil",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} Sil",
+        "warning": "Bu işlem, {{type}} ile ilgili tüm meta verileri kaldıracaktır."
+      },
+      "error": "{{type}} silinirken hata oluştu",
+      "success": {
+        "description": "{{type}} silme isteği başarılı oldu.",
+        "title": "{{type}} Başarıyla Silindi"
+      }
+    },
+    "markAs": {
+      "button": "{{type}} şu şekilde işaretle...",
+      "buttonTooltip": {
+        "failed": "Başarısız olarak işaretlemek için shift+f tuşuna basın",
+        "success": "Başarılı olarak işaretlemek için shift+s tuşuna basın"
+      },
+      "title": "{{type}} {{state}} olarak işaretle"
+    },
+    "options": {
+      "downstream": "Aşağı Akış",
+      "existingTasks": "Mevcut görevleri temizle",
+      "future": "Gelecek",
+      "onlyFailed": "Sadece başarısız görevleri temizle",
+      "past": "Geçmiş",
+      "queueNew": "Yeni görevleri kuyruğa al",
+      "runOnLatestVersion": "En son paket sürümü ile çalıştır",
+      "upstream": "Yukarı Akış"
+    }
+  },
+  "search": {
+    "advanced": "Gelişmiş Arama",
+    "clear": "Aramayı temizle",
+    "dags": "Dag'larda Ara",
+    "hotkey": "+K",
+    "tasks": "Görevlerde Ara"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Görünen Ada Göre Sırala (A-Z)",
+      "desc": "Görünen Ada Göre Sırala (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Son Çalıştırma Başlangıç Tarihine Göre Sırala (Erken-Geç)",
+      "desc": "Son Çalıştırma Başlangıç Tarihine Göre Sırala (Geç-Erken)"
+    },
+    "lastRunState": {
+      "asc": "Son Çalıştırma Durumuna Göre Sırala (A-Z)",
+      "desc": "Son Çalıştırma Durumuna Göre Sırala (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sonraki Dag Çalıştırmasına Göre Sırala (Erken-Geç)",
+      "desc": "Sonraki Dag Çalıştırmasına Göre Sırala (Geç-Erken)"
+    },
+    "placeholder": "Sıralama kriteri"
+  },
+  "unfavoriteDag": "Favoriden Çıkar"
+}
