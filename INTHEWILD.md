@@ -101,6 +101,7 @@ Currently, **officially** using Airflow:
 1. [BNY Mellon](https://www.bnymellon.com/) [[@sellist](https://github.com/sellist)]
 1. [Boda Telecom Suite - CE](https://github.com/bodastage/bts-ce) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
 1. [Bodastage Solutions](http://bodastage.com) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
+1. [Boeing Inc](https://boeing.com)
 1. [Bombora Inc](https://bombora.com/) [[@jeffkpayne](https://github.com/jeffkpayne), [@pakelley](https://github.com/pakelley), [@dNavalta](https://github.com/dNavalta), [@austynh](https://github.com/austynh), [@TheOriginalAlex](https://github.com/TheOriginalAlex)]
 1. [Bonial International GmbH](https://www.bonial.com/)
 1. [Bonnier Broadcasting](http://www.bonnierbroadcasting.com) [[@wileeam](https://github.com/wileeam)]
@@ -355,6 +356,7 @@ Currently, **officially** using Airflow:
 1. [Modernizing Medicine](https://www.modmed.com/) [[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Moka](https://www.mokapos.com) [[@willioktavega](https://github.com/willioktavega)]
 1. [Movember](https://movember.com)
+1. [MSCI](https://msci.com)[[@jmcdowellmsci](https://github.com/jmcdowellmsci)]
 1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Multiply](https://www.multiply.com) [[@nrhvyc](https://github.com/nrhvyc)]
 1. [Mutt Data](https://muttdata.ai/) [[@plorenzatto](https://github.com/plorenzatto)]
@@ -549,6 +551,7 @@ Currently, **officially** using Airflow:
 1. [VLMedia](https://www.vlmedia.com.tr) [[@iercan](https://github.com/iercan)]
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
+1. [Vrahad Analytics](https://vrahadanalytics.com/) [[@varun-bhardwaj-sde](https://github.com/varun-bhardwaj-sde)]
 1. [Vroom](https://www.vroom.com) [[@liu431](https://github.com/liu431)]
 1. [Walmart Labs](https://www.walmartlabs.com) [[@bharathpalaksha](https://github.com/bharathpalaksha), [@vipul007ravi](https://github.com/vipul007ravi), [@pateash](https://github.com/pateash)]
 1. [Wayfair](https://www.wayfair.com) [[@wayfair](https://github.com/wayfair)]
