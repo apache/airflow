@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 from testcontainers.elasticsearch import ElasticSearchContainer
+
+os.environ.setdefault("TESTCONTAINERS_HOST_OVERRIDE", "host.docker.internal")
 
 
 @pytest.fixture(scope="session")
