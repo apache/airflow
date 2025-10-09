@@ -157,9 +157,7 @@ def get_dag_structure(
             SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.id != latest_serdag.id,
             SerializedDagModel.dag_version_id.in_(
-                select(TaskInstance.dag_version_id)
-                .join(TaskInstance.dag_run)
-                .where(DagRun.id.in_(run_ids))
+                select(TaskInstance.dag_version_id).join(TaskInstance.dag_run).where(DagRun.id.in_(run_ids))
             ),
         )
     )
@@ -335,6 +333,7 @@ def get_grid_ti_summaries(
                 TaskInstance.dag_version_id,
                 TaskInstance.start_date,
                 TaskInstance.end_date,
+                TaskInstance.duration,
             )
             .where(TaskInstance.dag_id == dag_id)
             .where(TaskInstance.run_id == run_id)
@@ -350,7 +349,7 @@ def get_grid_ti_summaries(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
 
-    # Build TI details per task_id
+    # Build TI details per task_id (state + timing + DB-backed duration only).
     ti_details: dict[str, list[dict[str, object | None]]] = collections.defaultdict(list)
     for r in rows:
         ti_details[r.task_id].append(
@@ -358,15 +357,20 @@ def get_grid_ti_summaries(
                 "state": r.state,
                 "start_date": r.start_date,
                 "end_date": r.end_date,
+                "duration": r.duration,
             }
         )
 
-    # Pre-compute min start / max end per leaf task for the tooltip duration
+    # Pre-compute min start / max end per leaf task (used by the UI for tooltips)
     task_min_max: dict[str, tuple[object | None, object | None]] = {}
+    task_first_duration: dict[str, float | None] = {}
     for task_id, items in ti_details.items():
         starts = [i["start_date"] for i in items if i.get("start_date") is not None]
         ends = [i["end_date"] for i in items if i.get("end_date") is not None]
         task_min_max[task_id] = (min(starts) if starts else None, max(ends) if ends else None)
+
+        dur = next((i["duration"] for i in items if i.get("duration") is not None), None)
+        task_first_duration[task_id] = dur
 
     serdag = _get_serdag(
         dag_id=dag_id,
@@ -388,10 +392,11 @@ def get_grid_ti_summaries(
             if node["type"] in {"task", "mapped_task"}:
                 yielded_task_ids.add(node["task_id"])
                 if node["type"] == "task":
-                    # Attach min/max so the UI can render Duration for leaf tasks
+                    # Attach min/max and DB-backed duration for leaf tasks.
                     min_start, max_end = task_min_max.get(node["task_id"], (None, None))
                     node["min_start_date"] = min_start
                     node["max_end_date"] = max_end
+                    node["duration"] = task_first_duration.get(node["task_id"])
                     node["child_states"] = None
             yield node
 
@@ -408,6 +413,7 @@ def get_grid_ti_summaries(
                 "child_states": None,
                 "min_start_date": min_start,
                 "max_end_date": max_end,
+                "duration": task_first_duration.get(task_id),
             }
 
     task_nodes = list(gen_nodes())

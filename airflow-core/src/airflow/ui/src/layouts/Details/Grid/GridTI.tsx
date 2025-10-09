@@ -21,14 +21,13 @@ import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
-import dayjs from "dayjs";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
-import { renderDuration } from "src/utils";
+import { getDuration, renderDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
@@ -84,22 +83,25 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
-  const start = instance.min_start_date ?? undefined;
-  const end = instance.max_end_date ?? undefined;
-
+  const start: string | undefined = instance.min_start_date ?? undefined;
+  const end: string | undefined = instance.max_end_date ?? undefined;
   const hasStart = start !== undefined;
   const hasEnd = end !== undefined;
 
-  const seconds =
-    hasStart && hasEnd ? dayjs(end).diff(dayjs(start), "second", true) : undefined;
+  const serverDurationUnknown = (instance as unknown as { duration?: unknown }).duration;
+  const serverDurationSeconds = typeof serverDurationUnknown === "number" ? serverDurationUnknown : undefined;
 
   const durationText =
-    seconds === undefined ? translate("notAvailable", { defaultValue: "--" }) : renderDuration(seconds) ?? translate("notAvailable", { defaultValue: "--" });
+    serverDurationSeconds === undefined ? getDuration(start, end) : renderDuration(serverDurationSeconds);
+
+  const isSelected =
+    ((selectedTaskId ?? undefined) !== undefined && selectedTaskId === taskId) ||
+    ((selectedGroupId ?? undefined) !== undefined && selectedGroupId === taskId);
 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
+      bg={isSelected ? "info.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"
@@ -142,9 +144,11 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
                 </Text>
               ) : undefined}
 
-              <Text>
-                {translate("duration")}: {durationText}
-              </Text>
+              {durationText === undefined ? undefined : (
+                <Text>
+                  {translate("duration")}: {durationText}
+                </Text>
+              )}
             </Box>
           }
           portalled
