@@ -423,12 +423,13 @@ class SerializedDagModel(Base):
             return False
 
         if dag_version and not dag_version.task_instances:
-            # This is for dynamic DAGs that the hashes changes often. We should update
-            # the serialized dag, the dag_version and the dag_code instead of a new version
-            # if the dag_version is not associated with any task instances
-            latest_ser_dag = cls.get(dag.dag_id, session=session)
-            
-            if latest_ser_dag:  
+            # This is for dynamic DAGs whose hashes change often. We should update
+            # the serialized DAG, the dag_version, and the dag_code instead of creating
+            # a new version if the dag_version has no associated task instances.
+
+            latest_ser_dag = dag_version.serialized_dag  # Use serialized_dag directly from dag_version
+
+            if latest_ser_dag:
                 if TYPE_CHECKING:
                     assert latest_ser_dag is not None
                 # Update the serialized DAG with the new_serialized_dag
@@ -436,12 +437,12 @@ class SerializedDagModel(Base):
                 latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
                 latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
                 session.merge(latest_ser_dag)
-                # The dag_version and dag_code may not have changed, still we should
-                # do the below actions:
-                # Update the latest dag version
+
+                # Update the dag_version details
                 dag_version.bundle_name = bundle_name
                 dag_version.bundle_version = bundle_version
                 session.merge(dag_version)
+
                 # Update the latest DagCode
                 DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
                 return True
