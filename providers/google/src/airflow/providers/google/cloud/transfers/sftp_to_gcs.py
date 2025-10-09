@@ -78,6 +78,8 @@ class SFTPToGCSOperator(BaseOperator):
         then uploads (may require significant disk space).
         When ``True``, the file streams directly without using local disk.
         Defaults to ``False``.
+    :param fail_on_file_not_exist: If True, operator fails when file does not exist,
+        if False, operator will not fail and skips transfer. Default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -101,6 +103,7 @@ class SFTPToGCSOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
         use_stream: bool = False,
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -116,7 +119,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
         self.use_stream = use_stream
-
+        self.fail_on_file_not_exist = fail_on_file_not_exist
     @cached_property
     def sftp_hook(self):
         return SFTPHook(self.sftp_conn_id)
@@ -128,7 +131,16 @@ class SFTPToGCSOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
+        sftp_client = self.sftp_hook.get_conn().open_sftp()
+        
+        try:
+            sftp_client.stat(self.sftp_path)
+        except FileNotFoundError:
+            if self.fail_on_file_not_exist:
+                raise
+            self.log.info("File %s not found on SFTP server. Skipping transfer.", self.sftp_path)
+            return
+        
         if WILDCARD in self.source_path:
             total_wildcards = self.source_path.count(WILDCARD)
             if total_wildcards > 1:
@@ -172,7 +184,6 @@ class SFTPToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-
         if self.use_stream:
             dest_bucket = gcs_hook.get_bucket(self.destination_bucket)
             dest_blob = dest_bucket.blob(destination_object)
