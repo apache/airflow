@@ -483,6 +483,21 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert sorted([dag["dag_id"] for dag in body["dags"]]) == sorted(expected_ids)
 
+    def test_get_dags_filter_non_favorites(self, session, test_client):
+        """Test filtering DAGs by is_favorite=false."""
+        # Mark DAG1 as favorite
+        session.add(DagFavorite(user_id="test", dag_id=DAG1_ID))
+        session.commit()
+
+        response = test_client.get("/dags", params={"is_favorite": False})
+
+        assert response.status_code == 200
+        body = response.json()
+
+        # Should return only non-favorite DAGs (DAG2)
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG2_ID]
+
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags")
         assert response.status_code == 401
@@ -862,6 +877,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
+            "is_favorite": False,
         }
         assert res_json == expected
 
@@ -957,6 +973,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
+            "is_favorite": False,
         }
         assert res_json == expected
 
@@ -967,6 +984,30 @@ class TestDagDetails(TestDagEndpoint):
     def test_dag_details_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 403
+
+    def test_dag_details_includes_is_favorite_field(self, session, test_client):
+        """Test that DAG details include the is_favorite field."""
+        # Mark DAG2 as favorite
+        session.add(DagFavorite(user_id="test", dag_id=DAG2_ID))
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify is_favorite field is present and correct
+        assert "is_favorite" in body
+        assert isinstance(body["is_favorite"], bool)
+        assert body["is_favorite"] is True
+
+        # Test with non-favorite DAG
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "is_favorite" in body
+        assert isinstance(body["is_favorite"], bool)
+        assert body["is_favorite"] is False
 
 
 class TestGetDag(TestDagEndpoint):
