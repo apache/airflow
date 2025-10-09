@@ -1,9 +1,9 @@
 {
-  "assetSchedule": "{{count}} จาก {{total}} รายการอัปเดตแล้ว",
+  "assetSchedule": "{{count}} จาก {{total}} รายการ Assets อัปเดตแล้ว",
   "dagActions": {
     "delete": {
       "button": "ลบ Dag",
-      "warning": "การดำเนินการนี้จะลบเมตาดาต้าทั้งหมดที่เกี่ยวข้องกับ Dag รวมถึง Runs และ Tasks"
+      "warning": "การดำเนินการนี้จะลบเมทาดาต้าทั้งหมดที่เกี่ยวข้องกับ Dag รวมถึงการทำงานและรายละเอียดงานด้วย"
     }
   },
   "favoriteDag": "ชื่นชอบ Dag",
@@ -25,8 +25,8 @@
   "ownerLink": "ลิงก์เจ้าของสำหรับ {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
-      "noItemsFound": "ไม่พบ Tasks",
-      "title": "Tasks ที่ได้รับผลกระทบ: {{count}}"
+      "noItemsFound": "ไม่พบงาน",
+      "title": "งานที่ได้รับผลกระทบ: {{count}}"
     },
     "clear": {
       "button": "ล้าง {{type}}",
@@ -39,7 +39,7 @@
       "dialog": {
         "resourceName": "{{type}} {{id}}",
         "title": "ลบ {{type}}",
-        "warning": "การดำเนินการนี้จะลบเมตาดาต้าทั้งหมดที่เกี่ยวข้องกับ {{type}}"
+        "warning": "การดำเนินการนี้จะลบเมทาดาต้าทั้งหมดที่เกี่ยวข้องกับ {{type}}"
       },
       "error": "เกิดข้อผิดพลาดในการลบ {{type}}",
       "success": {
@@ -50,20 +50,20 @@
     "markAs": {
       "button": "ทำเครื่องหมาย {{type}} เป็น...",
       "buttonTooltip": {
-        "failed": "กด shift+f เพื่อทำเครื่องหมายเป็นล้มเหลว",
-        "success": "กด shift+s เพื่อทำเครื่องหมายเป็นสำเร็จ"
+        "failed": "กด shift+f เพื่อทำเครื่องหมายว่าล้มเหลว",
+        "success": "กด shift+s เพื่อทำเครื่องหมายว่าสำเร็จ"
       },
       "title": "ทำเครื่องหมาย {{type}} เป็น {{state}}"
     },
     "options": {
-      "downstream": "Downstream",
-      "existingTasks": "ล้าง Tasks ที่มีอยู่",
-      "future": "ในอนาคต",
-      "onlyFailed": "ล้างเฉพาะ Tasks ที่ล้มเหลว",
-      "past": "ในอดีต",
-      "queueNew": "จัดคิว Tasks ใหม่",
-      "runOnLatestVersion": "ทำงานด้วยเวอร์ชันล่าสุดของชุดรวม (bundle)",
-      "upstream": "Upstream"
+      "downstream": "งานถัดไป",
+      "existingTasks": "ล้างงานที่มีอยู่แล้ว",
+      "future": "งานในอนาคต",
+      "onlyFailed": "ล้างเฉพาะงานที่ล้มเหลว",
+      "past": "งานในอดีต",
+      "queueNew": "จัดคิวงานใหม่",
+      "runOnLatestVersion": "ทำงานด้วยเวอร์ชันล่าสุดของชุดรวม (Bundle)",
+      "upstream": "งานก่อนหน้า"
     }
   },
   "search": {
@@ -71,7 +71,7 @@
     "clear": "ล้างการค้นหา",
     "dags": "ค้นหา Dags",
     "hotkey": "+K",
-    "tasks": "ค้นหา Tasks"
+    "tasks": "ค้นหางาน (Tasks)"
   },
   "sort": {
     "displayName": {
@@ -87,8 +87,8 @@
       "desc": "จัดเรียงตามสถานะการทำงานครั้งล่าสุด (Z-A)"
     },
     "nextDagRun": {
-      "asc": "จัดเรียงตาม Next Dag Run (เก่าสุด-ใหม่สุด)",
-      "desc": "จัดเรียงตาม Next Dag Run (ใหม่สุด-เก่าสุด)"
+      "asc": "จัดเรียงตาม Dag Run ถัดไป (เก่าสุด-ใหม่สุด)",
+      "desc": "จัดเรียงตาม Dag Run ถัดไป (ใหม่สุด-เก่าสุด)"
     },
     "placeholder": "จัดเรียงตาม"
   },

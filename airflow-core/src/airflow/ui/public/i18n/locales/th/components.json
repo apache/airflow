@@ -1,31 +1,31 @@
 {
   "backfill": {
-    "affected_one": "จะมี 1 Run ถูกทริกเกอร์",
-    "affected_other": "จะมี {{count}} Runs ถูกทริกเกอร์",
-    "affectedNone": "ไม่มี Run ที่ตรงกับเงื่อนไขที่เลือก",
-    "allRuns": "ทุก Run",
-    "backwards": "รันย้อนกลับ",
+    "affected_one": "จะมีการทริกเกอร์ให้ทำงาน 1 ครั้ง",
+    "affected_other": "จะมีการทริกเกอร์ให้ทำงาน {{count}} ครั้ง",
+    "affectedNone": "ไม่มีการทำงานที่ตรงกับเงื่อนไขที่เลือก",
+    "allRuns": "ทุกการทำงาน",
+    "backwards": "ทำงานแบบย้อนกลับ",
     "dateRange": "ช่วงวันที่",
     "errorStartDateBeforeEndDate": "วันที่เริ่มต้นต้องมาก่อนวันที่สิ้นสุด",
-    "maxRuns": "จำนวน Run ที่ใช้งานพร้อมกันสูงสุด",
-    "missingAndErroredRuns": "Runs ที่หายไปและมีข้อผิดพลาด",
-    "missingRuns": "Runs ที่หายไป",
+    "maxRuns": "จำนวนการทำงานที่ทำพร้อมกันสูงสุด",
+    "missingAndErroredRuns": "การทำงานที่หายไปและเกิดข้อผิดพลาด",
+    "missingRuns": "การทำงานที่หายไป",
     "reprocessBehavior": "พฤติกรรมการประมวลผลซ้ำ",
-    "run": "รัน Backfill",
-    "selectDescription": "รัน Dag นี้ตามช่วงวันที่",
+    "run": "สั่ง Backfill",
+    "selectDescription": "สั่งให้ Dag นี้ทำงานตามช่วงเวลาที่กำหนด",
     "selectLabel": "Backfill",
-    "title": "รัน Backfill",
+    "title": "สั่ง Backfill",
     "toaster": {
       "success": {
         "description": "งาน Backfill ถูกทริกเกอร์สำเร็จแล้ว",
         "title": "สร้าง Backfill แล้ว"
       }
     },
-    "tooltip": "Backfill ต้องการตารางเวลา (Schedule)",
+    "tooltip": "Backfill ต้องการการกำหนดเวลาทำงาน (schedule)",
     "unpause": "ยกเลิกการหยุดพัก {{dag_display_name}} เมื่อทริกเกอร์",
     "validation": {
-      "datesRequired": "ต้องระบุวันเริ่มต้นและวันสิ้นสุดของ Data Interval",
-      "startBeforeEnd": "วันเริ่มต้นของ Data Interval ต้องน้อยกว่าหรือเท่ากับวันสิ้นสุด"
+      "datesRequired": "จำเป็นต้องระบุวันเริ่มต้นและวันสิ้นสุดทั้งสองวัน",
+      "startBeforeEnd": "วันเริ่มต้นต้องน้อยกว่าหรือเท่ากับวันสิ้นสุด"
     }
   },
   "banner": {
@@ -45,45 +45,45 @@
   },
   "dagWarnings": {
     "error_one": "1 ข้อผิดพลาด",
-    "errorAndWarning": "1 ข้อผิดพลาด และ {{warningText}}",
+    "errorAndWarning": "1 ข้อผิดพลาดและ {{warningText}}",
     "warning_one": "1 คำเตือน",
     "warning_other": "{{count}} คำเตือน"
   },
   "durationChart": {
     "duration": "ระยะเวลา (วินาที)",
     "lastDagRun_one": "Dag Run ล่าสุด",
-    "lastDagRun_other": "Dag Runs ล่าสุด {{count}} ครั้ง",
+    "lastDagRun_other": "Dag Runs {{count}} ครั้งล่าสุด",
     "lastTaskInstance_one": "Task Instance ล่าสุด",
-    "lastTaskInstance_other": "Task Instances ล่าสุด {{count}} ครั้ง",
+    "lastTaskInstance_other": "Task Instances {{count}} ครั้งล่าสุด",
     "queuedDuration": "ระยะเวลาที่รอคิว",
-    "runAfter": "รันหลังจาก",
-    "runDuration": "ระยะเวลาการรัน"
+    "runAfter": "ทำงานหลังจาก",
+    "runDuration": "ระยะเวลาการทำงาน"
   },
   "fileUpload": {
     "files_other": "{{count}} ไฟล์"
   },
   "flexibleForm": {
     "placeholder": "เลือกค่า",
-    "placeholderArray": "กรอกข้อความแต่ละบรรทัดแยกกัน",
+    "placeholderArray": "กรอกค่าแยกกันในบรรทัดใหม่",
     "placeholderExamples": "เริ่มพิมพ์เพื่อดูตัวเลือก",
     "placeholderMulti": "เลือกค่าเดียวหรือหลายค่า",
     "validationErrorArrayNotArray": "ค่าต้องเป็น Array",
-    "validationErrorArrayNotNumbers": "ทุกองค์ประกอบใน Array ต้องเป็นตัวเลข",
-    "validationErrorArrayNotObject": "ทุกองค์ประกอบใน Array ต้องเป็น Object",
+    "validationErrorArrayNotNumbers": "สมาชิกทั้งหมดใน Array ต้องเป็นตัวเลข",
+    "validationErrorArrayNotObject": "สมาชิกทั้งหมดใน Array ต้องเป็น Object",
     "validationErrorRequired": "จำเป็นต้องกรอกช่องนี้"
   },
   "graph": {
-    "directionDown": "บนลงล่าง",
-    "directionLeft": "ขวาไปซ้าย",
-    "directionRight": "ซ้ายไปขวา",
-    "directionUp": "ล่างขึ้นบน",
-    "downloadImage": "ดาวน์โหลดรูปภาพแผนภาพ",
-    "downloadImageError": "ไม่สามารถดาวน์โหลดรูปภาพแผนภาพได้",
+    "directionDown": "จากบนลงล่าง",
+    "directionLeft": "จากขวาไปซ้าย",
+    "directionRight": "จากซ้ายไปขวา",
+    "directionUp": "จากล่างขึ้นบน",
+    "downloadImage": "ดาวน์โหลดรูปภาพกราฟ",
+    "downloadImageError": "ไม่สามารถดาวน์โหลดรูปภาพกราฟได้",
     "downloadImageErrorTitle": "ดาวน์โหลดล้มเหลว",
     "otherDagRuns": "+Dag Runs อื่น ๆ",
-    "taskCount_one": "{{count}} Task",
-    "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "กลุ่ม Task"
+    "taskCount_one": "{{count}} งาน",
+    "taskCount_other": "{{count}} งาน",
+    "taskGroup": "กลุ่มงาน"
   },
   "limitedList": "+{{count}} เพิ่มเติม",
   "logs": {
@@ -94,7 +94,7 @@
   "sortedAscending": "เรียงจากน้อยไปมาก",
   "sortedDescending": "เรียงจากมากไปน้อย",
   "sortedUnsorted": "ไม่เรียงลำดับ",
-  "taskTries": "จำนวนครั้งที่ลอง Task",
+  "taskTries": "จำนวนครั้งที่ทำงาน",
   "toggleCardView": "แสดงมุมมองแบบการ์ด",
   "toggleTableView": "แสดงมุมมองแบบตาราง",
   "triggerDag": {
@@ -102,8 +102,8 @@
     "loading": "กำลังโหลดข้อมูล Dag...",
     "loadingFailed": "โหลดข้อมูล Dag ไม่สำเร็จ กรุณาลองใหม่",
     "runIdHelp": "ไม่บังคับ - จะถูกสร้างอัตโนมัติหากไม่ระบุ",
-    "selectDescription": "ทริกเกอร์ Dag นี้สำหรับการรันครั้งเดียว",
-    "selectLabel": "Single Run",
+    "selectDescription": "ทริกเกอร์ Dag นี้สำหรับการทำงานครั้งเดียว",
+    "selectLabel": "ทำงานครั้งเดียว",
     "title": "ทริกเกอร์ Dag",
     "toaster": {
       "success": {
@@ -123,7 +123,7 @@
     "bundleName": "ชื่อ Bundle",
     "bundleVersion": "เวอร์ชัน Bundle",
     "createdAt": "สร้างเมื่อ",
-    "versionId": "รหัสเวอร์ชัน"
+    "versionId": "ID เวอร์ชัน"
   },
   "versionSelect": {
     "dagVersion": "เวอร์ชัน Dag",

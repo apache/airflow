@@ -1,10 +1,10 @@
 {
-  "mapped": "ถูกแมพแล้ว (Mapped)",
-  "notMapped": "ยังไม่ได้แมพ (Not mapped)",
-  "retries": "การลองใหม่ (Retries)",
-  "searchTasks": "ค้นหา Tasks",
-  "selectMapped": "เลือกที่ถูกแมพ",
-  "selectOperator": "เลือก Operators",
+  "mapped": "ถูกแม็ปแล้ว",
+  "notMapped": "ยังไม่ได้แม็ป",
+  "retries": "การลองใหม่",
+  "searchTasks": "ค้นหางาน",
+  "selectMapped": "เลือกการแม็ป",
+  "selectOperator": "เลือกตัวดำเนินการ",
   "selectRetryValues": "เลือกค่าการลองใหม่",
-  "selectTriggerRules": "เลือกกฎการทริกเกอร์ (Trigger Rules)"
+  "selectTriggerRules": "เลือกกฎการทริกเกอร์"
 }

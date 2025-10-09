@@ -1,9 +1,9 @@
 {
-  "allRuns": "การรันทั้งหมด",
+  "allRuns": "การทำงานทั้งหมด",
   "blockingDeps": {
     "dependency": "การพึ่งพา",
     "reason": "เหตุผล",
-    "title": "การพึ่งพาที่บล็อกไม่ให้ Task ถูกจัดตาราง"
+    "title": "การพึ่งพาที่บล็อกงานไม่ให้ถูกกำหนดเวลาทำงาน"
   },
   "calendar": {
     "daily": "รายวัน",
@@ -20,9 +20,9 @@
       "previousYear": "ปีก่อนหน้า"
     },
     "noData": "ไม่มีข้อมูล",
-    "noFailedRuns": "ไม่มีรันที่ล้มเหลว",
-    "noRuns": "ไม่มีการรัน",
-    "totalRuns": "การรันทั้งหมด",
+    "noFailedRuns": "ไม่มีการทำงานที่ล้มเหลว",
+    "noRuns": "ไม่มีการทำงาน",
+    "totalRuns": "การทำงานทั้งหมด",
     "week": "สัปดาห์ที่ {{weekNumber}}",
     "weekdays": {
       "friday": "ศ.",
@@ -37,8 +37,8 @@
   "code": {
     "bundleUrl": "URL ของ Bundle",
     "noCode": "ไม่พบโค้ด",
-    "parseDuration": "ระยะเวลา Parse:",
-    "parsedAt": "Parse เมื่อ:"
+    "parseDuration": "ระยะเวลาการประมวลผล:",
+    "parsedAt": "ประมวลผลเมื่อ:"
   },
   "extraLinks": "ลิงก์เพิ่มเติม",
   "grid": {
@@ -61,7 +61,7 @@
     "error": "ข้อผิดพลาด (ERROR)",
     "fullscreen": {
       "button": "เต็มจอ",
-      "tooltip": "กด {{hotkey}} เพื่อเข้าสู่เต็มจอ"
+      "tooltip": "กด {{hotkey}} เพื่อเข้าสู่โหมดเต็มจอ"
     },
     "info": "ข้อมูล (INFO)",
     "noTryNumber": "ไม่มีหมายเลขการลอง",
@@ -75,21 +75,21 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_one": "การรันที่ล้มเหลว",
-      "failedRun_other": "การรันที่ล้มเหลว",
-      "failedTask_one": "Task ที่ล้มเหลว",
-      "failedTask_other": "Tasks ที่ล้มเหลว",
+      "failedRun_one": "การทำงานที่ล้มเหลว",
+      "failedRun_other": "การทำงานที่ล้มเหลว",
+      "failedTask_one": "งานที่ล้มเหลว",
+      "failedTask_other": "งานที่ล้มเหลว",
       "failedTaskInstance_one": "Task Instance ที่ล้มเหลว",
       "failedTaskInstance_other": "Task Instances ที่ล้มเหลว"
     },
     "charts": {
-      "assetEvent_one": "การสร้าง Asset Event",
-      "assetEvent_other": "การสร้าง Asset Events"
+      "assetEvent_one": "การสร้างอีเวนต์ให้กับ Asset",
+      "assetEvent_other": "การสร้างอีเวนต์ให้กับ Asset"
     },
     "failedLogs": {
       "hideLogs": "ซ่อน Logs",
       "showLogs": "แสดง Logs",
-      "title": "Logs ของ Task ที่ล้มเหลวล่าสุด",
+      "title": "Logs ของงานที่ล้มเหลวล่าสุด",
       "viewFullLogs": "ดู Logs แบบเต็ม"
     }
   },
@@ -97,8 +97,8 @@
     "buttons": {
       "options": "ตัวเลือก",
       "showGantt": "แสดง Gantt",
-      "showGraphShortcut": "แสดง Graph (กด g)",
-      "showGridShortcut": "แสดง Grid (กด g)"
+      "showGraphShortcut": "แสดงกราฟ (กด g)",
+      "showGridShortcut": "แสดงกริด (กด g)"
     },
     "dagRuns": {
       "label": "จำนวน Dag Runs"
@@ -108,29 +108,29 @@
       "options": {
         "allDagDependencies": "การพึ่งพาของ Dag ทั้งหมด",
         "externalConditions": "เงื่อนไขภายนอก",
-        "onlyTasks": "เฉพาะ Tasks"
+        "onlyTasks": "เฉพาะงาน"
       },
       "placeholder": "การพึ่งพา"
     },
     "graphDirection": {
-      "label": "ทิศทางกราฟ"
+      "label": "ทิศทางของกราฟ"
     }
   },
-  "paramsFailed": "โหลด params ไม่สำเร็จ",
+  "paramsFailed": "โหลดพารามิเตอร์ไม่สำเร็จ",
   "parse": {
     "toaster": {
       "error": {
-        "description": "การร้องขอ parse Dag ล้มเหลว อาจมีคำขอ parse ที่ยังรอการประมวลผล",
-        "title": "Dag ล้มเหลวในการ Reparse"
+        "description": "การร้องขอประมวลผล Dag ล้มเหลว อาจมีคำขอการประมวลผลที่รอดำเนินการอยู่",
+        "title": "การประมวลผล DAG ล้มเหลว"
       },
       "success": {
-        "description": "Dag จะถูก Reparse ในไม่ช้า",
-        "title": "ส่งคำขอ Reparse สำเร็จ"
+        "description": "DAG จะถูกประมวลผลใหม่ในเร็ว ๆ นี้",
+        "title": "ส่งคำขอประมวลผลใหม่สำเร็จแล้ว"
       }
     }
   },
   "tabs": {
-    "assetEvents": "Asset Events",
+    "assetEvents": "อีเวนต์ของ Asset",
     "auditLog": "บันทึกการตรวจสอบ",
     "backfills": "Backfills",
     "calendar": "ปฏิทิน",
@@ -141,14 +141,14 @@
     "mappedTaskInstances_other": "Task Instances [{{count}}]",
     "overview": "ภาพรวม",
     "renderedTemplates": "เทมเพลตที่เรนเดอร์แล้ว",
-    "requiredActions": "การกระทำที่จำเป็น",
-    "runs": "Runs",
+    "requiredActions": "การดำเนินการที่จำเป็น",
+    "runs": "การทำงาน",
     "taskInstances": "Task Instances",
-    "tasks": "Tasks",
+    "tasks": "งาน",
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "ย่อกลุ่ม Tasks ทั้งหมด",
-    "expandAll": "ขยายกลุ่ม Tasks ทั้งหมด"
+    "collapseAll": "ย่อกลุ่มงานทั้งหมด",
+    "expandAll": "ขยายกลุ่มงานทั้งหมด"
   }
 }

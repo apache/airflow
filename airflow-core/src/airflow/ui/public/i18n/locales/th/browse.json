@@ -5,13 +5,13 @@
       "expandAllExtra": "ขยายข้อมูล JSON เพิ่มเติมทั้งหมด"
     },
     "columns": {
-      "event": "เหตุการณ์",
+      "event": "อีเวนต์",
       "extra": "เพิ่มเติม",
       "user": "ผู้ใช้",
       "when": "เมื่อไหร่"
     },
     "filters": {
-      "eventType": "ประเภทเหตุการณ์"
+      "eventType": "ประเภทของอีเวนต์"
     },
     "title": "บันทึกการตรวจสอบ (Audit Log)"
   },
