@@ -136,7 +136,6 @@ class TestListPyFilesPath:
             "test_nested_dag.py",
             ".airflowignore",
         }
-        #  "test_dont_ignore.py",
         should_not_ignore = {
             "test_on_kill.py",
             "test_negate_ignore.py",
