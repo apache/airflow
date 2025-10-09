@@ -35,45 +35,6 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
 
 export const customConfig = defineConfig({
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
-  globalCss: {
-    // ANSI color classes for better readability with Chakra theme
-    ".ansi-yellow-fg": {
-      color: "var(--chakra-colors-yellow-600)",
-    },
-    ".ansi-bright-yellow-fg": {
-      color: "var(--chakra-colors-yellow-500)",
-    },
-    ".ansi-red-fg": {
-      color: "var(--chakra-colors-red-500)",
-    },
-    ".ansi-bright-red-fg": {
-      color: "var(--chakra-colors-red-400)",
-    },
-    ".ansi-green-fg": {
-      color: "var(--chakra-colors-green-600)",
-    },
-    ".ansi-bright-green-fg": {
-      color: "var(--chakra-colors-green-400)",
-    },
-    ".ansi-blue-fg": {
-      color: "var(--chakra-colors-blue-500)",
-    },
-    ".ansi-bright-blue-fg": {
-      color: "var(--chakra-colors-blue-400)",
-    },
-    ".ansi-cyan-fg": {
-      color: "var(--chakra-colors-cyan-500)",
-    },
-    ".ansi-bright-cyan-fg": {
-      color: "var(--chakra-colors-cyan-400)",
-    },
-    ".ansi-magenta-fg": {
-      color: "var(--chakra-colors-purple-500)",
-    },
-    ".ansi-bright-magenta-fg": {
-      color: "var(--chakra-colors-purple-400)",
-    },
-  },
   theme: {
     tokens: {
       colors: {

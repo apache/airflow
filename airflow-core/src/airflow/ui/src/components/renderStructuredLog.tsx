@@ -57,11 +57,7 @@ const addAnsiWithLinks = (line: string) => {
   const urlMatches = [...line.matchAll(urlRegex)];
 
   if (!urlMatches.length) {
-    return (
-      <AnsiRenderer linkify={false} useClasses={true}>
-        {line}
-      </AnsiRenderer>
-    );
+    return <AnsiRenderer linkify={false}>{line}</AnsiRenderer>;
   }
 
   let currentIndex = 0;
@@ -74,7 +70,7 @@ const addAnsiWithLinks = (line: string) => {
       const textBeforeUrl = line.slice(currentIndex, startIndex);
 
       elements.push(
-        <AnsiRenderer key={`ansi-before-${textBeforeUrl}`} linkify={false} useClasses={true}>
+        <AnsiRenderer key={`ansi-before-${textBeforeUrl}`} linkify={false}>
           {textBeforeUrl}
         </AnsiRenderer>,
       );
@@ -100,7 +96,7 @@ const addAnsiWithLinks = (line: string) => {
     const textAfterUrl = line.slice(currentIndex);
 
     elements.push(
-      <AnsiRenderer key="ansi-after" linkify={false} useClasses={true}>
+      <AnsiRenderer key="ansi-after" linkify={false}>
         {textAfterUrl}
       </AnsiRenderer>,
     );

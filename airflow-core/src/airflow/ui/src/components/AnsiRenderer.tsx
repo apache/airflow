@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { chakra } from "@chakra-ui/react";
 import Anser, { type AnserJsonEntry } from "anser";
 import * as React from "react";
 
@@ -65,39 +66,70 @@ const createClass = (bundle: AnserJsonEntry): string | undefined => {
   return classNames.slice(0, classNames.length - 1);
 };
 
-const createStyle = (bundle: AnserJsonEntry): React.CSSProperties => {
-  const style: React.CSSProperties = {};
+// Map RGB values to Chakra UI semantic tokens
+// These are the standard ANSI color RGB values that anser library outputs
+const rgbToChakraColorMap: Record<string, string> = {
+  "0, 0, 0": "gray.900", // Black (30m)
+  "0, 0, 187": "blue.fg", // Blue (34m)
+  "0, 187, 0": "green.fg", // Green (32m)
+  "0, 187, 187": "cyan.fg", // Cyan (36m)
+  "0, 255, 0": "green.fg", // Pure Green
+  "85, 85, 85": "black", // Bright Black/Gray (90m)
+  "85, 85, 255": "blue.400", // Bright Blue (94m)
+  "85, 255, 85": "green.700", // Bright Green (92m)
+  "85, 255, 255": "cyan.400", // Bright Cyan (96m)
+  "187, 0, 0": "red.fg", // Red (31m)
+  "187, 0, 187": "purple.fg", // Magenta (35m)
+  "187, 187, 0": "yellow.fg", // Yellow (33m)
+  "187, 187, 187": "gray.100", // White (37m)
+  "255, 85, 85": "red.600", // Bright Red (91m)
+  "255, 85, 255": "purple.400", // Bright Magenta (95m)
+  "255, 255, 85": "yellow.400", // Bright Yellow (93m)
+  "255, 255, 255": "white", // Bright White (97m)
+};
 
+const createChakraProps = (bundle: AnserJsonEntry) => {
+  const props: Record<string, number | string> = {};
+
+  // Handle background colors
   if (bundle.bg) {
-    style.backgroundColor = `rgb(${bundle.bg})`;
-  }
-  if (bundle.fg) {
-    style.color = `rgb(${bundle.fg})`;
+    const bgColor = rgbToChakraColorMap[bundle.bg];
+
+    props.bg = bgColor ?? `rgb(${bundle.bg})`;
   }
 
+  // Handle foreground colors
+  if (bundle.fg) {
+    const fgColor = rgbToChakraColorMap[bundle.fg];
+
+    props.color = fgColor ?? `rgb(${bundle.fg})`;
+  }
+
+  // Handle text decorations
   switch (bundle.decoration) {
     case "blink":
-      style.textDecoration = "blink";
+      props.textDecoration = "blink";
       break;
     case "bold":
-      style.fontWeight = "bold";
+      props.fontWeight = "bold";
       break;
     case "dim":
-      style.opacity = "0.5";
+      props.opacity = "0.5";
       break;
     case "hidden":
-      style.visibility = "hidden";
+      props.visibility = "hidden";
       break;
     case "italic":
-      style.fontStyle = "italic";
+      props.fontStyle = "italic";
       break;
     case "reverse":
+      // Could implement reverse video if needed
       break;
     case "strikethrough":
-      style.textDecoration = "line-through";
+      props.textDecoration = "line-through";
       break;
     case "underline":
-      style.textDecoration = "underline";
+      props.textDecoration = "underline";
       break;
     // eslint-disable-next-line unicorn/no-useless-switch-case
     case null:
@@ -105,7 +137,7 @@ const createStyle = (bundle: AnserJsonEntry): React.CSSProperties => {
       break;
   }
 
-  return style;
+  return props;
 };
 
 const convertBundleIntoReact = (options: {
@@ -115,11 +147,19 @@ const convertBundleIntoReact = (options: {
   useClasses: boolean;
 }): JSX.Element => {
   const { bundle, key, linkify, useClasses } = options;
-  const style = useClasses ? undefined : createStyle(bundle);
+  const style = useClasses ? undefined : createChakraProps(bundle);
   const className = useClasses ? createClass(bundle) : undefined;
 
   if (!linkify) {
-    return React.createElement("span", { className, key, style }, bundle.content);
+    if (useClasses) {
+      return React.createElement("span", { className, key }, bundle.content);
+    }
+
+    return (
+      <chakra.span key={key} {...style}>
+        {bundle.content}
+      </chakra.span>
+    );
   }
 
   const content: Array<React.ReactNode> = [];
@@ -160,7 +200,15 @@ const convertBundleIntoReact = (options: {
     content.push(bundle.content.slice(index));
   }
 
-  return React.createElement("span", { className, key, style }, content);
+  if (useClasses) {
+    return React.createElement("span", { className, key }, content);
+  }
+
+  return (
+    <chakra.span key={key} {...style}>
+      {content}
+    </chakra.span>
+  );
 };
 
 type AnsiRendererProps = {
