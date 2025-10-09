@@ -41,8 +41,8 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.sdk.timezones import utcnow
 from airflow.utils.helpers import prune_dict
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

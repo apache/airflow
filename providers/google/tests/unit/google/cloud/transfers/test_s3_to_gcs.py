@@ -26,7 +26,7 @@ import time_machine
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
-from airflow.utils.timezone import utcnow
+from airflow.sdk.timezones import utcnow
 
 PROJECT_ID = "test-project-id"
 TASK_ID = "test-s3-gcs-operator"

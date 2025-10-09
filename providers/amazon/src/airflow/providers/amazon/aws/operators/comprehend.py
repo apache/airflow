@@ -34,7 +34,7 @@ from airflow.providers.amazon.aws.triggers.comprehend import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.utils.timezone import utcnow
+from airflow.sdk.timezones import utcnow
 
 if TYPE_CHECKING:
     import boto3
