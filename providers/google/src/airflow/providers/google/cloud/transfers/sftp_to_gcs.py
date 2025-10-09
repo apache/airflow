@@ -131,16 +131,8 @@ class SFTPToGCSOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        sftp_client = self.sftp_hook.get_conn().open_sftp()
-        
-        try:
-            sftp_client.stat(self.sftp_path)
-        except FileNotFoundError:
-            if self.fail_on_file_not_exist:
-                raise
-            self.log.info("File %s not found on SFTP server. Skipping transfer.", self.sftp_path)
-            return
-        
+
+
         if WILDCARD in self.source_path:
             total_wildcards = self.source_path.count(WILDCARD)
             if total_wildcards > 1:
@@ -165,6 +157,11 @@ class SFTPToGCSOperator(BaseOperator):
                 self._copy_single_object(gcs_hook, self.sftp_hook, file, destination_path)
 
         else:
+            if not self.sftp_hook.path_exists(self.source_path):
+                if self.fail_on_file_not_exist:
+                    raise FileNotFoundError()
+                self.log.info("File %s not found on SFTP server. Skipping transfer.", self.source_path)
+                return
             destination_object = (
                 self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
             )
