@@ -49,7 +49,7 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_VERSION="3.1.0"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.11"
+ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
