@@ -624,6 +624,10 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             _ = helpers.bulk(self.client, bulk_actions)
             return True
+        except helpers.BulkIndexError as bie:
+            self.log.exception("Bulk upload failed for %d log(s)", len(bie.errors))
+            for error in bie.errors:
+                self.log.exception(error)
         except Exception as e:
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
