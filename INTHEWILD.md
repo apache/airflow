@@ -549,6 +549,7 @@ Currently, **officially** using Airflow:
 1. [VLMedia](https://www.vlmedia.com.tr) [[@iercan](https://github.com/iercan)]
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
+1. [Vrahad Analytics](https://vrahadanalytics.com/) [[@varun-bhardwaj-sde](https://github.com/varun-bhardwaj-sde)]
 1. [Vroom](https://www.vroom.com) [[@liu431](https://github.com/liu431)]
 1. [Walmart Labs](https://www.walmartlabs.com) [[@bharathpalaksha](https://github.com/bharathpalaksha), [@vipul007ravi](https://github.com/vipul007ravi), [@pateash](https://github.com/pateash)]
 1. [Wayfair](https://www.wayfair.com) [[@wayfair](https://github.com/wayfair)]
