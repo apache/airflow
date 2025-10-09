@@ -14,7 +14,7 @@
   "connections": {
     "add": "เพิ่มการเชื่อมต่อ",
     "columns": {
-      "connectionId": "รหัสการเชื่อมต่อ",
+      "connectionId": "ID การเชื่อมต่อ",
       "connectionType": "ประเภทการเชื่อมต่อ",
       "host": "โฮสต์",
       "port": "พอร์ต"
@@ -30,19 +30,19 @@
     },
     "edit": "แก้ไขการเชื่อมต่อ",
     "form": {
-      "connectionIdRequired": "กรุณาระบุรหัสการเชื่อมต่อ",
-      "connectionIdRequirement": "รหัสการเชื่อมต่อไม่สามารถมีช่องว่างได้",
+      "connectionIdRequired": "กรุณาระบุ ID การเชื่อมต่อ",
+      "connectionIdRequirement": "ID การเชื่อมต่อไม่สามารถมีช่องว่างได้",
       "connectionTypeRequired": "กรุณาระบุประเภทการเชื่อมต่อ",
       "extraFields": "ฟิลด์เพิ่มเติม",
       "extraFieldsJson": "ฟิลด์เพิ่มเติมในรูปแบบ JSON",
-      "helperText": "ไม่พบประเภทการเชื่อมต่อ? โปรดตรวจสอบว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
+      "helperText": "ไม่พบประเภทการเชื่อมต่อ? โปรดตรวจสอบให้แน่ใจว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
       "helperTextForRedactedFields": "ฟิลด์ที่ถูกซ่อน ('***') จะไม่ถูกเปลี่ยนแปลงหากไม่ได้แก้ไข",
       "selectConnectionType": "เลือกประเภทการเชื่อมต่อ",
       "standardFields": "ฟิลด์มาตรฐาน"
     },
     "nothingFound": {
       "description": "การเชื่อมต่อที่ตั้งค่าผ่าน environment variables หรือ secrets managers จะไม่ปรากฏที่นี่",
-      "documentationLink": "ดูรายละเอียดเพิ่มเติมได้ในเอกสาร Airflow",
+      "documentationLink": "ดูรายละเอียดเพิ่มเติมได้ในเอกสารของ Airflow",
       "learnMore": "ค่าการเชื่อมต่อเหล่านี้จะถูกประมวลผลตอน runtime และจะไม่แสดงในหน้า UI",
       "title": "ไม่พบการเชื่อมต่อ!"
     },
@@ -78,16 +78,16 @@
     "columns": {
       "source": "แหล่งที่มา"
     },
-    "importError_one": "เกิดข้อผิดพลาดในการนำเข้า Plugin",
-    "importError_other": "เกิดข้อผิดพลาดในการนำเข้า Plugins",
+    "importError_one": "เกิดข้อผิดพลาดในการนำเข้าปลั๊กอิน",
+    "importError_other": "เกิดข้อผิดพลาดในการนำเข้าปลั๊กอิน",
     "searchPlaceholder": "ค้นหาตามไฟล์"
   },
   "pools": {
     "add": "เพิ่มพูล",
-    "deferredSlotsIncluded": "รวมช่องสำหรับงานที่ถูกเลื่อน",
+    "deferredSlotsIncluded": "รวมช่องที่ถูกเลื่อนแล้ว",
     "delete": {
       "title": "ลบพูล",
-      "warning": "การลบนี้จะลบข้อมูลเมตาทั้งหมดที่เกี่ยวข้องกับพูล และอาจส่งผลต่อตัวงานที่ใช้พูลนี้"
+      "warning": "การกระทำนี้จะลบเมทาดาต้าทั้งหมดที่เกี่ยวข้องกับพูลและอาจส่งผลกระทบต่องานที่ใช้พูลนี้"
     },
     "edit": "แก้ไขพูล",
     "form": {

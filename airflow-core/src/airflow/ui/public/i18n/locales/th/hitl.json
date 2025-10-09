@@ -15,7 +15,7 @@
     "error": "การตอบสนองล้มเหลว",
     "optionsDescription": "เลือกตัวเลือกของคุณสำหรับ Task Instance นี้",
     "optionsLabel": "ตัวเลือก",
-    "received": "ได้รับการตอบสนองเมื่อเวลา ",
+    "received": "ได้รับการตอบสนองเมื่อ ",
     "respond": "ตอบสนอง",
     "success": "การตอบสนองของ {{taskId}} สำเร็จ",
     "title": "Human Task Instance - {{taskId}}"
@@ -24,7 +24,7 @@
     "approvalReceived": "ได้รับการอนุมัติแล้ว",
     "approvalRequired": "ต้องการการอนุมัติ",
     "choiceReceived": "ได้รับตัวเลือกแล้ว",
-    "choiceRequired": "ต้องการการเลือก",
+    "choiceRequired": "ต้องการตัวเลือก",
     "noResponseReceived": "ไม่ได้รับการตอบสนอง",
     "rejectionReceived": "ได้รับการปฏิเสธแล้ว",
     "responseReceived": "ได้รับการตอบสนองแล้ว",

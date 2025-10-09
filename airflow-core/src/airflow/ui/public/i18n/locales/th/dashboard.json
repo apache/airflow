@@ -1,17 +1,17 @@
 {
   "favorite": {
-    "favoriteDags_one": "Dag รายการโปรด {{count}} แรก",
-    "favoriteDags_other": "Dag รายการโปรด {{count}} รายการแรก",
+    "favoriteDags_one": "Dag รายการโปรด {{count}} รายการแรก",
+    "favoriteDags_other": "Dags รายการโปรด {{count}} รายการแรก",
     "noDagRuns": "ยังไม่มี DagRun สำหรับ Dag นี้",
-    "noFavoriteDags": "ยังไม่มีรายการโปรด คลิกไอคอนรูปดาวถัดจาก Dag ในรายการเพื่อเพิ่มเป็นรายการโปรดของคุณ"
+    "noFavoriteDags": "ยังไม่มีรายการโปรด คลิกไอคอนรูปดาวด้านข้าง Dag ในรายการเพื่อเพิ่มเป็นรายการโปรดของคุณ"
   },
   "group": "กลุ่ม",
   "health": {
     "dagProcessor": "Dag Processor",
     "health": "สถานะสุขภาพ",
     "healthy": "ปกติ",
-    "lastHeartbeat": "Last Heartbeat (สัญญาณล่าสุด)",
-    "metaDatabase": "ฐานข้อมูลเมตา (MetaDatabase)",
+    "lastHeartbeat": "สัญญาณล่าสุด",
+    "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
     "status": "สถานะ",
     "triggerer": "Triggerer",
@@ -19,14 +19,14 @@
   },
   "history": "ประวัติ",
   "importErrors": {
-    "dagImportError_one": "ข้อผิดพลาดในการนำเข้า Dag",
-    "dagImportError_other": "ข้อผิดพลาดในการนำเข้า Dag",
+    "dagImportError_one": "เกิดข้อผิดพลาดในการนำเข้า Dag",
+    "dagImportError_other": "เกิดข้อผิดพลาดในการนำเข้า Dags",
     "searchByFile": "ค้นหาตามไฟล์",
-    "timestamp": "ประทับเวลา"
+    "timestamp": "เวลา"
   },
-  "managePools": "จัดการ Pools",
-  "noAssetEvents": "ไม่พบ Asset Events",
-  "poolSlots": "Pool Slots",
+  "managePools": "จัดการพูล",
+  "noAssetEvents": "ไม่พบอีเวนต์ของ Asset",
+  "poolSlots": "จำนวนช่องในพูล",
   "sortBy": {
     "newestFirst": "ใหม่สุดก่อน",
     "oldestFirst": "เก่าสุดก่อน"

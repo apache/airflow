@@ -12,12 +12,12 @@
     "appearance": "การแสดงผล",
     "darkMode": "โหมดมืด",
     "lightMode": "โหมดสว่าง",
-    "systemMode": "ตามการตั้งค่าระบบ"
+    "systemMode": "ตามการตั้งค่าของระบบ"
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
+  "assetEvent_one": "อีเวนต์ของ Asset",
+  "assetEvent_other": "อีเวนต์ของ Assets",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
@@ -26,43 +26,43 @@
     "xcoms": "XComs"
   },
   "collapseDetailsPanel": "ย่อแผงรายละเอียด",
-  "createdAssetEvent_one": "Asset Event ที่สร้างแล้ว",
-  "createdAssetEvent_other": "Asset Events ที่สร้างแล้ว",
+  "createdAssetEvent_one": "อีเวนต์ของ Asset ที่สร้างแล้ว",
+  "createdAssetEvent_other": "อีเวนต์ของ Assets ที่สร้างแล้ว",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "เวลา Timeout ของ DAG Run",
-    "defaultArgs": "Arguments ค่าเริ่มต้น",
+    "dagRunTimeout": "ระยะหมดเวลาของ DAG Run",
+    "defaultArgs": "ค่า Arguments เริ่มต้น",
     "description": "คำอธิบาย",
     "documentation": "เอกสารประกอบ Dag",
     "fileLocation": "ตำแหน่งไฟล์",
-    "hasTaskConcurrencyLimits": "มีการจำกัดจำนวนงานพร้อมกัน",
+    "hasTaskConcurrencyLimits": "มีการจำกัดจำนวนงานที่ทำพร้อมกัน",
     "lastExpired": "หมดอายุครั้งล่าสุด",
-    "lastParseDuration": "ระยะเวลาการแปลงล่าสุด",
-    "lastParsed": "แปลงครั้งล่าสุด",
+    "lastParseDuration": "ระยะเวลาการประมวลผลล่าสุด",
+    "lastParsed": "การประมวลผลครั้งล่าสุด",
     "latestDagVersion": "เวอร์ชัน Dag ล่าสุด",
-    "latestRun": "การรันล่าสุด",
+    "latestRun": "การทำงานครั้งล่าสุด",
     "maxActiveRuns": "จำนวน Dag Run ที่ทำงานพร้อมกันสูงสุด",
     "maxActiveTasks": "จำนวนงานที่ทำงานพร้อมกันสูงสุด",
     "maxConsecutiveFailedDagRuns": "จำนวน Dag Run ที่ล้มเหลวต่อเนื่องสูงสุด",
-    "nextRun": "การรันถัดไป",
+    "nextRun": "การทำงานครั้งถัดไป",
     "owner": "เจ้าของ",
     "params": "พารามิเตอร์",
-    "schedule": "ตารางเวลา",
+    "schedule": "เวลาทำงาน",
     "tags": "แท็ก"
   },
   "dagId": "Dag ID",
   "dagRun": {
     "conf": "การตั้งค่า (Conf)",
-    "dagVersions": "เวอร์ชัน Dag",
+    "dagVersions": "เวอร์ชันของ Dag",
     "dataIntervalEnd": "สิ้นสุดช่วงข้อมูล",
     "dataIntervalStart": "เริ่มต้นช่วงข้อมูล",
-    "lastSchedulingDecision": "การตัดสินใจกำหนดเวลา ล่าสุด",
+    "lastSchedulingDecision": "การตัดสินใจกำหนดเวลาล่าสุด",
     "queuedAt": "เข้าคิวเมื่อ",
-    "runAfter": "รันหลังจาก",
-    "runType": "ประเภทการรัน",
-    "sourceAssetEvent": "Source Asset Event",
+    "runAfter": "ทำงานหลังจาก",
+    "runType": "ประเภทการทำงาน",
+    "sourceAssetEvent": "อีเวนต์ของ Asset ต้นทาง",
     "triggeredBy": "ทริกเกอร์โดย",
     "triggeringUser": "ชื่อผู้ใช้ที่ทริกเกอร์"
   },
@@ -85,7 +85,7 @@
     "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิดขึ้น",
     "home": "หน้าแรก",
     "notFound": "ไม่พบหน้านี้",
-    "title": "ข้อผิดพลาด"
+    "title": "เกิดข้อผิดพลาด"
   },
   "expand": {
     "collapse": "ย่อ",
@@ -95,20 +95,20 @@
   },
   "expression": {
     "all": "ทั้งหมด",
-    "and": "AND",
+    "and": "และ",
     "any": "อย่างใดอย่างหนึ่ง",
-    "or": "OR"
+    "or": "หรือ"
   },
   "filter": "ตัวกรอง",
   "filters": {
-    "durationFrom": "Duration จาก",
-    "durationTo": "Duration ถึง",
-    "logicalDateFrom": "Logical Date จาก",
-    "logicalDateTo": "Logical Date ถึง",
-    "runAfterFrom": "Run After จาก",
-    "runAfterTo": "Run After ถึง"
+    "durationFrom": "ระยะเวลาตั้งแต่",
+    "durationTo": "ระยะเวลาถึง",
+    "logicalDateFrom": "วันที่ตามกำหนดทำงานตั้งแต่",
+    "logicalDateTo": "วันที่ตามกำหนดทำงานถึง",
+    "runAfterFrom": "ทำงานตั้งแต่",
+    "runAfterTo": "ทำงานถึง"
   },
-  "logicalDate": "Logical Date",
+  "logicalDate": "วันที่ตามกำหนดทำงาน",
   "logout": "ออกจากระบบ",
   "logoutConfirmation": "คุณกำลังจะออกจากระบบแอปพลิเคชัน",
   "mapIndex": "ดัชนีแผนที่",
@@ -127,34 +127,34 @@
     "dags": "Dags",
     "docs": "เอกสาร",
     "home": "หน้าแรก",
-    "legacyFabViews": "มุมมองเก่า",
+    "legacyFabViews": "มุมมองแบบเก่า",
     "plugins": "ปลั๊กอิน",
     "security": "ความปลอดภัย"
   },
   "noItemsFound": "ไม่พบ {{modelName}}",
   "note": {
-    "add": "เพิ่มบันทึก",
-    "dagRun": "บันทึก Dag Run",
-    "label": "บันทึก",
-    "placeholder": "เพิ่มบันทึก...",
-    "taskInstance": "บันทึก Task Instance"
+    "add": "เพิ่มโน้ต",
+    "dagRun": "โน้ตของ Dag Run",
+    "label": "โน้ต",
+    "placeholder": "เพิ่มโน้ต...",
+    "taskInstance": "โน้ตของ Task Instance"
   },
   "pools": {
     "deferred": "เลื่อนออกไป",
     "open": "เปิด",
     "pools_one": "พูล",
     "pools_other": "พูล",
-    "queued": "เข้าคิว",
+    "queued": "เข้าคิวแล้ว",
     "running": "กำลังทำงาน",
-    "scheduled": "ตามตารางเวลา"
+    "scheduled": "กำหนดเวลาทำงานแล้ว"
   },
   "reset": "รีเซ็ต",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "ทริกเกอร์โดย Asset",
     "backfill": "Backfill",
-    "manual": "ทำเอง",
-    "scheduled": "ตามตารางเวลา"
+    "manual": "ทำด้วยตนเอง",
+    "scheduled": "กำหนดเวลาทำงานแล้ว"
   },
   "scroll": {
     "direction": {
@@ -173,28 +173,28 @@
   "selectLanguage": "เลือกภาษา",
   "showDetailsPanel": "แสดงแผงรายละเอียด",
   "source": {
-    "hide": "ซ่อนซอร์ส",
+    "hide": "ซ่อนแหล่งที่มา",
     "hotkey": "s",
-    "show": "แสดงซอร์ส"
+    "show": "แสดงแหล่งที่มา"
   },
-  "sourceAssetEvent_one": "Source Asset Event",
-  "sourceAssetEvent_other": "Source Asset Events",
+  "sourceAssetEvent_one": "อีเวนต์ของ Asset ต้นทาง",
+  "sourceAssetEvent_other": "อีเวนต์ของ Asset ต้นทาง",
   "startDate": "วันที่เริ่มต้น",
   "state": "สถานะ",
   "states": {
     "deferred": "เลื่อนออกไป",
     "failed": "ล้มเหลว",
     "no_status": "ไม่มีสถานะ",
-    "none": "ไม่มีสถานะ",
+    "none": "ยังไม่กำหนดสถานะ",
     "planned": "วางแผนแล้ว",
-    "queued": "เข้าคิว",
-    "removed": "ถูกลบ",
-    "restarting": "กำลังรีสตาร์ท",
+    "queued": "เข้าคิวแล้ว",
+    "removed": "ถูกลบแล้ว",
+    "restarting": "กำลังเริ่มใหม่",
     "running": "กำลังทำงาน",
-    "scheduled": "ตามตารางเวลา",
+    "scheduled": "กำหนดเวลาทำงานแล้ว",
     "skipped": "ข้าม",
     "success": "สำเร็จ",
-    "up_for_reschedule": "รอการกำหนดเวลาใหม่",
+    "up_for_reschedule": "รอการกำหนดเวลาทำงานใหม่",
     "up_for_retry": "รอการลองใหม่",
     "upstream_failed": "ต้นทางล้มเหลว"
   },
@@ -237,7 +237,7 @@
     "priorityWeight": "น้ำหนักความสำคัญ",
     "queue": "คิว",
     "queuedWhen": "เข้าคิวเมื่อ",
-    "scheduledWhen": "ตามตารางเมื่อ",
+    "scheduledWhen": "กำหนดเวลาทำงานเมื่อ",
     "triggerer": {
       "assigned": "Triggerer ที่ถูกกำหนด",
       "class": "คลาส Trigger",
@@ -263,17 +263,17 @@
   },
   "timezone": "เขตเวลา",
   "timezoneModal": {
-    "current-timezone": "เวลาปัจจุบันใน",
+    "current-timezone": "เวลาปัจจุบันของ",
     "placeholder": "เลือกเขตเวลา",
     "title": "เลือกเขตเวลา",
     "utc": "UTC (เวลาสากล)"
   },
   "toaster": {
     "bulkDelete": {
-      "error": "คำขอลบ {{resourceName}} จำนวนมาก ล้มเหลว",
+      "error": "คำขอลบจำนวนมากของ {{resourceName}} ล้มเหลว",
       "success": {
         "description": "{{count}} {{resourceName}} ถูกลบเรียบร้อยแล้ว คีย์: {{keys}}",
-        "title": "ส่งคำขอลบ {{resourceName}} จำนวนมากแล้ว"
+        "title": "ส่งคำขอลบจำนวนมากของ {{resourceName}} แล้ว"
       }
     },
     "create": {
@@ -306,7 +306,7 @@
     }
   },
   "total": "รวม {{state}}",
-  "triggered": "ถูกทริกเกอร์",
+  "triggered": "ทริกเกอร์แล้ว",
   "tryNumber": "จำนวนครั้งที่ลอง",
   "user": "ผู้ใช้",
   "wrap": {
