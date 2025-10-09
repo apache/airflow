@@ -33,7 +33,7 @@ dependencies = [
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
-    "pydantic>=2.11.0",
+    "pydantic>=2.11.0,!=2.12.0", # https://github.com/apache/airflow/issues/56482
     "rich-argparse>=1.0.0",
     "structlog>=25.2.0",
     "uuid6>=2024.7.10",
