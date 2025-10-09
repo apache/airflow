@@ -355,6 +355,7 @@ Currently, **officially** using Airflow:
 1. [Modernizing Medicine](https://www.modmed.com/) [[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Moka](https://www.mokapos.com) [[@willioktavega](https://github.com/willioktavega)]
 1. [Movember](https://movember.com)
+1. [MSCI](https://msci.com)[[@jmcdowellmsci](https://github.com/jmcdowellmsci)]
 1. [MTsolutions](https://www.mtsolutions.io)[[@slara](https://github.com/slara)]
 1. [Multiply](https://www.multiply.com) [[@nrhvyc](https://github.com/nrhvyc)]
 1. [Mutt Data](https://muttdata.ai/) [[@plorenzatto](https://github.com/plorenzatto)]
