@@ -23,11 +23,14 @@ default:
   @just --list
 
 # Build all components
-build: build-celery build-examples
+build: build-celery build-edge build-examples
 
 # Build the worker binary
 build-celery:
   go build -o bin/airflow-go-celery ./celery/cmd
+
+build-edge:
+  go build -o bin/airflow-go-edge ./edge/cmd
 
 # Build all example bundles
 build-examples:
