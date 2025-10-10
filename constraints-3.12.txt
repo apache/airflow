@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-10T07:51:24.192480
+# This constraints file was automatically generated on 2025-10-10T14:01:19.290550
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -533,7 +533,7 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.0
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.11
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
