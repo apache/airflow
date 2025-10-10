@@ -231,7 +231,7 @@ def clear_task_instances(
 
         if is_running or is_queued or is_scheduled:
             if prevent_running_task and is_running:
-                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Task is running, stopping attempt to clear.")
+                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException_RUNNING: Task is running, stopping attempt to clear.")
                 # Prevents the task from re-running and clearing when prevent_running_task and is_running is True.
 
             elif prevent_running_task and (is_queued or is_scheduled):
