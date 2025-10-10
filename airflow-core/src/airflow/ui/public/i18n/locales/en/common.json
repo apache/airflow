@@ -163,7 +163,6 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",

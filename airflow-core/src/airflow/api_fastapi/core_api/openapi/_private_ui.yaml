@@ -1686,6 +1686,9 @@ components:
             $ref: '#/components/schemas/HITLDetail'
           type: array
           title: Pending Actions
+        is_favorite:
+          type: boolean
+          title: Is Favorite
         file_token:
           type: string
           title: File Token
@@ -1721,6 +1724,7 @@ components:
       - asset_expression
       - latest_dag_runs
       - pending_actions
+      - is_favorite
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
