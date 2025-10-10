@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-10T13:57:31.613885
+# This constraints file was automatically generated on 2025-10-10T19:52:17.139514
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -46,7 +46,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2025.8.0
 aenum==3.1.16
-aiobotocore==2.24.3
+aiobotocore==2.25.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -93,7 +93,7 @@ asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.100.0
+aws-sam-translator==1.101.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -131,8 +131,8 @@ bitarray==3.7.2
 black==25.9.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.40.45
-botocore==1.40.45
+boto3==1.40.49
+botocore==1.40.49
 build==1.3.0
 cachelib==0.13.0
 cachetools==6.2.0
@@ -201,7 +201,7 @@ executing==2.2.1
 facebook_business==23.0.2
 fastapi-cli==0.0.13
 fastapi==0.117.1
-fastavro==1.12.0
+fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
 fastuuid==0.13.5
@@ -457,7 +457,7 @@ pgvector==0.4.1
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
-pipdeptree==2.28.0
+pipdeptree==2.29.0
 platformdirs==4.5.0
 pluggy==1.6.0
 ply==3.11
@@ -467,7 +467,7 @@ polars==1.34.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.2.4
+prek==0.2.5
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
@@ -692,7 +692,7 @@ uvloop==0.21.0
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.35.1
+virtualenv==20.35.2
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.14
