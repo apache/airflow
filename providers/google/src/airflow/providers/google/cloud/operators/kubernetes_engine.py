@@ -59,7 +59,10 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk.timezones import utcnow
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator

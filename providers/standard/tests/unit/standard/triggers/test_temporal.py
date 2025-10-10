@@ -24,7 +24,10 @@ import pendulum
 import pytest
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk.timezones import utcnow
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState

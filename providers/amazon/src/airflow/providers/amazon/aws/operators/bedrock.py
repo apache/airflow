@@ -41,7 +41,11 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sdk.timezone import utcnow
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
+
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
