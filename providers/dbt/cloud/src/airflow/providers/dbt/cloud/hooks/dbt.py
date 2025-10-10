@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import asyncio
 import json
 import time
@@ -30,6 +31,15 @@ import aiohttp
 from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
 from requests.sessions import Session
+from requests import exceptions as requests_exceptions
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential
+)
+
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -193,9 +203,36 @@ class DbtCloudHook(HttpHook):
             },
         }
 
-    def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(
+            self,
+            dbt_cloud_conn_id: str = default_conn_name,
+            timeout_seconds: int = 30,
+            retry_limit: int = 3,
+            retry_delay: float = 1.0,
+            retry_args: dict[Any, Any] | None = None,
+            ) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.timeout_seconds = timeout_seconds
+        if retry_limit < 1:
+            raise ValueError("Retry limit must be greater than or equal to 1")
+        self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
+
+        def retry_after_func(retry_state):
+            self._log_request_error(retry_state.attempt_number, retry_state.outcome)
+
+        if retry_args:
+            self.retry_args = copy.copy(retry_args)
+            self.retry_args["retry"] = retry_if_exception(self._retryable_error)
+            self.retry_args["after"] = retry_after_func
+        else:
+            self.retry_args = {
+                "stop": stop_after_attempt(self.retry_limit),
+                "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
+                "retry": retry_if_exception(self._retryable_error),
+                "after": retry_after_func,
+            }
 
     @staticmethod
     def _get_tenant_domain(conn: Connection) -> str:
@@ -232,6 +269,42 @@ class DbtCloudHook(HttpHook):
         headers["Content-Type"] = "application/json"
         headers["Authorization"] = f"Token {self.connection.password}"
         return headers, tenant
+    
+    def _log_request_error(self, attempt_num: int, error: str) -> None:
+        self.log.error("Attempt %s API Request to DBT failed with reason: %s", attempt_num, error)
+
+    @staticmethod
+    def _retryable_error(exception: BaseException) -> bool:
+        if isinstance(exception, requests_exceptions.RequestException):
+            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+                exception.response is not None
+                and (
+                    exception.response.status_code >= 500
+                    or exception.response.status_code == 429
+                )
+            ):
+                return True
+
+        if isinstance(exception, aiohttp.ClientResponseError):
+            if exception.status >= 500 or exception.status == 429:
+                return True
+
+        if isinstance(exception, (aiohttp.ClientConnectorError, TimeoutError)):
+            return True
+
+        return False
+    
+    def _a_get_retry_object(self) -> AsyncRetrying:
+        """
+        Instantiate an async retry object.
+
+        :return: instance of AsyncRetrying class
+        """
+        # for compatibility we use reraise to avoid handling request error
+        if self.retry_args.get("reraise") is None:
+            return AsyncRetrying(reraise=True, **self.retry_args)
+        return AsyncRetrying(**self.retry_args)
+
 
     @provide_account_id
     async def get_job_details(
@@ -249,17 +322,26 @@ class DbtCloudHook(HttpHook):
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
         proxies = self._get_proxies(self.connection) or {}
+        proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
+        extra_request_args = {}
 
-        async with aiohttp.ClientSession(headers=headers) as session:
-            proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
-            extra_request_args = {}
+        if proxy:
+            extra_request_args["proxy"] = proxy
 
-            if proxy:
-                extra_request_args["proxy"] = proxy
+        try:
+            async for attempt in self._a_get_retry_object():
+                with attempt:
 
-            async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
-                response.raise_for_status()
-                return await response.json()
+                    async with aiohttp.ClientSession(headers=headers) as session:
+                        async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
+                            response.raise_for_status()
+                            return await response.json()
+                        
+        except RetryError:
+            raise AirflowException(f"API requests to DBT Cloud failed {self.retry_limit} times. Giving up.")
+        except aiohttp.ClientResponseError as err:
+            raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
+ 
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
