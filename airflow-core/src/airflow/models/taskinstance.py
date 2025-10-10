@@ -224,10 +224,19 @@ def clear_task_instances(
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
 
-        if ti.state == TaskInstanceState.RUNNING:
-            if prevent_running_task:
-                raise AirflowClearRunningTaskException("Task is running, stopping attempt to clear.")
-                # Prevents the task from re-running and clearing when prevent_running_task is True.
+        #Task instance state checks:
+        is_running = ti.state == TaskInstanceState.RUNNING
+        is_queued = ti.state == TaskInstanceState.QUEUED
+        is_scheduled = ti.state == TaskInstanceState.SCHEDULED
+
+        if is_running or is_queued or is_scheduled:
+            if prevent_running_task and is_running:
+                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Task is running, stopping attempt to clear.")
+                # Prevents the task from re-running and clearing when prevent_running_task and is_running is True.
+
+            elif prevent_running_task and (is_queued or is_scheduled):
+                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException_QUEUED: Task is about to run or is scheduled to run, stopping attempt to clear.")
+                # Prevents the task from re-running and clearing when prevent_running_task is True and sends a warning toast.
 
             else:
                 ti.state = TaskInstanceState.RESTARTING

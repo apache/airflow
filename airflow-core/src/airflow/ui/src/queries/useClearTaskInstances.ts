@@ -18,6 +18,8 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import * as React from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -48,7 +50,15 @@ export const useClearTaskInstances = ({
   const { t: translate } = useTranslation("dags");
 
   const onError = (error: ApiError) => {
-    if ( error.detail !== null && error.detail === "Task is running, stopping attempt to clear." ){
+    if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException") ){
+      toaster.create({
+        description: typeof error.detail === "string" ? error.detail : String(error.detail),
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+    }
+
+    else if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException_QUEUED") ){
       toaster.create({
         description: typeof error.detail === "string" ? error.detail : String(error.detail),
         title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
