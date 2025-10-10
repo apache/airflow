@@ -544,3 +544,103 @@ class TestSerializedDagModel:
         # Verify that the original data still has fileloc (method shouldn't modify original)
         assert "fileloc" in test_data["dag"]
         assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
+
+    @pytest.mark.db_test
+    def test_get_dag_dependencies_with_all_types(self, dag_maker, session):
+        """
+        Test SerializedDagModel.get_dag_dependencies for all dependency types:
+        - asset-alias (resolved and unresolved)
+        - asset-name-ref
+        - asset-uri-ref
+        """
+
+        # Clear existing assets
+        db.clear_db_assets()
+
+        # Create AssetModel entries
+        asset1 = AssetModel(id=1, name="asset1", uri="test://asset1")
+        asset2 = AssetModel(id=2, name="asset2", uri="test://asset2")
+        session.add_all([asset1, asset2])
+
+        session.add_all([AssetActive.for_asset(asset1), AssetActive.for_asset(asset2)])
+        session.commit()
+
+        # Create AssetAlias entries
+        alias1 = AssetAliasModel(name="alias1")  # linked to asset1
+        alias2 = AssetAliasModel(name="alias2")  # no linked asset
+        session.add_all([alias1, alias2])
+
+        # Link alias1 to asset1
+        alias1.assets.append(asset1)
+        session.commit()
+
+        # Create DAG with mixed dependencies
+        with dag_maker(
+            dag_id="test_dag_dependencies",
+            start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            schedule=[
+                AssetAlias(name="alias1"),             # alias linked to asset1
+                AssetAlias(name="nonexistent_alias"),  # alias not linked
+                Asset.ref(uri="test://asset2"),        # direct asset
+                Asset.ref(uri="test://missing_uri"),   # missing URI
+                Asset.ref(name="missing_name"),        # missing name (asset-name-ref)
+            ],
+        ) as dag:
+            BashOperator(task_id="dummy", bash_command="echo 1")
+
+        sync_dag_to_db(dag, session=session)
+
+        # Call the method under test
+        dependencies = SDM.get_dag_dependencies(session=session)
+
+        # Assertions
+        deps = dependencies["test_dag_dependencies"]
+
+        # 1. asset-alias resolution (resolved)
+        assert DagDependency(
+            source="asset",
+            target="asset-alias:alias1",
+            label="asset1",
+            dependency_type="asset",
+            dependency_id="1",
+        ) in deps
+
+        # 2. asset-alias unresolved fallback
+        assert DagDependency(
+            source="asset-alias",
+            target="test_dag_dependencies",
+            label="nonexistent_alias",
+            dependency_type="asset-alias",
+            dependency_id="nonexistent_alias",
+        ) in deps
+
+        # 3. direct asset reference
+        assert DagDependency(
+            source="asset",
+            target="test_dag_dependencies",
+            label="asset2",  # <-- The resolved name
+            dependency_type="asset",
+            dependency_id="2",  # <-- The resolved ID
+        ) in deps
+
+        # 4. missing asset-uri-ref fallback
+        assert DagDependency(
+            source="asset-uri-ref",
+            target="test_dag_dependencies",
+            label="test://missing_uri",
+            dependency_type="asset-uri-ref",
+            dependency_id="test://missing_uri",
+        ) in deps
+
+        # 5. missing asset-name-ref fallback
+        assert DagDependency(
+            source="asset-name-ref",
+            target="test_dag_dependencies",
+            label="missing_name",
+            dependency_type="asset-name-ref",
+            dependency_id="missing_name",
+        ) in deps
+
+        # Cleanup
+        db.clear_db_assets()
+

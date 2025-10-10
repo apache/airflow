@@ -349,7 +349,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):
-        """Recursively sort json_dict and its nested dictionaries and lists."""
+        """Ensures deterministic ordering for hashing and DB persistence."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
         if isinstance(serialized_dag, list):
