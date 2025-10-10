@@ -20,6 +20,7 @@ from airflow.providers.google.cloud.openlineage.facets import (
     BigQueryJobRunFacet,
     CloudStorageTransferJobFacet,
     CloudStorageTransferRunFacet,
+    DataFusionRunFacet,
 )
 
 
@@ -80,3 +81,10 @@ def test_cloud_storage_transfer_run_facet():
     assert facet.timeout == 3600
     assert facet.deferrable is False
     assert facet.deleteJobAfterCompletion is True
+
+
+def test_datafusion_run_facet():
+    facet = DataFusionRunFacet(runId="abc123", runtimeArgs={"arg1": "val1"})
+
+    assert facet.runId == "abc123"
+    assert facet.runtimeArgs == {"arg1": "val1"}

@@ -36,7 +36,6 @@
 
     Connection types <connections/index>
     Logging handlers <logging/index>
-    Message queues <message-queues/index>
     Secrets backends <secrets-backends/google-cloud-secret-manager-backend>
     API Authentication backend <api-auth-backend/google-openid>
     Operators <operators/index>
