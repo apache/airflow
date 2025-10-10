@@ -19,7 +19,6 @@
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { FC } from "react";
 
 import { ColorModeProvider } from "src/context/colorMode";
@@ -34,11 +33,6 @@ export type PluginComponentProps = object;
  * Main plugin component
  */
 const PluginComponent: FC<PluginComponentProps> = () => {
-  // Set the base URL for OpenAPI client from the HTML base tag
-  const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
-  const baseUrl = new URL(baseHref, globalThis.location.origin);
-  OpenAPI.BASE = baseUrl.pathname.replace(/\/$/, ""); // Remove trailing slash
-
   // ensure HTTP API calls are authenticated with current session token
   axios.interceptors.request.use(tokenHandler);
 

@@ -209,9 +209,7 @@ def get_dag(
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag_details(
-    dag_id: str, session: SessionDep, dag_bag: DagBagDep, user: GetUserDep
-) -> DAGDetailsResponse:
+def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
     """Get details of DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
@@ -223,19 +221,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    # Check if this DAG is marked as favorite by the current user
-    user_id = str(user.get_id())
-    is_favorite = (
-        session.scalar(
-            select(DagFavorite.dag_id).where(DagFavorite.user_id == user_id, DagFavorite.dag_id == dag_id)
-        )
-        is not None
-    )
-
-    # Add is_favorite field to the DAG model
-    setattr(dag_model, "is_favorite", is_favorite)
-
-    return DAGDetailsResponse.model_validate(dag_model)
+    return dag_model
 
 
 @dags_router.patch(

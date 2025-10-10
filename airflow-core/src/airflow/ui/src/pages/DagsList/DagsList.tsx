@@ -164,9 +164,8 @@ const createColumns = (
     header: "",
   },
   {
-    cell: ({ row: { original } }) => (
-      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} withText={false} />
-    ),
+    accessorKey: "favorite",
+    cell: ({ row: { original } }) => <FavoriteDagButton dagId={original.dag_id} withText={false} />,
     enableHiding: false,
     enableSorting: false,
     header: "",

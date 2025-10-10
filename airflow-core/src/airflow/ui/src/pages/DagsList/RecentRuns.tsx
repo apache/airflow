@@ -23,10 +23,9 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { renderDuration } from "src/utils";
+import { getDuration } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -43,14 +42,19 @@ export const RecentRuns = ({
     return undefined;
   }
 
+  const runsWithDuration = latestRuns.map((run) => ({
+    ...run,
+    duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
+  }));
+
   const max = Math.max.apply(
     undefined,
-    latestRuns.map((run) => run.duration ?? 0),
+    runsWithDuration.map((run) => run.duration),
   );
 
   return (
-    <Flex alignItems="flex-end" flexDirection="row-reverse" gap={[0.5, 0.5, 0.5, 1]} pb={1}>
-      {latestRuns.map((run) => (
+    <Flex alignItems="flex-end" flexDirection="row-reverse" pb={1}>
+      {runsWithDuration.map((run) => (
         <Tooltip
           content={
             <Box>
@@ -71,7 +75,7 @@ export const RecentRuns = ({
                 </Text>
               )}
               <Text>
-                {translate("duration")}: {renderDuration(run.duration)}
+                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
               </Text>
             </Box>
           }
@@ -85,19 +89,15 @@ export const RecentRuns = ({
           }}
         >
           <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
-            <Flex
-              alignItems="center"
-              bg={`${run.state}.solid`}
-              borderRadius="4px"
-              flexDir="column"
-              fontSize="12px"
-              height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
-              justifyContent="flex-end"
-              minHeight="12px"
-              width="12px"
-            >
-              <StateIcon color="white" state={run.state} />
-            </Flex>
+            <Box px={1}>
+              <Box
+                bg={`${run.state}.solid`}
+                borderRadius="4px"
+                height={`${(run.duration / max) * BAR_HEIGHT}px`}
+                minHeight={1}
+                width="4px"
+              />
+            </Box>
           </Link>
         </Tooltip>
       ))}

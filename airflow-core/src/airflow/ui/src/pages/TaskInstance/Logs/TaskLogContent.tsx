@@ -114,6 +114,11 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <ErrorAlert error={error ?? logError} />
       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
       <Code
+        css={{
+          "& *::selection": {
+            bg: "brand.subtle",
+          },
+        }}
         data-testid="virtualized-list"
         flexGrow={1}
         h="auto"
@@ -143,7 +148,8 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               key={virtualRow.key}
               position="absolute"
               ref={rowVirtualizer.measureElement}
-              top={`${virtualRow.start}px`}
+              top={0}
+              transform={`translateY(${virtualRow.start}px)`}
               width={wrap ? "100%" : "max-content"}
             >
               {parsedLogs[virtualRow.index] ?? undefined}

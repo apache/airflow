@@ -45,7 +45,7 @@ from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
-    EmailRequest,
+    EmailNotificationRequest,
     TaskCallbackRequest,
 )
 from airflow.dag_processing.dagbag import DagBag
@@ -1303,7 +1303,7 @@ class TestExecuteEmailCallbacks:
         )
 
         current_time = timezone.utcnow()
-        request = EmailRequest(
+        request = EmailNotificationRequest(
             filepath="/path/to/dag.py",
             bundle_name="test_bundle",
             bundle_version="1.0.0",
@@ -1363,7 +1363,7 @@ class TestExecuteEmailCallbacks:
 
         current_time = timezone.utcnow()
 
-        request = EmailRequest(
+        request = EmailNotificationRequest(
             filepath="/path/to/dag.py",
             bundle_name="test_bundle",
             bundle_version="1.0.0",
@@ -1422,7 +1422,7 @@ class TestExecuteEmailCallbacks:
         )
 
         current_time = timezone.utcnow()
-        request = EmailRequest(
+        request = EmailNotificationRequest(
             filepath="/path/to/dag.py",
             bundle_name="test_bundle",
             bundle_version="1.0.0",
@@ -1480,7 +1480,7 @@ class TestExecuteEmailCallbacks:
         current_time = timezone.utcnow()
 
         # Create request for failure (but email_on_failure is False)
-        request = EmailRequest(
+        request = EmailNotificationRequest(
             filepath="/path/to/dag.py",
             bundle_name="test_bundle",
             bundle_version="1.0.0",

@@ -10,7 +10,6 @@
     "hourly": "Godzinowo",
     "legend": {
       "less": "Mniej",
-      "mixed": "Mieszane",
       "more": "Więcej"
     },
     "navigation": {
@@ -20,7 +19,6 @@
       "previousYear": "Poprzedni rok"
     },
     "noData": "Brak danych",
-    "noFailedRuns": "Brak nieudanych wykonań",
     "noRuns": "Brak wykonań",
     "totalRuns": "Łączna liczba wykonań",
     "week": "Tydzień {{weekNumber}}",

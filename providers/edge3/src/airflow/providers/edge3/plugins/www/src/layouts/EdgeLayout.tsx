@@ -30,13 +30,9 @@ export const EdgeLayout = () => {
     { label: "Edge Jobs", value: "plugin/edge_jobs" },
   ];
 
-  // Extract base URL from HTML base element to handle webserver.base_url configuration
-  const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
-  const basename = new URL(baseUrl).pathname;
-
   return (
     <Box p={2} /* Compensate for parent padding from ExternalView */>
-      <BrowserRouter basename={basename}>
+      <BrowserRouter>
         <NavTabs tabs={tabs} />
         <Routes>
           <Route path="plugin/edge_worker" element={<WorkerPage />} />

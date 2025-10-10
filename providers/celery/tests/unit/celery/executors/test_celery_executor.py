@@ -34,7 +34,6 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -304,7 +303,7 @@ class TestCeleryExecutor:
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
-            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
+            with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
                 executor.cleanup_stuck_queued_tasks(tis=tis)
             executor.sync()
         assert executor.tasks == {}

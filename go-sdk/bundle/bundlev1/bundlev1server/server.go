@@ -31,7 +31,6 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server/impl"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
-	"github.com/apache/airflow/go-sdk/pkg/config"
 )
 
 var versionInfo *bool = flag.Bool("bundle-metadata", false, "show the embedded bundle info")
@@ -57,7 +56,7 @@ type ServerConfig struct{}
 // Zero or more options to configure the server may also be passed. There are no options yet, this is to allow
 // future changes without breaking compatibility
 func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
-	config.SetupViper("")
+	shared.SetupViper("")
 
 	hcLogger := hclog.New(&hclog.LoggerOptions{
 		Level:                    hclog.Trace,

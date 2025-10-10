@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from functools import cached_property
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.notifier import BaseNotifier
 
 
@@ -65,13 +64,8 @@ class SqsNotifier(BaseNotifier):
         message_group_id: str | None = None,
         delay_seconds: int = 0,
         region_name: str | None = None,
-        **kwargs,
     ):
-        if AIRFLOW_V_3_1_PLUS:
-            #  Support for passing context was added in 3.1.0
-            super().__init__(**kwargs)
-        else:
-            super().__init__()
+        super().__init__()
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.queue_url = queue_url
@@ -88,16 +82,6 @@ class SqsNotifier(BaseNotifier):
     def notify(self, context):
         """Publish the notification message to Amazon SQS queue."""
         self.hook.send_message(
-            queue_url=self.queue_url,
-            message_body=self.message_body,
-            delay_seconds=self.delay_seconds,
-            message_attributes=self.message_attributes,
-            message_group_id=self.message_group_id,
-        )
-
-    async def async_notify(self, context):
-        """Publish the notification message to Amazon SQS queue (async)."""
-        await self.hook.asend_message(
             queue_url=self.queue_url,
             message_body=self.message_body,
             delay_seconds=self.delay_seconds,

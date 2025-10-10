@@ -20,8 +20,8 @@
 This project is managed by the PMC (Project Management Committee) of The
 Apache Software Foundation.
 
-Governance of PMCs is described in the
+Governace of PMCs is described in the
 [ASF PMC Governance](https://www.apache.org/foundation/governance/pmcs) documentation.
 
-Some Apache Airflow specific details of how we apply the ASF Governance rules to
+Some Apache Airflow specific details of how we apply the ASF Governance rulse to
 Apache Airflow are described in [COMMITTERS](COMMITTERS.rst) document.

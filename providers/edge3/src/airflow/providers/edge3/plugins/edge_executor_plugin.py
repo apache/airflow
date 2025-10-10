@@ -227,22 +227,6 @@ else:
     RUNNING_ON_APISERVER = "gunicorn" in sys.argv[0] and "airflow-webserver" in sys.argv
 
 
-def _get_base_url_path(path: str) -> str:
-    """Construct URL path with webserver base_url prefix."""
-    base_url = conf.get("api", "base_url", fallback="/")
-    # Extract pathname from base_url (handles both full URLs and path-only)
-    if base_url.startswith(("http://", "https://")):
-        from urllib.parse import urlparse
-
-        base_path = urlparse(base_url).path
-    else:
-        base_path = base_url
-
-    # Normalize paths: remove trailing slash from base, ensure leading slash on path
-    base_path = base_path.rstrip("/")
-    return base_path + path
-
-
 class EdgeExecutorPlugin(AirflowPlugin):
     """EdgeExecutor Plugin - provides API endpoints for Edge Workers in Webserver."""
 
@@ -253,30 +237,30 @@ class EdgeExecutorPlugin(AirflowPlugin):
             react_apps = [
                 {
                     "name": "Edge Worker",
-                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
+                    "bundle_url": "/edge_worker/static/main.umd.cjs",
                     "destination": "nav",
                     "url_route": "edge_worker",
                     "category": "admin",
-                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
-                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
                 },
                 {
                     "name": "Edge Worker Jobs",
-                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
+                    "bundle_url": "/edge_worker/static/main.umd.cjs",
                     "url_route": "edge_jobs",
                     "category": "admin",
-                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
-                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
                 },
             ]
             external_views = [
                 {
                     "name": "Edge Worker API docs",
-                    "href": _get_base_url_path("/edge_worker/docs"),
+                    "href": "/edge_worker/docs",
                     "destination": "nav",
                     "category": "docs",
-                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
-                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                    "icon": "/edge_worker/res/cloud-computer.svg",
+                    "icon_dark_mode": "/edge_worker/res/cloud-computer-dark.svg",
                     "url_route": "edge_worker_api_docs",
                 }
             ]
@@ -287,7 +271,7 @@ class EdgeExecutorPlugin(AirflowPlugin):
             appbuilder_menu_items = [
                 {
                     "name": "Edge Worker API docs",
-                    "href": _get_base_url_path("/edge_worker/v1/ui"),
+                    "href": "/edge_worker/v1/ui",
                     "category": "Docs",
                 }
             ]

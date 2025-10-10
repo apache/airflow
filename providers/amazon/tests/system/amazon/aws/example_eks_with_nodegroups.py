@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from pendulum import duration
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
@@ -164,9 +163,6 @@ with DAG(
         task_id="delete_nodegroup",
         cluster_name=cluster_name,
         nodegroup_name=nodegroup_name,
-        retries=4,
-        retry_delay=duration(seconds=30),
-        retry_exponential_backoff=True,
     )
     # [END howto_operator_eks_delete_nodegroup]
     delete_nodegroup.trigger_rule = TriggerRule.ALL_DONE

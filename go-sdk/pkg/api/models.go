@@ -23,5 +23,3 @@ type ExecuteTaskWorkload struct {
 	BundleInfo BundleInfo   `json:"bundle_info"`
 	LogPath    *string      `json:"log_path,omitempty"`
 }
-
-const XComReturnValueKey = "return_value"

@@ -38,13 +38,14 @@ export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps
       borderWidth="1px"
       display="flex"
       flexDirection="column"
+      height="100%"
       justifyContent="center"
-      maxWidth="200px"
       overflow="hidden"
       px={4}
       py={3}
+      width="100%"
     >
-      <VStack gap={0}>
+      <VStack>
         {latestRuns.length > 0 ? (
           <RecentRuns latestRuns={latestRuns} />
         ) : (

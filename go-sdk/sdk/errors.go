@@ -32,5 +32,3 @@ var VariableNotFound = errors.New("variable not found")
 //
 // See the “GetConnection“ method of [ConnectionClient] for an example
 var ConnectionNotFound = errors.New("connection not found")
-
-var XComNotFound = errors.New("xcom not found")

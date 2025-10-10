@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import zlib
+import hashlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal
@@ -318,19 +319,16 @@ class SerializedDagModel(Base):
         self.dag_id = dag.dag_id
         dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
-
-        # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        sorted_dag_data = SerializedDagModel._sort_serialized_dag_dict(dag_data)
+        sorted_dag_data_json = json.dumps(sorted_dag_data, sort_keys=True).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
-            self._data_compressed = zlib.compress(dag_data_json)
+            self._data_compressed = zlib.compress(sorted_dag_data_json)
         else:
             self._data = dag_data
             self._data_compressed = None
 
-        # serve as cache so no need to decompress and load, when accessing data field
-        # when COMPRESS_SERIALIZED_DAGS is True
         self.__data_cache = dag_data
 
     def __repr__(self) -> str:
@@ -409,6 +407,7 @@ class SerializedDagModel(Base):
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
+    
         serialized_dag_hash = session.scalars(
             select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
         ).first()

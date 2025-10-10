@@ -84,7 +84,7 @@ GRID_NODES = [
         "is_mapped": True,
         "label": "mapped_task_group",
     },
-    {"id": "task", "label": "A Beautiful Task Name 🚀"},
+    {"id": "task", "label": "task"},
     {
         "children": [
             {
@@ -92,11 +92,11 @@ GRID_NODES = [
                     {
                         "id": "task_group.inner_task_group.inner_task_group_sub_task",
                         "is_mapped": True,
-                        "label": "Inner Task Group Sub Task Label",
+                        "label": "inner_task_group_sub_task",
                     }
                 ],
                 "id": "task_group.inner_task_group",
-                "label": "My Inner Task Group",
+                "label": "inner_task_group",
             },
             {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
         ],
@@ -121,7 +121,7 @@ def setup(dag_maker, session=None):
 
     # DAG 1
     with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
-        task = EmptyOperator(task_id=TASK_ID, task_display_name="A Beautiful Task Name 🚀")
+        task = EmptyOperator(task_id=TASK_ID)
 
         @task_group
         def mapped_task_group(arg1):
@@ -131,10 +131,8 @@ def setup(dag_maker, session=None):
 
         with TaskGroup(group_id=TASK_GROUP_ID):
             MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
-            with TaskGroup(group_id=INNER_TASK_GROUP, group_display_name="My Inner Task Group"):
-                MockOperator.partial(
-                    task_id=INNER_TASK_GROUP_SUB_TASK, task_display_name="Inner Task Group Sub Task Label"
-                ).expand(arg1=["a", "b"])
+            with TaskGroup(group_id=INNER_TASK_GROUP):
+                MockOperator.partial(task_id=INNER_TASK_GROUP_SUB_TASK).expand(arg1=["a", "b"])
 
         # Mapped but never expanded. API should not crash, but count this as one no-status ti.
         MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
@@ -438,39 +436,6 @@ class TestGetGridDataEndpoint:
             },
         ]
 
-        # Also verify that TI summaries include a leaf entry for the removed task
-        ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
-        assert ti_resp.status_code == 200
-        ti_payload = ti_resp.json()
-        assert ti_payload["dag_id"] == DAG_ID_3
-        assert ti_payload["run_id"] == "run_3"
-        # Find the removed task summary; it should exist even if not in current serialized DAG structure
-        removed_ti = next(
-            (
-                n
-                for n in ti_payload["task_instances"]
-                if n["task_id"] == TASK_ID_4 and n["child_states"] is None
-            ),
-            None,
-        )
-        assert removed_ti is not None
-        # Its state should be the aggregated state of its TIs, which includes 'removed'
-        assert removed_ti["state"] in (
-            "removed",
-            None,
-            "skipped",
-            "success",
-            "failed",
-            "running",
-            "queued",
-            "scheduled",
-            "deferred",
-            "restarting",
-            "up_for_retry",
-            "up_for_reschedule",
-            "upstream_failed",
-        )
-
     def test_get_dag_structure(self, session, test_client):
         session.commit()
         response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
@@ -482,7 +447,7 @@ class TestGetGridDataEndpoint:
                 "is_mapped": True,
                 "label": "mapped_task_group",
             },
-            {"id": "task", "label": "A Beautiful Task Name 🚀"},
+            {"id": "task", "label": "task"},
             {
                 "children": [
                     {
@@ -490,11 +455,11 @@ class TestGetGridDataEndpoint:
                             {
                                 "id": "task_group.inner_task_group.inner_task_group_sub_task",
                                 "is_mapped": True,
-                                "label": "Inner Task Group Sub Task Label",
+                                "label": "inner_task_group_sub_task",
                             }
                         ],
                         "id": "task_group.inner_task_group",
-                        "label": "My Inner Task Group",
+                        "label": "inner_task_group",
                     },
                     {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
                 ],
@@ -739,16 +704,3 @@ class TestGetGridDataEndpoint:
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
-
-    def test_structure_includes_historical_removed_task_with_proper_shape(self, session, test_client):
-        # Ensure the structure endpoint returns synthetic node for historical/removed task
-        response = test_client.get(f"/grid/structure/{DAG_ID_3}")
-        assert response.status_code == 200
-        nodes = response.json()
-        # Find the historical removed task id
-        t4 = next((n for n in nodes if n["id"] == TASK_ID_4), None)
-        assert t4 is not None
-        assert t4["label"] == TASK_ID_4
-        # Optional None fields are excluded from response due to response_model_exclude_none=True
-        assert "is_mapped" not in t4
-        assert "children" not in t4

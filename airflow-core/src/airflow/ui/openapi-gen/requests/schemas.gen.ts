@@ -1063,21 +1063,6 @@ export const $BulkUpdateAction_BulkTaskInstanceBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
-        update_mask: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Update Mask',
-            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
-        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1104,21 +1089,6 @@ export const $BulkUpdateAction_ConnectionBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
-        },
-        update_mask: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Update Mask',
-            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -1147,21 +1117,6 @@ export const $BulkUpdateAction_PoolBody_ = {
             title: 'Entities',
             description: 'A list of entities to be updated.'
         },
-        update_mask: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Update Mask',
-            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
-        },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
             default: 'fail'
@@ -1188,21 +1143,6 @@ export const $BulkUpdateAction_VariableBody_ = {
             type: 'array',
             title: 'Entities',
             description: 'A list of entities to be updated.'
-        },
-        update_mask: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Update Mask',
-            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
         },
         action_on_non_existence: {
             '$ref': '#/components/schemas/BulkActionNotOnExistence',
@@ -2041,11 +1981,6 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Owner Links'
         },
-        is_favorite: {
-            type: 'boolean',
-            title: 'Is Favorite',
-            default: false
-        },
         file_token: {
             type: 'string',
             title: 'File Token',
@@ -2842,61 +2777,6 @@ export const $DAGRunsBatchBody = {
                 }
             ],
             title: 'End Date Lt'
-        },
-        duration_gte: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Duration Gte'
-        },
-        duration_gt: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Duration Gt'
-        },
-        duration_lte: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Duration Lte'
-        },
-        duration_lt: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Duration Lt'
-        },
-        conf_contains: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Conf Contains'
         }
     },
     additionalProperties: false,
@@ -7348,10 +7228,6 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Pending Actions'
         },
-        is_favorite: {
-            type: 'boolean',
-            title: 'Is Favorite'
-        },
         file_token: {
             type: 'string',
             title: 'File Token',
@@ -7360,7 +7236,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

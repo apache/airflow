@@ -189,6 +189,7 @@
     },
     "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
   },
+  "seconds": "ثواني",
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",

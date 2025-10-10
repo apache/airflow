@@ -37,7 +37,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
+import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
@@ -183,8 +183,8 @@ const taskInstanceColumns = ({
     header: translate("task.operator"),
   },
   {
-    accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) =>
+      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
     header: translate("duration"),
   },
   {

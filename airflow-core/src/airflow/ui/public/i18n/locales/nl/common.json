@@ -161,6 +161,7 @@
     },
     "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Acties",
     "permissions": "Permissies",

@@ -117,7 +117,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
                 px={1}
               >
                 <FiChevronUp
-                  size={16}
+                  size="1rem"
                   style={{
                     transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
                     transition: "transform 0.5s",

@@ -28,6 +28,7 @@ import {
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
+import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -81,7 +82,7 @@ export const DagBreadcrumb = () => {
   // Add dag run breadcrumb
   if (runId !== undefined) {
     links.push({
-      label: dagRun === undefined ? runId : dagRun.dag_run_id,
+      label: dagRun === undefined ? runId : <Time datetime={dagRun.run_after} />,
       labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
       title: translate("dagRun_one"),
       value: `/dags/${dagId}/runs/${runId}`,

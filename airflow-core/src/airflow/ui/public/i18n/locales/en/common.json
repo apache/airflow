@@ -64,7 +64,7 @@
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By",
-    "triggeringUser": "Triggering User"
+    "triggeringUser": "Triggering User Name"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -101,8 +101,6 @@
   },
   "filter": "Filter",
   "filters": {
-    "durationFrom": "Duration From",
-    "durationTo": "Duration To",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
@@ -163,6 +161,7 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",

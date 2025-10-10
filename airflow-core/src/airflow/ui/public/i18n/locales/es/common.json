@@ -168,6 +168,7 @@
     },
     "tooltip": "Presiona {{hotkey}} para desplazarte a {{direction}}"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Acciones",
     "permissions": "Permisos",

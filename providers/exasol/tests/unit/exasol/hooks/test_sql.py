@@ -285,5 +285,6 @@ def test_query(
 def test_no_query(empty_statement):
     dbapi_hook = ExasolHookForTests()
     dbapi_hook.get_conn.return_value.cursor.rowcount = lambda: 0
-    with pytest.raises(ValueError, match="List of SQL statements is empty"):
+    with pytest.raises(ValueError) as err:
         dbapi_hook.run(sql=empty_statement)
+    assert err.value.args[0] == "List of SQL statements is empty"

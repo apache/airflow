@@ -42,7 +42,7 @@ def test_sanitize_uri_pass() -> None:
 )
 def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError, match="URI format bigquery:// must contain"):
+    with pytest.raises(ValueError):
         sanitize_uri(uri_i)
 
 

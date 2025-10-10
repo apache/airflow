@@ -373,8 +373,9 @@ def test_query(
     ],
 )
 def test_no_query(databricks_hook, empty_statement):
-    with pytest.raises(ValueError, match="List of SQL statements is empty"):
+    with pytest.raises(ValueError) as err:
         databricks_hook.run(sql=empty_statement)
+    assert err.value.args[0] == "List of SQL statements is empty"
 
 
 @pytest.mark.parametrize(

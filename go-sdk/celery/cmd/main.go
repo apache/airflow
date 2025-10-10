@@ -17,17 +17,8 @@
 
 package main
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/apache/airflow/go-sdk/celery/commands"
-)
+import "github.com/apache/airflow/go-sdk/celery/commands"
 
 func main() {
-	if os.Getenv("AIRFLOW_BUNDLE_MAGIC_COOKIE") != "" {
-		fmt.Println("(We're not a bundle plugin)")
-		os.Exit(0)
-	}
 	commands.Execute()
 }

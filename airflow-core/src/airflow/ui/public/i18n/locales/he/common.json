@@ -168,6 +168,7 @@
     },
     "tooltip": "לחץ {{hotkey}} לגלילה ל{{direction}}"
   },
+  "seconds": "{{count}} שניות",
   "security": {
     "actions": "פעולות",
     "permissions": "הרשאות",

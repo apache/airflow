@@ -27,7 +27,6 @@ import { urlRegex } from "src/constants/urlRegex";
 type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
-  readonly open?: boolean;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
@@ -63,7 +62,7 @@ const renderTextWithLinks = (text: string) => {
   );
 };
 
-export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
+export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
@@ -89,11 +88,7 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
   ) : (
     <HStack>
       {isObjectOrArray ? (
-        <RenderedJsonField
-          content={xcomValue as object}
-          enableClipboard={false}
-          jsonProps={{ collapsed: !open }}
-        />
+        <RenderedJsonField content={xcomValue as object} enableClipboard={false} />
       ) : (
         <Text>{renderTextWithLinks(valueFormatted)}</Text>
       )}

@@ -175,6 +175,7 @@
     },
     "tooltip": "Pressione {{hotkey}} para rolar para {{direction}}"
   },
+  "seconds": "{{count}}s",
   "security": {
     "actions": "Ações",
     "permissions": "Permissões",

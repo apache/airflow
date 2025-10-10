@@ -31,9 +31,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-
-	"github.com/apache/airflow/go-sdk/pkg/logging"
 )
+
+// Slog does not have built in trace log level
+const SlogLevelTrace = slog.LevelDebug - (slog.LevelInfo - slog.LevelDebug)
 
 const (
 	TimeFormatJSON = "2006-01-02T15:04:05.000000Z0700"
@@ -113,7 +114,7 @@ func (l *Shclog) log(ctx context.Context, level slog.Level, msg string, args ...
 }
 
 func (l *Shclog) Trace(msg string, args ...any) {
-	l.log(context.Background(), logging.LevelTrace, msg, args...)
+	l.log(context.Background(), SlogLevelTrace, msg, args...)
 }
 
 func (l *Shclog) Debug(msg string, args ...any) {
@@ -218,7 +219,7 @@ func getSlogLevel(l *slog.Logger) hclog.Level {
 	h := l.Handler()
 	ctx := context.Background()
 
-	if h.Enabled(ctx, logging.LevelTrace) {
+	if h.Enabled(ctx, SlogLevelTrace) {
 		return hclog.Trace
 	}
 	if h.Enabled(ctx, slog.LevelDebug) {
