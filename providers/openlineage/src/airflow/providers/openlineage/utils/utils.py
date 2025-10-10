@@ -755,11 +755,10 @@ def get_airflow_state_run_facet(
     def get_task_duration(ti):
         if ti.duration is not None:
             return ti.duration
-        elif ti.end_date is not None and ti.start_date is not None:
+        if ti.end_date is not None and ti.start_date is not None:
             return (ti.end_date - ti.start_date).total_seconds()
-        else:
-            # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
-            return 0.0
+        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+        return 0.0
 
     return {
         "airflowState": AirflowStateRunFacet(
