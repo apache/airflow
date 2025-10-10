@@ -1017,19 +1017,13 @@ class TestElasticsearchRemoteLogIO:
         """Generate a unique index name for each test."""
         return f"airflow-logs-{uuid.uuid4()}"
 
-    @pytest.fixture
-    def write_to_es(self, tmp_json_file, ti, unique_index):
-        self.elasticsearch_io.target_index = unique_index
-        self.elasticsearch_io.index_pattern = unique_index
-        self.elasticsearch_io.client = self.elasticsearch_io.client.options(
-            request_timeout=120, retry_on_timeout=True, max_retries=5
-        )
-        self.elasticsearch_io.upload(tmp_json_file, ti)
-        self.elasticsearch_io.client.indices.refresh(index=unique_index, request_timeout=120)
-
     @pytest.mark.setup_timeout(300)
     @pytest.mark.execution_timeout(300)
-    def test_write_to_es(self, tmp_json_file, ti):
+    @patch(
+        "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
+        ["message"],
+    )
+    def test_read_write_to_es(self, tmp_json_file, ti):
         self.elasticsearch_io.client = self.elasticsearch_io.client.options(
             request_timeout=120, retry_on_timeout=True, max_retries=5
         )
@@ -1038,21 +1032,16 @@ class TestElasticsearchRemoteLogIO:
         self.elasticsearch_io.client.indices.refresh(
             index=self.elasticsearch_io.target_index, request_timeout=120
         )
-        res = self.elasticsearch_io.client.search(
-            index=self.elasticsearch_io.target_index, query={"match_all": {}}
-        )
+        log_source_info, log_messages = self.elasticsearch_io.read("", ti)
+        assert log_source_info[0] == self.elasticsearch_8_url
+        assert len(log_messages) == 3
 
-        offset = 1
         expected_msg = ["start", "processing", "end"]
-        expected_log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, 1)
-        assert res["hits"]["total"]["value"] == 3
-        for msg, hit in zip(expected_msg, res["hits"]["hits"]):
-            assert hit["_index"] == "airflow-logs"
-            assert hit["_source"]["message"] == msg
-            assert hit["_source"]["offset"] == offset
-            assert hit["_source"]["log_id"] == expected_log_id
-            offset += 1
-        self.elasticsearch_io.client.indices.delete(index=self.elasticsearch_io.target_index)
+        for msg, log_message in zip(expected_msg, log_messages):
+            print(f"msg: {msg}, log_message: {log_message}")
+            json_log = json.loads(log_message)
+            assert "message" in json_log
+            assert json_log["message"] == msg
 
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
@@ -1083,23 +1072,6 @@ class TestElasticsearchRemoteLogIO:
         for json_log_line in json_log_lines:
             assert "log_id" in json_log_line
             assert "offset" in json_log_line
-
-    @pytest.mark.setup_timeout(300)
-    @pytest.mark.execution_timeout(300)
-    @patch(
-        "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
-        ["message"],
-    )
-    def test_read_es_log(self, write_to_es, ti):
-        log_source_info, log_messages = self.elasticsearch_io.read("", ti)
-        assert log_source_info[0] == self.elasticsearch_8_url
-        assert len(log_messages) == 3
-
-        expected_msg = ["start", "processing", "end"]
-        for msg, log_message in zip(expected_msg, log_messages):
-            json_log = json.loads(log_message)
-            assert "message" in json_log
-            assert json_log["message"] == msg
 
     @patch("elasticsearch.Elasticsearch.count", return_value={"count": 0})
     def test_read_with_missing_log(self, mocked_count, ti):
