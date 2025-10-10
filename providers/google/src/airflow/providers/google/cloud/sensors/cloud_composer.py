@@ -113,9 +113,9 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         logical_date = context.get("logical_date", None)
         if logical_date is None:
             raise RuntimeError(
-                "logical_date is None. Please make sure the sensor is not used in an asset-triggered DAG. "
-                "CloudComposerDAGRunSensor was designed to be used in time-based scheduled DAGs only, "
-                "and asset-triggered DAGs do not have logical_date. "
+                "logical_date is None. Please make sure the sensor is not used in an asset-triggered Dag. "
+                "CloudComposerDAGRunSensor was designed to be used in time-based scheduled Dags only, "
+                "and asset-triggered Dags do not have logical_date. "
             )
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
