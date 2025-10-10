@@ -24,5 +24,9 @@ pytest_plugins = "tests_common.pytest_plugin"
 
 @pytest.fixture(scope="session")
 def es_8_container_url():
-    with ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0") as es:
+    with ElasticSearchContainer(
+        "docker.elastic.co/elasticsearch/elasticsearch:8.19.0",
+        mem_reservation="512m",
+        nano_cpus=2_000_000_000,  # 0.5 CPU; reduce to 100_000_000 for ~0.1 CPU and more slowdown
+    ) as es:
         yield es.get_url()

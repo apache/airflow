@@ -23,7 +23,6 @@ services:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
       - KUBECONFIG=/files/.kube/config
-      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
     env_file:
       - _generated_docker_compose.env
     volumes:
