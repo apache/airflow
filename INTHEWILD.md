@@ -300,6 +300,7 @@ Currently, **officially** using Airflow:
 1. [Inter Platform Inc.](https://www.bancointer.com.br/) [[@wolvery](https://github.com/wolvery)]
 1. [Intercom](http://www.intercom.com/) [[@fox](https://github.com/fox) & [@paulvic](https://github.com/paulvic)]
 1. [Interia](http://www.interia.pl)
+1. [Intuit](https://www.intuit.com/)
 1. [Investorise](https://investorise.com/) [[@svenvarkel](https://github.com/svenvarkel)]
 1. [iS2.co](https://www.is2.co) [[@iS2co](https://github.com/iS2co)]
 1. [Jagex](https://www.jagex.com) [[@anumsheraz](https://github.com/AnumSheraz), [@trucnguyenlam](https://github.com/trucnguyenlam), [@lumez](https://github.com/lumez)]
