@@ -73,16 +73,15 @@ const rgbToChakraColorMap: Record<string, string> = {
   "0, 0, 187": "blue.fg", // Blue (34m)
   "0, 187, 0": "green.fg", // Green (32m)
   "0, 187, 187": "cyan.fg", // Cyan (36m)
-  "0, 255, 0": "green.fg", // Pure Green
+  "0, 255, 0": "green.400", // Bright Green (92m)
   "85, 85, 85": "black", // Bright Black/Gray (90m)
   "85, 85, 255": "blue.400", // Bright Blue (94m)
-  "85, 255, 85": "green.700", // Bright Green (92m)
   "85, 255, 255": "cyan.400", // Bright Cyan (96m)
   "187, 0, 0": "red.fg", // Red (31m)
   "187, 0, 187": "purple.fg", // Magenta (35m)
   "187, 187, 0": "yellow.fg", // Yellow (33m)
   "187, 187, 187": "gray.100", // White (37m)
-  "255, 85, 85": "red.600", // Bright Red (91m)
+  "255, 85, 85": "red.400", // Bright Red (91m)
   "255, 85, 255": "purple.400", // Bright Magenta (95m)
   "255, 255, 85": "yellow.400", // Bright Yellow (93m)
   "255, 255, 255": "white", // Bright White (97m)
@@ -152,7 +151,11 @@ const convertBundleIntoReact = (options: {
 
   if (!linkify) {
     if (useClasses) {
-      return React.createElement("span", { className, key }, bundle.content);
+      return (
+        <span className={className} key={key}>
+          {bundle.content}
+        </span>
+      );
     }
 
     return (
@@ -182,15 +185,9 @@ const convertBundleIntoReact = (options: {
     const href = url.startsWith("www.") ? `http://${url}` : url;
 
     content.push(
-      React.createElement(
-        "a",
-        {
-          href,
-          key: index,
-          target: "_blank",
-        },
-        url,
-      ),
+      <a href={href} key={index} rel="noreferrer" target="_blank">
+        {url}
+      </a>,
     );
 
     index = linkRegex.lastIndex;
@@ -201,7 +198,11 @@ const convertBundleIntoReact = (options: {
   }
 
   if (useClasses) {
-    return React.createElement("span", { className, key }, content);
+    return (
+      <span className={className} key={key}>
+        {content}
+      </span>
+    );
   }
 
   return (
@@ -223,13 +224,12 @@ export const AnsiRenderer: React.FC<AnsiRendererProps> = ({
   className,
   linkify = false,
   useClasses = false,
-}) =>
-  React.createElement(
-    "code",
-    { className },
-    ansiToJSON(children, useClasses).map((bundle, index) =>
+}) => (
+  <code className={className}>
+    {ansiToJSON(children, useClasses).map((bundle, index) =>
       convertBundleIntoReact({ bundle, key: index, linkify, useClasses }),
-    ),
-  );
+    )}
+  </code>
+);
 
 export default AnsiRenderer;
