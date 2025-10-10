@@ -146,11 +146,11 @@ class HiveOperator(BaseOperator):
             logical_date = context.get("logical_date", None)
             if logical_date is None:
                 raise RuntimeError(
-                    "logical_date is None. Please make sure the task is not used in an asset-triggered DAG. "
-                    "HiveOperator was designed to work with timetable scheduled DAGs, "
-                    "and asset-triggered DAGs do not have logical_date. "
-                    "if asset-triggered HiveOperator is a required use case, "
-                    "please open an issue on the airflow project."
+                    "logical_date is None. Please make sure the task is not used in an asset-triggered Dag. "
+                    "HiveOperator was designed to work with timetable scheduled Dags, "
+                    "and asset-triggered Dags do not have logical_date. "
+                    "If asset-triggered HiveOperator is a required use case, "
+                    "please open an issue on the Airflow project."
                 )
             hostname = ti.hostname or ""
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
