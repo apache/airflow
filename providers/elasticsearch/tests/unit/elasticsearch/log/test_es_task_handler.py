@@ -1022,19 +1022,19 @@ class TestElasticsearchRemoteLogIO:
         self.elasticsearch_io.target_index = unique_index
         self.elasticsearch_io.index_pattern = unique_index
         self.elasticsearch_io.client = self.elasticsearch_io.client.options(
-            request_timeout=60, retry_on_timeout=True, max_retries=5
+            request_timeout=120, retry_on_timeout=True, max_retries=5
         )
         self.elasticsearch_io.upload(tmp_json_file, ti)
-        self.elasticsearch_io.client.indices.refresh(index=unique_index, request_timeout=60)
+        self.elasticsearch_io.client.indices.refresh(index=unique_index, request_timeout=120)
 
     def test_write_to_es(self, tmp_json_file, ti):
         self.elasticsearch_io.client = self.elasticsearch_io.client.options(
-            request_timeout=60, retry_on_timeout=True, max_retries=5
+            request_timeout=120, retry_on_timeout=True, max_retries=5
         )
         self.elasticsearch_io.write_stdout = False
         self.elasticsearch_io.upload(tmp_json_file, ti)
         self.elasticsearch_io.client.indices.refresh(
-            index=self.elasticsearch_io.target_index, request_timeout=60
+            index=self.elasticsearch_io.target_index, request_timeout=120
         )
         res = self.elasticsearch_io.client.search(
             index=self.elasticsearch_io.target_index, query={"match_all": {}}
