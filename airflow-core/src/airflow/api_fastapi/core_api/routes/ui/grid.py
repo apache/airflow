@@ -343,38 +343,38 @@ def get_grid_ti_summaries(
         limit=None,
         return_total_entries=False,
     )
-    rows = list(session.execute(tis_of_dag_runs))
-    if not rows:
+
+    task_instances = session.scalars(tis_of_dag_runs).all()
+    if not task_instances:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
 
-    # Build TI details per task_id (state + timing + DB-backed duration only).
+    # Build TI details per task_id, adding only the requested duration field.
     ti_details: dict[str, list[dict[str, object | None]]] = collections.defaultdict(list)
-    for r in rows:
-        ti_details[r.task_id].append(
+    for ti in task_instances:
+        ti_details[ti.task_id].append(
             {
-                "state": r.state,
-                "start_date": r.start_date,
-                "end_date": r.end_date,
-                "duration": r.duration,
+                "state": ti.state,
+                "start_date": ti.start_date,
+                "end_date": ti.end_date,
+                "duration": ti.duration,
             }
         )
 
-    # Pre-compute min start / max end per leaf task (used by the UI for tooltips)
+    # Pre-compute min start / max end per leaf task (for tooltip) and pick a representative duration.
     task_min_max: dict[str, tuple[object | None, object | None]] = {}
     task_first_duration: dict[str, float | None] = {}
     for task_id, items in ti_details.items():
         starts = [i["start_date"] for i in items if i.get("start_date") is not None]
         ends = [i["end_date"] for i in items if i.get("end_date") is not None]
         task_min_max[task_id] = (min(starts) if starts else None, max(ends) if ends else None)
-
         dur = next((i["duration"] for i in items if i.get("duration") is not None), None)
-        task_first_duration[task_id] = dur
+        task_first_duration[task_id] = dur  # may be None
 
     serdag = _get_serdag(
         dag_id=dag_id,
-        dag_version_id=rows[0].dag_version_id,
+        dag_version_id=task_instances[0].dag_version_id,
         session=session,
     )
     if TYPE_CHECKING:
