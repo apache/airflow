@@ -751,16 +751,20 @@ def get_airflow_state_run_facet(
     dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
 ) -> dict[str, AirflowStateRunFacet]:
     tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
+
+    def get_task_duration(ti):
+        if ti.duration is not None:
+            return ti.duration
+        if ti.end_date is not None and ti.start_date is not None:
+            return (ti.end_date - ti.start_date).total_seconds()
+        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+        return 0.0
+
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
-            tasksDuration={
-                ti.task_id: ti.duration
-                if ti.duration is not None
-                else (ti.end_date - ti.start_date).total_seconds()
-                for ti in tis
-            },
+            tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
         )
     }
 
