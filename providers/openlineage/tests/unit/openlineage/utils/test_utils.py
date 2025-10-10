@@ -44,6 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
     _truncate_string_to_byte_size,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_airflow_state_run_facet,
     get_dag_documentation,
     get_fully_qualified_class_name,
     get_job_name,
@@ -2054,3 +2055,53 @@ def test_get_operator_provider_version_for_mapped_operator(mock_providers_manage
     mapped_operator = BashOperator.partial(task_id="test_task").expand(bash_command=["echo 1", "echo 2"])
     result = get_operator_provider_version(mapped_operator)
     assert result == "1.2.0"
+
+
+class TestGetAirflowStateRunFacet:
+    @pytest.mark.db_test
+    def test_task_with_timestamps_defined(self, dag_maker):
+        """Test task instance with defined start_date and end_date."""
+        with dag_maker(dag_id="test_dag"):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(task_id="test_task")
+
+        start_time = pendulum.parse("2024-01-01T10:00:00Z")
+        end_time = pendulum.parse("2024-01-01T10:02:30Z")
+        ti.start_date = start_time
+        ti.end_date = end_time
+        ti.state = TaskInstanceState.SUCCESS
+        ti.duration = None
+
+        result = get_airflow_state_run_facet(
+            dag_id="test_dag",
+            run_id=dag_run.run_id,
+            task_ids=["test_task"],
+            dag_run_state=DagRunState.SUCCESS,
+        )
+
+        assert result["airflowState"].tasksDuration["test_task"] == 150.0
+
+    @pytest.mark.db_test
+    def test_task_with_none_timestamps_fallback_to_zero(self, dag_maker):
+        """Test task with None timestamps falls back to 0.0."""
+        with dag_maker(dag_id="test_dag"):
+            EmptyOperator(task_id="terminated_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(task_id="terminated_task")
+
+        ti.start_date = None
+        ti.end_date = None
+        ti.state = TaskInstanceState.SKIPPED
+        ti.duration = None
+
+        result = get_airflow_state_run_facet(
+            dag_id="test_dag",
+            run_id=dag_run.run_id,
+            task_ids=["terminated_task"],
+            dag_run_state=DagRunState.FAILED,
+        )
+
+        assert result["airflowState"].tasksDuration["terminated_task"] == 0.0
