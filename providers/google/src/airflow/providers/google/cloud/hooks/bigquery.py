@@ -1283,7 +1283,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job_api_repr
 
     def generate_job_id(
-        self, job_id, dag_id, task_id, logical_date, configuration, run_after=None, force_rerun=False
+        self,
+        job_id: str | None,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None,
+        configuration: dict,
+        run_after: pendulum.DateTime | None = None,
+        force_rerun: bool = False
     ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
