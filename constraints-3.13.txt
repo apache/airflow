@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-10T02:36:49.448495
+# This constraints file was automatically generated on 2025-10-10T07:51:32.095724
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -364,7 +364,7 @@ hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
 httplib2==0.31.0
-httptools==0.6.4
+httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
 huggingface-hub==0.35.3
@@ -374,7 +374,7 @@ hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.2
 ibmcloudant==0.11.0
 idna==3.10
-ijson==3.4.0
+ijson==3.4.0.post0
 immutabledict==4.2.1
 importlib_metadata==8.7.0
 impyla==0.22.0

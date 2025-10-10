@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-10T02:32:49.912682
+# This constraints file was automatically generated on 2025-10-10T07:48:05.561236
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -294,7 +294,7 @@ hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
 httplib2==0.22.0
-httptools==0.6.4
+httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
 huggingface-hub==0.35.3
@@ -308,7 +308,7 @@ icdiff==2.0.7
 id==1.5.0
 identify==2.6.15
 idna==3.10
-ijson==3.4.0
+ijson==3.4.0.post0
 imagesize==1.4.1
 immutabledict==4.2.1
 importlib_metadata==8.4.0
@@ -517,7 +517,7 @@ pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.15.1
-pytest-rerunfailures==16.0.1
+pytest-rerunfailures==16.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
