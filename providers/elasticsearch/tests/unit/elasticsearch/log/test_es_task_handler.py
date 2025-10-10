@@ -1027,6 +1027,8 @@ class TestElasticsearchRemoteLogIO:
         self.elasticsearch_io.upload(tmp_json_file, ti)
         self.elasticsearch_io.client.indices.refresh(index=unique_index, request_timeout=120)
 
+    @pytest.mark.setup_timeout(300)
+    @pytest.mark.execution_timeout(300)
     def test_write_to_es(self, tmp_json_file, ti):
         self.elasticsearch_io.client = self.elasticsearch_io.client.options(
             request_timeout=120, retry_on_timeout=True, max_retries=5
@@ -1082,6 +1084,8 @@ class TestElasticsearchRemoteLogIO:
             assert "log_id" in json_log_line
             assert "offset" in json_log_line
 
+    @pytest.mark.setup_timeout(300)
+    @pytest.mark.execution_timeout(300)
     @patch(
         "airflow.providers.elasticsearch.log.es_task_handler.TASK_LOG_FIELDS",
         ["message"],
