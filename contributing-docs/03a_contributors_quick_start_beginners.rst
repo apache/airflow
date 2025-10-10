@@ -134,30 +134,27 @@ Option B – One-Click GitHub Codespaces
 
     mkdir -p ~/.docker/cli-plugins
 
-# Install Docker Buildx
-BUILDX_VERSION=v0.16.2
-curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
-chmod +x ~/.docker/cli-plugins/docker-buildx
-docker buildx version
+    # Install Docker Buildx
+    BUILDX_VERSION=v0.16.2
+    curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    chmod +x ~/.docker/cli-plugins/docker-buildx
+    docker buildx version
 
-# Install Docker Compose v2
-curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
-chmod +x ~/.docker/cli-plugins/docker-compose
-docker compose version
-```
+    # Install Docker Compose v2
+    curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
+    chmod +x ~/.docker/cli-plugins/docker-compose
+    docker compose version
 
 4. Install Breeze and start the development container
 
 .. code-block:: bash
 
-```
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install prek
-prek install -f
-uv tool install -e ./dev/breeze
-uv run setup_vscode.py
-breeze start-airflow
-```
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv tool install prek
+    prek install -f
+    uv tool install -e ./dev/breeze
+    uv run setup_vscode.py
+    breeze start-airflow
 
 5. Edit a file in the editor, save, and commit via the Source Control
 sidebar.  Push when prompted.
@@ -171,7 +168,5 @@ CI is green and reviews are ✅, a committer will merge.  🎉
 
 Next Steps
 ----------
-* Need a full development environment?  See
-  :doc:`03b_contributors_quick_start_seasoned_developers`.
-* Learn about our contribution workflow:
-  :doc:`04_how_to_contribute`.
+* Need a full development environment? See the `Development Environments Guide <https://github.com/apache/airflow/blob/main/contributing-docs/06_development_environments.rst>`_.
+* Learn about our contribution workflow? Checkout the `Contribution Workflow Guide <https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst>`_.
