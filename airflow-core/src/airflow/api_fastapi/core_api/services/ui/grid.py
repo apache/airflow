@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.parameters import state_priority
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 log = structlog.get_logger(logger_name=__name__)
@@ -78,27 +78,30 @@ def _get_aggs_for_node(detail):
 
 
 def _find_aggregates(
-    node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap,
-    parent_node: TaskGroup | MappedTaskGroup | SerializedBaseOperator | TaskMap | None,
+    node: SerializedTaskGroup | SerializedBaseOperator | TaskMap,
+    parent_node: SerializedTaskGroup | SerializedBaseOperator | TaskMap | None,
     ti_details: dict[str, list],
 ) -> Iterable[dict]:
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
     parent_id = parent_node.node_id if parent_node else None
-    details = ti_details[node_id]
+    # Do not mutate ti_details by accidental key creation
+    details = ti_details.get(node_id, [])
 
     if node is None:
         return
     if isinstance(node, MappedOperator):
+        # For unmapped tasks, reflect a single None state so UI shows one square
+        mapped_details = details or [{"state": None, "start_date": None, "end_date": None}]
         yield {
             "task_id": node_id,
             "type": "mapped_task",
             "parent_id": parent_id,
-            **_get_aggs_for_node(details),
+            **_get_aggs_for_node(mapped_details),
         }
 
         return
-    if isinstance(node, TaskGroup):
+    if isinstance(node, SerializedTaskGroup):
         children = []
         for child in get_task_group_children_getter()(node):
             for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):

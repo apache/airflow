@@ -19,9 +19,20 @@
 Deadline Alerts
 ===============
 
+.. warning::
+  Deadline Alerts are new in Airflow 3.1 and should be considered experimental. The feature may be
+  subject to changes in 3.2 without warning based on user feedback.
+
+|experimental|
+
 Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
 thresholds are exceeded. You can set up Deadline Alerts by choosing a built-in reference point, setting
 an interval, and defining a response using either Airflow's Notifiers or a custom callback function.
+
+Migrating from SLA
+------------------
+
+For help migrating from SLA to Deadlines, see the :doc:`migration guide </howto/sla-to-deadlines>`
 
 Creating a Deadline Alert
 -------------------------
@@ -58,7 +69,9 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
             interval=timedelta(minutes=15),
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
+                kwargs={
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
+                },
             ),
         ),
     ):
@@ -71,6 +84,8 @@ The timeline for this example would look like this:
     |------|-----------|---------|-----------|--------|
         Scheduled    Queued    Started    Deadline
          00:00       00:03      00:05      00:18
+
+.. _built-in-deadline-references:
 
 Using Built-in References
 -------------------------
@@ -89,6 +104,58 @@ Airflow provides several built-in reference points that you can use with Deadlin
 ``DeadlineReference.FIXED_DATETIME``
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
+``DeadlineReference.AVERAGE_RUNTIME``
+    Calculates deadlines based on the average runtime of previous DAG runs. This reference
+    analyzes historical execution data to predict when the current run should complete.
+    The deadline is set to the current time plus the calculated average runtime plus the interval.
+    If insufficient historical data exists, no deadline is created.
+
+    Parameters:
+        * ``max_runs`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+
+    Example usage:
+
+    .. code-block:: python
+
+        # Use default settings (analyze up to 10 runs, require 10 runs)
+        DeadlineReference.AVERAGE_RUNTIME()
+
+        # Analyze up to 20 runs but calculate with minimum 5 runs
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=20, min_runs=5)
+
+        # Strict: require exactly 15 runs to calculate
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=15)
+
+Here's an example using average runtime:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="average_runtime_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5),
+            interval=timedelta(minutes=30),  # Alert if 30 minutes past average runtime
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={"text": "🚨 DAG {{ dag_run.dag_id }} is running longer than expected!"},
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="data_processing")
+
+If the calculated historical average was 30 minutes, the timeline for this example would look like this:
+
+::
+
+    |------|----------|--------------|--------------|--------|
+         Queued     Start            |           Deadline
+         09:00      09:05          09:35          10:05
+                      |              |              |
+                      |--- Average --|-- Interval --|
+                           (30 min)      (30 min)
+
+
 Here's an example using a fixed datetime:
 
 .. code-block:: python
@@ -102,7 +169,9 @@ Here's an example using a fixed datetime:
             interval=timedelta(minutes=-30),  # Alert 30 minutes before the reference.
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
+                kwargs={
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
+                },
             ),
         ),
     ):
@@ -122,9 +191,10 @@ The timeline for this example would look like this:
 Using Callbacks
 ---------------
 
-When a deadline is exceeded, the callback is executed. You can use an existing :doc:`Notifier </howto/notifications>`
-or create a custom callback function.  A callback must be an :class:`~airflow.sdk.definitions.deadline.AsyncCallback`,
-with support coming soon for :class:`~airflow.sdk.definitions.deadline.SyncCallback`.
+When a deadline is exceeded, the callback's callable is executed with the specified kwargs. You can use an
+existing :doc:`Notifier </howto/notifications>` or create a custom callable.  A callback must be an
+:class:`~airflow.sdk.definitions.deadline.AsyncCallback`, with support coming soon for
+:class:`~airflow.sdk.definitions.deadline.SyncCallback`.
 
 Using Built-in Notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -140,16 +210,19 @@ Here's an example using the Slack Notifier if the Dag run has not finished withi
             interval=timedelta(minutes=30),
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={"text": "Dag 'slack_deadline_alert' still running after 30 minutes."},
+                kwargs={
+                    "text": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}. DagRun: {{ dag_run }}"
+                },
             ),
         ),
     ):
         EmptyOperator(task_id="example_task")
 
+
 Creating Custom Callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can create custom callbacks for more complex handling. If ``kwargs`` are specified in the ``Callback``,
+You can create custom callables for more complex handling. If ``kwargs`` are specified in the ``Callback``,
 they are passed to the callback function. **Asynchronous callbacks** must be defined somewhere in the
 Triggerer's system path.
 
@@ -157,7 +230,8 @@ Triggerer's system path.
     Regarding Async Custom Deadline callbacks:
 
     * Async callbacks are executed by the Triggerer, so users must ensure they are importable by the Triggerer.
-    * One easy way to do this is to place the callback as a top-level method in a new file in the plugins folder.
+    * One easy way to do this is to place the callable as a top-level method in a new file in the plugins folder.
+      Nested callables are not currently supported.
     * The Triggerer will need to be restarted when a callback is added or changed in order to reload the file.
 
 
@@ -169,7 +243,9 @@ A **custom asynchronous callback** might look like this:
 
     async def custom_async_callback(**kwargs):
         """Handle deadline violation with custom logic."""
-        print(f"Deadline exceeded for Dag {kwargs.get("dag_id")}!")
+        context = kwargs.get("context", {})
+        print(f"Deadline exceeded for Dag {context.get("dag_run", {}).get("dag_id")}!")
+        print(f"Context: {context}")
         print(f"Alert type: {kwargs.get("alert_type")}")
         # Additional custom handling here
 
@@ -193,12 +269,21 @@ A **custom asynchronous callback** might look like this:
             interval=timedelta(minutes=15),
             callback=AsyncCallback(
                 custom_async_callback,
-                kwargs={"alert_type": "time_exceeded", "dag_id": "custom_deadline_alert"},
+                kwargs={"alert_type": "time_exceeded"},
             ),
         ),
     ):
         EmptyOperator(task_id="example_task")
 
+Templating and Context
+^^^^^^^^^^^^^^^^^^^^^^
+
+Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
+:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
+provided context as part of their execution. This means that templating can be used when using a Notifier
+as long as the variables being templated are included in the simplified context. This currently includes the
+ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
+response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^

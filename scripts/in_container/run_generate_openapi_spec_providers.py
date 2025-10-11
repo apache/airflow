@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from in_container_utils import console, generate_openapi_file, validate_openapi_file
 
+from airflow.providers.edge3 import __file__ as EDGE_PATH
+from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
 from airflow.providers.fab.auth_manager.api_fastapi import __file__ as FAB_AUTHMGR_API_PATH
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.keycloak.auth_manager import __file__ as KEYCLOAK_AUTHMGR_PATH
@@ -50,6 +52,11 @@ PROVIDERS_DEFS = {
         / "v2-fab-auth-manager-generated.yaml",
         app=FabAuthManager().get_fastapi_app(),
         prefix="/auth",
+    ),
+    "edge": ProviderDef(
+        openapi_spec_file=Path(EDGE_PATH).parent / "openapi" / "v2-edge-generated.yaml",
+        app=create_edge_worker_api_app(),
+        prefix="/edge_worker",
     ),
     "keycloak": ProviderDef(
         openapi_spec_file=Path(KEYCLOAK_AUTHMGR_PATH).parent

@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import warnings
 from importlib import import_module
-from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
@@ -86,33 +85,57 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
 
 
 def configure_logging():
+    from airflow._shared.logging import configure_logging, init_log_folder, translate_config_values
+
     logging_config, logging_class_path = load_logging_config()
     try:
-        # Ensure that the password masking filter is applied to the 'task' handler
-        # no matter what the user did.
-        if "filters" in logging_config and "mask_secrets" in logging_config["filters"]:
-            # But if they replace the logging config _entirely_, don't try to set this, it won't work
-            task_handler_config = logging_config["handlers"]["task"]
+        level: str = getattr(
+            logging_config, "LOG_LEVEL", conf.get("logging", "logging_level", fallback="INFO")
+        ).upper()
 
-            task_handler_config.setdefault("filters", [])
-
-            if "mask_secrets" not in task_handler_config["filters"]:
-                task_handler_config["filters"].append("mask_secrets")
-
+        colors = getattr(
+            logging_config,
+            "COLORED_LOG",
+            conf.getboolean("logging", "colored_console_log", fallback=True),
+        )
         # Try to init logging
-        dictConfig(logging_config)
+
+        log_fmt, callsite_params = translate_config_values(
+            log_format=getattr(logging_config, "LOG_FORMAT", conf.get("logging", "log_format", fallback="")),
+            callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
+        )
+        configure_logging(
+            log_level=level,
+            namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
+            stdlib_config=logging_config,
+            log_format=log_fmt,
+            callsite_parameters=callsite_params,
+            colors=colors,
+        )
     except (ValueError, KeyError) as e:
         log.error("Unable to load the config, contains a configuration error.")
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e
 
-    validate_logging_config(logging_config)
+    validate_logging_config()
+
+    new_folder_permissions = int(
+        conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"),
+        8,
+    )
+
+    base_log_folder = conf.get("logging", "base_log_folder")
+
+    return init_log_folder(
+        base_log_folder,
+        new_folder_permissions=new_folder_permissions,
+    )
 
     return logging_class_path
 
 
-def validate_logging_config(logging_config):
+def validate_logging_config():
     """Validate the provided Logging Config."""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get("logging", "task_log_reader")

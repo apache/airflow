@@ -10,6 +10,7 @@
     "hourly": "每小時",
     "legend": {
       "less": "較少",
+      "mixed": "混合",
       "more": "較多"
     },
     "navigation": {
@@ -19,7 +20,8 @@
       "previousYear": "上一年"
     },
     "noData": "沒有可用的資料",
-    "noRuns": "沒有執行",
+    "noFailedRuns": "無失敗的執行",
+    "noRuns": "無執行",
     "totalRuns": "總執行數",
     "week": "第 {{weekNumber}} 週",
     "weekdays": {
@@ -35,6 +37,7 @@
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
+    "parseDuration": "解析時長：",
     "parsedAt": "解析時間："
   },
   "extraLinks": "額外連結",
@@ -61,7 +64,7 @@
       "tooltip": "按下 {{hotkey}} 進入全螢幕"
     },
     "info": "INFO",
-    "noTryNumber": "沒有嘗試次數",
+    "noTryNumber": "無嘗試次數",
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
@@ -84,6 +87,8 @@
       "assetEvent_other": "已建立資源事件"
     },
     "failedLogs": {
+      "hideLogs": "隱藏日誌",
+      "showLogs": "顯示日誌",
       "title": "最近失敗任務的日誌",
       "viewFullLogs": "檢視完整日誌"
     }

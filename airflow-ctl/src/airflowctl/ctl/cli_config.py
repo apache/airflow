@@ -87,7 +87,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     except httpx.ReadTimeout as e:
         rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
-            rich.print("Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
     except ServerResponseError as e:
         rich.print(f"Server response error: {e}")
         if "Client error message:" in str(e):
@@ -289,6 +289,14 @@ ARG_CONFIG_VERBOSE = Arg(
     action="store_true",
 )
 
+# Version Command Args
+ARG_REMOTE = Arg(
+    flags=("--remote",),
+    help="Fetch the Airflow version in remote server, otherwise only shows the local airflowctl version",
+    default=False,
+    action="store_true",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -445,7 +453,7 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
-    def _python_type_from_string(type_name: str) -> type:
+    def _python_type_from_string(type_name: str | type) -> type | Callable:
         """
         Return the corresponding Python *type* for a primitive type name string.
 
@@ -455,7 +463,9 @@ class CommandFactory:
         leading to type errors or unexpected behaviour when invoking the REST
         API.
         """
-        mapping: dict[str, type] = {
+        if "|" in str(type_name):
+            type_name = [t.strip() for t in str(type_name).split("|") if t.strip() != "None"].pop()
+        mapping: dict[str, type | Callable] = {
             "int": int,
             "float": float,
             "bool": bool,
@@ -466,15 +476,18 @@ class CommandFactory:
             "tuple": tuple,
             "set": set,
             "datetime.datetime": datetime.datetime,
+            "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
-        return mapping.get(type_name, str)
+        if isinstance(type_name, type):
+            type_name = type_name.__name__
+        return mapping.get(str(type_name), str)
 
     @staticmethod
     def _create_arg(
         arg_flags: tuple,
-        arg_type: type,
+        arg_type: type | Callable,
         arg_help: str,
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
@@ -507,7 +520,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=field_type.annotation,
+                        arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
@@ -522,7 +535,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=annotation,
+                        arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
@@ -537,12 +550,11 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        python_type = self._python_type_from_string(parameter_type)
                         is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=None if is_bool else python_type,
+                                arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if is_bool else None,
@@ -556,7 +568,7 @@ class CommandFactory:
                         )
 
             if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT])
+                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
@@ -845,7 +857,10 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(),
+        args=(
+            ARG_AUTH_ENVIRONMENT,
+            ARG_REMOTE,
+        ),
     ),
     GroupCommand(
         name="variables",

@@ -72,6 +72,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
+    "localstack",  # just for local integration testing for now
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -132,7 +134,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.10", "v1.31.6", "v1.32.3", "v1.33.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -201,7 +203,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.8.14"
+UV_VERSION = "0.9.1"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -717,7 +719,7 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.27.0"
+KIND_VERSION = "v0.30.0"
 HELM_VERSION = "v3.17.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -791,14 +793,20 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "",
         "run-unit-tests": "true",
     },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.1.0",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.9": "3.9.23",
-    "3.10": "3.10.18",
-    "3.11": "3.11.13",
-    "3.12": "3.12.11",
-    "3.13": "3.13.7",
+    "3.9": "3.9.24",
+    "3.10": "3.10.19",
+    "3.11": "3.11.14",
+    "3.12": "3.12.12",
+    "3.13": "3.13.8",
 }
 
 # Number of slices for low dep tests

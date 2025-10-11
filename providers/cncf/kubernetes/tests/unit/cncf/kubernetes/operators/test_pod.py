@@ -52,9 +52,9 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
@@ -1463,11 +1463,23 @@ class TestKubernetesPodOperator:
 
         pod, _ = self.run_pod(k)
         if AIRFLOW_V_3_0_PLUS:
-            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
-            pod_namespace = XCom.get_many(
-                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
-            ).first()
-
+            if AIRFLOW_V_3_1_PLUS:
+                with create_session() as session:
+                    pod_name = session.execute(
+                        XCom.get_many(
+                            run_id=self.dag_run.run_id, task_ids="task", key="pod_name"
+                        ).with_only_columns(XCom.value)
+                    ).first()
+                    pod_namespace = session.execute(
+                        XCom.get_many(
+                            run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                        ).with_only_columns(XCom.value)
+                    ).first()
+            else:
+                pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+                pod_namespace = XCom.get_many(
+                    run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                ).first()
             pod_name = XCom.deserialize_value(pod_name)
             pod_namespace = XCom.deserialize_value(pod_namespace)
         else:
@@ -2577,6 +2589,9 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
     @patch(f"{HOOK_CLASS}.get_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
@@ -2585,6 +2600,7 @@ class TestKubernetesPodOperatorAsync:
         fetch_container_logs,
         await_pod_completion,
         get_pod,
+        mock_convert_config_file_to_dict,
     ):
         """When logs fetch exits with status running, raise task deferred"""
         pod = MagicMock()
@@ -2787,8 +2803,8 @@ def test_read_pod_events(mock_log, mock_pod_manager):
         mock_event_normal.reason,
         mock_event_normal.message,
     )
-    # Assert that event with type `Warning` is logged as error.
-    mock_log.error.assert_called_once_with(
+    # Assert that event with type `Warning` is logged as warning.
+    mock_log.warning.assert_called_once_with(
         "Pod Event: %s - %s",
         mock_event_error.reason,
         mock_event_error.message,

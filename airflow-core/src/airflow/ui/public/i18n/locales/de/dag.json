@@ -10,6 +10,7 @@
     "hourly": "Stündlich",
     "legend": {
       "less": "Weniger",
+      "mixed": "Mittel",
       "more": "Mehr"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Vorheriges Jahr"
     },
     "noData": "Keine Daten verfügbar",
+    "noFailedRuns": "Keine fehlgeschlagenen Läufe",
     "noRuns": "Keine Läufe",
     "totalRuns": "Gesamtzahl der Läufe",
     "week": "Kalenderwoche {{weekNumber}}",
@@ -35,6 +37,7 @@
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
+    "parseDuration": "Einlesedauer:",
     "parsedAt": "Eingelesen um:"
   },
   "extraLinks": "Extra Links",
@@ -84,6 +87,8 @@
       "assetEvent_other": "Erstellte Datenset-Ereignisse"
     },
     "failedLogs": {
+      "hideLogs": "Protokolle ausblenden",
+      "showLogs": "Protokolle anzeigen",
       "title": "Protokolle kürzlich fehlgeschlagener Tasks",
       "viewFullLogs": "Vollständige Protokolle ansehen"
     }

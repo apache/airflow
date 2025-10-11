@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure, VStack } from "@chakra-ui/react";
+import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
-import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
@@ -28,6 +27,7 @@ import type { EventLogResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
@@ -208,34 +208,19 @@ export const Events = () => {
   );
 
   return (
-    <VStack alignItems="stretch" gap={4}>
+    <VStack alignItems="stretch">
+      {dagId === undefined && runId === undefined && taskId === undefined ? (
+        <Heading size="md">{translate("auditLog.title")}</Heading>
+      ) : undefined}
       <Flex alignItems="center" justifyContent="space-between">
-        {dagId === undefined && runId === undefined && taskId === undefined ? (
-          <Heading size="md">{translate("auditLog.title")}</Heading>
-        ) : undefined}
-        <ButtonGroup attached mt="1" size="sm" variant="surface">
-          <IconButton
-            aria-label={translate("auditLog.actions.expandAllExtra")}
-            onClick={onOpen}
-            size="sm"
-            title={translate("auditLog.actions.expandAllExtra")}
-            variant="surface"
-          >
-            <MdExpand />
-          </IconButton>
-          <IconButton
-            aria-label={translate("auditLog.actions.collapseAllExtra")}
-            onClick={onClose}
-            size="sm"
-            title={translate("auditLog.actions.collapseAllExtra")}
-            variant="surface"
-          >
-            <MdCompress />
-          </IconButton>
-        </ButtonGroup>
+        <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
+        <ExpandCollapseButtons
+          collapseLabel={translate("auditLog.actions.collapseAllExtra")}
+          expandLabel={translate("auditLog.actions.expandAllExtra")}
+          onCollapse={onClose}
+          onExpand={onOpen}
+        />
       </Flex>
-
-      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
 
       <ErrorAlert error={error} />
       <DataTable

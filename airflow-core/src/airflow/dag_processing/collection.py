@@ -27,10 +27,10 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import logging
 import traceback
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
+import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def _create_orm_dags(
@@ -343,6 +343,7 @@ def update_dag_parsing_results_in_db(
     bundle_version: str | None,
     dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
+    parse_duration: float | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -378,7 +379,9 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                SerializedDAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
+                SerializedDAG.bulk_write_to_db(
+                    bundle_name, bundle_version, dags, parse_duration, session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
@@ -458,6 +461,7 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
+        parse_duration: float | None,
         *,
         session: Session,
     ) -> None:
@@ -473,6 +477,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
+            dm.last_parse_duration = parse_duration
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
@@ -920,7 +925,10 @@ class AssetModelOperation(NamedTuple):
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
-                [_encode_trigger(watcher.trigger) for watcher in asset.watchers]
+                [
+                    {**_encode_trigger(watcher.trigger), "watcher_name": watcher.name}
+                    for watcher in asset.watchers
+                ]
                 if name_uri in active_assets
                 else []
             )
@@ -981,6 +989,7 @@ class AssetModelOperation(NamedTuple):
                 ]
             ]
             session.add_all(new_trigger_models)
+            session.flush()  # Flush to get the IDs assigned
             orm_triggers.update(
                 (BaseEventTrigger.hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
@@ -989,18 +998,22 @@ class AssetModelOperation(NamedTuple):
             # Add new references
             for name_uri, trigger_hashes in refs_to_add.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers.extend(
-                    [orm_triggers.get(trigger_hash) for trigger_hash in trigger_hashes]
-                )
+
+                for trigger_hash in trigger_hashes:
+                    trigger = triggers.get(trigger_hash)
+                    orm_trigger = orm_triggers.get(trigger_hash)
+                    if orm_trigger and trigger:
+                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
 
         if refs_to_remove:
             # Remove old references
             for name_uri, trigger_hashes in refs_to_remove.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers = [
-                    trigger
-                    for trigger in asset_model.triggers
-                    if BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
+                asset_model.watchers = [
+                    watcher
+                    for watcher in asset_model.watchers
+                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -1009,4 +1022,5 @@ class AssetModelOperation(NamedTuple):
         )
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
-                asset_model.triggers = []
+                # Delete all watchers for this orphaned asset
+                asset_model.watchers = []

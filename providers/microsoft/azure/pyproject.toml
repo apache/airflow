@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.6.1"
+version = "12.7.1"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -81,6 +81,7 @@ dependencies = [
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
     "msgraph-core>=1.3.3",
+    "msgraphfs>=0.3.0",
     "microsoft-kiota-http>=1.9.4,<2.0.0",
     "microsoft-kiota-serialization-json>=1.9.4",
     "microsoft-kiota-serialization-text>=1.9.4",
@@ -148,8 +149,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.7.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.7.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

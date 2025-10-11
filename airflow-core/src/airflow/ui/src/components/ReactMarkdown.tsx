@@ -53,12 +53,19 @@ const makeHeading =
 const components = {
   // eslint-disable-next-line id-length
   a: ({ children, href, title }: { children: ReactNode; href: string; title?: string }) => (
-    <Link color="blue.600" fontWeight="bold" href={href} title={title}>
+    <Link color="fg.info" fontWeight="bold" href={href} title={title}>
       {children}
     </Link>
   ),
   blockquote: ({ children }: PropsWithChildren) => (
-    <Box as="blockquote" borderColor="gray.400" borderLeft="solid 2px" fontStyle="italic" my={3} pl={2}>
+    <Box
+      as="blockquote"
+      borderColor="border.emphasized"
+      borderLeft="solid 2px"
+      fontStyle="italic"
+      my={3}
+      pl={2}
+    >
       {children}
     </Box>
   ),

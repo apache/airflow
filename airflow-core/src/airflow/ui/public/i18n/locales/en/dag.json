@@ -10,6 +10,7 @@
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
+      "mixed": "Mixed",
       "more": "More"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Previous year"
     },
     "noData": "No data available",
+    "noFailedRuns": "No failed runs",
     "noRuns": "No runs",
     "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
@@ -35,6 +37,7 @@
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
+    "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
   },
   "extraLinks": "Extra Links",
@@ -84,6 +87,8 @@
       "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
       "title": "Recent Failed Task Logs",
       "viewFullLogs": "View full logs"
     }

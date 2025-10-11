@@ -43,6 +43,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
+    QueryHasImportErrorsFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -88,6 +89,7 @@ def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
@@ -142,6 +144,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            has_import_errors,
             dag_id_pattern,
             dag_display_name_pattern,
             tags,
@@ -206,7 +209,9 @@ def get_dag(
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
-def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGDetailsResponse:
+def get_dag_details(
+    dag_id: str, session: SessionDep, dag_bag: DagBagDep, user: GetUserDep
+) -> DAGDetailsResponse:
     """Get details of DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
@@ -218,7 +223,19 @@ def get_dag_details(dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAG
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return dag_model
+    # Check if this DAG is marked as favorite by the current user
+    user_id = str(user.get_id())
+    is_favorite = (
+        session.scalar(
+            select(DagFavorite.dag_id).where(DagFavorite.user_id == user_id, DagFavorite.dag_id == dag_id)
+        )
+        is not None
+    )
+
+    # Add is_favorite field to the DAG model
+    setattr(dag_model, "is_favorite", is_favorite)
+
+    return DAGDetailsResponse.model_validate(dag_model)
 
 
 @dags_router.patch(

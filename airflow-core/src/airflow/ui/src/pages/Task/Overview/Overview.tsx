@@ -24,9 +24,10 @@ import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
-import { PendingActionsButton } from "src/components/PendingActionsButton";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "24";
@@ -53,7 +54,7 @@ export const Overview = () => {
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
-  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
+  const { data: tiData, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: "~",
@@ -71,7 +72,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <PendingActionsButton taskId={taskId} />
+      <NeedsReviewButton taskId={taskId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -95,7 +96,7 @@ export const Overview = () => {
           })}
           route={{
             pathname: "task_instances",
-            search: "state=failed",
+            search: `${SearchParamsKeys.STATE}=failed`,
           }}
           startDate={startDate}
         />
@@ -105,7 +106,7 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={taskInstances?.task_instances.slice().reverse()} kind="Task Instance" />
+            <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
       </SimpleGrid>

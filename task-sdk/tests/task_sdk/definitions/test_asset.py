@@ -65,7 +65,7 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
     monkeypatch.setattr("airflow.sdk.definitions.asset.SQL_ALCHEMY_CONN", sql_conn_value)
     if should_raise:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Asset name"):
             Asset(name=name)
     else:
         Asset(name=name)
@@ -96,7 +96,7 @@ def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
 def test_invalid_uris(sql_conn_value, uri, should_raise, monkeypatch):
     monkeypatch.setattr("airflow.sdk.definitions.asset.SQL_ALCHEMY_CONN", sql_conn_value)
     if should_raise:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Asset"):
             Asset(uri=uri)
     else:
         Asset(uri=uri)
@@ -386,10 +386,8 @@ def _mock_get_uri_normalizer_noop(normalized_scheme):
     _mock_get_uri_normalizer_raising_error,
 )
 def test_sanitize_uri_raises_exception():
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(ValueError, match="Incorrect URI format"):
         _sanitize_uri("postgres://localhost:5432/database.schema.table")
-    assert isinstance(e_info.value, ValueError)
-    assert str(e_info.value) == "Incorrect URI format"
 
 
 @mock.patch("airflow.sdk.definitions.asset._get_uri_normalizer", return_value=None)

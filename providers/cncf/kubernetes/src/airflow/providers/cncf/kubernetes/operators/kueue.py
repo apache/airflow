@@ -27,7 +27,12 @@ from kubernetes.utils import FailToCreateError
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
-from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 
 
 class KubernetesInstallKueueOperator(BaseOperator):

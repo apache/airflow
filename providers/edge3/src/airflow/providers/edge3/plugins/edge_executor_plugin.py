@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -49,8 +49,8 @@ if AIRFLOW_V_3_0_PLUS:
 
         return {
             "app": create_edge_worker_api_app(),
-            "url_prefix": "/edge_worker/v1",
-            "name": "Airflow Edge Worker API",
+            "url_prefix": "/edge_worker",
+            "name": "Airflow Edge Worker",
         }
 
 else:
@@ -227,14 +227,70 @@ else:
     RUNNING_ON_APISERVER = "gunicorn" in sys.argv[0] and "airflow-webserver" in sys.argv
 
 
+def _get_base_url_path(path: str) -> str:
+    """Construct URL path with webserver base_url prefix."""
+    base_url = conf.get("api", "base_url", fallback="/")
+    # Extract pathname from base_url (handles both full URLs and path-only)
+    if base_url.startswith(("http://", "https://")):
+        from urllib.parse import urlparse
+
+        base_path = urlparse(base_url).path
+    else:
+        base_path = base_url
+
+    # Normalize paths: remove trailing slash from base, ensure leading slash on path
+    base_path = base_path.rstrip("/")
+    return base_path + path
+
+
 class EdgeExecutorPlugin(AirflowPlugin):
     """EdgeExecutor Plugin - provides API endpoints for Edge Workers in Webserver."""
 
     name = "edge_executor"
     if EDGE_EXECUTOR_ACTIVE and RUNNING_ON_APISERVER:
+        if AIRFLOW_V_3_1_PLUS:
+            fastapi_apps = [_get_api_endpoint()]
+            react_apps = [
+                {
+                    "name": "Edge Worker",
+                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
+                    "destination": "nav",
+                    "url_route": "edge_worker",
+                    "category": "admin",
+                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
+                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                },
+                {
+                    "name": "Edge Worker Jobs",
+                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
+                    "url_route": "edge_jobs",
+                    "category": "admin",
+                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
+                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                },
+            ]
+            external_views = [
+                {
+                    "name": "Edge Worker API docs",
+                    "href": _get_base_url_path("/edge_worker/docs"),
+                    "destination": "nav",
+                    "category": "docs",
+                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
+                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
+                    "url_route": "edge_worker_api_docs",
+                }
+            ]
         if AIRFLOW_V_3_0_PLUS:
+            # Airflow 3.0 does not know about react_apps, so we only provide the API endpoint
             fastapi_apps = [_get_api_endpoint()]
         else:
+            appbuilder_menu_items = [
+                {
+                    "name": "Edge Worker API docs",
+                    "href": _get_base_url_path("/edge_worker/v1/ui"),
+                    "category": "Docs",
+                }
+            ]
             appbuilder_views = [
                 {
                     "name": "Edge Worker Jobs",

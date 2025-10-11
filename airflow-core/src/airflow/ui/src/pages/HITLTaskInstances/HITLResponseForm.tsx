@@ -27,6 +27,7 @@ import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/utils/hitl";
 
 type HITLResponseFormProps = {
@@ -50,7 +51,7 @@ const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITL
 };
 
 export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("hitl");
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { paramsDict } = useParamStore("hitl");
@@ -64,6 +65,8 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
 
   const shouldRenderOptionButton =
     hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+
+  const isPending = hitlDetail.task_instance.state === "deferred";
 
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
@@ -94,8 +97,11 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     <Box mt={4}>
       {hitlDetail.response_received ? (
         <Text color="fg.muted" fontSize="sm">
-          {translate("hitl:response.received")}
-          <Time datetime={hitlDetail.response_at} format="YYYY-MM-DD, HH:mm:ss" />
+          {translate("response.received")}
+          <Time datetime={hitlDetail.responded_at} format={DEFAULT_DATETIME_FORMAT} />
+          {hitlDetail.responded_by_user
+            ? ` ${translate("common:table.from").toLowerCase()} ${hitlDetail.responded_by_user.name}`
+            : undefined}
         </Text>
       ) : undefined}
       <Accordion.Root
@@ -107,7 +113,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
         variant="enclosed"
       >
         <FlexibleForm
-          disabled={hitlDetail.response_received}
+          disabled={!isPending || hitlDetail.response_received}
           flexFormDescription={hitlDetail.body ?? undefined}
           flexibleFormDefaultSection={hitlDetail.subject}
           initialParamsDict={{
@@ -126,8 +132,8 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           {shouldRenderOptionButton || isApprovalTask ? (
             hitlDetail.options.map((option) => (
               <Button
-                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "blue" : "gray"}
-                disabled={errors || isSubmitting || hitlDetail.response_received}
+                colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "brand" : "gray"}
+                disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}
                 variant={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "solid" : "subtle"}
@@ -137,12 +143,12 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             ))
           ) : hitlDetail.response_received ? undefined : (
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={errors || isSubmitting}
               loading={isSubmitting}
               onClick={() => handleSubmit()}
             >
-              <FiSend /> {translate("hitl:response.respond")}
+              <FiSend /> {translate("response.respond")}
             </Button>
           )}
         </HStack>

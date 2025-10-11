@@ -34,9 +34,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from airflow import settings
-from airflow._shared.secrets_masker import should_hide_value_for_key
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli_action_loggers
@@ -139,6 +139,8 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    from airflow._shared.secrets_masker import _secrets_masker
+
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
     sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
@@ -147,7 +149,7 @@ def _build_metrics(func_name, namespace):
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
-        if key and should_hide_value_for_key(key):
+        if key and _secrets_masker().should_hide_value_for_key(key):
             # Mask the sensitive value since key contain sensitive keyword
             full_command[-1] = "*" * 8
     elif sub_command in sub_commands_to_check_for_sensitive_fields:
@@ -168,7 +170,7 @@ def _build_metrics(func_name, namespace):
         json_index = full_command.index("--conn-json") + 1
         conn_json = json.loads(full_command[json_index])
         for k in conn_json:
-            if k and should_hide_value_for_key(k):
+            if k and _secrets_masker().should_hide_value_for_key(k):
                 conn_json[k] = "*" * 8
         full_command[json_index] = json.dumps(conn_json)
 
@@ -229,7 +231,8 @@ def process_subdir(subdir: str | None):
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
-    from airflow.models import DagBag, DagModel
+    from airflow.dag_processing.dagbag import DagBag
+    from airflow.models import DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
     dag_model = DagModel.get_current(dag_id)
@@ -270,7 +273,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models.dagbag import DagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import sync_bag_to_db
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
@@ -299,7 +302,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     )
 
 
-def _get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
+def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> SerializedDAG:
     """
     Return DAG of a given dag_id.
 
@@ -314,13 +317,13 @@ def _get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     bundle_names = bundle_names or []
 
     if not use_regex:
         if from_db:
-            return [_get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
+            return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
@@ -432,15 +435,26 @@ def suppress_logs_and_warning(f: T) -> T:
         if args[0].verbose:
             f(*args, **kwargs)
         else:
+            from airflow._shared.logging.structlog import respect_stdlib_disable
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 logging.disable(logging.CRITICAL)
+
+                def drop(*_, **__):
+                    from structlog import DropEvent
+
+                    raise DropEvent()
+
+                old_fn = respect_stdlib_disable.__code__
+                respect_stdlib_disable.__code__ = drop.__code__
                 try:
                     f(*args, **kwargs)
                 finally:
                     # logging output again depends on the effective
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
+                    respect_stdlib_disable.__code__ = old_fn
 
     return cast("T", _wrapper)
 

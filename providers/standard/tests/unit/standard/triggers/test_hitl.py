@@ -31,7 +31,7 @@ from unittest import mock
 from uuid6 import uuid7
 
 from airflow._shared.timezones.timezone import utc, utcnow
-from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse
+from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailResponse, HITLUser
 from airflow.providers.standard.triggers.hitl import (
     HITLTrigger,
     HITLTriggerEventFailurePayload,
@@ -79,15 +79,15 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
-            response_at=None,
+            responded_by_user=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
 
         gen = trigger.run()
-        trigger_task = asyncio.create_task(gen.__anext__())
         await asyncio.sleep(0.3)
+        trigger_task = asyncio.create_task(gen.__anext__())
         event = await trigger_task
         assert event == TriggerEvent(
             HITLTriggerEventFailurePayload(
@@ -109,23 +109,77 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            user_id=None,
-            response_at=None,
+            responded_by_user=None,
+            responded_at=None,
             chosen_options=None,
             params_input={},
         )
 
         gen = trigger.run()
-        trigger_task = asyncio.create_task(gen.__anext__())
         await asyncio.sleep(0.3)
+        trigger_task = asyncio.create_task(gen.__anext__())
         event = await trigger_task
 
         assert event == TriggerEvent(
-            HITLTriggerEventSuccessPayload(chosen_options=["1"], params_input={"input": 1}, timedout=True)
+            HITLTriggerEventSuccessPayload(
+                chosen_options=["1"],
+                params_input={"input": 1},
+                responded_by_user=None,
+                responded_at=mock.ANY,
+                timedout=True,
+            )
         )
 
         assert mock_log.info.call_args == mock.call(
             "[HITL] timeout reached before receiving response, fallback to default %s", ["1"]
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @mock.patch.object(HITLTrigger, "log")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
+    async def test_run_should_check_response_in_timeout_handler(
+        self, mock_update, mock_log, mock_supervisor_comms
+    ):
+        # action time only slightly before timeout
+        action_datetime = utcnow() + timedelta(seconds=0.1)
+        timeout_datetime = utcnow() + timedelta(seconds=0.1)
+
+        trigger = HITLTrigger(
+            defaults=["1"],
+            timeout_datetime=timeout_datetime,
+            poke_interval=5,
+            **default_trigger_args,
+        )
+        mock_supervisor_comms.send.return_value = HITLDetailResponse(
+            response_received=True,
+            responded_by_user=HITLUser(id="1", name="test"),
+            responded_at=action_datetime,
+            chosen_options=["2"],
+            params_input={},
+        )
+
+        gen = trigger.run()
+        await asyncio.sleep(0.3)
+        trigger_task = asyncio.create_task(gen.__anext__())
+        event = await trigger_task
+
+        assert event == TriggerEvent(
+            HITLTriggerEventSuccessPayload(
+                chosen_options=["2"],
+                params_input={},
+                responded_at=mock.ANY,
+                responded_by_user={"id": "1", "name": "test"},
+                timedout=False,
+            )
+        )
+
+        assert mock_log.info.call_args == mock.call(
+            "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
+            "test",
+            "1",
+            ["2"],
+            action_datetime,
         )
 
     @pytest.mark.db_test
@@ -143,26 +197,29 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=True,
-            user_id="test",
-            response_at=utcnow(),
+            responded_by_user=HITLUser(id="test", name="test"),
+            responded_at=utcnow(),
             chosen_options=["3"],
             params_input={"input": 50},
         )
 
         gen = trigger.run()
-        trigger_task = asyncio.create_task(gen.__anext__())
         await asyncio.sleep(0.3)
+        trigger_task = asyncio.create_task(gen.__anext__())
         event = await trigger_task
         assert event == TriggerEvent(
             HITLTriggerEventSuccessPayload(
                 chosen_options=["3"],
                 params_input={"input": 50},
+                responded_at=mock.ANY,
+                responded_by_user={"id": "test", "name": "test"},
                 timedout=False,
             )
         )
 
         assert mock_log.info.call_args == mock.call(
-            "[HITL] user=%s options=%s at %s",
+            "[HITL] responded_by=%s (id=%s) options=%s at %s",
+            "test",
             "test",
             ["3"],
             datetime(2025, 7, 29, 2, 0, 0, tzinfo=utc),

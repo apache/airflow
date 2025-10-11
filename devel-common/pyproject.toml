@@ -29,13 +29,13 @@ classifiers = [
 
 dependencies = [
     "aioresponses>=0.7.6",
-    "black>=23.12.0",
+    "black>=25.0.0",
     "filelock>=3.13.0",
     "jmespath>=0.7.0",
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.12.11",
+    "ruff==0.14.0",
     "semver>=3.0.2",
     "time-machine>=2.15.0",
     "wheel>=0.42.0",
@@ -67,7 +67,8 @@ dependencies = [
     "twine>=4.0.2",
 ]
 "docs" = [
-    "astroid>=3",
+    # Astroid 4 released 5 Oct 2025 breaks autoapi https://github.com/apache/airflow/issues/56420
+    "astroid>=3,<4",
     "checksumdir>=1.2.0",
     "rich-click>=1.7.1",
     "click>=8.1.8",
@@ -94,12 +95,12 @@ dependencies = [
 ]
 "docs-gen" = [
     "diagrams>=0.23.4",
-    "eralchemy2>=1.3.8",
+    "eralchemy>=1.5",
 ]
 "mypy" = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    "mypy==1.17.1",
+    "mypy==1.18.2",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",

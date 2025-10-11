@@ -518,34 +518,31 @@ class DataprocClusterTestBase(DataprocTestBase):
 
 class TestsClusterGenerator:
     def test_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and image_version"):
             ClusterGenerator(
                 custom_image="custom_image",
                 image_version="image_version",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and image_version" in str(ctx.value)
 
     def test_custom_image_family_error_with_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="image_version and custom_image_family"):
             ClusterGenerator(
                 image_version="image_version",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "image_version and custom_image_family" in str(ctx.value)
 
     def test_custom_image_family_error_with_custom_image(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and custom_image_family"):
             ClusterGenerator(
                 custom_image="custom_image",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
         with pytest.raises(ValueError, match="Single node cannot have preemptible workers"):
@@ -554,19 +551,18 @@ class TestsClusterGenerator:
             )
 
     def test_min_num_workers_less_than_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError,
+            match="The value of min_num_workers must be less than or equal to num_workers. "
+            r"Provided 4\(min_num_workers\) and 3\(num_workers\).",
+        ):
             ClusterGenerator(
                 num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-        assert (
-            "The value of min_num_workers must be less than or equal to num_workers. "
-            "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
-        )
 
     def test_min_num_workers_without_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Must specify num_workers when min_num_workers are provided."):
             ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
-        assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
 
     def test_build(self):
         generator = ClusterGenerator(
@@ -3876,6 +3872,27 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_asdict_taskid_max_length_labels_updated(self, mock_hook, to_dict_mock):
+        long_task_id = "a" * 63
+        expected_batch = {
+            **BATCH,
+            "labels": {
+                "airflow-dag-id": TEST_DAG_ID,
+                "airflow-dag-display-name": TEST_DAG_ID,
+                "airflow-task-id": long_task_id,
+            },
+        }
+        DataprocCreateBatchOperator(
+            task_id=long_task_id,
+            dag=DAG(dag_id=TEST_DAG_ID),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id=".task-id",
@@ -3890,7 +3907,7 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
-            task_id="a" * 65,
+            task_id="a" * 64,
             dag=DAG(dag_id=TEST_DAG_ID),
             batch=BATCH,
             region=GCP_REGION,

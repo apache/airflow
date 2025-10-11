@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Any
 
 from dateutil import parser
+from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 from airflow.exceptions import AirflowException
@@ -52,11 +53,6 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.pooling_period_seconds = pooling_period_seconds
 
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger",
@@ -70,7 +66,14 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             },
         )
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     async def run(self):
+        self.gcp_hook = self._get_async_hook()
         while True:
             operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
@@ -108,11 +111,6 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
 
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerAirflowCLICommandTrigger",
@@ -127,7 +125,14 @@ class CloudComposerAirflowCLICommandTrigger(BaseTrigger):
             },
         )
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     async def run(self):
+        self.gcp_hook = self._get_async_hook()
         try:
             result = await self.gcp_hook.wait_command_execution_result(
                 project_id=self.project_id,
@@ -179,10 +184,12 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         start_date: datetime,
         end_date: datetime,
         allowed_states: list[str],
+        composer_dag_run_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
         composer_airflow_version: int = 2,
+        use_rest_api: bool = False,
     ):
         super().__init__()
         self.project_id = project_id
@@ -192,15 +199,12 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.start_date = start_date
         self.end_date = end_date
         self.allowed_states = allowed_states
+        self.composer_dag_run_id = composer_dag_run_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
         self.composer_airflow_version = composer_airflow_version
-
-        self.gcp_hook = CloudComposerAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        self.use_rest_api = use_rest_api
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -213,35 +217,60 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 "start_date": self.start_date,
                 "end_date": self.end_date,
                 "allowed_states": self.allowed_states,
+                "composer_dag_run_id": self.composer_dag_run_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
                 "composer_airflow_version": self.composer_airflow_version,
+                "use_rest_api": self.use_rest_api,
             },
         )
 
     async def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
-        cmd_parameters = (
-            ["-d", self.composer_dag_id, "-o", "json"]
-            if self.composer_airflow_version < 3
-            else [self.composer_dag_id, "-o", "json"]
-        )
-        dag_runs_cmd = await self.gcp_hook.execute_airflow_command(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            command="dags",
-            subcommand="list-runs",
-            parameters=cmd_parameters,
-        )
-        cmd_result = await self.gcp_hook.wait_command_execution_result(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
-        )
-        dag_runs = json.loads(cmd_result["output"][0]["content"])
+        if self.use_rest_api:
+            try:
+                environment = await self.gcp_hook.get_environment(
+                    project_id=self.project_id,
+                    region=self.region,
+                    environment_id=self.environment_id,
+                )
+            except NotFound as not_found_err:
+                self.log.info("The Composer environment %s does not exist.", self.environment_id)
+                raise AirflowException(not_found_err)
+            composer_airflow_uri = environment.config.airflow_uri
+
+            self.log.info(
+                "Pulling the DAG %s runs from the %s environment...",
+                self.composer_dag_id,
+                self.environment_id,
+            )
+            dag_runs_response = await self.gcp_hook.get_dag_runs(
+                composer_airflow_uri=composer_airflow_uri,
+                composer_dag_id=self.composer_dag_id,
+            )
+            dag_runs = dag_runs_response["dag_runs"]
+        else:
+            cmd_parameters = (
+                ["-d", self.composer_dag_id, "-o", "json"]
+                if self.composer_airflow_version < 3
+                else [self.composer_dag_id, "-o", "json"]
+            )
+            dag_runs_cmd = await self.gcp_hook.execute_airflow_command(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                command="dags",
+                subcommand="list-runs",
+                parameters=cmd_parameters,
+            )
+            cmd_result = await self.gcp_hook.wait_command_execution_result(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
+            )
+            dag_runs = json.loads(cmd_result["output"][0]["content"])
         return dag_runs
 
     def _check_dag_runs_states(
@@ -261,7 +290,23 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 return False
         return True
 
+    def _get_async_hook(self) -> CloudComposerAsyncHook:
+        return CloudComposerAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
+        for dag_run in dag_runs:
+            if (
+                dag_run["dag_run_id" if self.use_rest_api else "run_id"] == self.composer_dag_run_id
+                and dag_run["state"] in self.allowed_states
+            ):
+                return True
+        return False
+
     async def run(self):
+        self.gcp_hook: CloudComposerAsyncHook = self._get_async_hook()
         try:
             while True:
                 if datetime.now(self.end_date.tzinfo).timestamp() > self.end_date.timestamp():
@@ -273,14 +318,24 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                         await asyncio.sleep(self.poll_interval)
                         continue
 
-                    self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
-                    if self._check_dag_runs_states(
-                        dag_runs=dag_runs,
-                        start_date=self.start_date,
-                        end_date=self.end_date,
-                    ):
-                        yield TriggerEvent({"status": "success"})
-                        return
+                    if self.composer_dag_run_id:
+                        self.log.info(
+                            "Sensor waits for allowed states %s for specified RunID: %s",
+                            self.allowed_states,
+                            self.composer_dag_run_id,
+                        )
+                        if self._check_composer_dag_run_id_states(dag_runs=dag_runs):
+                            yield TriggerEvent({"status": "success"})
+                            return
+                    else:
+                        self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
+                        if self._check_dag_runs_states(
+                            dag_runs=dag_runs,
+                            start_date=self.start_date,
+                            end_date=self.end_date,
+                        ):
+                            yield TriggerEvent({"status": "success"})
+                            return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
         except AirflowException as ex:

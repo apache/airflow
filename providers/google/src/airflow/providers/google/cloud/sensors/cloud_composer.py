@@ -26,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from dateutil import parser
+from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
@@ -61,6 +62,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         Or [datetime(2024,3,22,0,0,0)] in this case sensor will check for states from specific time in the
         past till current time execution.
         Default value datetime.timedelta(days=1).
+    :param composer_dag_run_id: The Run ID of executable task. The 'execution_range' param is ignored, if both specified.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -91,10 +93,12 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         composer_dag_id: str,
         allowed_states: Iterable[str] | None = None,
         execution_range: timedelta | list[datetime] | None = None,
+        composer_dag_run_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
+        use_rest_api: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,10 +108,17 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.composer_dag_id = composer_dag_id
         self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
         self.execution_range = execution_range
+        self.composer_dag_run_id = composer_dag_run_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.use_rest_api = use_rest_api
+
+        if self.composer_dag_run_id and self.execution_range:
+            self.log.warning(
+                "The composer_dag_run_id parameter and execution_range parameter do not work together. This run will ignore execution_range parameter and count only specified composer_dag_run_id parameter."
+            )
 
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
         if isinstance(self.execution_range, timedelta):
@@ -132,6 +143,16 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
             self.log.info("Dag runs are empty. Sensor waits for dag runs...")
             return False
 
+        if self.composer_dag_run_id:
+            self.log.info(
+                "Sensor waits for allowed states %s for specified RunID: %s",
+                self.allowed_states,
+                self.composer_dag_run_id,
+            )
+            composer_dag_run_id_status = self._check_composer_dag_run_id_states(
+                dag_runs=dag_runs,
+            )
+            return composer_dag_run_id_status
         self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
         allowed_states_status = self._check_dag_runs_states(
             dag_runs=dag_runs,
@@ -143,26 +164,51 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
     def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
-        cmd_parameters = (
-            ["-d", self.composer_dag_id, "-o", "json"]
-            if self._composer_airflow_version < 3
-            else [self.composer_dag_id, "-o", "json"]
-        )
-        dag_runs_cmd = self.hook.execute_airflow_command(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            command="dags",
-            subcommand="list-runs",
-            parameters=cmd_parameters,
-        )
-        cmd_result = self.hook.wait_command_execution_result(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
-        )
-        dag_runs = json.loads(cmd_result["output"][0]["content"])
+        if self.use_rest_api:
+            try:
+                environment = self.hook.get_environment(
+                    project_id=self.project_id,
+                    region=self.region,
+                    environment_id=self.environment_id,
+                    timeout=self.timeout,
+                )
+            except NotFound as not_found_err:
+                self.log.info("The Composer environment %s does not exist.", self.environment_id)
+                raise AirflowException(not_found_err)
+            composer_airflow_uri = environment.config.airflow_uri
+
+            self.log.info(
+                "Pulling the DAG %s runs from the %s environment...",
+                self.composer_dag_id,
+                self.environment_id,
+            )
+            dag_runs_response = self.hook.get_dag_runs(
+                composer_airflow_uri=composer_airflow_uri,
+                composer_dag_id=self.composer_dag_id,
+                timeout=self.timeout,
+            )
+            dag_runs = dag_runs_response["dag_runs"]
+        else:
+            cmd_parameters = (
+                ["-d", self.composer_dag_id, "-o", "json"]
+                if self._composer_airflow_version < 3
+                else [self.composer_dag_id, "-o", "json"]
+            )
+            dag_runs_cmd = self.hook.execute_airflow_command(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                command="dags",
+                subcommand="list-runs",
+                parameters=cmd_parameters,
+            )
+            cmd_result = self.hook.wait_command_execution_result(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
+            )
+            dag_runs = json.loads(cmd_result["output"][0]["content"])
         return dag_runs
 
     def _check_dag_runs_states(
@@ -193,17 +239,27 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         image_version = environment_config["config"]["software_config"]["image_version"]
         return int(image_version.split("airflow-")[1].split(".")[0])
 
+    def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
+        for dag_run in dag_runs:
+            if (
+                dag_run["dag_run_id" if self.use_rest_api else "run_id"] == self.composer_dag_run_id
+                and dag_run["state"] in self.allowed_states
+            ):
+                return True
+        return False
+
     def execute(self, context: Context) -> None:
         self._composer_airflow_version = self._get_composer_airflow_version()
         if self.deferrable:
             start_date, end_date = self._get_logical_dates(context)
             self.defer(
-                timeout=self.timeout,
+                timeout=timedelta(seconds=self.timeout) if self.timeout else None,
                 trigger=CloudComposerDAGRunTrigger(
                     project_id=self.project_id,
                     region=self.region,
                     environment_id=self.environment_id,
                     composer_dag_id=self.composer_dag_id,
+                    composer_dag_run_id=self.composer_dag_run_id,
                     start_date=start_date,
                     end_date=end_date,
                     allowed_states=self.allowed_states,
@@ -211,6 +267,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
                     composer_airflow_version=self._composer_airflow_version,
+                    use_rest_api=self.use_rest_api,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )

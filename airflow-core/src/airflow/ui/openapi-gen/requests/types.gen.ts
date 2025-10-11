@@ -91,7 +91,17 @@ export type AssetResponse = {
     producing_tasks: Array<TaskOutletAssetReference>;
     consuming_tasks: Array<TaskInletAssetReference>;
     aliases: Array<AssetAliasResponse>;
+    watchers: Array<AssetWatcherResponse>;
     last_asset_event?: LastAssetEventResponse | null;
+};
+
+/**
+ * Asset watcher serializer for responses.
+ */
+export type AssetWatcherResponse = {
+    name: string;
+    trigger_id: number;
+    created_date: string;
 };
 
 /**
@@ -331,6 +341,10 @@ export type BulkUpdateAction_BulkTaskInstanceBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<BulkTaskInstanceBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -343,6 +357,10 @@ export type BulkUpdateAction_ConnectionBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<ConnectionBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -355,6 +373,10 @@ export type BulkUpdateAction_PoolBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<PoolBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -367,6 +389,10 @@ export type BulkUpdateAction_VariableBody_ = {
      * A list of entities to be updated.
      */
     entities: Array<VariableBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -494,6 +520,7 @@ export type DAGDetailsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -535,6 +562,7 @@ export type DAGDetailsResponse = {
     owner_links?: {
     [key: string]: (string);
 } | null;
+    is_favorite?: boolean;
     /**
      * Return file token.
      */
@@ -568,6 +596,7 @@ export type DAGResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -679,6 +708,11 @@ export type DAGRunsBatchBody = {
     end_date_gt?: string | null;
     end_date_lte?: string | null;
     end_date_lt?: string | null;
+    duration_gte?: number | null;
+    duration_gt?: number | null;
+    duration_lte?: number | null;
+    duration_lt?: number | null;
+    conf_contains?: string | null;
 };
 
 /**
@@ -871,6 +905,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -938,9 +973,10 @@ export type HITLDetail = {
     params?: {
         [key: string]: unknown;
     };
-    respondents?: Array<(string)> | null;
-    user_id?: string | null;
-    response_at?: string | null;
+    assigned_users?: Array<HITLUser>;
+    created_at: string;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
     chosen_options?: Array<(string)> | null;
     params_input?: {
         [key: string]: unknown;
@@ -960,12 +996,20 @@ export type HITLDetailCollection = {
  * Response of updating a Human-in-the-loop detail.
  */
 export type HITLDetailResponse = {
-    user_id: string;
-    response_at: string;
+    responded_by: HITLUser;
+    responded_at: string;
     chosen_options: Array<(string)>;
     params_input?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Schema for a Human-in-the-loop users.
+ */
+export type HITLUser = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -1766,6 +1810,7 @@ export type DAGWithLatestDagRunsResponse = {
     is_paused: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
+    last_parse_duration: number | null;
     last_expired: string | null;
     bundle_name: string | null;
     bundle_version: string | null;
@@ -1789,6 +1834,8 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunResponse>;
+    pending_actions: Array<HITLDetail>;
+    is_favorite: boolean;
     /**
      * Return file token.
      */
@@ -1842,7 +1889,7 @@ export type GridRunsResponse = {
     start_date: string | null;
     end_date: string | null;
     run_after: string;
-    state: TaskInstanceState | null;
+    state: DagRunState | null;
     run_type: DagRunType;
     readonly duration: number;
 };
@@ -1964,6 +2011,9 @@ export type GetAssetsData = {
     namePattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -1980,6 +2030,9 @@ export type GetAssetAliasesData = {
      */
     namePattern?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -1994,7 +2047,14 @@ export type GetAssetAliasResponse = unknown;
 export type GetAssetEventsData = {
     assetId?: number | null;
     limit?: number;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    namePattern?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
+     */
     orderBy?: Array<(string)>;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
@@ -2082,6 +2142,9 @@ export type ListBackfillsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2128,6 +2191,9 @@ export type ListBackfillsUiData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2160,6 +2226,9 @@ export type GetConnectionsData = {
     connectionIdPattern?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2226,7 +2295,17 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
+    confContains?: string;
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagVersion?: Array<(number)>;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -2237,6 +2316,9 @@ export type GetDagRunsData = {
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
@@ -2334,6 +2416,9 @@ export type ListDagWarningsData = {
     dagId?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
+     */
     orderBy?: Array<(string)>;
     warningType?: DagWarningType | null;
 };
@@ -2342,7 +2427,7 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type GetDagsData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2366,13 +2451,20 @@ export type GetDagsData = {
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
@@ -2441,6 +2533,9 @@ export type UnfavoriteDagResponse = void;
 export type GetDagTagsData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2452,7 +2547,7 @@ export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagsUiData = {
     /**
-     * Filter DAGs by asset dependency (name or URI)
+     * Filter Dags by asset dependency (name or URI)
      */
     assetDependency?: string | null;
     bundleName?: string | null;
@@ -2469,13 +2564,21 @@ export type GetDagsUiData = {
     dagRunsLimit?: number;
     excludeStale?: boolean;
     /**
-     * Filter DAGs with asset-based scheduling
+     * Filter Dags with asset-based scheduling
      */
     hasAssetSchedule?: boolean | null;
+    /**
+     * Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
+     */
+    hasImportErrors?: boolean | null;
+    hasPendingActions?: boolean | null;
     isFavorite?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date`
+     */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
@@ -2515,6 +2618,9 @@ export type GetEventLogsData = {
     limit?: number;
     mapIndex?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra`
+     */
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
@@ -2571,7 +2677,7 @@ export type DeleteTaskInstanceData = {
     taskId: string;
 };
 
-export type DeleteTaskInstanceResponse = null;
+export type DeleteTaskInstanceResponse = unknown;
 
 export type GetMappedTaskInstancesData = {
     dagId: string;
@@ -2590,8 +2696,12 @@ export type GetMappedTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
@@ -2673,6 +2783,10 @@ export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse
 
 export type GetTaskInstancesData = {
     dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2688,8 +2802,12 @@ export type GetTaskInstancesData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
+     */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     queue?: Array<(string)>;
@@ -2805,6 +2923,64 @@ export type GetExternalLogUrlData = {
 
 export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
+export type UpdateHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    requestBody: UpdateHITLDetailPayload;
+    taskId: string;
+};
+
+export type UpdateHitlDetailResponse = HITLDetailResponse;
+
+export type GetHitlDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    bodySearch?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
+    dagId: string;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    dagIdPattern?: string | null;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number | null;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name`
+     */
+    orderBy?: Array<(string)>;
+    respondedByUserId?: Array<(string)>;
+    respondedByUserName?: Array<(string)>;
+    responseReceived?: boolean | null;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    subjectSearch?: string | null;
+    taskId?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    taskIdPattern?: string | null;
+};
+
+export type GetHitlDetailsResponse = HITLDetailCollection;
+
 export type GetImportErrorData = {
     importErrorId: number;
 };
@@ -2812,8 +2988,15 @@ export type GetImportErrorData = {
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    filenamePattern?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace`
+     */
     orderBy?: Array<(string)>;
 };
 
@@ -2831,6 +3014,9 @@ export type GetJobsData = {
     jobType?: string | null;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
+     */
     orderBy?: Array<(string)>;
     startDateGt?: string | null;
     startDateGte?: string | null;
@@ -2872,6 +3058,9 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -3005,6 +3194,9 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
+     */
     orderBy?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -3030,7 +3222,7 @@ export type ReparseDagFileData = {
     fileToken: string;
 };
 
-export type ReparseDagFileResponse = null;
+export type ReparseDagFileResponse = unknown;
 
 export type GetDagVersionData = {
     dagId: string;
@@ -3045,60 +3237,14 @@ export type GetDagVersionsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
+     */
     orderBy?: Array<(string)>;
     versionNumber?: number;
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
-
-export type UpdateHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex?: number;
-    requestBody: UpdateHITLDetailPayload;
-    taskId: string;
-};
-
-export type UpdateHitlDetailResponse = HITLDetailResponse;
-
-export type GetHitlDetailData = {
-    dagId: string;
-    dagRunId: string;
-    mapIndex?: number;
-    taskId: string;
-};
-
-export type GetHitlDetailResponse = HITLDetail;
-
-export type GetHitlDetailsData = {
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    bodySearch?: string | null;
-    dagId?: string | null;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    dagIdPattern?: string | null;
-    dagRunId?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: Array<(string)>;
-    responseReceived?: boolean | null;
-    state?: Array<(string)>;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    subjectSearch?: string | null;
-    taskId?: string | null;
-    /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     */
-    taskIdPattern?: string | null;
-    userId?: Array<(string)>;
-};
-
-export type GetHitlDetailsResponse = HITLDetailCollection;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -3154,11 +3300,20 @@ export type GetDagStructureData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -3167,11 +3322,20 @@ export type GetGridRunsData = {
     dagId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
+     */
     orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    state?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    triggeringUser?: string | null;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
@@ -4868,7 +5032,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Unauthorized
                  */
@@ -5352,6 +5516,85 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails': {
+        patch: {
+            req: UpdateHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        get: {
+            req: GetHitlDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails': {
+        get: {
+            req: GetHitlDetailsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailCollection;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -5997,7 +6240,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                201: null;
+                201: unknown;
                 /**
                  * Unauthorized
                  */
@@ -6064,85 +6307,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}': {
-        patch: {
-            req: UpdateHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Conflict
-                 */
-                409: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-        get: {
-            req: GetHitlDetailData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetail;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/hitlDetails/': {
-        get: {
-            req: GetHitlDetailsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: HITLDetailCollection;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
+from urllib.parse import quote
 
 import attrs
 import lazy_object_proxy
@@ -105,6 +106,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -147,8 +149,6 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
-    log_url: str | None = None
-
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -182,8 +182,6 @@ class RuntimeTaskInstance(TaskInstance):
             "run_id": self.run_id,
             "task": self.task,
             "task_instance": self,
-            # TODO: Ensure that ti.log_url and such are available to use in context
-            #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
             "inlet_events": InletEventsAccessors(self.task.inlets),
@@ -552,6 +550,26 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.state
 
+    @property
+    def log_url(self) -> str:
+        run_id = quote(self.run_id)
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
+        map_index_value = self.map_index
+        map_index = (
+            f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
+        )
+        try_number_value = self.try_number
+        try_number = (
+            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
+        )
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        return _log_uri
+
+    @property
+    def mark_success_url(self) -> str:
+        """URL to mark TI success."""
+        return self.log_url
+
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
@@ -581,28 +599,10 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def get_log_url_from_ti(ti: RuntimeTaskInstance) -> str:
-    from urllib.parse import quote
-
-    from airflow.configuration import conf
-
-    run_id = quote(ti.run_id)
-    base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-    map_index_value = getattr(ti, "map_index", -1)
-    map_index = f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
-    try_number_value = getattr(ti, "try_number", 0)
-    try_number = (
-        f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-    )
-    _log_uri = f"{base_url}dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
-    return _log_uri
-
-
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
-
-    from airflow.models.dagbag import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -632,7 +632,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        exit(1)
+        sys.exit(1)
 
     # install_loader()
 
@@ -646,7 +646,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
@@ -699,7 +699,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             from airflow.sdk.log import configure_logging
 
             log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
+            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
         else:
             print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
@@ -728,7 +728,6 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
-        ti.log_url = get_log_url_from_ti(ti)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
@@ -1009,6 +1008,16 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance success metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_successes", tags=stats_tags)
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -1271,11 +1280,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    for outlet in task.outlets or ():
-        if isinstance(outlet, Asset):
-            outlet.render_extra_field(context, jinja_env=task.dag.get_template_env())
-            outlet_events[outlet].extra.update(outlet.extra)
-
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
@@ -1371,6 +1375,14 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
+    # Record task duration metrics for all terminal states
+    if ti.start_date and ti.end_date:
+        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
+        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
+        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
