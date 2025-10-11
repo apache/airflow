@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, Flex, Box, Text } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,26 +27,25 @@ import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
+import { getDuration, renderDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
   (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
     const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    tasks.forEach((taskEl) => {
+      taskEl.style.backgroundColor = "var(--chakra-colors-info-subtle)";
     });
-
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
   };
 
 const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
 
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
+  tasks.forEach((taskEl) => {
+    taskEl.style.backgroundColor = "";
   });
-
   setHoveredTaskId(undefined);
 };
 
@@ -65,8 +64,8 @@ type Props = {
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
-  const { t: translate } = useTranslation();
   const location = useLocation();
+  const { t: translate } = useTranslation("common");
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
@@ -84,10 +83,25 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
+  const start: string | undefined = instance.min_start_date ?? undefined;
+  const end: string | undefined = instance.max_end_date ?? undefined;
+  const hasStart = start !== undefined;
+  const hasEnd = end !== undefined;
+
+  const serverDurationUnknown = (instance as unknown as { duration?: unknown }).duration;
+  const serverDurationSeconds = typeof serverDurationUnknown === "number" ? serverDurationUnknown : undefined;
+
+  const durationText =
+    serverDurationSeconds === undefined ? getDuration(start, end) : renderDuration(serverDurationSeconds);
+
+  const isSelected =
+    ((selectedTaskId ?? undefined) !== undefined && selectedTaskId === taskId) ||
+    ((selectedGroupId ?? undefined) !== undefined && selectedGroupId === taskId);
+
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
+      bg={isSelected ? "info.muted" : undefined}
       height="20px"
       id={taskId.replaceAll(".", "-")}
       justifyContent="center"
@@ -110,24 +124,35 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       >
         <Tooltip
           content={
-            <>
-              {translate("taskId")}: {taskId}
-              <br />
-              {translate("state")}: {instance.state}
-              {instance.min_start_date !== null && (
-                <>
-                  <br />
-                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
-                </>
+            <Box>
+              <Text>
+                {translate("taskId")}: {taskId}
+              </Text>
+              <Text>
+                {translate("state")}: {instance.state}
+              </Text>
+
+              {hasStart ? (
+                <Text>
+                  {translate("startDate")}: <Time datetime={start} />
+                </Text>
+              ) : undefined}
+
+              {hasEnd ? (
+                <Text>
+                  {translate("endDate")}: <Time datetime={end} />
+                </Text>
+              ) : undefined}
+
+              {durationText === undefined ? undefined : (
+                <Text>
+                  {translate("duration")}: {durationText}
+                </Text>
               )}
-              {instance.max_end_date !== null && (
-                <>
-                  <br />
-                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
-                </>
-              )}
-            </>
+            </Box>
           }
+          portalled
+          positioning={{ offset: { crossAxis: 5, mainAxis: 5 }, placement: "bottom-start" }}
         >
           <Badge
             alignItems="center"
