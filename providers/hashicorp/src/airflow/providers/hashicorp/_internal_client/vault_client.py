@@ -82,6 +82,8 @@ class _VaultClient(LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
+    :param kubernetes_audience: Optional audience claim to verify in the JWT token (for ``kubernetes`` auth_type).
+        Required for Vault 1.21+ to suppress deprecation warnings.
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
@@ -113,6 +115,7 @@ class _VaultClient(LoggingMixin):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        kubernetes_audience: str | None = None,
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -180,6 +183,7 @@ class _VaultClient(LoggingMixin):
         self.region = region
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
+        self.kubernetes_audience = kubernetes_audience
         self.gcp_key_path = gcp_key_path
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.gcp_scopes = gcp_scopes
@@ -292,12 +296,14 @@ class _VaultClient(LoggingMixin):
             raise VaultError("The kubernetes_jwt_path should be set here. This should not happen.")
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read().strip()
+            auth_kwargs = {"role": self.kubernetes_role, "jwt": jwt}
+            if self.kubernetes_audience:
+                auth_kwargs["audience"] = self.kubernetes_audience
             if self.auth_mount_point:
-                Kubernetes(_client.adapter).login(
-                    role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point
-                )
+                auth_kwargs["mount_point"] = self.auth_mount_point
+                Kubernetes(_client.adapter).login(**auth_kwargs)
             else:
-                Kubernetes(_client.adapter).login(role=self.kubernetes_role, jwt=jwt)
+                Kubernetes(_client.adapter).login(**auth_kwargs)
 
     def _auth_github(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
