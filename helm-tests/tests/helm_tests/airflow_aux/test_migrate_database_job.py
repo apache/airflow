@@ -213,7 +213,8 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[0]", docs[0]) == {
+        # The fix-sqlite-permissions init container is at index 0, extraInitContainers come after
+        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
             "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         }
@@ -289,7 +290,8 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1]", docs[0]) == {
+        # The extraVolumes should be the second-to-last volume (before sqlite-shared)
+        assert jmespath.search("spec.template.spec.volumes[-2]", docs[0]) == {
             "name": "myvolume-airflow",
             "emptyDir": {},
         }
@@ -318,7 +320,8 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1]", docs[0]) == {
+        # The global volumes should be the second-to-last volume (before sqlite-shared)
+        assert jmespath.search("spec.template.spec.volumes[-2]", docs[0]) == {
             "name": "myvolume",
             "emptyDir": {},
         }
