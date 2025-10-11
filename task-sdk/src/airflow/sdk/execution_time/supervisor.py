@@ -1099,7 +1099,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # Reset the counter on success
             self.failed_heartbeats = 0
         except ServerResponseError as e:
-            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+            if e.response.status_code in {HTTPStatus.GONE, HTTPStatus.CONFLICT}:
                 log.error(
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,

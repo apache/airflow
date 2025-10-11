@@ -1264,7 +1264,7 @@ class TestTIHealthEndpoint:
             assert response.json()["detail"] == expected_detail
 
     def test_ti_heartbeat_non_existent_task(self, client, session, create_task_instance):
-        """Test that a 404 error is returned when the Task Instance does not exist."""
+        """Test that a 410 error is returned when the Task Instance does not exist."""
         task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
 
         # Pre-condition: the Task Instance does not exist
@@ -1275,10 +1275,10 @@ class TestTIHealthEndpoint:
             json={"hostname": "random-hostname", "pid": 1547},
         )
 
-        assert response.status_code == 404
+        assert response.status_code == 410
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "Task Instance not found",
+            "message": "Task Instance not found, might have moved to the Task Instance History table",
         }
 
     @pytest.mark.parametrize(
