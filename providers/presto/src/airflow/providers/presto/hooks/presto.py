@@ -158,10 +158,7 @@ class PrestoHook(DbApiHook):
         catalog = extra.get("catalog", "hive")
         schema = conn.schema
 
-        query = {
-            "protocol": extra.get("protocol", "http"), 
-            "source": extra.get("source", "airflow")
-        }
+        query = {"protocol": extra.get("protocol", "http"), "source": extra.get("source", "airflow")}
 
         if schema:
             query["schema"] = schema
