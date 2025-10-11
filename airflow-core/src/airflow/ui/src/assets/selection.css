@@ -1,0 +1,81 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* 
+ * Fix for text selection contrast issue #56449
+ * Text selection in logs is almost invisible (extremely low contrast in airflow 3.1.0)
+ */
+
+/* Global high-contrast text selection */
+::selection {
+  background-color: #3182ce !important; 
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+::-moz-selection {
+  background-color: #3182ce !important;
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+/* Enhanced visibility for log content */
+pre ::selection,
+code ::selection,
+.log-viewer ::selection,
+[data-testid*="log"] ::selection {
+  background-color: #3182ce !important; 
+  color: #1a202c !important;
+  text-shadow: none !important;
+}
+
+pre ::-moz-selection,
+code ::-moz-selection,
+.log-viewer ::-moz-selection,
+[data-testid*="log"] ::-moz-selection {
+  background-color: #3182ce !important;
+  color: #1a202c !important;
+  text-shadow: none !important;
+}
+
+[data-theme="dark"] ::selection {
+  background-color: #3182ce !important; 
+  color: #1a202c !important; 
+}
+
+[data-theme="dark"] ::-moz-selection {
+  background-color: #3182ce !important; 
+  color: #1a202c !important; 
+}
+
+[data-theme="dark"] pre ::selection,
+[data-theme="dark"] code ::selection,
+[data-theme="dark"] .log-viewer ::selection,
+[data-theme="dark"] [data-testid*="log"] ::selection {
+  background-color: #3182ce !important; 
+  color: #1a202c !important;
+}
+
+[data-theme="dark"] pre ::-moz-selection,
+[data-theme="dark"] code ::-moz-selection,
+[data-theme="dark"] .log-viewer ::-moz-selection,
+[data-theme="dark"] [data-testid*="log"] ::-moz-selection {
+  background-color: #3182ce !important; 
+  color: #1a202c !important;
+}
