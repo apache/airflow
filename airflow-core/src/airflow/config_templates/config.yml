@@ -1196,14 +1196,14 @@ metrics:
       version_added: 2.6.0
       type: string
       example: ~
-      default: "localhost"
+      default: "-"
     otel_port:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
       type: integer
       example: ~
-      default: "8889"
+      default: "0"
     otel_prefix:
       description: |
         The prefix for the Airflow metrics.
@@ -1261,21 +1261,21 @@ traces:
       version_added: 2.10.0
       type: string
       example: ~
-      default: "localhost"
+      default: "-"
     otel_port:
       description: |
         Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.10.0
       type: integer
       example: ~
-      default: "8889"
+      default: "0"
     otel_service:
       description: |
         The default service name of traces.
       version_added: 2.10.0
       type: string
       example: ~
-      default: "Airflow"
+      default: "-"
     otel_debugging_on:
       description: |
         If True, all traces are also emitted to the console. Defaults to False.
