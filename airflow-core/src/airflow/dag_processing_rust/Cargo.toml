@@ -1,0 +1,38 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[package]
+name = "dag_processing_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = "0.11.7"
+log = "0.4.26"
+pyo3 = { version = "0.25.1", features = ["chrono"] }
+anyhow = "1.0.97"
+walkdir = "2.3.3"
+tokio = { version = "1.28.2", features = ["full", "signal"] }
+notify = "8.0"
+chrono = { version = "0.4.40", features = ["serde"] }
+serde_json = "1.0.140"
+diesel = { version = "2.2.11", features = ["postgres", "chrono", "serde_json", "r2d2", "64-column-tables", "uuid"] }
+dotenvy = "0.15"
+serde = { version = "1.0.219", features = ["derive"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
+md5 = "0.7.0"
+num_cpus = "1.16.0"

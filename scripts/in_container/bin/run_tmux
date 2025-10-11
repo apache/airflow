@@ -161,7 +161,8 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
         tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_DAG_PROCESSOR_PORT} --wait-for-client -m airflow dag-processor" C-m
     else
     tmux set-option -p @airflow_component "DAG Processor"
-    tmux send-keys 'airflow dag-processor' C-m
+    #tmux send-keys 'airflow dag-processor' C-m
+    tmux send-keys 'cd airflow-core/src/airflow/dag_processing_rust && RUST_LOG=info cargo run --release -- --long-lived-worker' C-m
 fi
 fi
 
