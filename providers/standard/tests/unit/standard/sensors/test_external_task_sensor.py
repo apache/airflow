@@ -860,7 +860,7 @@ exit 0
 
     @pytest.mark.parametrize(
         "kwargs, expected_message",
-        (
+        [
             (
                 {
                     "external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
@@ -881,11 +881,11 @@ exit 0
                 {"failed_states": [State.FAILED]},
                 f"The external DAG {TEST_DAG_ID} failed.",
             ),
-        ),
+        ],
     )
     @pytest.mark.parametrize(
         "soft_fail, expected_exception",
-        (
+        [
             (
                 False,
                 ExternalTaskFailedError,
@@ -894,7 +894,7 @@ exit 0
                 True,
                 AirflowSkipException,
             ),
-        ),
+        ],
     )
     @mock.patch("airflow.providers.standard.sensors.external_task.ExternalTaskSensor.get_count")
     @mock.patch("airflow.providers.standard.sensors.external_task.ExternalTaskSensor._get_dttm_filter")
@@ -933,7 +933,7 @@ exit 0
 
     @pytest.mark.parametrize(
         "response_get_current, response_exists, kwargs, expected_message",
-        (
+        [
             (None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
             (
                 DAG(dag_id="test", schedule=None),
@@ -954,11 +954,11 @@ exit 0
                 f"The external task group '{re.escape(str([TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]))}'"
                 f" in DAG '{TEST_DAG_ID}' does not exist.",
             ),
-        ),
+        ],
     )
     @pytest.mark.parametrize(
         "soft_fail, expected_exception",
-        (
+        [
             (
                 False,
                 ExternalDagNotFoundError,
@@ -967,7 +967,7 @@ exit 0
                 True,
                 ExternalDagNotFoundError,
             ),
-        ),
+        ],
     )
     @mock.patch("airflow.providers.standard.sensors.external_task.ExternalTaskSensor._get_dttm_filter")
     @mock.patch("airflow.models.dagbag.DagBag.get_dag")

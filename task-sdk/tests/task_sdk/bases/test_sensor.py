@@ -128,7 +128,9 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
-        (ValueError,),
+        [
+            ValueError,
+        ],
     )
     def test_soft_fail_with_exception(self, make_sensor, exception_cls):
         sensor = make_sensor(False, soft_fail=True)
@@ -138,11 +140,11 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
-        (
+        [
             AirflowSensorTimeout,
             AirflowTaskTimeout,
             AirflowFailException,
-        ),
+        ],
     )
     def test_soft_fail_with_skip_exception(self, make_sensor, exception_cls):
         sensor = make_sensor(False, soft_fail=True)
@@ -153,7 +155,7 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
-        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception),
+        [AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception],
     )
     def test_never_fail_with_skip_exception(self, make_sensor, exception_cls):
         sensor = make_sensor(False, never_fail=True)
