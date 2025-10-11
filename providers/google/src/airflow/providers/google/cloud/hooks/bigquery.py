@@ -1290,7 +1290,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         logical_date: datetime | None,
         configuration: dict,
         run_after: pendulum.DateTime | None = None,
-        force_rerun: bool = False
+        force_rerun: bool = False,
     ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
