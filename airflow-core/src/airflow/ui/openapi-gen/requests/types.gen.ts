@@ -681,6 +681,7 @@ export type DAGRunResponse = {
     dag_versions: Array<DagVersionResponse>;
     bundle_version: string | null;
     dag_display_name: string;
+    readonly bundle_url: string | null;
 };
 
 /**
