@@ -218,15 +218,21 @@ class HttpSensorTrigger(BaseTrigger):
         while True:
             try:
                 async with aiohttp.ClientSession() as session:
-                    await hook.run(
+                    client_response = await hook.run(
                         session=session,
                         endpoint=self.endpoint,
                         data=self.data,
                         headers=self.headers,
                         extra_options=self.extra_options,
                     )
-                yield TriggerEvent(True)
-                return
+                    response = await HttpTrigger._convert_response(client_response)
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                        }
+                    )
+                    return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
                     await asyncio.sleep(self.poke_interval)
