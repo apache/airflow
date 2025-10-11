@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import logging.config
 import os
 import pickle
 import re
@@ -108,6 +107,10 @@ CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`clou
 
 if AIRFLOW_V_3_0_1:
     from airflow.exceptions import DownstreamTasksSkipped
+
+
+def noop():
+    pass
 
 
 class BasePythonTest:
@@ -202,10 +205,10 @@ class BasePythonTest:
     def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
-        ti.run()
+        self.dag_maker.run_ti(ti)
         if return_ti:
             return ti
-        return ti.task
+        return self.dag_maker.dag.get_task(ti.task_id)
 
     def render_templates(self, fn, **kwargs):
         """Create TaskInstance and render templates without actual run."""
@@ -229,7 +232,7 @@ class TestPythonOperator(BasePythonTest):
         """Tests that the python callable is invoked on task run."""
         ti = self.create_ti(self.do_run)
         assert not self.is_run()
-        ti.run()
+        self.dag_maker.run_ti(ti)
         assert self.is_run()
 
     @pytest.mark.parametrize("not_callable", [{}, None])
@@ -310,7 +313,7 @@ class TestPythonOperator(BasePythonTest):
         ti = self.create_ti(func, op_args=[1])
         error_message = re.escape("The key 'dag' in args is a part of kwargs and therefore reserved.")
         with pytest.raises(ValueError, match=error_message):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_provide_context_does_not_fail(self):
         """Ensures that provide_context doesn't break dags in 2.0."""
@@ -537,11 +540,8 @@ class TestBranchOperator(BasePythonTest):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(
-            AirflowException,
-            match=r"'branch_task_ids'.*task.*",
-        ):
-            ti.run()
+        with pytest.raises(AirflowException, match=r"'branch_task_ids'.*task.*"):
+            self.dag_maker.run_ti(ti)
 
     def test_raise_exception_on_invalid_task_id(self):
         def f():
@@ -549,9 +549,10 @@ class TestBranchOperator(BasePythonTest):
 
         ti = self.create_ti(f)
         with pytest.raises(
-            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+            AirflowException,
+            match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_none_return_value_should_skip_all_downstream(self):
         """Test that returning None from callable should skip all downstream tasks."""
@@ -614,11 +615,11 @@ class TestBranchOperator(BasePythonTest):
                 from airflow.exceptions import DownstreamTasksSkipped
 
                 try:
-                    task_instance.run()
+                    self.dag_maker.run_ti(task_instance)
                 except DownstreamTasksSkipped:
                     task_instance.set_state(State.SUCCESS)
             else:
-                task_instance.run()
+                self.dag_maker.run_ti(task_instance)
 
         def get_state(ti):
             ti.refresh_from_db()
@@ -646,104 +647,190 @@ class TestShortCircuitOperator(BasePythonTest):
     all_success_skipped_tasks: set[str] = set()
 
     @pytest.mark.parametrize(
-        argnames=(
-            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_skipped_tasks, expected_task_states"
-        ),
-        argvalues=[
-            # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
-            # tasks
-            (
+        [
+            "callable_return",
+            "test_ignore_downstream_trigger_rules",
+            "test_trigger_rule",
+            "expected_skipped_tasks",
+            "expected_task_states",
+        ],
+        [
+            # Skip downstream tasks,
+            # do not respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
                 False,
                 True,
                 TriggerRule.ALL_SUCCESS,
                 all_downstream_skipped_tasks,
                 all_downstream_skipped_states,
+                id="skip_ignore_with_default_trigger_rule_on_all_tasks",
             ),
-            # Skip downstream tasks via a falsy value, do not respect trigger rules, default trigger rule on
-            # all downstream tasks
-            ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_tasks, all_downstream_skipped_states),
-            # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
-            # task
-            (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_tasks, all_downstream_skipped_states),
-            # Skip downstream tasks via a falsy value, do not respect trigger rules, non-default trigger rule
-            # on a downstream task
-            ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_tasks, all_downstream_skipped_states),
-            # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
-            (
+            # Skip downstream tasks via a falsy value,
+            # do not respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
+                [],
+                True,
+                TriggerRule.ALL_SUCCESS,
+                all_downstream_skipped_tasks,
+                all_downstream_skipped_states,
+                id="skip_falsy_result_ignore_with_default_trigger_rule_on_all_tasks",
+            ),
+            # Skip downstream tasks,
+            # do not respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                False,
+                True,
+                TriggerRule.ALL_DONE,
+                all_downstream_skipped_tasks,
+                all_downstream_skipped_states,
+                id="skip_ignore_respect_with_non-default_trigger_rule_on_single_task",
+            ),
+            # Skip downstream tasks via a falsy value,
+            # do not respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                [],
+                True,
+                TriggerRule.ALL_DONE,
+                all_downstream_skipped_tasks,
+                all_downstream_skipped_states,
+                id="skip_falsy_result_ignore_respect_with_non-default_trigger_rule_on_single_task",
+            ),
+            # Skip downstream tasks,
+            # respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
                 False,
                 False,
                 TriggerRule.ALL_SUCCESS,
                 {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
+                id="skip_respect_with_default_trigger_rule_all_tasks",
             ),
-            # Skip downstream tasks via a falsy value, respect trigger rules, default trigger rule on all
-            # downstream tasks
-            (
+            # Skip downstream tasks via a falsy value,
+            # respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
                 [],
                 False,
                 TriggerRule.ALL_SUCCESS,
                 {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
+                id="skip_falsy_result_respect_with_default_trigger_rule_all_tasks",
             ),
-            # Skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream task
-            (
+            # Skip downstream tasks,
+            # respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
                 False,
                 False,
                 TriggerRule.ALL_DONE,
                 {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+                id="skip_respect_with_non-default_trigger_rule_on_single_task",
             ),
-            # Skip downstream tasks via a falsy value, respect trigger rules, non-default trigger rule on a
-            # downstream task
-            (
+            # Skip downstream tasks via a falsy value,
+            # respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
                 [],
                 False,
                 TriggerRule.ALL_DONE,
                 {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+                id="skip_falsy_result_respect_respect_with_non-default_trigger_rule_on_single_task",
             ),
-            # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
-            # downstream tasks
-            (True, True, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks via a truthy value, do not respect trigger rules, default trigger
-            # rule on all downstream tasks
-            (["a", "b", "c"], True, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks, do not respect trigger rules, non-default trigger rule on a
-            # downstream task
-            (True, True, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks via a truthy value, do not respect trigger rules, non-default
-            # trigger rule on a downstream task
-            (["a", "b", "c"], True, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks, respect trigger rules, default trigger rule on all downstream
-            # tasks
-            (True, False, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks via a truthy value, respect trigger rules, default trigger rule on
-            # all downstream tasks
-            (["a", "b", "c"], False, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream
-            # task
-            (True, False, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
-            # Do not skip downstream tasks via a truthy value, respect trigger rules, non-default trigger rule
-            # on a downstream  task
-            (["a", "b", "c"], False, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
-        ],
-        ids=[
-            "skip_ignore_with_default_trigger_rule_on_all_tasks",
-            "skip_falsy_result_ignore_with_default_trigger_rule_on_all_tasks",
-            "skip_ignore_respect_with_non-default_trigger_rule_on_single_task",
-            "skip_falsy_result_ignore_respect_with_non-default_trigger_rule_on_single_task",
-            "skip_respect_with_default_trigger_rule_all_tasks",
-            "skip_falsy_result_respect_with_default_trigger_rule_all_tasks",
-            "skip_respect_with_non-default_trigger_rule_on_single_task",
-            "skip_falsy_result_respect_respect_with_non-default_trigger_rule_on_single_task",
-            "no_skip_ignore_with_default_trigger_rule_on_all_tasks",
-            "no_skip_truthy_result_ignore_with_default_trigger_rule_all_tasks",
-            "no_skip_no_respect_with_non-default_trigger_rule_on_single_task",
-            "no_skip_truthy_result_ignore_with_non-default_trigger_rule_on_single_task",
-            "no_skip_respect_with_default_trigger_rule_all_tasks",
-            "no_skip_truthy_result_respect_with_default_trigger_rule_all_tasks",
-            "no_skip_respect_with_non-default_trigger_rule_on_single_task",
-            "no_skip_truthy_result_respect_with_non-default_trigger_rule_on_single_task",
+            # Do not skip downstream tasks,
+            # do not respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
+                True,
+                True,
+                TriggerRule.ALL_SUCCESS,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_ignore_with_default_trigger_rule_on_all_tasks",
+            ),
+            # Do not skip downstream tasks via a truthy value,
+            # do not respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
+                ["a", "b", "c"],
+                True,
+                TriggerRule.ALL_SUCCESS,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_truthy_result_ignore_with_default_trigger_rule_all_tasks",
+            ),
+            # Do not skip downstream tasks,
+            # do not respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                True,
+                True,
+                TriggerRule.ALL_DONE,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_no_respect_with_non-default_trigger_rule_on_single_task",
+            ),
+            # Do not skip downstream tasks via a truthy value,
+            # do not respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                ["a", "b", "c"],
+                True,
+                TriggerRule.ALL_DONE,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_truthy_result_ignore_with_non-default_trigger_rule_on_single_task",
+            ),
+            # Do not skip downstream tasks,
+            # respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
+                True,
+                False,
+                TriggerRule.ALL_SUCCESS,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_respect_with_default_trigger_rule_all_tasks",
+            ),
+            # Do not skip downstream tasks via a truthy value,
+            # respect trigger rules,
+            # default trigger rule on all downstream tasks.
+            pytest.param(
+                ["a", "b", "c"],
+                False,
+                TriggerRule.ALL_SUCCESS,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_truthy_result_respect_with_default_trigger_rule_all_tasks",
+            ),
+            # Do not skip downstream tasks,
+            # respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                True,
+                False,
+                TriggerRule.ALL_DONE,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_respect_with_non-default_trigger_rule_on_single_task",
+            ),
+            # Do not skip downstream tasks via a truthy value,
+            # respect trigger rules,
+            # non-default trigger rule on a downstream task.
+            pytest.param(
+                ["a", "b", "c"],
+                False,
+                TriggerRule.ALL_DONE,
+                all_success_skipped_tasks,
+                all_success_states,
+                id="no_skip_truthy_result_respect_with_non-default_trigger_rule_on_single_task",
+            ),
         ],
     )
     def test_short_circuiting(
@@ -2079,7 +2166,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             AirflowException,
             match=r"'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
     def test_raise_exception_on_invalid_task_id(self):
         def f():
@@ -2087,9 +2174,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         ti = self.create_ti(f)
         with pytest.raises(
-            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+            AirflowException,
+            match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*",
         ):
-            ti.run()
+            self.dag_maker.run_ti(ti)
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -2262,17 +2350,14 @@ class TestShortCircuitWithTeardown:
                 python_callable=lambda: not should_skip,
                 ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
             )
-            op2 = PythonOperator(task_id="op2", python_callable=print)
-            op3 = PythonOperator(task_id="op3", python_callable=print)
-            op4 = PythonOperator(task_id="op4", python_callable=print)
+            op2 = PythonOperator(task_id="op2", python_callable=noop)
+            op3 = PythonOperator(task_id="op3", python_callable=noop)
+            op4 = PythonOperator(task_id="op4", python_callable=noop)
             if with_teardown:
                 op4.as_teardown()
             op1 >> op2 >> op3 >> op4
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dag_maker.run_ti("op1")
         if should_skip:
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(x.task_id for x in op1.skip.call_args.kwargs["tasks"])
@@ -2283,15 +2368,15 @@ class TestShortCircuitWithTeardown:
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
         with dag_maker(serialized=True):
-            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
-            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            s1 = PythonOperator(task_id="s1", python_callable=noop).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=noop).as_setup()
             op1 = ShortCircuitOperator(
                 task_id="op1",
                 python_callable=lambda: False,
             )
-            op2 = PythonOperator(task_id="op2", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            op2 = PythonOperator(task_id="op2", python_callable=noop)
+            t1 = PythonOperator(task_id="t1", python_callable=noop).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=noop).as_teardown(setups=s2)
             if config == "sequence":
                 s1 >> op1 >> s2 >> op2 >> [t1, t2]
             elif config == "parallel":
@@ -2299,26 +2384,25 @@ class TestShortCircuitWithTeardown:
             else:
                 raise ValueError("unexpected")
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("s1", dr)
+        dag_maker.run_ti("op1", dr)
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
         assert actual_skipped == {s2, op2}
 
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
         with dag_maker(serialized=True):
-            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
-            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            s1 = PythonOperator(task_id="s1", python_callable=noop).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=noop).as_setup()
             op1 = ShortCircuitOperator(
                 task_id="op1",
                 python_callable=lambda: False,
             )
-            op2 = PythonOperator(task_id="op2", python_callable=print)
-            op3 = PythonOperator(task_id="op3", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            op2 = PythonOperator(task_id="op2", python_callable=noop)
+            op3 = PythonOperator(task_id="op3", python_callable=noop)
+            t1 = PythonOperator(task_id="t1", python_callable=noop).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=noop).as_teardown(setups=s2)
             s1 >> op1 >> op3 >> t1
             s2 >> op2 >> t2
 
@@ -2326,10 +2410,9 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
-        ti._run_raw_task()
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("s1", dr)
+        dag_maker.run_ti("op1", dr)
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = set(actual_kwargs["tasks"])
@@ -2342,16 +2425,16 @@ class TestShortCircuitWithTeardown:
         before passing them to the skip method.
         """
         with dag_maker(serialized=True):
-            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
-            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            s1 = PythonOperator(task_id="s1", python_callable=noop).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=noop).as_setup()
             op1 = ShortCircuitOperator(
                 task_id="op1",
                 python_callable=lambda: False,
             )
-            op2 = PythonOperator(task_id="op2", python_callable=print)
-            op3 = PythonOperator(task_id="op3", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            op2 = PythonOperator(task_id="op2", python_callable=noop)
+            op3 = PythonOperator(task_id="op3", python_callable=noop)
+            t1 = PythonOperator(task_id="t1", python_callable=noop).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=noop).as_teardown(setups=s2)
             s1 >> op1 >> op3 >> t1
             s2 >> op2 >> t2
 
@@ -2359,15 +2442,17 @@ class TestShortCircuitWithTeardown:
             # in this case we don't want to skip t2 since it should run
             op1 >> t2
             op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
 
+        tis = {x.task_id: x for x in dag_maker.create_dagrun().get_task_instances()}
+        dag_maker.run_ti(tis["s1"])
+
+        op1_ti = tis["op1"]
         with caplog.at_level(level):
-            if hasattr(ti.task.log, "setLevel"):
+            if hasattr(op1_ti.task.log, "setLevel"):
                 # Compat with Pre Airflow 3.1
-                ti.task.log.setLevel(level)
-            ti._run_raw_task()
+                op1_ti.task.log.setLevel(level)
+            dag_maker.run_ti(op1_ti)
+
         # we can't use assert_called_with because it's a set and therefore not ordered
         actual_kwargs = op1.skip.call_args.kwargs
         actual_skipped = actual_kwargs["tasks"]

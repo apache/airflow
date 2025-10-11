@@ -3726,7 +3726,7 @@ class TestSchedulerJob:
             schedule="@once",
             session=session,
         ) as dag:
-            dag_task1 = BashOperator(
+            BashOperator(
                 task_id="test_retry_handling_op",
                 bash_command="exit 1",
                 retries=1,
@@ -3762,19 +3762,10 @@ class TestSchedulerJob:
                 .first()
             )
         assert ti is not None, "Task not created by scheduler"
-        ti.task = dag_task1
-
-        def run_with_error(ti, ignore_ti_state=False):
-            with contextlib.suppress(AirflowException):
-                ti.run(ignore_ti_state=ignore_ti_state)
-
         assert ti.try_number == 1
-        # At this point, scheduler has tried to schedule the task once and
-        # heartbeated the executor once, which moved the state of the task from
-        # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
-        # we need to ignore the TaskInstance state as SCHEDULED is not a valid state to start
-        # executing task.
-        run_with_error(ti, ignore_ti_state=True)
+
+        with contextlib.suppress(AirflowException):
+            dag_maker.run_ti(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 

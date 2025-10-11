@@ -25,13 +25,22 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.models import DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstances import render_templates
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+else:
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -226,10 +235,8 @@ class TestSparkSubmitOperator:
 
         session.add(ti)
         session.commit()
-        # When
-        ti.render_templates()
 
-        # Then
+        operator = render_templates(ti, operator)
         expected_application_args = [
             "-f",
             "foo",
@@ -248,7 +255,7 @@ class TestSparkSubmitOperator:
 
     @pytest.mark.db_test
     def test_templating_with_create_task_instance_of_operator(
-        self, create_task_instance_of_operator, session
+        self, dag_maker, create_task_instance_of_operator, session
     ):
         ti = create_task_instance_of_operator(
             SparkSubmitOperator,
@@ -274,8 +281,7 @@ class TestSparkSubmitOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkSubmitOperator = ti.task
+        task = dag_maker.render_templates(ti)
         assert task.application == "application"
         assert task.conf == "conf"
         assert task.files == "files"

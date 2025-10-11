@@ -43,6 +43,7 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.taskinstances import run_ti
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -443,5 +444,4 @@ class TestRenderedTaskInstanceFields:
         ti.state = None
         session.flush()
         # rerun the old run. this will shouldn't fail
-        ti.task = task
-        ti.run()
+        run_ti(ti, task)

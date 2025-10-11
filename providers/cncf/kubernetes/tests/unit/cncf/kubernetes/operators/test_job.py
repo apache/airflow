@@ -115,7 +115,7 @@ class TestKubernetesJobOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator, session):
+    def test_templates(self, dag_maker, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesJobOperator"
         ti = create_task_instance_of_operator(
             KubernetesJobOperator,
@@ -147,7 +147,7 @@ class TestKubernetesJobOperator:
         session.add(ti)
         session.commit()
 
-        rendered = ti.render_templates()
+        rendered = dag_maker.render_templates(ti)
 
         assert dag_id == rendered.container_resources.limits["memory"]
         assert dag_id == rendered.container_resources.limits["cpu"]
@@ -155,14 +155,14 @@ class TestKubernetesJobOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
-        assert dag_id == ti.task.image
-        assert dag_id == ti.task.cmds
-        assert dag_id == ti.task.namespace
-        assert dag_id == ti.task.config_file
-        assert dag_id == ti.task.labels
-        assert dag_id == ti.task.job_template_file
-        assert dag_id == ti.task.arguments
-        assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.image
+        assert dag_id == rendered.cmds
+        assert dag_id == rendered.namespace
+        assert dag_id == rendered.config_file
+        assert dag_id == rendered.labels
+        assert dag_id == rendered.job_template_file
+        assert dag_id == rendered.arguments
+        assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
 
     def sanitize_for_serialization(self, obj):
