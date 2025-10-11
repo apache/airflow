@@ -356,7 +356,7 @@ class ConnectionOperations:
             resp = self.client.get(f"connections/{conn_id}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.warning(
                     "Connection not found",
                     conn_id=conn_id,
                     detail=e.detail,
