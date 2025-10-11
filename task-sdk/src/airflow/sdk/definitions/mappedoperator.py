@@ -21,14 +21,12 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from itertools import islice
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
 
 import attrs
 import methodtools
 from lazy_object_proxy import Proxy
 
-from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -73,9 +71,6 @@ if TYPE_CHECKING:
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
-
-# AIP-88: https://cwiki.apache.org/confluence/display/AIRFLOW/%5BWIP%5D+AIP-88%3A+Lazy+task+expansion
-enable_lazy_task_expansion = conf.getboolean("scheduler", "enable_lazy_task_expansion", fallback=False)
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -719,18 +714,7 @@ class MappedOperator(AbstractOperator):
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        if not enable_lazy_task_expansion:
-            return self._get_specified_expand_input().resolve(context)
-
-        map_index = context["ti"].map_index
-        self.log.debug("map_index: %s", map_index)
-        expand_input = self._get_specified_expand_input().resolve(context)
-        self.log.debug("expand_input: %s", expand_input)
-        kwargs = (
-            next(expand_input) if map_index == 0 else next(islice(expand_input, map_index, map_index + 1))
-        )
-        self.log.debug("kwargs: %s", kwargs)
-        return kwargs, {id(kwargs)}
+        return self._get_specified_expand_input().resolve(context)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """

@@ -82,7 +82,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -417,6 +416,7 @@ class TaskInstance(Base, LoggingMixin):
 
     # The trigger to resume on if we are in state DEFERRED
     trigger_id = Column(Integer)
+    next_trigger_id = Column(Integer)
 
     # Optional timeout utcdatetime for the trigger (past this, we'll fail)
     trigger_timeout = Column(UtcDateTime)
@@ -1484,6 +1484,87 @@ class TaskInstance(Base, LoggingMixin):
         self._run_raw_task(mark_success=mark_success)
 
     @classmethod
+    def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
+        return max(session.scalar(
+            select(func.max(TaskInstance.map_index)).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+                TaskInstance.run_id == run_id,
+            )
+        ) or 0, 0)
+
+    @provide_session
+    def defer_task(self, session: Session = NEW_SESSION) -> bool:
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+
+        :meta: private
+        """
+        from airflow.models.trigger import Trigger
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, Operator)
+
+        # Remaining task expansion still running from previous triggerer so reschedule
+        if self.context_carrier and "trigger" in self.context_carrier:
+            trigger_classpath, trigger_kwargs = self.context_carrier.pop("trigger", (None, None))
+
+            self.log.info("Creating trigger from context_carrier for task_id %s: %s", self.task_id,
+                          trigger_kwargs)
+            trigger_row = Trigger(
+                classpath=trigger_classpath,
+                kwargs=trigger_kwargs or {},
+            )
+        elif not (not self.next_trigger_id and (start_trigger_args := self.start_trigger_args())):
+            # self.log.warning("Couldn't create trigger from start_from_trigger for task_id %s thus could not be deferred!", self.task_id)
+            return False
+        else:
+            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+            timeout = start_trigger_args.timeout
+            self.next_method = start_trigger_args.next_method
+            self.next_kwargs = start_trigger_args.next_kwargs or {}
+
+            # Calculate timeout too if it was passed
+            if timeout is not None:
+                self.trigger_timeout = timezone.utcnow() + timeout
+            else:
+                self.trigger_timeout = None
+
+            self.log.info("Creating trigger from start_trigger_args for task_id %s:  %s", self.task_id,
+                          trigger_kwargs)
+            trigger_row = Trigger(
+                classpath=start_trigger_args.trigger_cls,
+                kwargs=trigger_kwargs,
+            )
+
+        # First, make the trigger entry
+        session.add(trigger_row)
+        session.flush()
+
+        # Then, update ourselves so it matches the deferral request
+        # Keep an eye on the logic in `check_and_change_state_before_execution()`
+        # depending on self.next_method semantics
+        self.state = TaskInstanceState.DEFERRED
+        self.trigger_id = trigger_row.id
+
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        execution_timeout = self.task.execution_timeout
+        if execution_timeout:
+            if TYPE_CHECKING:
+                assert self.start_date
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
+        self.start_date = timezone.utcnow()
+        if self.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+            self.try_number += 1
+        if self.test_mode:
+            _add_log(event=self.state, task_instance=self, session=session)
+        return True
+
+    @classmethod
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance,
@@ -1518,7 +1599,9 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
 
-        ti.clear_next_method_args()
+        # Only clear next method args if first invocation on triggerer failed
+        if not ti.next_trigger_id:  # TODO: this check is very important, otherwise failed triggers will clear the XCom's
+            ti.clear_next_method_args()
 
         # Set state correctly and figure out how to log it and decide whether
         # to email
@@ -1544,6 +1627,7 @@ class TaskInstance(Base, LoggingMixin):
                 ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY
+            log.info("Will retry %s on %s", ti.task_id, ti.next_retry_datetime())
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
@@ -1750,7 +1834,7 @@ class TaskInstance(Base, LoggingMixin):
                         for upstream in task.upstream_list
                     },
                 )
-        except (NotMapped, NotFullyPopulated):
+        except NotMapped:
             pass
 
         return context
@@ -2173,19 +2257,6 @@ class TaskInstance(Base, LoggingMixin):
                     / 1_000_000
                 ),
             }
-        )
-
-    @classmethod
-    def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
-        return max(
-            session.scalar(
-                select(func.max(TaskInstance.map_index)).where(
-                    TaskInstance.dag_id == dag_id,
-                    TaskInstance.task_id == task_id,
-                    TaskInstance.run_id == run_id,
-                )
-            ),
-            0,
         )
 
 

@@ -27,18 +27,13 @@ from typing import TYPE_CHECKING, Any, overload
 import attrs
 
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models.xcom import XComModel
-from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
-from airflow.sdk.execution_time.comms import XComResult
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -48,11 +43,10 @@ if TYPE_CHECKING:
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
 # safety (those callables are arbitrary user code).
-FilterCallables = Sequence[Callable[[Any], bool]]
 MapCallables = Sequence[Callable[[Any], Any]]
 
 
-class XComArg(LoggingMixin, ResolveMixin, DependencyMixin):
+class XComArg(ResolveMixin, DependencyMixin):
     """
     Reference to an XCom value pushed from another operator.
 
@@ -335,7 +329,7 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def _resolve(self, context: Mapping[str, Any]) -> Any:
+    def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
 
@@ -366,25 +360,6 @@ class PlainXComArg(XComArg):
             return None
         raise XComNotFound(ti.dag_id, task_id, self.key)
 
-    def resolve(self, context: Mapping[str, Any]) -> Any:
-        value = self._resolve(context)
-
-        self.log.debug("value (%s): %s", type(value), value)
-
-        # TODO: check why this is needed when resolving from TaskExpansionJobRunner?
-        if isinstance(value, str):
-            result = XComResult(key=self.operator.output.key, value=value)
-            value = XCom.deserialize_value(result)
-            if isinstance(value, str):
-                value = XComModel.deserialize_value(result)
-
-        self.log.debug("deserialized value (%s): %s", type(value), value)
-
-        if isinstance(value, ResolveMixin):  # Only needed for DeferredIterable
-            value = value.resolve(context)
-
-        return value
-
 
 def _get_callable_name(f: Callable | str) -> str:
     """Try to "describe" a callable by getting its name."""
@@ -399,79 +374,20 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MappableResult(Iterable):
-    def __init__(self, value: Sequence | dict, callables: FilterCallables | MapCallables) -> None:
-        self.value = self._convert(value)
-        self.callables = callables
+@attrs.define
+class _MapResult(Sequence):
+    value: Sequence | dict
+    callables: MapCallables
 
     def __getitem__(self, index: Any) -> Any:
-        raise NotImplementedError
+        value = self.value[index]
 
-    def __len__(self) -> int:
-        raise NotImplementedError
-
-    @classmethod
-    def _convert(cls, value: Sequence | dict) -> list:
-        if isinstance(value, (dict, set)):
-            return list(value)
-        if isinstance(value, list):
-            return value
-        raise ValueError(f"{cls.__name__} expects sequence or dict, not {type(value).__name__}")
-
-    def _apply_callables(self, value) -> Any:
-        for func in self.callables:
-            value = func(value)
-        return value
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.value}, {self.callables})"
-
-
-class _MapResult(_MappableResult, Sequence):
-    def __getitem__(self, index: Any) -> Any:
-        value = self._apply_callables(self.value[index])
+        for f in self.callables:
+            value = f(value)
         return value
 
     def __len__(self) -> int:
         return len(self.value)
-
-
-class _LazyMapResult(_MappableResult):
-    def __init__(self, value: Iterable, callables: MapCallables) -> None:
-        super().__init__([], callables)
-        self._iterator = iter(value)
-
-    def __next__(self) -> Any:
-        value = self._apply_callables(next(self._iterator))
-        self.value.append(value)
-        return value
-
-    def __getitem__(self, index: Any) -> Any:
-        if index < 0:
-            raise IndexError
-
-        while len(self.value) <= index:
-            try:
-                next(self)
-            except StopIteration:
-                raise IndexError
-        return self.value[index]
-
-    def __len__(self) -> int:
-        while True:
-            try:
-                next(self)
-            except StopIteration:
-                break
-        return len(self.value)
-
-    def __iter__(self) -> Iterator:
-        yield from self.value
-        while True:
-            try:
-                yield next(self)
-            except StopIteration:
-                break
 
 
 @attrs.define
@@ -512,12 +428,9 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-
-        if isinstance(value, (Sequence, dict)):
-            return _MapResult(value, self.callables)
-        if isinstance(value, Iterable) and enable_lazy_task_expansion:
-            return _LazyMapResult(value, self.callables)
-        raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
+        if not isinstance(value, (Sequence, dict)):
+            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
+        return _MapResult(value, self.callables)
 
 
 @attrs.define

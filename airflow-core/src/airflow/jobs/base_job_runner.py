@@ -42,7 +42,7 @@ class BaseJobRunner:
         job.job_type = self.job_type
         self.job: Job = job
 
-    def _execute(self, session: Session = NEW_SESSION) -> int | None:
+    def _execute(self) -> int | None:
         """
         Execute the logic connected to the runner.
 

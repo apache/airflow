@@ -19,13 +19,11 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
+from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
-from airflow.sdk import XComArg
-from airflow.sdk.definitions import enable_lazy_task_expansion
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 
 if TYPE_CHECKING:
@@ -196,42 +194,28 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def resolve(
-        self, context: Mapping[str, Any]
-    ) -> Generator[Mapping[str, Any], tuple[Mapping[str, Any], set[int]]]:
-        if enable_lazy_task_expansion:
-            for key in self.value:
-                value = self.value[key]
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        map_index: int | None = context["ti"].map_index
+        if map_index is None or map_index < 0:
+            raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-                if _needs_run_time_resolution(value):
-                    self.value[key] = value = value.resolve(context=context)
+        upstream_map_indexes = getattr(context["ti"], "_upstream_map_indexes", {})
 
-                if isinstance(value, (Iterable, Sequence)) and not isinstance(value, str):
-                    for item in value:
-                        yield {key: item}
-                else:
-                    yield {key: value}
-        else:
-            map_index: int | None = context["ti"].map_index
-            if map_index is None or map_index < 0:
-                raise RuntimeError("can't resolve task-mapping argument without expanding")
+        # TODO: This initiates one API call for each XComArg. Would it be
+        # more efficient to do one single call and unpack the value here?
 
-            upstream_map_indexes = getattr(context["ti"], "_upstream_map_indexes", {})
+        resolved = {
+            k: v.resolve(context) if _needs_run_time_resolution(v) else v for k, v in self.value.items()
+        }
 
-            # TODO: This initiates one API call for each XComArg. Would it be
-            # more efficient to do one single call and unpack the value here?
-            resolved = {
-                k: v.resolve(context) if _needs_run_time_resolution(v) else v for k, v in self.value.items()
-            }
+        sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}
 
-            sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}
+        all_lengths = self._get_map_lengths(sized_resolved, upstream_map_indexes)
 
-            all_lengths = self._get_map_lengths(sized_resolved, upstream_map_indexes)
-
-            data = {k: self._expand_mapped_field(k, v, map_index, all_lengths) for k, v in resolved.items()}
-            literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
-            resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
-            return data, resolved_oids
+        data = {k: self._expand_mapped_field(k, v, map_index, all_lengths) for k, v in resolved.items()}
+        literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
+        resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
+        return data, resolved_oids
 
 
 def _describe_type(value: Any) -> str:
@@ -267,14 +251,7 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def resolve(
-        self, context: Mapping[str, Any]
-    ) -> Sequence[XComArg | Mapping[str, Any]] | tuple[Mapping[str, Any], set[int]]:
-        if enable_lazy_task_expansion:
-            if _needs_run_time_resolution(self.value):
-                self.value = self.value.resolve(context)
-            return self.value
-
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")

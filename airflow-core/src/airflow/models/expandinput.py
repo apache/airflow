@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
@@ -64,16 +63,8 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, SchedulerXComArg))
 
 
-class SchedulerExpandInput(LoggingMixin):
-    def get_parse_time_mapped_ti_count(self) -> int:
-        raise NotImplementedError()
-
-    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
-        raise NotImplementedError()
-
-
 @attrs.define
-class SchedulerDictOfListsExpandInput(SchedulerExpandInput):
+class SchedulerDictOfListsExpandInput:
     value: dict
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
@@ -147,7 +138,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define
-class SchedulerListOfDictsExpandInput(SchedulerExpandInput):
+class SchedulerListOfDictsExpandInput:
     value: list
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
@@ -182,6 +173,8 @@ _EXPAND_INPUT_TYPES: dict[str, type[SchedulerExpandInput]] = {
     "dict-of-lists": SchedulerDictOfListsExpandInput,
     "list-of-dicts": SchedulerListOfDictsExpandInput,
 }
+
+SchedulerExpandInput = SchedulerDictOfListsExpandInput | SchedulerListOfDictsExpandInput
 
 
 def create_expand_input(kind: str, value: Any) -> SchedulerExpandInput:

@@ -103,11 +103,6 @@ class SchedulerMapXComArg(SchedulerXComArg):
     arg: SchedulerXComArg
     callables: Sequence[str]
 
-    @property
-    def operator(self) -> Operator:
-        """Return the operator that this XComArg is associated with."""
-        return self.arg.operator if isinstance(self.arg, SchedulerPlainXComArg) else self.arg
-
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         # We are deliberately NOT deserializing the callables. These are shown
