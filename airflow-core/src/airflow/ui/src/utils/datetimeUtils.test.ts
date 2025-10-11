@@ -56,3 +56,4 @@ describe("getDuration", () => {
     expect(renderDuration(0.000_01)).toBe(undefined);
   });
 });
+

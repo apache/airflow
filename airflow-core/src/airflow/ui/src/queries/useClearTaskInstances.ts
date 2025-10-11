@@ -18,6 +18,8 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Dialog } from "src/components/ui";
+
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -33,6 +35,8 @@ import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+import { ApiError } from "openapi/requests";
+import ClearTaskInstanceConfirmationDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceConfirmationDialog";
 
 export const useClearTaskInstances = ({
   dagId,
@@ -46,12 +50,31 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
-      type: "error",
-    });
+  const onError = (error: ApiError) => {
+    if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException_RUNNING") ){
+      toaster.create({
+        description: typeof error.detail === "string" ? error.detail : String(error.detail),
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+    }
+
+    else if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException_QUEUED") ){
+      toaster.create({
+        description: typeof error.detail === "string" ? error.detail : String(error.detail),
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+      
+    }
+    
+    else{
+      toaster.create({
+        description: error.message,
+        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        type: "error",
+      });
+    }
   };
 
   const onSuccess = async (
@@ -103,5 +126,8 @@ export const useClearTaskInstances = ({
   return useTaskInstanceServicePostClearTaskInstances({
     onError,
     onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    retry: 0
   });
 };
