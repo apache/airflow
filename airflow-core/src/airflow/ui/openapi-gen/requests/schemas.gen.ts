@@ -366,6 +366,52 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
+export const $AssetSummary = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        uri: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Uri'
+        },
+        group: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Group'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name', 'uri', 'group'],
+    title: 'AssetSummary',
+    description: 'Asset summary for DAG Run responses.'
+} as const;
+
 export const $AssetWatcherResponse = {
     properties: {
         name: {
@@ -2579,6 +2625,34 @@ export const $DAGRunResponse = {
                 }
             ],
             title: 'Bundle Version'
+        },
+        consumed_assets: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/AssetSummary'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Consumed Assets'
+        },
+        produced_assets: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/AssetSummary'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Produced Assets'
         },
         dag_display_name: {
             type: 'string',

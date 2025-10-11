@@ -2329,6 +2329,30 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: consuming_asset
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter DagRuns that consumed an asset (match by asset name
+            or URI)
+          title: Consuming Asset
+        description: Filter DagRuns that consumed an asset (match by asset name or
+          URI)
+      - name: producing_asset
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter DagRuns that produced an asset (match by asset name
+            or URI)
+          title: Producing Asset
+        description: Filter DagRuns that produced an asset (match by asset name or
+          URI)
       responses:
         '200':
           description: Successful Response
@@ -8891,6 +8915,34 @@ components:
       - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetSummary:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      type: object
+      required:
+      - id
+      - name
+      - uri
+      - group
+      title: AssetSummary
+      description: Asset summary for DAG Run responses.
     AssetWatcherResponse:
       properties:
         name:
@@ -10400,6 +10452,20 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
+        consumed_assets:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/AssetSummary'
+            type: array
+          - type: 'null'
+          title: Consumed Assets
+        produced_assets:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/AssetSummary'
+            type: array
+          - type: 'null'
+          title: Produced Assets
         dag_display_name:
           type: string
           title: Dag Display Name

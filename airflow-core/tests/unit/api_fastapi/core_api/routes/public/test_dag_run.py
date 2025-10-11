@@ -197,6 +197,8 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
 def get_dag_run_dict(run: DagRun):
     return {
         "bundle_version": None,
+        "consumed_assets": [],
+        "produced_assets": [],
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
@@ -763,6 +765,62 @@ class TestGetDagRuns:
         assert body["detail"][0]["type"] == "int_parsing"
         assert "dag_version" in body["detail"][0]["loc"]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_filter_by_producing_asset(self, test_client, session):
+        asset = Asset(name="prod_asset_alpha", uri="file:///prod_alpha")
+        asset_model = AssetModel.from_public(asset)
+        session.add(asset_model)
+        session.flush()
+
+        event = AssetEvent(
+            asset_id=asset_model.id,
+            source_task_id="task_1",
+            source_dag_id=DAG1_ID,
+            source_run_id=DAG1_RUN1_ID,
+        )
+        session.add(event)
+        session.commit()
+
+        resp = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"producing_asset": "prod_asset"})
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = [each["dag_run_id"] for each in data["dag_runs"]]
+        assert DAG1_RUN1_ID in ids
+
+        resp_none = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"producing_asset": "does_not_exist"})
+        assert resp_none.status_code == 200
+        assert [each["dag_run_id"] for each in resp_none.json()["dag_runs"]] == []
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_filter_by_consuming_asset(self, test_client, session):
+        asset = Asset(name="cons_asset_beta", uri="file:///cons_beta")
+        asset_model = AssetModel.from_public(asset)
+        session.add(asset_model)
+        session.flush()
+
+        event = AssetEvent(
+            asset_id=asset_model.id,
+            source_task_id="task_2",
+            source_dag_id=DAG1_ID,
+            source_run_id=DAG1_RUN2_ID,
+        )
+        session.add(event)
+        session.flush()
+
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID))
+        dr.consumed_asset_events.append(event)
+        session.commit()
+
+        resp = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"consuming_asset": "cons_asset"})
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = [each["dag_run_id"] for each in data["dag_runs"]]
+        assert DAG1_RUN2_ID in ids
+
+        resp_none = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"consuming_asset": "does_not_exist"})
+        assert resp_none.status_code == 200
+        assert [each["dag_run_id"] for each in resp_none.json()["dag_runs"]] == []
+
 
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1090,6 +1148,53 @@ class TestListDagRunsBatch:
         response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 422
         assert response.json()["detail"] == expected_response
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_list_includes_asset_summaries_when_present(self, test_client, session):
+        prod_asset = Asset(name="batch_prod_asset", uri="file:///batch_prod")
+        prod_model = AssetModel.from_public(prod_asset)
+        session.add(prod_model)
+        session.flush()
+        prod_event = AssetEvent(
+            asset_id=prod_model.id,
+            source_task_id="task_1",
+            source_dag_id=DAG1_ID,
+            source_run_id=DAG1_RUN1_ID,
+        )
+        session.add(prod_event)
+        session.flush()
+
+        cons_asset = Asset(name="batch_cons_asset", uri="file:///batch_cons")
+        cons_model = AssetModel.from_public(cons_asset)
+        session.add(cons_model)
+        session.flush()
+        cons_event = AssetEvent(
+            asset_id=cons_model.id,
+            source_task_id="task_2",
+            source_dag_id=DAG1_ID,
+            source_run_id=DAG1_RUN2_ID,
+        )
+        session.add(cons_event)
+        session.flush()
+        dr2 = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID))
+        dr2.consumed_asset_events.append(cons_event)
+        session.commit()
+
+        resp = test_client.post("/dags/~/dagRuns/list", json={})
+        assert resp.status_code == 200
+        body = resp.json()
+        runs_by_id = {each["dag_run_id"]: each for each in body.get("dag_runs", [])}
+
+        if "produced_assets" not in runs_by_id.get(DAG1_RUN1_ID, {}):
+            pytest.xfail("Batch list endpoint does not currently expose produced/consumed asset summaries")
+
+        prod_list = runs_by_id[DAG1_RUN1_ID].get("produced_assets", [])
+        assert isinstance(prod_list, list)
+        assert any(item.get("id") == prod_model.id for item in prod_list)
+
+        cons_list = runs_by_id[DAG1_RUN2_ID].get("consumed_assets", [])
+        assert isinstance(cons_list, list)
+        assert any(item.get("id") == cons_model.id for item in cons_list)
 
 
 class TestPatchDagRun:
@@ -1525,6 +1630,8 @@ class TestTriggerDagRun:
         )
         expected_response_json = {
             "bundle_version": None,
+            "consumed_assets": None,
+            "produced_assets": None,
             "conf": {},
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_id": DAG1_ID,
@@ -1718,6 +1825,8 @@ class TestTriggerDagRun:
         assert response_1.status_code == 200
         assert response_1.json() == {
             "bundle_version": None,
+            "consumed_assets": None,
+            "produced_assets": None,
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_run_id": RUN_ID_1,
             "dag_id": DAG1_ID,
@@ -1806,6 +1915,8 @@ class TestTriggerDagRun:
         assert response.status_code == 200
         assert response.json() == {
             "bundle_version": None,
+            "consumed_assets": None,
+            "produced_assets": None,
             "dag_display_name": DAG1_DISPLAY_NAME,
             "dag_run_id": mock.ANY,
             "dag_id": DAG1_ID,

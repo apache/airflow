@@ -43,10 +43,12 @@ from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
+    AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table as dagrun_asset_event_table,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
@@ -813,6 +815,93 @@ QueryDagRunRunTypesFilter = Annotated[
 
 QueryDagRunTriggeringUserSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user"))
+]
+
+
+class _DagRunConsumingAssetFilter(BaseParam[str | None]):
+    """
+    Filter DagRuns by an asset they consumed (triggered by).
+
+    Matches by asset name or URI substring on related consumed_asset_events.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(skip_none=True)
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_asset: str | None = Query(
+            None, description="Filter DagRuns that consumed an asset (match by asset name or URI)"
+        ),
+    ) -> _DagRunConsumingAssetFilter:
+        return cls().set_value(consuming_asset)
+
+    def to_orm(self, select: Select) -> Select:  # type: ignore[name-defined]
+        if not self.value:
+            return select
+        asset_match = or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%"))
+        exists_clause = (
+            sql_select(1)
+            .select_from(dagrun_asset_event_table)
+            .join(AssetEvent, AssetEvent.id == dagrun_asset_event_table.c.event_id)
+            .join(AssetEvent.asset)
+            .where(
+                and_(
+                    dagrun_asset_event_table.c.dag_run_id == DagRun.id,
+                    asset_match,
+                )
+            )
+            .exists()
+        )
+        return select.where(exists_clause)
+
+
+class _DagRunProducingAssetFilter(BaseParam[str | None]):
+    """
+    Filter DagRuns by an asset they produced (downstream created by tasks in the run).
+
+    This links from AssetEvent.source_dag_id/source_run_id back to the DagRun and then matches the
+    asset by name or URI.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(skip_none=True)
+
+    @classmethod
+    def depends(
+        cls,
+        producing_asset: str | None = Query(
+            None, description="Filter DagRuns that produced an asset (match by asset name or URI)"
+        ),
+    ) -> _DagRunProducingAssetFilter:
+        return cls().set_value(producing_asset)
+
+    def to_orm(self, select: Select) -> Select:  # type: ignore[name-defined]
+        if not self.value:
+            return select
+        asset_match = or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%"))
+        exists_clause = (
+            sql_select(1)
+            .select_from(AssetEvent)
+            .join(AssetEvent.asset)
+            .where(
+                and_(
+                    AssetEvent.source_dag_id == DagRun.dag_id,
+                    AssetEvent.source_run_id == DagRun.run_id,
+                    asset_match,
+                )
+            )
+            .exists()
+        )
+        return select.where(exists_clause)
+
+
+QueryDagRunConsumingAssetFilter = Annotated[
+    _DagRunConsumingAssetFilter, Depends(_DagRunConsumingAssetFilter.depends)
+]
+QueryDagRunProducingAssetFilter = Annotated[
+    _DagRunProducingAssetFilter, Depends(_DagRunProducingAssetFilter.depends)
 ]
 
 # DagTags
