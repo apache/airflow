@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.settings import AIRFLOW_HOME
@@ -52,8 +54,28 @@ class KubeConfig:
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )
+        
+        # Check for deprecated configuration fields
         self.worker_container_repository = conf.get(self.kubernetes_section, "worker_container_repository")
+        if self.worker_container_repository:
+            warnings.warn(
+                "The 'worker_container_repository' configuration option in [kubernetes_executor] section is "
+                "deprecated and will be removed in a future version. Please use 'pod_template_file' to "
+                "specify the container image instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        
         self.worker_container_tag = conf.get(self.kubernetes_section, "worker_container_tag")
+        if self.worker_container_tag:
+            warnings.warn(
+                "The 'worker_container_tag' configuration option in [kubernetes_executor] section is "
+                "deprecated and will be removed in a future version. Please use 'pod_template_file' to "
+                "specify the container image instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        
         if self.worker_container_repository and self.worker_container_tag:
             self.kube_image = f"{self.worker_container_repository}:{self.worker_container_tag}"
         else:
@@ -63,7 +85,17 @@ class KubeConfig:
         # that if your
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
-        self.kube_namespace = conf.get(self.kubernetes_section, "namespace")
+        namespace_value = conf.get(self.kubernetes_section, "namespace")
+        if namespace_value and namespace_value != "default":
+            warnings.warn(
+                "The 'namespace' configuration option in [kubernetes_executor] section is "
+                "deprecated and will be removed in a future version. Please use 'pod_template_file' to "
+                "specify the namespace instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.kube_namespace = namespace_value
+        
         self.multi_namespace_mode = conf.getboolean(self.kubernetes_section, "multi_namespace_mode")
         if self.multi_namespace_mode and conf.get(
             self.kubernetes_section, "multi_namespace_mode_namespace_list"
@@ -77,7 +109,7 @@ class KubeConfig:
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
-        self.executor_namespace = conf.get(self.kubernetes_section, "namespace")
+        self.executor_namespace = namespace_value
 
         self.kube_client_request_args = conf.getjson(
             self.kubernetes_section, "kube_client_request_args", fallback={}
