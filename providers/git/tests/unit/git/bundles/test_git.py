@@ -784,7 +784,7 @@ class TestGitDagBundle:
     def test_clone_bare_repo_invalid_repository_error_retry_fails(
         self, mock_exists, mock_rmtree, mock_githook
     ):
-        """Test that InvalidGitRepositoryError after retry raises AirflowException."""
+        """Test that InvalidGitRepositoryError after retry is re-raised (wrapped in AirflowException by caller)."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
         mock_githook.return_value.env = {}
 
@@ -797,11 +797,13 @@ class TestGitDagBundle:
 
             bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
 
-            with pytest.raises(AirflowException, match="Invalid git repository at"):
+            # The raw exception is raised by the method itself, but wrapped by _initialize
+            with pytest.raises(InvalidGitRepositoryError, match="Invalid git repository"):
                 bundle._clone_bare_repo_if_required()
 
-            # Verify cleanup was called once (first retry attempt)
-            mock_rmtree.assert_called_once_with(bundle.bare_repo_path)
+            # Verify cleanup was called twice (once for each failed attempt)
+            assert mock_rmtree.call_count == 2
+            mock_rmtree.assert_called_with(bundle.bare_repo_path)
 
             # Verify Repo was called twice (failed attempt + failed retry)
             assert mock_repo_class.call_count == 2
