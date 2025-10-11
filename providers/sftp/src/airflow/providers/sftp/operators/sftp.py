@@ -206,10 +206,18 @@ class SFTPOperator(BaseOperator):
                 for _remote_filepath in remote_filepath_array:
                     file_msg = f"{_remote_filepath}"
                     self.log.info("Starting to delete %s", file_msg)
-                    if self.sftp_hook.isdir(_remote_filepath):
-                        self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
-                    else:
-                        self.sftp_hook.delete_file(_remote_filepath)
+                    try:
+                        if self.sftp_hook.isdir(_remote_filepath):
+                            self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
+                        else:
+                            self.sftp_hook.delete_file(_remote_filepath)
+                    except OSError as e:
+                        if "no such file" in str(e).lower():
+                            self.log.warning(
+                                "File or directory not found at path: %s. Skipping delete.", _remote_filepath
+                            )
+                        else:
+                            raise
 
         except Exception as e:
             raise AirflowException(
