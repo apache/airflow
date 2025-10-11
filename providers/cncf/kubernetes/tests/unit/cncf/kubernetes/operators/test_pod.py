@@ -848,6 +848,23 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "File"
 
+    def test_termination_grace_period_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            termination_grace_period=300,
+        )
+
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.termination_grace_period_seconds == 300
+
+    def test_termination_grace_period_default_value_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.termination_grace_period_seconds is None
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "task_kwargs, base_container_fail, expect_to_delete_pod",
