@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow import DAG
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
@@ -106,4 +108,26 @@ class TestPagerdutyNotifier:
             class_type="disk test_notifier",
             images=None,
             links=None,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsAsyncHook.send_event",
+        new_callable=mock.AsyncMock,
+    )
+    async def test_async_notifier(self, mock_async_hook, create_dag_without_db):
+        notifier = send_pagerduty_notification(summary="DISK at 99%", severity="critical", action="trigger")
+        await notifier.async_notify({"dag": create_dag_without_db("test_pagerduty_notifier")})
+        mock_async_hook.assert_called_once_with(
+            summary="DISK at 99%",
+            severity="critical",
+            action="trigger",
+            source="airflow",
+            class_type=None,
+            component=None,
+            custom_details=None,
+            group=None,
+            images=None,
+            links=None,
+            dedup_key=None,
         )
