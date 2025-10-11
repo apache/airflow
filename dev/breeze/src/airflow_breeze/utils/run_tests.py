@@ -104,6 +104,7 @@ def run_docker_compose_tests(
     include_success_outputs: bool,
     test_type: str = "docker-compose",
     skip_image_check: bool = False,
+    test_mode: str = "basic",
 ) -> tuple[int, str]:
     if not skip_image_check:
         command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
@@ -116,7 +117,7 @@ def run_docker_compose_tests(
         test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
     elif test_type == "airflow-e2e-tests":
-        test_path = Path("tests") / "airflow_e2e_tests"
+        test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
         cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
     else:
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
@@ -124,6 +125,7 @@ def run_docker_compose_tests(
 
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
+    env["E2E_TEST_MODE"] = test_mode
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
     if include_success_outputs:

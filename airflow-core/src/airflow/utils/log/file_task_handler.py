@@ -40,6 +40,7 @@ from typing_extensions import NotRequired
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
+from airflow.utils.log.connection_manager import with_remote_logging_connection
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
@@ -932,6 +933,7 @@ class FileTaskHandler(logging.Handler):
 
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
-        path = self._render_filename(ti, try_number)
-        sources, logs = remote_io.read(path, ti)
-        return sources, logs or []
+        with with_remote_logging_connection():
+            path = self._render_filename(ti, try_number)
+            sources, logs = remote_io.read(path, ti)
+            return sources, logs or []

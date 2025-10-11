@@ -26,8 +26,8 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
-    AIRFLOW_ROOT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
+    DOCKER_COMPOSE_PATH,
     DOCKER_IMAGE,
     E2E_DAGS_FOLDER,
     LOGS_FOLDER,
@@ -44,11 +44,8 @@ def spin_up_airflow_environment(tmp_path_factory):
     global airflow_logs_path
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
 
-    compose_file_path = (
-        AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
-    )
-
-    copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
+    console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
+    copyfile(DOCKER_COMPOSE_PATH, tmp_dir / "docker-compose.yaml")
 
     subfolders = ("dags", "logs", "plugins", "config")
 
