@@ -34,6 +34,8 @@ import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
+import { RecentConfigurationsDropdown } from "./RecentConfigurationsDropdown";
+import type { RecentConfiguration } from "src/queries/useRecentConfigurations";
 
 type TriggerDAGFormProps = {
   readonly dagDisplayName: string;
@@ -58,6 +60,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
+  const [selectedConfig, setSelectedConfig] = useState<RecentConfiguration | null>(null);
 
   const { mutate: togglePause } = useTogglePause({ dagId });
 
@@ -85,6 +88,19 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
     setErrors((prev) => ({ ...prev, date: undefined }));
   };
 
+  const handleConfigSelect = (config: RecentConfiguration | null) => {
+    setSelectedConfig(config);
+    if (config?.conf) {
+      // Update the form with the selected configuration
+      reset((prevValues) => ({
+        ...prevValues,
+        conf: JSON.stringify(config.conf, null, 2),
+        dagRunId: config.run_id,
+        logicalDate: config.logical_date ? dayjs(config.logical_date).format(DEFAULT_DATETIME_FORMAT) : prevValues.logicalDate,
+      }));
+    }
+  };
+
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
       togglePause({
@@ -99,6 +115,11 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
 
   return (
     <Box mt={8}>
+      <RecentConfigurationsDropdown
+        dagId={dagId}
+        onConfigSelect={handleConfigSelect}
+        selectedConfig={selectedConfig}
+      />
       <ConfigForm
         control={control}
         errors={errors}
