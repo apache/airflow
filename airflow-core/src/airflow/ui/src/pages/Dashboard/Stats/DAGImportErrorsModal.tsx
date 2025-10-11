@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack } from "@chakra-ui/react";
+import { Heading, Text, HStack, Button } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -90,7 +90,19 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
                     {importError.bundle_name}
                   </Text>
                   <PiFilePy />
-                  {importError.filename}
+                  <HStack spacing={2}>
+                    <span style={{ userSelect: "text" }}>{importError.filename}</span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={(e) => {
+                        e.stopPropagation(); // prevent accordion toggle
+                        navigator.clipboard.writeText(importError.filename);
+                      }}
+                      title="Copy path"
+                    >
+                    </Button>
+                  </HStack>
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <Text color="fg.muted" fontSize="sm" mb={1}>

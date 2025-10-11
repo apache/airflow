@@ -1,0 +1,20 @@
+.dag-import-errors .selectable-path {
+user-select: text !important; /* override any global disabling */
+-webkit-user-select: text !important;
+-moz-user-select: text !important;
+font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+font-size: 0.85rem;
+white-space: pre-wrap; /* ensure long paths wrap nicely */
+}
+
+
+.dag-import-errors .copy-path-btn {
+line-height: 1;
+}
+
+
+.dag-import-errors .stacktrace {
+max-height: 220px;
+overflow: auto;
+background: transparent;
+}
