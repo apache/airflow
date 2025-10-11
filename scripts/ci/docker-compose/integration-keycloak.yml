@@ -17,7 +17,7 @@
 ---
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.6
+    image: quay.io/keycloak/keycloak:26.2.5
     labels:
       breeze.description: "Integration for manual testing of multi-team Airflow."
     entrypoint: /opt/keycloak/keycloak-entrypoint.sh

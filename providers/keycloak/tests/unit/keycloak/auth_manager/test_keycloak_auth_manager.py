@@ -22,6 +22,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
@@ -67,6 +68,7 @@ def auth_manager():
 def user():
     user = Mock()
     user.access_token = "access_token"
+    user.get_id.return_value = "user_id"
     return user
 
 
@@ -426,3 +428,73 @@ class TestKeycloakAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
+
+    @patch.object(KeycloakAuthManager, "_is_batch_authorized")
+    def test__is_authorized_to_list_dags_with_team_uses_attributes(self, mock_batch, auth_manager, user):
+        mock_batch.return_value = {("LIST", "Dag")}
+        details = DagDetails(team_name="team-blue")
+
+        result = auth_manager._is_authorized_to_list_dags(method="GET", user=user, details=details)
+
+        assert result is True
+        mock_batch.assert_called_once()
+        _, kwargs = mock_batch.call_args
+        assert kwargs["permissions"] == [("LIST", "Dag")]
+        assert kwargs["attributes"] == {"team_name": "team-blue"}
+
+    @patch.object(KeycloakAuthManager, "_is_batch_authorized")
+    def test__is_authorized_to_list_dags_without_team(self, mock_batch, auth_manager, user):
+        mock_batch.return_value = {("LIST", "Dag")}
+
+        result = auth_manager._is_authorized_to_list_dags(method="GET", user=user, details=None)
+
+        assert result is True
+        mock_batch.assert_called_once()
+        _, kwargs = mock_batch.call_args
+        assert kwargs["permissions"] == [("LIST", "Dag")]
+        assert kwargs["attributes"] is None
+
+    def test_filter_authorized_dag_ids_returns_all_when_batch_granted(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b"}
+        with (
+            patch.object(KeycloakAuthManager, "_is_authorized_to_list_dags", return_value=True) as mock_batch,
+            patch.object(BaseAuthManager, "filter_authorized_dag_ids") as mock_super,
+        ):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name="team-blue",
+            )
+
+        assert result == dag_ids
+        mock_batch.assert_called_once()
+        expected_details = DagDetails(team_name="team-blue")
+        assert mock_batch.call_args.kwargs["details"] == expected_details
+        mock_super.assert_not_called()
+
+    def test_filter_authorized_dag_ids_fallbacks_when_batch_denied(self, auth_manager, user):
+        with (
+            patch.object(
+                KeycloakAuthManager, "_is_authorized_to_list_dags", return_value=False
+            ) as mock_batch,
+            patch.object(
+                BaseAuthManager, "filter_authorized_dag_ids", return_value={"filtered"}
+            ) as mock_super,
+        ):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids={"dag_a"},
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == {"filtered"}
+        mock_batch.assert_called_once()
+        mock_super.assert_called_once()
+        assert mock_super.call_args.kwargs == {
+            "dag_ids": {"dag_a"},
+            "user": user,
+            "method": "GET",
+            "team_name": None,
+        }

@@ -73,8 +73,9 @@ if TYPE_CHECKING:
 # TODO: Move this inside once all providers drop Airflow 2.x support.
 # List of methods (or actions) a user can do against a resource
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
-# Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
-ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+# Extends ``ResourceMethod`` to include "MENU" and "LIST". The method "MENU" is only supported with specific
+# resources (menu items) and ``LIST`` is used for collection endpoints without a specific resource identifier.
+ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU", "LIST"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
