@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sensors.base import poke_mode_only
+from airflow.providers.amazon.version_compat import poke_mode_only
 
 
 class S3KeySensor(AwsBaseSensor[S3Hook]):
