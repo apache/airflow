@@ -34,10 +34,7 @@ from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
-from airflow.models.asset import (
-    AssetAliasModel,
-    AssetModel,
-)
+from airflow.models.asset import AssetAliasModel, AssetModel
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -318,17 +315,15 @@ class SerializedDagModel(Base):
         self.dag_id = dag.dag_id
         dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
-
-        # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        sorted_dag_data = SerializedDagModel._sort_serialized_dag_dict(dag_data)
+        sorted_dag_data_json = json.dumps(sorted_dag_data, sort_keys=True).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
-            self._data_compressed = zlib.compress(dag_data_json)
+            self._data_compressed = zlib.compress(sorted_dag_data_json)
         else:
             self._data = dag_data
             self._data_compressed = None
-
         # serve as cache so no need to decompress and load, when accessing data field
         # when COMPRESS_SERIALIZED_DAGS is True
         self.__data_cache = dag_data
@@ -351,7 +346,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):
-        """Recursively sort json_dict and its nested dictionaries and lists."""
+        """Ensure deterministic ordering for hashing and DB persistence."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
         if isinstance(serialized_dag, list):
@@ -594,6 +589,7 @@ class SerializedDagModel(Base):
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
+
             elif session.bind.dialect.name == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
