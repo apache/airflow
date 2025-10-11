@@ -41,8 +41,11 @@ from urllib3.exceptions import HTTPError, TimeoutError
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
