@@ -156,6 +156,12 @@ class TelegramHook(BaseHook):
         if kwargs.get("chat_id") is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
+        if kwargs["parse_mode"] == telegram.constants.ParseMode.HTML:
+            kwargs["text"] = telegram.helpers.escape(kwargs["text"])
+        else:
+            kwargs["text"] = telegram.helpers.escape_markdown(
+                kwargs["text"], 2 if kwargs["parse_mode"] == telegram.constants.ParseMode.MARKDOWN_V2 else 1)
+
         response = asyncio.run(self.connection.send_message(**kwargs))
         self.log.debug(response)
 
