@@ -43,7 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as 
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
-    EmailNotificationRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
@@ -959,7 +959,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Sending email request for task %s to DAG Processor",
                         ti,
                     )
-                    email_request = EmailNotificationRequest(
+                    email_request = EmailRequest(
                         filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
                         bundle_version=ti.dag_version.bundle_version,
