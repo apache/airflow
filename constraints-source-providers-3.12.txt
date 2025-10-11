@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-10T19:51:58.583386
+# This constraints file was automatically generated on 2025-10-11T02:15:55.361888
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -270,7 +270,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.42.0
+google-genai==1.43.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -392,7 +392,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.40.17
-mypy-boto3-rds==1.40.46
+mypy-boto3-rds==1.40.50
 mypy-boto3-redshift-data==1.40.0
 mypy-boto3-s3==1.40.26
 mypy==1.18.2
@@ -529,7 +529,7 @@ python-dotenv==1.1.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==5.8.1
-python-ldap==3.4.4
+python-ldap==3.4.5
 python-multipart==0.0.20
 python-on-whales==0.78.0
 python-slugify==8.0.4
@@ -692,7 +692,7 @@ uvloop==0.21.0
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.35.2
+virtualenv==20.35.3
 watchfiles==1.1.0
 watchtower==3.4.0
 wcwidth==0.2.14
