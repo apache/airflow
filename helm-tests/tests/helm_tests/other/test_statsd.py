@@ -30,11 +30,9 @@ class TestStatsd:
             values={
                 "statsd": {
                     "enabled": True,
-                    "args": [
-                        "--statsd.cache-size=1000",
-                        "--statsd.cache-type=lru",
-                        "--ttl=0s",
-                    ],
+                    "cacheSize": "1000",
+                    "cacheType": "lru", 
+                    "ttl": "0s"
                 }
             },
             show_only=["templates/statsd/statsd-deployment.yaml"]
@@ -54,14 +52,12 @@ class TestStatsd:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-        expected_args = [                                                              
-                    '--statsd.cache-size=1000',                                  
-                    '--statsd.cache-type=lru',                                   
-                    '--ttl=0s',                                                  
-                    '--statsd.cache-size=',                                      
-                    '--statsd.cache-type=',                                      
-                    '--ttl=',                                                    
-                    ]
+        expected_args = [
+            "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
+            "--statsd.cache-size=1000",
+            "--statsd.cache-type=lru",
+            "--ttl=0s"
+        ]
         assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
@@ -202,7 +198,7 @@ class TestStatsd:
             },
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
+        assert jmespath.search("spec.template.spec.containers[0].rezzsources.limits.memory", docs[0]) == "128Mi"
         assert (
             jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
         )
@@ -313,7 +309,7 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--some-arg=foo", "--statsd.cache-size=1000", "--statsd.cache-type=lru", "--ttl=0s"]
+        args = ["--statsd.mapping-config=/custom/path"]
         docs = render_chart(
             values={"statsd": {"enabled": True, "args": args}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
