@@ -40,6 +40,7 @@ build/
 develop-eggs/
 dist/
 !providers/fab/**/www/static/dist
+!providers/edge3/**/www/dist
 downloads/
 eggs/
 .eggs/
@@ -274,3 +275,5 @@ _api/
 
 #while running go tests inside the go-sdk, it can generate log files for dags, ignore all logs
 go-sdk/**/*.log
+
+_e2e_test_report.json

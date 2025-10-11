@@ -28,7 +28,7 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagModel, DagRun
+from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
@@ -40,6 +40,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.db import (
     clear_db_connections,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -91,6 +92,7 @@ def setup(request, dag_maker, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -111,6 +113,10 @@ def setup(request, dag_maker, session=None):
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
+    # Set end_date for testing duration filter
+    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
+    # Set conf for testing conf_contains filter (values ordered for predictable sorting)
+    dag_run1.conf = {"env": "development", "version": "1.0"}
 
     for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -128,6 +134,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run2.triggering_user_name = "bob_service"
+    # Set end_date for testing duration filter
+    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
+    # Set conf for testing conf_contains filter
+    dag_run2.conf = {"env": "production", "debug": True}
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -149,6 +159,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set end_date for testing duration filter
+    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
+    # Set conf for testing conf_contains filter
+    dag_run3.conf = {"env": "staging", "test_mode": True}
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -159,6 +173,10 @@ def setup(request, dag_maker, session=None):
     )
     # Leave triggering_user_name as None for testing
     dag_run4.triggering_user_name = None
+    # Set end_date for testing duration filter
+    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
+    # Set conf for testing conf_contains filter
+    dag_run4.conf = {"env": "testing", "mode": "ci"}
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -186,7 +204,7 @@ def get_dag_run_dict(run: DagRun):
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
         "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu(run.end_date),
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
         "duration": run.duration,
         "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
         "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
@@ -430,12 +448,48 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
             (
-                DAG1_ID,
+                "~",
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
-                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "start_date_gt": START_DATE1.isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                "~",
+                {
+                    "start_date_gt": (START_DATE1 - timedelta(hours=1)).isoformat(),
+                    "start_date_lt": (START_DATE2 - timedelta(days=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": START_DATE2.isoformat(),  # 2024-04-15
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gt": (
+                        START_DATE1 + timedelta(seconds=50)
+                    ).isoformat(),  # Between the two end dates
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],  # Both should match as their end_date > start + 50s
             ),
             (
                 DAG1_ID,
@@ -448,8 +502,40 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
+                    "logical_date_gt": LOGICAL_DATE1.isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "logical_date_gt": (LOGICAL_DATE1 - timedelta(hours=1)).isoformat(),
+                    "logical_date_lt": LOGICAL_DATE2.isoformat(),
+                },
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {
                     "run_after_gte": RUN_AFTER1.isoformat(),
                     "run_after_lte": RUN_AFTER2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": RUN_AFTER1.isoformat(),
+                    "run_after_lt": RUN_AFTER2.isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "run_after_gt": (RUN_AFTER1 - timedelta(hours=1)).isoformat(),
+                    "run_after_lt": (RUN_AFTER2 + timedelta(hours=1)).isoformat(),
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
@@ -458,6 +544,22 @@ class TestGetDagRuns:
                 {
                     "start_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": START_DATE2.isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gt": (START_DATE2 - timedelta(hours=1)).isoformat(),
+                    "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
                 [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
@@ -509,6 +611,61 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # Test dag_id_pattern filter
+            ("~", {"dag_id_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_%"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"dag_id_pattern": "%_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "test_dag_"}, [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            ("~", {"dag_id_pattern": "nonexistent"}, []),
+            (
+                "~",
+                {
+                    "dag_id_pattern": "test_dag1",
+                    "state": DagRunState.SUCCESS.value,
+                },
+                [DAG1_RUN1_ID],
+            ),
+            # Test dag_version filter
+            (
+                DAG1_ID,
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Version 1 should match all DAG1 runs
+            (
+                DAG2_ID,
+                {"dag_version": [1]},
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all DAG2 runs
+            (
+                "~",
+                {"dag_version": [1]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Version 1 should match all runs
+            ("~", {"dag_version": [999]}, []),  # Non-existent version should match no runs
+            (
+                DAG1_ID,
+                {"dag_version": [1, 999]},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Multiple versions, only existing ones match
+            # Test duration filters
+            ("~", {"duration_gte": 200}, [DAG1_RUN2_ID]),  # Test >= 200 seconds
+            ("~", {"duration_lt": 100}, [DAG2_RUN1_ID]),  # Test < 100 seconds
+            (
+                "~",
+                {"duration_gte": 100, "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Test between 100 and 150 (inclusive)
+            # Test conf_contains filter
+            ("~", {"conf_contains": "development"}, [DAG1_RUN1_ID]),  # Test for "development" env
+            (
+                "~",
+                {"conf_contains": "debug"},
+                [DAG1_RUN2_ID],
+            ),  # Test for debug key
+            ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
+            ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -598,6 +755,13 @@ class TestGetDagRuns:
         assert (
             response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
         )
+
+    def test_invalid_dag_version(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"dag_version": ["invalid"]})
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["type"] == "int_parsing"
+        assert "dag_version" in body["detail"][0]["loc"]
 
 
 class TestListDagRunsBatch:
@@ -780,10 +944,12 @@ class TestListDagRunsBatch:
             ),
             (
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                # Only DAG2 runs match: their start_date is 2024-04-15, so end_date >= 2024-04-15
+                # DAG1 runs have start_date 2024-01-15, so end_date < 2024-04-15
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
             (
                 {
@@ -1258,6 +1424,13 @@ class TestClearDagRun:
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
         assert dag_run.state == DAG1_RUN1_STATE
 
+        logs = (
+            session.query(Log)
+            .filter(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
+            .count()
+        )
+        assert logs == 0
+
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
         assert response.status_code == 404
@@ -1276,6 +1449,7 @@ class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
             dag_id="inactive",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_stale=True,
@@ -1286,6 +1460,7 @@ class TestTriggerDagRun:
 
         import_errors_dag = DagModel(
             dag_id="import_errors",
+            bundle_name="testing",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
             is_stale=False,
@@ -1496,7 +1671,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.models.DAG.create_dagrun")
+    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"
@@ -1507,14 +1682,14 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
 
-    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
+    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/inactive/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
 
-    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
+    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/import_errors/dagRuns", json={"logical_date": now})

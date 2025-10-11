@@ -255,27 +255,31 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{ else if .Values.dags.gitSync.credentialsSecret }}
-    - name: GIT_SYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_USERNAME
+    {{- else if .Values.dags.gitSync.credentialsSecret }}
+    {{- $tag := trimPrefix "v" .Values.images.gitSync.tag }}
+    {{- if or (eq $tag "latest") (semverCompare ">=4.0.0" $tag) }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
-    - name: GIT_SYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_PASSWORD
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
+    {{- else }}
+    - name: GIT_SYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_USERNAME
+    - name: GIT_SYNC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_PASSWORD
+    {{- end }}
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
@@ -413,11 +417,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "fernet_key_secret" -}}
-  {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+  {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{- define "jwt_secret" -}}
-  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
+  {{- default (printf "%s-jwt-secret" (include "airflow.fullname" .)) .Values.jwtSecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
@@ -429,7 +433,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "redis_password_secret" -}}
-  {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
+  {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
@@ -600,7 +604,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_webserver_config_configmap_name" -}}
-  {{- default (printf "%s-webserver-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-webserver-config" (include "airflow.fullname" .)) .Values.webserver.webserverConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_webserver_config_mount" -}}
@@ -611,7 +615,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-api-server-config" (include "airflow.fullname" .)) .Values.apiServer.apiServerConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}

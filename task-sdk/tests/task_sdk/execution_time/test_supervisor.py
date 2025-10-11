@@ -28,10 +28,11 @@ import socket
 import sys
 import time
 from contextlib import nullcontext
+from dataclasses import dataclass, field
 from operator import attrgetter
 from random import randint
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -39,6 +40,7 @@ import httpx
 import msgspec
 import psutil
 import pytest
+import structlog
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -78,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
@@ -85,10 +88,12 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
     InactiveAssetsResult,
+    MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
@@ -99,14 +104,18 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
     TICount,
+    ToSupervisor,
     TriggerDagRun,
+    UpdateHITLDetail,
     ValidateInletsAndOutlets,
     VariableResult,
+    XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -118,6 +127,7 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     _remote_logging_conn,
+    process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise,
 )
@@ -173,7 +183,6 @@ class TestSupervisor:
     )
     def test_supervise(
         self,
-        patched_secrets_masker,
         server,
         dry_run,
         expectation,
@@ -237,7 +246,7 @@ class TestWatchedSubprocess:
 
             logging.getLogger("airflow.foobar").error("An error message")
 
-            warnings.warn("Warning should be captured too", stacklevel=1)
+            warnings.warn("Warning should be appear from the correct callsite", stacklevel=1)
 
         line = lineno() - 2  # Line the error should be on
 
@@ -265,40 +274,38 @@ class TestWatchedSubprocess:
         assert captured_logs == unordered(
             [
                 {
-                    "chan": "stdout",
+                    "logger": "task.stdout",
                     "event": "I'm a short message",
                     "level": "info",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
-                    "chan": "stderr",
+                    "logger": "task.stderr",
                     "event": "stderr message",
                     "level": "error",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
-                    "chan": "stdout",
+                    "logger": "task.stdout",
                     "event": "Message split across two writes",
                     "level": "info",
-                    "logger": "task",
                     "timestamp": "2024-11-07T12:34:56.078901Z",
                 },
                 {
                     "event": "An error message",
                     "level": "error",
                     "logger": "airflow.foobar",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
+                    "loc": mock.ANY,
                 },
                 {
                     "category": "UserWarning",
-                    "event": "Warning should be captured too",
+                    "event": "Warning should be appear from the correct callsite",
                     "filename": __file__,
                     "level": "warning",
                     "lineno": line,
                     "logger": "py.warnings",
-                    "timestamp": instant.replace(tzinfo=None),
+                    "timestamp": instant,
                 },
             ]
         )
@@ -316,6 +323,8 @@ class TestWatchedSubprocess:
             fd = os.fdopen(logs.fds[0], "w")
             logging.root.info("Log on old socket")
             json.dump({"level": "info", "event": "Log on new socket"}, fp=fd)
+
+        line = lineno() - 3  # Line the error should be on
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -337,8 +346,20 @@ class TestWatchedSubprocess:
         assert rc == 0
         assert captured_logs == unordered(
             [
-                {"event": "Log on new socket", "level": "info", "logger": "task", "timestamp": mock.ANY},
-                {"event": "Log on old socket", "level": "info", "logger": "root", "timestamp": mock.ANY},
+                {
+                    "event": "Log on new socket",
+                    "level": "info",
+                    "logger": "task",
+                    "timestamp": mock.ANY,
+                    # Since this is set as json, without filename or linno, we _should_ not add any.
+                },
+                {
+                    "event": "Log on old socket",
+                    "level": "info",
+                    "logger": "root",
+                    "timestamp": mock.ANY,
+                    "loc": f"{os.path.basename(__file__)}:{line}",
+                },
             ]
         )
 
@@ -571,10 +592,9 @@ class TestWatchedSubprocess:
 
         # We should have a log from the task!
         assert {
-            "chan": "stdout",
+            "logger": "task.stdout",
             "event": "Hello World hello!",
             "level": "info",
-            "logger": "task",
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
@@ -646,6 +666,8 @@ class TestWatchedSubprocess:
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
+            "loc": mocker.ANY,
+            "task_instance_id": str(ti.id),
         } in captured_logs
 
     def test_supervisor_handles_already_running_task(self):
@@ -759,6 +781,7 @@ class TestWatchedSubprocess:
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
                 "ti_id": ti_id,
+                "loc": mocker.ANY,
             },
             {
                 "detail": {
@@ -770,12 +793,14 @@ class TestWatchedSubprocess:
                 "level": "error",
                 "logger": "task",
                 "timestamp": mocker.ANY,
+                "loc": mocker.ANY,
             },
             {
                 "event": "Task killed!",
                 "level": "error",
                 "logger": "task",
                 "timestamp": mocker.ANY,
+                "loc": mocker.ANY,
             },
         ]
 
@@ -833,6 +858,7 @@ class TestWatchedSubprocess:
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
                 "exception": mocker.ANY,
+                "loc": mocker.ANY,
             }
 
             assert expected_log in captured_logs
@@ -852,6 +878,7 @@ class TestWatchedSubprocess:
             "failed_heartbeats": max_failed_heartbeats,
             "logger": "supervisor",
             "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
         } in captured_logs
 
     @pytest.mark.parametrize(
@@ -927,21 +954,29 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        ["signal_to_raise", "log_pattern"],
+        ["signal_to_raise", "log_pattern", "level"],
         (
             pytest.param(
                 signal.SIGKILL,
-                re.compile(r"Process terminated by signal. For more information, see"),
+                re.compile(r"Process terminated by signal. Likely out of memory error"),
+                "critical",
                 id="kill",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                re.compile(r"Process terminated by signal. For more information"),
+                "error",
+                id="term",
             ),
             pytest.param(
                 signal.SIGSEGV,
                 re.compile(r".*SIGSEGV \(Segmentation Violation\) signal indicates", re.DOTALL),
+                "critical",
                 id="segv",
             ),
         ),
     )
-    def test_exit_by_signal(self, signal_to_raise, log_pattern, cap_structlog, client_with_ti_start):
+    def test_exit_by_signal(self, signal_to_raise, log_pattern, level, cap_structlog, client_with_ti_start):
         def subprocess_main():
             import faulthandler
             import os
@@ -973,7 +1008,7 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert {
-            "log_level": "critical",
+            "log_level": level,
             "event": log_pattern,
         } in cap_structlog
         assert rc == -signal_to_raise
@@ -1137,36 +1172,34 @@ class TestWatchedSubprocessKill:
         assert proc.wait() == exit_after or -signal.SIGKILL
         exit_after = exit_after or signal.SIGKILL
 
-        logs = [{"event": m["event"], "chan": m.get("chan"), "logger": m["logger"]} for m in captured_logs]
+        logs = [{"event": m["event"], "logger": m["logger"]} for m in captured_logs]
         expected_logs = [
-            {"chan": "stdout", "event": "Ready", "logger": "task"},
+            {"logger": "task.stdout", "event": "Ready"},
         ]
         # Work out what logs we expect to see
         if signal_to_send == signal.SIGINT:
-            expected_logs.append({"chan": "stderr", "event": "Signal 2 received", "logger": "task"})
+            expected_logs.append({"logger": "task.stderr", "event": "Signal 2 received"})
         if signal_to_send == signal.SIGTERM or (
             signal_to_send == signal.SIGINT and exit_after != signal.SIGINT
         ):
             if signal_to_send == signal.SIGINT:
                 expected_logs.append(
                     {
-                        "chan": None,
                         "event": "Process did not terminate in time; escalating",
                         "logger": "supervisor",
                     }
                 )
-            expected_logs.append({"chan": "stderr", "event": "Signal 15 received", "logger": "task"})
+            expected_logs.append({"logger": "task.stderr", "event": "Signal 15 received"})
         if exit_after == signal.SIGKILL:
             if signal_to_send in {signal.SIGINT, signal.SIGTERM}:
                 expected_logs.append(
                     {
-                        "chan": None,
                         "event": "Process did not terminate in time; escalating",
                         "logger": "supervisor",
                     }
                 )
 
-        expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
+        expected_logs.extend(({"event": "Process exited", "logger": "supervisor"},))
         assert logs == expected_logs
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
@@ -1276,6 +1309,788 @@ class TestWatchedSubprocessKill:
         assert actual_timeout >= expected_min_timeout
 
 
+@dataclass
+class ClientMock:
+    """Configuration for mocking client method calls."""
+
+    method_path: str
+    """Path to the client method to mock (e.g., 'connections.get', 'variables.set')."""
+
+    args: tuple = field(default_factory=tuple)
+    """Positional arguments the client method should be called with."""
+
+    kwargs: dict = field(default_factory=dict)
+    """Keyword arguments the client method should be called with."""
+
+    response: Any = None
+    """What the mocked client method should return when called."""
+
+
+@dataclass
+class RequestTestCase:
+    """Test case data for request handling tests in `TestHandleRequest` class."""
+
+    message: Any
+    """The request message to send to the supervisor (e.g., GetConnection, SetXCom)."""
+
+    test_id: str
+    """Unique identifier for this test case, used in pytest parameterization."""
+
+    client_mock: ClientMock | None = None
+    """Client method mocking configuration. None for messages that don't require client calls."""
+
+    expected_body: dict | None = None
+    """Expected response body from supervisor. None if no response body expected."""
+
+    mask_secret_args: tuple | None = None
+    """Arguments that should be passed to the secret masker for redaction."""
+
+
+# Test cases for request handling
+REQUEST_TEST_CASES = [
+    RequestTestCase(
+        message=GetConnection(conn_id="test_conn"),
+        test_id="get_connection",
+        client_mock=ClientMock(
+            method_path="connections.get",
+            args=("test_conn",),
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+        ),
+        expected_body={"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
+    ),
+    RequestTestCase(
+        message=GetConnection(conn_id="test_conn"),
+        test_id="get_connection_with_password",
+        client_mock=ClientMock(
+            method_path="connections.get",
+            args=("test_conn",),
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
+        ),
+        expected_body={
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "password": "password",
+            "type": "ConnectionResult",
+        },
+        mask_secret_args=("password",),
+    ),
+    RequestTestCase(
+        message=GetConnection(conn_id="test_conn"),
+        test_id="get_connection_with_alias",
+        client_mock=ClientMock(
+            method_path="connections.get",
+            args=("test_conn",),
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+        ),
+        expected_body={
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "schema": "mysql",
+            "type": "ConnectionResult",
+        },
+    ),
+    RequestTestCase(
+        message=GetVariable(key="test_key"),
+        test_id="get_variable",
+        client_mock=ClientMock(
+            method_path="variables.get",
+            args=("test_key",),
+            response=VariableResult(key="test_key", value="test_value"),
+        ),
+        expected_body={"key": "test_key", "value": "test_value", "type": "VariableResult"},
+        mask_secret_args=("test_value", "test_key"),
+    ),
+    RequestTestCase(
+        message=PutVariable(key="test_key", value="test_value", description="test_description"),
+        test_id="set_variable",
+        client_mock=ClientMock(
+            method_path="variables.set",
+            args=("test_key", "test_value", "test_description"),
+            response=OKResponse(ok=True),
+        ),
+    ),
+    RequestTestCase(
+        message=DeleteVariable(key="test_key"),
+        test_id="delete_variable",
+        client_mock=ClientMock(
+            method_path="variables.delete",
+            args=("test_key",),
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeferTask(next_method="execute_callback", classpath="my-classpath"),
+        test_id="patch_task_instance_to_deferred",
+        client_mock=ClientMock(
+            method_path="task_instances.defer",
+            args=(TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+        ),
+    ),
+    RequestTestCase(
+        message=RescheduleTask(
+            reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+        ),
+        test_id="patch_task_instance_to_up_for_reschedule",
+        client_mock=ClientMock(
+            method_path="task_instances.reschedule",
+            args=(
+                TI_ID,
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+            ),
+        ),
+    ),
+    RequestTestCase(
+        message=GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+        test_id="get_xcom",
+        client_mock=ClientMock(
+            method_path="xcoms.get",
+            args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            response=XComResult(key="test_key", value="test_value"),
+        ),
+        expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXCom(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
+        ),
+        test_id="get_xcom_map_index",
+        client_mock=ClientMock(
+            method_path="xcoms.get",
+            args=("test_dag", "test_run", "test_task", "test_key", 2, False),
+            response=XComResult(key="test_key", value="test_value"),
+        ),
+        expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+        test_id="get_xcom_not_found",
+        client_mock=ClientMock(
+            method_path="xcoms.get",
+            args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            response=XComResult(key="test_key", value=None, type="XComResult"),
+        ),
+        expected_body={"key": "test_key", "value": None, "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            include_prior_dates=True,
+        ),
+        test_id="get_xcom_include_prior_dates",
+        client_mock=ClientMock(
+            method_path="xcoms.get",
+            args=("test_dag", "test_run", "test_task", "test_key", None, True),
+            response=XComResult(key="test_key", value=None, type="XComResult"),
+        ),
+        expected_body={"key": "test_key", "value": None, "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=SetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            value='{"key": "test_key", "value": {"key2": "value2"}}',
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.set",
+            args=(
+                "test_dag",
+                "test_run",
+                "test_task",
+                "test_key",
+                '{"key": "test_key", "value": {"key2": "value2"}}',
+                None,
+                None,
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_xcom",
+    ),
+    RequestTestCase(
+        message=SetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            value='{"key": "test_key", "value": {"key2": "value2"}}',
+            map_index=2,
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.set",
+            args=(
+                "test_dag",
+                "test_run",
+                "test_task",
+                "test_key",
+                '{"key": "test_key", "value": {"key2": "value2"}}',
+                2,
+                None,
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_xcom_with_map_index",
+    ),
+    RequestTestCase(
+        message=SetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            value='{"key": "test_key", "value": {"key2": "value2"}}',
+            map_index=2,
+            mapped_length=3,
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.set",
+            args=(
+                "test_dag",
+                "test_run",
+                "test_task",
+                "test_key",
+                '{"key": "test_key", "value": {"key2": "value2"}}',
+                2,
+                3,
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_xcom_with_map_index_and_mapped_length",
+    ),
+    RequestTestCase(
+        message=DeleteXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            map_index=2,
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.delete",
+            args=("test_dag", "test_run", "test_task", "test_key", 2),
+            response=OKResponse(ok=True),
+        ),
+        test_id="delete_xcom",
+    ),
+    RequestTestCase(
+        message=RetryTask(
+            end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
+        ),
+        client_mock=ClientMock(
+            method_path="task_instances.retry",
+            kwargs={
+                "id": TI_ID,
+                "end_date": timezone.parse("2024-10-31T12:00:00Z"),
+                "rendered_map_index": "test retry task",
+            },
+            response=OKResponse(ok=True),
+        ),
+        test_id="up_for_retry",
+    ),
+    RequestTestCase(
+        message=SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
+        client_mock=ClientMock(
+            method_path="task_instances.set_rtif",
+            args=(TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_rtif",
+    ),
+    RequestTestCase(
+        message=SucceedTask(
+            end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
+        ),
+        client_mock=ClientMock(
+            method_path="task_instances.succeed",
+            kwargs={
+                "id": TI_ID,
+                "outlet_events": None,
+                "task_outlets": None,
+                "when": timezone.parse("2024-10-31T12:00:00Z"),
+                "rendered_map_index": "test success task",
+            },
+        ),
+        test_id="succeed_task",
+    ),
+    RequestTestCase(
+        message=GetAssetByName(name="asset"),
+        expected_body={"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
+        client_mock=ClientMock(
+            method_path="assets.get",
+            kwargs={"name": "asset"},
+            response=AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+        ),
+        test_id="get_asset_by_name",
+    ),
+    RequestTestCase(
+        message=GetAssetByUri(uri="s3://bucket/obj"),
+        expected_body={"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
+        client_mock=ClientMock(
+            method_path="assets.get",
+            kwargs={"uri": "s3://bucket/obj"},
+            response=AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+        ),
+        test_id="get_asset_by_uri",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={"uri": "s3://bucket/obj", "name": "test"},
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ],
+            ),
+        ),
+        test_id="get_asset_events_by_uri_and_name",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={"uri": "s3://bucket/obj", "name": None},
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ],
+            ),
+        ),
+        test_id="get_asset_events_by_uri",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(uri=None, name="test"),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={"uri": None, "name": "test"},
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_name",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(alias_name="test_alias"),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={"alias_name": "test_alias"},
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_asset_alias",
+    ),
+    RequestTestCase(
+        message=ValidateInletsAndOutlets(ti_id=TI_ID),
+        expected_body={
+            "inactive_assets": [{"name": "asset_name", "uri": "asset_uri", "type": "asset"}],
+            "type": "InactiveAssetsResult",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.validate_inlets_and_outlets",
+            args=(TI_ID,),
+            response=InactiveAssetsResult(
+                inactive_assets=[AssetProfile(name="asset_name", uri="asset_uri", type="asset")]
+            ),
+        ),
+        test_id="validate_inlets_and_outlets",
+    ),
+    RequestTestCase(
+        message=GetPrevSuccessfulDagRun(ti_id=TI_ID),
+        expected_body={
+            "data_interval_start": timezone.parse("2025-01-10T12:00:00Z"),
+            "data_interval_end": timezone.parse("2025-01-10T14:00:00Z"),
+            "start_date": timezone.parse("2025-01-10T12:00:00Z"),
+            "end_date": timezone.parse("2025-01-10T14:00:00Z"),
+            "type": "PrevSuccessfulDagRunResult",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.get_previous_successful_dagrun",
+            args=(TI_ID,),
+            response=PrevSuccessfulDagRunResult(
+                start_date=timezone.parse("2025-01-10T12:00:00Z"),
+                end_date=timezone.parse("2025-01-10T14:00:00Z"),
+                data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
+                data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
+            ),
+        ),
+        test_id="get_prev_successful_dagrun",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(dag_id="test_dag", run_id="test_run"),
+        expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", None, None, False),
+            response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
+        ),
+        test_id="dag_run_trigger_already_exists",
+    ),
+    RequestTestCase(
+        message=GetDagRunState(dag_id="test_dag", run_id="test_run"),
+        expected_body={"state": "running", "type": "DagRunStateResult"},
+        client_mock=ClientMock(
+            method_path="dag_runs.get_state",
+            args=("test_dag", "test_run"),
+            response=DagRunStateResult(state=DagRunState.RUNNING),
+        ),
+        test_id="get_dag_run_state",
+    ),
+    RequestTestCase(
+        message=GetPreviousDagRun(
+            dag_id="test_dag",
+            logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+        ),
+        expected_body={
+            "dag_run": {
+                "dag_id": "test_dag",
+                "run_id": "prev_run",
+                "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "run_type": "scheduled",
+                "start_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "run_after": timezone.parse("2024-01-15T12:00:00Z"),
+                "consumed_asset_events": [],
+                "state": "success",
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "end_date": None,
+                "clear_number": 0,
+                "conf": None,
+            },
+            "type": "PreviousDagRunResult",
+        },
+        client_mock=ClientMock(
+            method_path="dag_runs.get_previous",
+            kwargs={
+                "dag_id": "test_dag",
+                "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "state": None,
+            },
+            response=PreviousDagRunResult(
+                dag_run=DagRun(
+                    dag_id="test_dag",
+                    run_id="prev_run",
+                    logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                    run_type=DagRunType.SCHEDULED,
+                    start_date=timezone.parse("2024-01-15T12:00:00Z"),
+                    run_after=timezone.parse("2024-01-15T12:00:00Z"),
+                    consumed_asset_events=[],
+                    state=DagRunState.SUCCESS,
+                )
+            ),
+        ),
+        test_id="get_previous_dagrun",
+    ),
+    RequestTestCase(
+        message=GetPreviousDagRun(
+            dag_id="test_dag",
+            logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+            state="success",
+        ),
+        expected_body={
+            "dag_run": None,
+            "type": "PreviousDagRunResult",
+        },
+        client_mock=ClientMock(
+            method_path="dag_runs.get_previous",
+            kwargs={
+                "dag_id": "test_dag",
+                "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "state": "success",
+            },
+            response=PreviousDagRunResult(dag_run=None),
+        ),
+        test_id="get_previous_dagrun_with_state",
+    ),
+    RequestTestCase(
+        message=GetTaskRescheduleStartDate(ti_id=TI_ID),
+        expected_body={
+            "start_date": timezone.parse("2024-10-31T12:00:00Z"),
+            "type": "TaskRescheduleStartDate",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.get_reschedule_start_date",
+            args=(TI_ID, 1),
+            response=TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
+        ),
+        test_id="get_task_reschedule_start_date",
+    ),
+    RequestTestCase(
+        message=GetTICount(dag_id="test_dag", task_ids=["task1", "task2"]),
+        expected_body={"count": 2, "type": "TICount"},
+        client_mock=ClientMock(
+            method_path="task_instances.get_count",
+            kwargs={
+                "dag_id": "test_dag",
+                "map_index": None,
+                "logical_dates": None,
+                "run_ids": None,
+                "states": None,
+                "task_group_id": None,
+                "task_ids": ["task1", "task2"],
+            },
+            response=TICount(count=2),
+        ),
+        test_id="get_ti_count",
+    ),
+    RequestTestCase(
+        message=GetDRCount(dag_id="test_dag", states=["success", "failed"]),
+        expected_body={"count": 2, "type": "DRCount"},
+        client_mock=ClientMock(
+            method_path="dag_runs.get_count",
+            kwargs={
+                "dag_id": "test_dag",
+                "logical_dates": None,
+                "run_ids": None,
+                "states": ["success", "failed"],
+            },
+            response=DRCount(count=2),
+        ),
+        test_id="get_dr_count",
+    ),
+    RequestTestCase(
+        message=GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
+        expected_body={
+            "task_states": {"run_id": {"task1": "success", "task2": "failed"}},
+            "type": "TaskStatesResult",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.get_task_states",
+            kwargs={
+                "dag_id": "test_dag",
+                "map_index": None,
+                "task_ids": None,
+                "logical_dates": None,
+                "run_ids": None,
+                "task_group_id": "test_group",
+            },
+            response=TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
+        ),
+        test_id="get_task_states",
+    ),
+    RequestTestCase(
+        message=GetXComSequenceItem(
+            key="test_key",
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            offset=0,
+        ),
+        expected_body={"root": "test_value", "type": "XComSequenceIndexResult"},
+        client_mock=ClientMock(
+            method_path="xcoms.get_sequence_item",
+            args=("test_dag", "test_run", "test_task", "test_key", 0),
+            response=XComSequenceIndexResult(root="test_value"),
+        ),
+        test_id="get_xcom_seq_item",
+    ),
+    RequestTestCase(
+        message=GetXComSequenceItem(
+            key="test_key",
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            offset=2,
+        ),
+        expected_body={"error": "XCOM_NOT_FOUND", "detail": None, "type": "ErrorResponse"},
+        client_mock=ClientMock(
+            method_path="xcoms.get_sequence_item",
+            args=("test_dag", "test_run", "test_task", "test_key", 2),
+            response=ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
+        ),
+        test_id="get_xcom_seq_item_not_found",
+    ),
+    RequestTestCase(
+        message=GetXComSequenceSlice(
+            key="test_key",
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            start=None,
+            stop=None,
+            step=None,
+            include_prior_dates=False,
+        ),
+        expected_body={"root": ["foo", "bar"], "type": "XComSequenceSliceResult"},
+        client_mock=ClientMock(
+            method_path="xcoms.get_sequence_slice",
+            args=("test_dag", "test_run", "test_task", "test_key", None, None, None, False),
+            response=XComSequenceSliceResult(root=["foo", "bar"]),
+        ),
+        test_id="get_xcom_seq_slice",
+    ),
+    RequestTestCase(
+        message=TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+        test_id="patch_task_instance_to_skipped",
+    ),
+    RequestTestCase(
+        message=CreateHITLDetailPayload(
+            ti_id=TI_ID,
+            options=["Approve", "Reject"],
+            subject="This is subject",
+            body="This is body",
+            defaults=["Approve"],
+            multiple=False,
+            params={},
+        ),
+        expected_body={
+            "ti_id": str(TI_ID),
+            "options": ["Approve", "Reject"],
+            "subject": "This is subject",
+            "body": "This is body",
+            "defaults": ["Approve"],
+            "multiple": False,
+            "params": {},
+            "assigned_users": None,
+            "type": "HITLDetailRequestResult",
+        },
+        client_mock=ClientMock(
+            method_path="hitl.add_response",
+            kwargs={
+                "body": "This is body",
+                "defaults": ["Approve"],
+                "multiple": False,
+                "options": ["Approve", "Reject"],
+                "params": {},
+                "assigned_users": None,
+                "subject": "This is subject",
+                "ti_id": TI_ID,
+            },
+            response=HITLDetailRequestResult(
+                ti_id=TI_ID,
+                options=["Approve", "Reject"],
+                subject="This is subject",
+                body="This is body",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+            ),
+        ),
+        test_id="create_hitl_detail_payload",
+    ),
+    RequestTestCase(
+        message=MaskSecret(value=["iter1", "iter2", {"key": "value"}], name="test_secret"),
+        mask_secret_args=(["iter1", "iter2", {"key": "value"}], "test_secret"),
+        test_id="mask_secret_list",
+    ),
+    RequestTestCase(
+        message=GetXComCount(key="test_key", dag_id="test_dag", run_id="test_run", task_id="test_task"),
+        expected_body={"len": 5, "type": "XComLengthResponse"},
+        client_mock=ClientMock(
+            method_path="xcoms.head",
+            args=("test_dag", "test_run", "test_task", "test_key"),
+            response=XComCountResponse(len=5),
+        ),
+        test_id="get_xcom_count",
+    ),
+    RequestTestCase(
+        message=ResendLoggingFD(),
+        expected_body={"fds": mock.ANY, "type": "SentFDs"},
+        test_id="resend_logging_fd",
+    ),
+    RequestTestCase(
+        message=SkipDownstreamTasks(tasks=["task1", "task2"]),
+        client_mock=ClientMock(
+            method_path="task_instances.skip_downstream_tasks",
+            args=(TI_ID, SkipDownstreamTasks(tasks=["task1", "task2"])),
+            response=OKResponse(ok=True),
+        ),
+        test_id="skip_downstream_tasks",
+    ),
+]
+
+
 class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
@@ -1293,754 +2108,14 @@ class TestHandleRequest:
         return subprocess, read_end
 
     @patch("airflow.sdk.execution_time.supervisor.mask_secret")
-    @pytest.mark.parametrize(
-        [
-            "message",
-            "expected_body",
-            "client_attr_path",
-            "method_arg",
-            "method_kwarg",
-            "mock_response",
-            "mask_secret_args",
-        ],
-        [
-            pytest.param(
-                GetConnection(conn_id="test_conn"),
-                {"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
-                "connections.get",
-                ("test_conn",),
-                {},
-                ConnectionResult(conn_id="test_conn", conn_type="mysql"),
-                None,
-                id="get_connection",
-            ),
-            pytest.param(
-                GetConnection(conn_id="test_conn"),
-                {
-                    "conn_id": "test_conn",
-                    "conn_type": "mysql",
-                    "password": "password",
-                    "type": "ConnectionResult",
-                },
-                "connections.get",
-                ("test_conn",),
-                {},
-                ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
-                ["password"],
-                id="get_connection_with_password",
-            ),
-            pytest.param(
-                GetConnection(conn_id="test_conn"),
-                {"conn_id": "test_conn", "conn_type": "mysql", "schema": "mysql", "type": "ConnectionResult"},
-                "connections.get",
-                ("test_conn",),
-                {},
-                ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
-                None,
-                id="get_connection_with_alias",
-            ),
-            pytest.param(
-                GetVariable(key="test_key"),
-                {"key": "test_key", "value": "test_value", "type": "VariableResult"},
-                "variables.get",
-                ("test_key",),
-                {},
-                VariableResult(key="test_key", value="test_value"),
-                ["test_value", "test_key"],
-                id="get_variable",
-            ),
-            pytest.param(
-                PutVariable(key="test_key", value="test_value", description="test_description"),
-                None,
-                "variables.set",
-                ("test_key", "test_value", "test_description"),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="set_variable",
-            ),
-            pytest.param(
-                DeleteVariable(key="test_key"),
-                {"ok": True, "type": "OKResponse"},
-                "variables.delete",
-                ("test_key",),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="delete_variable",
-            ),
-            pytest.param(
-                DeferTask(next_method="execute_callback", classpath="my-classpath"),
-                None,
-                "task_instances.defer",
-                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
-                {},
-                "",
-                None,
-                id="patch_task_instance_to_deferred",
-            ),
-            pytest.param(
-                RescheduleTask(
-                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
-                ),
-                None,
-                "task_instances.reschedule",
-                (
-                    TI_ID,
-                    RescheduleTask(
-                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
-                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    ),
-                ),
-                {},
-                "",
-                None,
-                id="patch_task_instance_to_up_for_reschedule",
-            ),
-            pytest.param(
-                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                {"key": "test_key", "value": "test_value", "type": "XComResult"},
-                "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None, False),
-                {},
-                XComResult(key="test_key", value="test_value"),
-                None,
-                id="get_xcom",
-            ),
-            pytest.param(
-                GetXCom(
-                    dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key", map_index=2
-                ),
-                {"key": "test_key", "value": "test_value", "type": "XComResult"},
-                "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", 2, False),
-                {},
-                XComResult(key="test_key", value="test_value"),
-                None,
-                id="get_xcom_map_index",
-            ),
-            pytest.param(
-                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                {"key": "test_key", "value": None, "type": "XComResult"},
-                "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None, False),
-                {},
-                XComResult(key="test_key", value=None, type="XComResult"),
-                None,
-                id="get_xcom_not_found",
-            ),
-            pytest.param(
-                GetXCom(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    key="test_key",
-                    include_prior_dates=True,
-                ),
-                {"key": "test_key", "value": None, "type": "XComResult"},
-                "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None, True),
-                {},
-                XComResult(key="test_key", value=None, type="XComResult"),
-                None,
-                id="get_xcom_include_prior_dates",
-            ),
-            pytest.param(
-                SetXCom(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    key="test_key",
-                    value='{"key": "test_key", "value": {"key2": "value2"}}',
-                ),
-                None,
-                "xcoms.set",
-                (
-                    "test_dag",
-                    "test_run",
-                    "test_task",
-                    "test_key",
-                    '{"key": "test_key", "value": {"key2": "value2"}}',
-                    None,
-                    None,
-                ),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="set_xcom",
-            ),
-            pytest.param(
-                SetXCom(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    key="test_key",
-                    value='{"key": "test_key", "value": {"key2": "value2"}}',
-                    map_index=2,
-                ),
-                None,
-                "xcoms.set",
-                (
-                    "test_dag",
-                    "test_run",
-                    "test_task",
-                    "test_key",
-                    '{"key": "test_key", "value": {"key2": "value2"}}',
-                    2,
-                    None,
-                ),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="set_xcom_with_map_index",
-            ),
-            pytest.param(
-                SetXCom(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    key="test_key",
-                    value='{"key": "test_key", "value": {"key2": "value2"}}',
-                    map_index=2,
-                    mapped_length=3,
-                ),
-                None,
-                "xcoms.set",
-                (
-                    "test_dag",
-                    "test_run",
-                    "test_task",
-                    "test_key",
-                    '{"key": "test_key", "value": {"key2": "value2"}}',
-                    2,
-                    3,
-                ),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="set_xcom_with_map_index_and_mapped_length",
-            ),
-            pytest.param(
-                DeleteXCom(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    key="test_key",
-                    map_index=2,
-                ),
-                None,
-                "xcoms.delete",
-                ("test_dag", "test_run", "test_task", "test_key", 2),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="delete_xcom",
-            ),
-            # we aren't adding all states under TaskInstanceState here, because this test's scope is only to check
-            # if it can handle TaskState message
-            pytest.param(
-                TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
-                None,
-                "",
-                (),
-                {},
-                "",
-                None,
-                id="patch_task_instance_to_skipped",
-            ),
-            pytest.param(
-                RetryTask(
-                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test retry task"
-                ),
-                None,
-                "task_instances.retry",
-                (),
-                {
-                    "id": TI_ID,
-                    "end_date": timezone.parse("2024-10-31T12:00:00Z"),
-                    "rendered_map_index": "test retry task",
-                },
-                "",
-                None,
-                id="up_for_retry",
-            ),
-            pytest.param(
-                SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
-                None,
-                "task_instances.set_rtif",
-                (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="set_rtif",
-            ),
-            pytest.param(
-                GetAssetByName(name="asset"),
-                {"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
-                "assets.get",
-                [],
-                {"name": "asset"},
-                AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
-                None,
-                id="get_asset_by_name",
-            ),
-            pytest.param(
-                GetAssetByUri(uri="s3://bucket/obj"),
-                {"name": "asset", "uri": "s3://bucket/obj", "group": "asset", "type": "AssetResult"},
-                "assets.get",
-                [],
-                {"uri": "s3://bucket/obj"},
-                AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
-                None,
-                id="get_asset_by_uri",
-            ),
-            pytest.param(
-                GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
-                {
-                    "asset_events": [
-                        {
-                            "id": 1,
-                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
-                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
-                            "created_dagruns": [],
-                        }
-                    ],
-                    "type": "AssetEventsResult",
-                },
-                "asset_events.get",
-                [],
-                {"uri": "s3://bucket/obj", "name": "test"},
-                AssetEventsResult(
-                    asset_events=[
-                        AssetEventResponse(
-                            id=1,
-                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
-                            created_dagruns=[],
-                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
-                        )
-                    ]
-                ),
-                None,
-                id="get_asset_events_by_uri_and_name",
-            ),
-            pytest.param(
-                GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
-                {
-                    "asset_events": [
-                        {
-                            "id": 1,
-                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
-                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
-                            "created_dagruns": [],
-                        }
-                    ],
-                    "type": "AssetEventsResult",
-                },
-                "asset_events.get",
-                [],
-                {"uri": "s3://bucket/obj", "name": None},
-                AssetEventsResult(
-                    asset_events=[
-                        AssetEventResponse(
-                            id=1,
-                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
-                            created_dagruns=[],
-                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
-                        )
-                    ]
-                ),
-                None,
-                id="get_asset_events_by_uri",
-            ),
-            pytest.param(
-                GetAssetEventByAsset(uri=None, name="test"),
-                {
-                    "asset_events": [
-                        {
-                            "id": 1,
-                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
-                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
-                            "created_dagruns": [],
-                        }
-                    ],
-                    "type": "AssetEventsResult",
-                },
-                "asset_events.get",
-                [],
-                {"uri": None, "name": "test"},
-                AssetEventsResult(
-                    asset_events=[
-                        AssetEventResponse(
-                            id=1,
-                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
-                            created_dagruns=[],
-                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
-                        )
-                    ]
-                ),
-                None,
-                id="get_asset_events_by_name",
-            ),
-            pytest.param(
-                GetAssetEventByAssetAlias(alias_name="test_alias"),
-                {
-                    "asset_events": [
-                        {
-                            "id": 1,
-                            "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
-                            "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
-                            "created_dagruns": [],
-                        }
-                    ],
-                    "type": "AssetEventsResult",
-                },
-                "asset_events.get",
-                [],
-                {"alias_name": "test_alias"},
-                AssetEventsResult(
-                    asset_events=[
-                        AssetEventResponse(
-                            id=1,
-                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
-                            created_dagruns=[],
-                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
-                        )
-                    ]
-                ),
-                None,
-                id="get_asset_events_by_asset_alias",
-            ),
-            pytest.param(
-                ValidateInletsAndOutlets(ti_id=TI_ID),
-                {
-                    "inactive_assets": [{"name": "asset_name", "uri": "asset_uri", "type": "asset"}],
-                    "type": "InactiveAssetsResult",
-                },
-                "task_instances.validate_inlets_and_outlets",
-                (TI_ID,),
-                {},
-                InactiveAssetsResult(
-                    inactive_assets=[AssetProfile(name="asset_name", uri="asset_uri", type="asset")]
-                ),
-                None,
-                id="validate_inlets_and_outlets",
-            ),
-            pytest.param(
-                SucceedTask(
-                    end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
-                ),
-                None,
-                "task_instances.succeed",
-                (),
-                {
-                    "id": TI_ID,
-                    "outlet_events": None,
-                    "task_outlets": None,
-                    "when": timezone.parse("2024-10-31T12:00:00Z"),
-                    "rendered_map_index": "test success task",
-                },
-                "",
-                None,
-                id="succeed_task",
-            ),
-            pytest.param(
-                GetPrevSuccessfulDagRun(ti_id=TI_ID),
-                {
-                    "data_interval_start": timezone.parse("2025-01-10T12:00:00Z"),
-                    "data_interval_end": timezone.parse("2025-01-10T14:00:00Z"),
-                    "start_date": timezone.parse("2025-01-10T12:00:00Z"),
-                    "end_date": timezone.parse("2025-01-10T14:00:00Z"),
-                    "type": "PrevSuccessfulDagRunResult",
-                },
-                "task_instances.get_previous_successful_dagrun",
-                (TI_ID,),
-                {},
-                PrevSuccessfulDagRunResult(
-                    start_date=timezone.parse("2025-01-10T12:00:00Z"),
-                    end_date=timezone.parse("2025-01-10T14:00:00Z"),
-                    data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
-                    data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
-                ),
-                None,
-                id="get_prev_successful_dagrun",
-            ),
-            pytest.param(
-                TriggerDagRun(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    conf={"key": "value"},
-                    logical_date=timezone.datetime(2025, 1, 1),
-                    reset_dag_run=True,
-                ),
-                {"ok": True, "type": "OKResponse"},
-                "dag_runs.trigger",
-                ("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
-                {},
-                OKResponse(ok=True),
-                None,
-                id="dag_run_trigger",
-            ),
-            pytest.param(
-                # TODO: This should be raise an exception, not returning an ErrorResponse. Fix this before PR
-                TriggerDagRun(dag_id="test_dag", run_id="test_run"),
-                {"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
-                "dag_runs.trigger",
-                ("test_dag", "test_run", None, None, False),
-                {},
-                ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
-                None,
-                id="dag_run_trigger_already_exists",
-            ),
-            pytest.param(
-                GetDagRunState(dag_id="test_dag", run_id="test_run"),
-                {"state": "running", "type": "DagRunStateResult"},
-                "dag_runs.get_state",
-                ("test_dag", "test_run"),
-                {},
-                DagRunStateResult(state=DagRunState.RUNNING),
-                None,
-                id="get_dag_run_state",
-            ),
-            pytest.param(
-                GetTaskRescheduleStartDate(ti_id=TI_ID),
-                {"start_date": timezone.parse("2024-10-31T12:00:00Z"), "type": "TaskRescheduleStartDate"},
-                "task_instances.get_reschedule_start_date",
-                (TI_ID, 1),
-                {},
-                TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
-                None,
-                id="get_task_reschedule_start_date",
-            ),
-            pytest.param(
-                GetTICount(dag_id="test_dag", task_ids=["task1", "task2"]),
-                {"count": 2, "type": "TICount"},
-                "task_instances.get_count",
-                (),
-                {
-                    "dag_id": "test_dag",
-                    "map_index": None,
-                    "logical_dates": None,
-                    "run_ids": None,
-                    "states": None,
-                    "task_group_id": None,
-                    "task_ids": ["task1", "task2"],
-                },
-                TICount(count=2),
-                None,
-                id="get_ti_count",
-            ),
-            pytest.param(
-                GetDRCount(dag_id="test_dag", states=["success", "failed"]),
-                {"count": 2, "type": "DRCount"},
-                "dag_runs.get_count",
-                (),
-                {
-                    "dag_id": "test_dag",
-                    "logical_dates": None,
-                    "run_ids": None,
-                    "states": ["success", "failed"],
-                },
-                DRCount(count=2),
-                None,
-                id="get_dr_count",
-            ),
-            pytest.param(
-                GetPreviousDagRun(
-                    dag_id="test_dag",
-                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
-                ),
-                {
-                    "dag_run": {
-                        "dag_id": "test_dag",
-                        "run_id": "prev_run",
-                        "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
-                        "run_type": "scheduled",
-                        "start_date": timezone.parse("2024-01-15T12:00:00Z"),
-                        "run_after": timezone.parse("2024-01-15T12:00:00Z"),
-                        "consumed_asset_events": [],
-                        "state": "success",
-                        "data_interval_start": None,
-                        "data_interval_end": None,
-                        "end_date": None,
-                        "clear_number": 0,
-                        "conf": None,
-                    },
-                    "type": "PreviousDagRunResult",
-                },
-                "dag_runs.get_previous",
-                (),
-                {
-                    "dag_id": "test_dag",
-                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
-                    "state": None,
-                },
-                PreviousDagRunResult(
-                    dag_run=DagRun(
-                        dag_id="test_dag",
-                        run_id="prev_run",
-                        logical_date=timezone.parse("2024-01-14T12:00:00Z"),
-                        run_type=DagRunType.SCHEDULED,
-                        start_date=timezone.parse("2024-01-15T12:00:00Z"),
-                        run_after=timezone.parse("2024-01-15T12:00:00Z"),
-                        consumed_asset_events=[],
-                        state=DagRunState.SUCCESS,
-                    )
-                ),
-                None,
-                id="get_previous_dagrun",
-            ),
-            pytest.param(
-                GetPreviousDagRun(
-                    dag_id="test_dag",
-                    logical_date=timezone.parse("2024-01-15T12:00:00Z"),
-                    state="success",
-                ),
-                {
-                    "dag_run": None,
-                    "type": "PreviousDagRunResult",
-                },
-                "dag_runs.get_previous",
-                (),
-                {
-                    "dag_id": "test_dag",
-                    "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
-                    "state": "success",
-                },
-                PreviousDagRunResult(dag_run=None),
-                None,
-                id="get_previous_dagrun_with_state",
-            ),
-            pytest.param(
-                GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
-                {
-                    "task_states": {"run_id": {"task1": "success", "task2": "failed"}},
-                    "type": "TaskStatesResult",
-                },
-                "task_instances.get_task_states",
-                (),
-                {
-                    "dag_id": "test_dag",
-                    "map_index": None,
-                    "task_ids": None,
-                    "logical_dates": None,
-                    "run_ids": None,
-                    "task_group_id": "test_group",
-                },
-                TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
-                None,
-                id="get_task_states",
-            ),
-            pytest.param(
-                GetXComSequenceItem(
-                    key="test_key",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    offset=0,
-                ),
-                {"root": "test_value", "type": "XComSequenceIndexResult"},
-                "xcoms.get_sequence_item",
-                ("test_dag", "test_run", "test_task", "test_key", 0),
-                {},
-                XComSequenceIndexResult(root="test_value"),
-                None,
-                id="get_xcom_seq_item",
-            ),
-            pytest.param(
-                # TODO: This should be raise an exception, not returning an ErrorResponse. Fix this before PR
-                GetXComSequenceItem(
-                    key="test_key",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    offset=2,
-                ),
-                {"error": "XCOM_NOT_FOUND", "detail": None, "type": "ErrorResponse"},
-                "xcoms.get_sequence_item",
-                ("test_dag", "test_run", "test_task", "test_key", 2),
-                {},
-                ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
-                None,
-                id="get_xcom_seq_item_not_found",
-            ),
-            pytest.param(
-                GetXComSequenceSlice(
-                    key="test_key",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id="test_task",
-                    start=None,
-                    stop=None,
-                    step=None,
-                    include_prior_dates=False,
-                ),
-                {"root": ["foo", "bar"], "type": "XComSequenceSliceResult"},
-                "xcoms.get_sequence_slice",
-                ("test_dag", "test_run", "test_task", "test_key", None, None, None, False),
-                {},
-                XComSequenceSliceResult(root=["foo", "bar"]),
-                None,
-                id="get_xcom_seq_slice",
-            ),
-            pytest.param(
-                CreateHITLDetailPayload(
-                    ti_id=TI_ID,
-                    options=["Approve", "Reject"],
-                    subject="This is subject",
-                    body="This is body",
-                    defaults=["Approve"],
-                    multiple=False,
-                    params={},
-                ),
-                {
-                    "ti_id": str(TI_ID),
-                    "options": ["Approve", "Reject"],
-                    "subject": "This is subject",
-                    "body": "This is body",
-                    "defaults": ["Approve"],
-                    "multiple": False,
-                    "params": {},
-                    "type": "HITLDetailRequestResult",
-                },
-                "hitl.add_response",
-                (),
-                {
-                    "body": "This is body",
-                    "defaults": ["Approve"],
-                    "multiple": False,
-                    "options": ["Approve", "Reject"],
-                    "params": {},
-                    "subject": "This is subject",
-                    "ti_id": TI_ID,
-                },
-                HITLDetailRequestResult(
-                    ti_id=TI_ID,
-                    options=["Approve", "Reject"],
-                    subject="This is subject",
-                    body="This is body",
-                    defaults=["Approve"],
-                    multiple=False,
-                    params={},
-                ),
-                None,
-                id="create_hitl_detail_payload",
-            ),
-        ],
-    )
+    @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
     def test_handle_requests(
         self,
         mock_mask_secret,
         watched_subprocess,
         mocker,
         time_machine,
-        message,
-        expected_body,
-        client_attr_path,
-        method_arg,
-        method_kwarg,
-        mock_response,
-        mask_secret_args,
+        test_case: RequestTestCase,
     ):
         """
         Test handling of different messages to the subprocess. For any new message type, add a
@@ -2053,11 +2128,19 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
+        # Extract values from test_case
+        message = test_case.message
+        expected_body = test_case.expected_body
+        client_mock = test_case.client_mock
+        mask_secret_args = test_case.mask_secret_args
+
+        # Rest of test implementation (copied from original)
         watched_subprocess, read_socket = watched_subprocess
 
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
-        mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)
-        mock_client_method.return_value = mock_response
+        if client_mock:
+            mock_client_method = attrgetter(client_mock.method_path)(watched_subprocess.client)
+            mock_client_method.return_value = client_mock.response
 
         # Simulate the generator
         generator = watched_subprocess.handle_requests(log=mocker.Mock())
@@ -2067,14 +2150,14 @@ class TestHandleRequest:
         req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=message.model_dump())
         generator.send(req_frame)
 
-        if mask_secret_args:
+        if mask_secret_args is not None:
             mock_mask_secret.assert_called_with(*mask_secret_args)
 
         time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called
-        if client_attr_path:
-            mock_client_method.assert_called_once_with(*method_arg, **method_kwarg)
+        if client_mock:
+            mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)
 
         # Read response from the read end of the socket
         read_socket.settimeout(0.1)
@@ -2091,9 +2174,35 @@ class TestHandleRequest:
         # This is important because the subprocess/task runner will read the response
         # and deserialize it to the correct message type
 
-        if frame.body is not None:
-            decoder = CommsDecoder(socket=None).body_decoder
-            assert decoder.validate_python(frame.body) == mock_response
+        if frame.body is not None and client_mock:
+            decoder = CommsDecoder(socket=None).body_decoder  # type: ignore[var-annotated, arg-type]
+            assert decoder.validate_python(frame.body) == client_mock.response
+
+    def test_all_to_supervisor_messages_are_covered(self):
+        """Ensure all ToSupervisor message types have test coverage."""
+
+        # Extract the individual message types from the Union
+        union_type = ToSupervisor.__args__[0]
+        supervisor_message_types = set(union_type.__args__)
+
+        # Get all message types covered in our test cases
+        tested_message_types = {type(test_case.message) for test_case in REQUEST_TEST_CASES}
+
+        # Message types which are excluded for a good reason
+        excluded_message_types = {
+            GetHITLDetailResponse,  # Only used in Triggerer, not needed in worker
+            UpdateHITLDetail,  # Only used in Triggerer, not needed in worker
+        }
+
+        untested_types = supervisor_message_types - tested_message_types - excluded_message_types
+
+        # Assert all types are covered
+        assert not untested_types, (
+            f"Missing test coverage for {len(untested_types)}/{len(supervisor_message_types)} "
+            f"ToSupervisor message types:\n"
+            + "\n".join(f"  - {t.__name__}" for t in sorted(untested_types, key=lambda x: x.__name__))
+            + "\n\nPlease add test cases to REQUEST_TEST_CASES."
+        )
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""
@@ -2229,6 +2338,26 @@ class TestInProcessTestSupervisor:
         assert response.value == "value"
 
 
+class TestInProcessClient:
+    def test_no_retries(self):
+        called = 0
+
+        def noop_handler(request: httpx.Request) -> httpx.Response:
+            nonlocal called
+            called += 1
+            return httpx.Response(500)
+
+        transport = httpx.MockTransport(noop_handler)
+        client = InProcessTestSupervisor._Client(
+            base_url="http://local.invalid", token="", transport=transport
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.get("/goo")
+
+        assert called == 1
+
+
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
@@ -2238,7 +2367,7 @@ class TestInProcessTestSupervisor:
         pytest.param(False, "", "", id="no-remote-logging"),
     ),
 )
-def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch):
+def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypatch, mocker):
     # This doesn't strictly need the AWS provider, but it does need something that
     # airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG knows about
     pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
@@ -2273,3 +2402,53 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 assert new_keys == {expected_env}
             else:
                 assert not new_keys
+
+        if remote_logging and expected_env:
+            connection_available = {"available": False, "conn_uri": None}
+
+            def mock_upload_to_remote(process_log, ti):
+                connection_available["available"] = expected_env in os.environ
+                connection_available["conn_uri"] = os.environ.get(expected_env)
+
+            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+
+            activity_subprocess = ActivitySubprocess(
+                process_log=mocker.MagicMock(),
+                id=TI_ID,
+                pid=12345,
+                stdin=mocker.MagicMock(),
+                client=client,
+                process=mocker.MagicMock(),
+            )
+            activity_subprocess.ti = mocker.MagicMock()
+
+            activity_subprocess._upload_logs()
+
+            assert connection_available["available"], (
+                f"Connection {expected_env} was not available during upload_to_remote call"
+            )
+            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+def test_process_log_messages_from_subprocess(monkeypatch, caplog):
+    from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
+
+    read_end, write_end = socket.socketpair()
+
+    # Set global level at warning
+    monkeypatch.setitem(PER_LOGGER_LEVELS, "", logging.WARNING)
+    output_log = structlog.get_logger()
+
+    gen = process_log_messages_from_subprocess(loggers=(output_log,))
+
+    # We need to start up the generator to get it to the point it's at waiting on the yield
+    next(gen)
+
+    # Now we can send in messages to it.
+    gen.send(b'{"level": "debug", "event": "A debug"}\n')
+    gen.send(b'{"level": "error", "event": "An error"}\n')
+
+    assert caplog.record_tuples == [
+        (None, logging.DEBUG, "A debug"),
+        (None, logging.ERROR, "An error"),
+    ]

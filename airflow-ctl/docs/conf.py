@@ -63,6 +63,9 @@ SYSTEM_TESTS_DIR: pathlib.Path | None
 
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
+# Disable color output for documentation generation
+os.environ["NO_COLOR"] = "1"
+
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
 # behavior of the utils.apply_default that was hiding function headers
@@ -149,7 +152,7 @@ keep_warnings = True
 # a list of builtin themes.
 html_theme = "sphinx_airflow_theme"
 
-html_title = "Airflow CTL Documentation"
+html_title = "airflowctl Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = ""
@@ -191,7 +194,7 @@ html_context = get_html_context(conf_py_path)
 # See: https://github.com/tardyp/sphinx-jinja
 airflowctl_version: Version = parse_version(
     re.search(  # type: ignore[union-attr,arg-type]
-        r"__version__ = \"([0-9.]*)(\.dev[0-9]*)?\"",
+        r"__version__ = \"([0-9.]*)(\.dev[0-9]*|b[0-9])?\"",
         (AIRFLOW_CTL_SRC_PATH / "airflowctl" / "__init__.py").read_text(),
     ).groups(0)[0]
 )

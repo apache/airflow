@@ -69,7 +69,7 @@ CREATE_TUNING_PARAMS: dict = {
             }
         ],
         "OutputDataConfig": {"S3OutputPath": "output_path"},
-        "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+        "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c6g.8xlarge", "VolumeSizeInGB": "50"},
         "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},
     },
 }

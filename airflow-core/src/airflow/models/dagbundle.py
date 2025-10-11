@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 from sqlalchemy import Boolean, Column, String
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import JSONType
 
 from airflow.models.base import Base, StringID
+from airflow.models.team import dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -40,12 +42,13 @@ class DagBundleModel(Base, LoggingMixin):
     """
 
     __tablename__ = "dag_bundle"
-    name = Column(StringID(), primary_key=True)
+    name = Column(StringID(length=250), primary_key=True, nullable=False)
     active = Column(Boolean, default=True)
     version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
     signed_url_template = Column(String(200), nullable=True)
     template_params = Column(JSONType, nullable=True)
+    teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
     def __init__(self, *, name: str, version: str | None = None):
         super().__init__()

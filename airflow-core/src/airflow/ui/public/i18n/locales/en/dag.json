@@ -5,9 +5,39 @@
     "reason": "Reason",
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
+  "calendar": {
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "legend": {
+      "less": "Less",
+      "mixed": "Mixed",
+      "more": "More"
+    },
+    "navigation": {
+      "nextMonth": "Next month",
+      "nextYear": "Next year",
+      "previousMonth": "Previous month",
+      "previousYear": "Previous year"
+    },
+    "noData": "No data available",
+    "noFailedRuns": "No failed runs",
+    "noRuns": "No runs",
+    "totalRuns": "Total Runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Fri",
+      "monday": "Mon",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "thursday": "Thu",
+      "tuesday": "Tue",
+      "wednesday": "Wed"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
+    "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
   },
   "extraLinks": "Extra Links",
@@ -40,8 +70,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Jump: Shift+{{arrow}}",
-    "navigation": "Navigation: {{arrow}}",
+    "navigation": "Navigation: Shift+{{arrow}}",
     "toggleGroup": "Toggle group: Space"
   },
   "overview": {
@@ -58,6 +87,8 @@
       "assetEvent_other": "Created Asset Events"
     },
     "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
       "title": "Recent Failed Task Logs",
       "viewFullLogs": "View full logs"
     }
@@ -65,8 +96,9 @@
   "panel": {
     "buttons": {
       "options": "Options",
-      "showGraph": "Show Graph",
-      "showGrid": "Show Grid"
+      "showGantt": "Show Gantt",
+      "showGraphShortcut": "Show Graph (Press g)",
+      "showGridShortcut": "Show Grid (Press g)"
     },
     "dagRuns": {
       "label": "Number of Dag Runs"
@@ -101,6 +133,7 @@
     "assetEvents": "Asset Events",
     "auditLog": "Audit Log",
     "backfills": "Backfills",
+    "calendar": "Calendar",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",

@@ -1,8 +1,19 @@
 {
+  "filters": {
+    "response": {
+      "all": "Wszystkie",
+      "pending": "Oczekujące",
+      "received": "Zrecenzowane"
+    }
+  },
   "requiredAction_few": "Wymagane akcje",
   "requiredAction_many": "Wymaganych akcji",
   "requiredAction_one": "Wymagana akcja",
   "requiredAction_other": "Wymagane akcje",
+  "requiredActionCount_few": "Wymagane akcje ({{count}})",
+  "requiredActionCount_many": "Wymaganych akcji ({{count}})",
+  "requiredActionCount_one": "Wymagana akcja ({{count}})",
+  "requiredActionCount_other": "Wymagane akcje ({{count}})",
   "requiredActionState": "Stan wymaganej akcji",
   "response": {
     "error": "Nie udało się uzyskać odpowiedzi",
@@ -18,8 +29,10 @@
     "approvalRequired": "Wymagane zatwierdzenie",
     "choiceReceived": "Wybór otrzymany",
     "choiceRequired": "Wymagany wybór",
+    "noResponseReceived": "Brak odpowiedzi",
     "rejectionReceived": "Odrzucenie otrzymane",
     "responseReceived": "Odpowiedź otrzymana",
     "responseRequired": "Wymagana odpowiedź"
-  }
+  },
+  "subject": "Temat"
 }

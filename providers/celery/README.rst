@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-celery``
 
-Release: ``3.12.2``
+Release: ``3.12.4``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``celery`` provider. All classes for this provide
 are in ``airflow.providers.celery`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.12.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.12.4/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-celery``
 
@@ -78,5 +77,14 @@ Dependent package                                                               
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
 ======================================================================================================================  ===================
 
+Optional dependencies
+----------------------
+
+===================  ===================================================
+Extra                Dependencies
+===================  ===================================================
+``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+===================  ===================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.12.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.12.4/changelog.html>`_.

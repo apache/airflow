@@ -59,7 +59,7 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isValid },
+    formState: { isDirty, isValid },
     handleSubmit,
     reset,
     watch,
@@ -96,9 +96,31 @@ const ConnectionForm = ({
     mutateConnection(data);
   };
 
+  // Check if extra fields have changed by comparing with initial connection
+  const isExtraFieldsDirty = (() => {
+    try {
+      const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
+      return JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+    } catch {
+      // If parsing fails, fall back to string comparison
+      return extra !== initialConnection.extra;
+    }
+  })();
+
   const validateAndPrettifyJson = (value: string) => {
     try {
-      const parsedJson = JSON.parse(value) as JSON;
+      if (value.trim() === "") {
+        setErrors((prev) => ({ ...prev, conf: undefined }));
+
+        return value;
+      }
+      const parsedJson = JSON.parse(value) as Record<string, unknown>;
+
+      if (typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
+        throw new TypeError('extra fields must be a valid JSON object (e.g., {"key": "value"})');
+      }
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
@@ -241,8 +263,10 @@ const ConnectionForm = ({
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
+            colorPalette="brand"
+            disabled={
+              Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
+            }
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

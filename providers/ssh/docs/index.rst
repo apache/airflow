@@ -68,9 +68,7 @@ apache-airflow-providers-ssh package
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 4.1.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 4.1.4
 
 Provider package
 ----------------
@@ -81,7 +79,7 @@ All classes for this package are included in the ``airflow.providers.ssh`` pytho
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-ssh``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

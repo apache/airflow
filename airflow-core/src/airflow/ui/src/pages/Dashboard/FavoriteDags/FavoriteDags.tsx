@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, SimpleGrid, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
@@ -43,11 +43,11 @@ export const FavoriteDags = () => {
       </Flex>
 
       {favorites.dags.length === 0 ? (
-        <Text color="gray.500" fontSize="sm" ml={1}>
+        <Text color="fg.muted" fontSize="sm" ml={1}>
           {translate("favorite.noFavoriteDags")}
         </Text>
       ) : (
-        <SimpleGrid alignItems="end" columnGap={1} columns={10} rowGap={4}>
+        <Flex flexWrap="wrap" gap={2}>
           {favorites.dags.map((dag) => (
             <FavoriteDagCard
               dagId={dag.dag_id}
@@ -56,7 +56,7 @@ export const FavoriteDags = () => {
               latestRuns={dag.latest_dag_runs}
             />
           ))}
-        </SimpleGrid>
+        </Flex>
       )}
     </Box>
   );

@@ -34,6 +34,6 @@ def to_boolean(astring: str | None) -> bool:
     """Convert a string to a boolean."""
     if astring is None:
         return False
-    if astring.lower() in TRUE_LIKE_VALUES:
+    if astring.strip().lower() in TRUE_LIKE_VALUES:
         return True
     return False

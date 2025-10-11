@@ -45,7 +45,11 @@ else:
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -63,7 +67,7 @@ DAG_ID = "example_bedrock_batch_inference"
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Batch inferences currently require a minimum of 100 prompts per batch.

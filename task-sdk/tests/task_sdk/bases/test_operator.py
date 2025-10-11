@@ -257,7 +257,7 @@ class TestBaseOperator:
 
     def test_dag_task_invalid_weight_rule(self):
         # Test if we enter an invalid weight rule
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
             BaseOperator(task_id="should_fail", weight_rule="no rule")
 
     def test_dag_task_not_registered_weight_strategy(self):
@@ -272,6 +272,22 @@ class TestBaseOperator:
                 task_id="empty_task",
                 weight_rule=NotRegisteredPriorityWeightStrategy(),
             )
+
+    def test_db_safe_priority(self):
+        """Test the db_safe_priority function."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, db_safe_priority
+
+        assert db_safe_priority(1) == 1
+        assert db_safe_priority(-1) == -1
+        assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
+        assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
+
+    def test_db_safe_constants(self):
+        """Test the database safe constants."""
+        from airflow.sdk.bases.operator import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM
+
+        assert DB_SAFE_MINIMUM == -2147483648
+        assert DB_SAFE_MAXIMUM == 2147483647
 
     def test_warnings_are_properly_propagated(self):
         with pytest.warns(DeprecationWarning, match="deprecated") as warnings:
@@ -460,10 +476,12 @@ class TestBaseOperator:
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
 
-        with pytest.raises(ValueError):
+        CHAIN_NOT_SUPPORTED = "Chain not supported for different length Iterable. Got {} and {}."
+
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([op1, op2], [op3, op4, op5])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(3, 2)):
             chain([op1, op2, op3], [label1, label2])
 
         # Begin test for `XComArgs` with `EdgeModifiers`
@@ -473,16 +491,16 @@ class TestBaseOperator:
             for i in range(1, 6)
         ]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([xop1, xop2], [xop3, xop4, xop5])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(3, 2)):
             chain([xop1, xop2, xop3], [label1, label2])
 
         # Begin test for `TaskGroups`
         [tg1, tg2, tg3, tg4, tg5] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([tg1, tg2], [tg3, tg4, tg5])
 
     def test_set_xcomargs_dependencies_works_recursively(self):
@@ -507,7 +525,10 @@ class TestBaseOperator:
 
     def test_set_xcomargs_dependencies_error_when_outside_dag(self):
         op1 = BaseOperator(task_id="op1")
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match=r"Tried to create relationships between tasks that don't have Dags yet. Set the Dag for at least one task and try again: \[<Task\(MockOperator\): op2>, <Task\(BaseOperator\): op1>\]",
+        ):
             MockOperator(task_id="op2", arg1=op1.output)
 
     def test_cannot_change_dag(self):
@@ -744,7 +765,7 @@ class TestBaseOperator:
         assert mock_jinja_env.call_count == 1
 
     def test_deepcopy(self):
-        # Test bug when copying an operator attached to a DAG
+        # Test bug when copying an operator attached to a Dag
         with DAG("dag0", schedule=None, start_date=DEFAULT_DATE) as dag:
 
             @dag.task
@@ -933,10 +954,12 @@ class TestExecutorSafeguard:
                 "event": "ExtendedHelloWorldOperator.execute cannot be called outside of the Task Runner!",
                 "level": "warning",
                 "timestamp": mock.ANY,
+                "logger": "tests.task_sdk.bases.test_operator",
+                "loc": mock.ANY,
             },
         ]
 
-    def test_decorated_operators(self, captured_logs):
+    def test_decorated_operators(self, caplog):
         with DAG("d1") as dag:
 
             @dag.task(task_id="task_id", dag=dag)
@@ -947,15 +970,13 @@ class TestExecutorSafeguard:
             op = say_hello()
 
         op.operator.execute(context={})
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
-    def test_python_op(self, captured_logs):
+    @pytest.mark.log_level(logging.WARNING)
+    def test_python_op(self, caplog):
         from airflow.providers.standard.operators.python import PythonOperator
 
         with DAG("d1"):
@@ -969,13 +990,10 @@ class TestExecutorSafeguard:
                 python_callable=say_hello,
             )
         op.execute(context={}, PythonOperator__sentinel=ExecutorSafeguard.sentinel_value)
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
 
 def test_partial_default_args():

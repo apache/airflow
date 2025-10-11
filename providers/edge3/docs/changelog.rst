@@ -27,6 +27,90 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Regenerate the rest API spec to fix CI (#55986)``
+* ``build(open-api): regenerate open api spec (#55931)``
+
+Misc
+~~~~
+
+* ``Bump Edge UI packages (#56016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add Color Scheme to all Operations Buttons in Edge React UI (#55637)``
+* ``Add shutdown-all-workers command to Edge CLI (#55626)``
+* ``add yellow hover background to enter maintenance icon (#55631)``
+* ``Add queue management UI buttons for Edge workers (#55625)``
+* ``Add Worker Maintenance Comment Change to React UI (#55547)``
+* ``feat: Add delete button for offline edge workers (#55529)``
+* ``feat: Add shutdown button for edge workers with confirmation dialog (#55513)``
+* ``Add confirmation dialog for exit maintenance action in Edge Worker Page (#55400)``
+* ``Add Links to Edge React UI (#55356)``
+* ``Feature/edge maintenance plugin beautification (#55348)``
+* ``Add worker maintenance mode functionality to Edge3 provider UI (#55301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EdgeWorker multiprocessing pickle error on Windows (#55284)``
+
+Misc
+~~~~
+
+* ``Pick/vite vitest full (#55623)``
+* ``Bump React and React-DOM (#55598)``
+* ``Bump axios from 1.11.0 to 1.12.0 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55550)``
+* ``Some small UI polishing for Edge React UI (#55545)``
+* ``Adjust Edge color scheme after merge of PR 53981 (#55485)``
+* ``Bump vite from 5.4.19 to 5.4.20 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55449)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update docs for new Airflow 3.1 UI Plugins (#55654)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Provide React UI for Edge (#53563)``
+* ``Feature/add auto refresh to edge react UI (#54994)``
+* ``Feature/add state badge to edge react UI (#54993)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``Add a note to edgeexecutor doc regarding multiple executors (#54077)``
+* ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
 1.1.3
 .....
 

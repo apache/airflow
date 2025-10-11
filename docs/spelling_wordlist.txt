@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -224,6 +225,7 @@ bytestring
 cacert
 Cadwyn
 callables
+callsite
 camelCase
 Cancelled
 cancelled
@@ -270,6 +272,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -474,6 +477,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -605,6 +609,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
@@ -1368,6 +1373,7 @@ prefetched
 prefetches
 preflight
 prefork
+prek
 Preload
 preloading
 prepend
@@ -1507,6 +1513,7 @@ repos
 repr
 req
 reqs
+requeue
 requeued
 Reserialize
 reserialize
@@ -1572,6 +1579,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1606,6 +1614,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
@@ -1796,6 +1805,7 @@ TaskInstanceKey
 taskinstancekey
 taskmeta
 taskmixin
+tasksDuration
 tasksetmeta
 tasksState
 taskTree
@@ -1963,6 +1973,8 @@ utilise
 Utils
 utils
 uuid
+uv
+uvicorn
 V1JobList
 validator
 validators

@@ -64,6 +64,13 @@ except ImportError:
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
 
 
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+
 if TYPE_CHECKING:
     from airflow.models import Connection
     from airflow.models.asset import (

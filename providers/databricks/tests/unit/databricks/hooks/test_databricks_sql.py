@@ -39,7 +39,6 @@ TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
-PORT = 443
 TOKEN = "token"
 HTTP_PATH = "sql/protocolv1/o/1234567890123456/0123-456789-abcd123"
 SCHEMA = "test_schema"
@@ -112,38 +111,36 @@ def mock_timer():
         yield mock_timer
 
 
-def make_mock_connection():
-    return Connection(
-        conn_id=DEFAULT_CONN_ID,
-        conn_type="databricks",
-        host=HOST,
-        port=PORT,
-        login="token",
-        password=TOKEN,
-    )
-
-
-def test_sqlachemy_url_property(mock_get_conn):
-    mock_get_conn.return_value = make_mock_connection()
+def test_sqlachemy_url_property():
     hook = DatabricksSqlHook(
         databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
     )
     url = hook.sqlalchemy_url.render_as_string(hide_password=False)
     expected_url = (
-        f"databricks://token:{TOKEN}@{HOST}:{PORT}?"
+        f"databricks://token:{TOKEN}@{HOST}?"
         f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
     )
     assert url == expected_url
 
 
-def test_get_uri(mock_get_conn):
-    mock_get_conn.return_value = make_mock_connection()
+def test_get_sqlalchemy_engine():
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
+    )
+    engine = hook.get_sqlalchemy_engine()
+    assert engine.url.render_as_string(hide_password=False) == (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+
+
+def test_get_uri():
     hook = DatabricksSqlHook(
         databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH, catalog=CATALOG, schema=SCHEMA
     )
     uri = hook.get_uri()
     expected_uri = (
-        f"databricks://token:{TOKEN}@{HOST}:{PORT}?"
+        f"databricks://token:{TOKEN}@{HOST}?"
         f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
     )
     assert uri == expected_uri
@@ -376,9 +373,8 @@ def test_query(
     ],
 )
 def test_no_query(databricks_hook, empty_statement):
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="List of SQL statements is empty"):
         databricks_hook.run(sql=empty_statement)
-    assert err.value.args[0] == "List of SQL statements is empty"
 
 
 @pytest.mark.parametrize(

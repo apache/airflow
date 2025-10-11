@@ -41,6 +41,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/postgres/index>
     Dialects <dialects>
 
@@ -56,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/providers/postgres/tests/system/postgres>
+    Example Dags <https://github.com/apache/airflow/tree/providers-postgres/|version|/providers/postgres/tests/system/postgres>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-postgres/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,9 +78,7 @@ apache-airflow-providers-postgres package
 `PostgreSQL <https://www.postgresql.org/>`__
 
 
-Release: 6.2.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 6.3.0
 
 Provider package
 ----------------
@@ -90,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.postgres`` 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-postgres``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -122,13 +121,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-postgres[amazon]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-==============================================================================================================  ===============
+======================================================================================================================  ===============
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+======================================================================================================================  ===============
 
 Downloading official packages
 -----------------------------
@@ -136,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-postgres 6.2.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-postgres 6.2.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.2.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-postgres 6.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-postgres 6.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.3.0-py3-none-any.whl.sha512>`__)

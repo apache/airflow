@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.7.1``
+Release: ``7.7.3``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Databricks <https://databricks.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.3/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-databricks``
 
@@ -57,7 +56,6 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
-``apache-airflow-providers-openlineage``    ``>=2.3.0``
 ``requests``                                ``>=2.32.0,<3``
 ``databricks-sql-connector``                ``>=4.0.0``
 ``databricks-sqlalchemy``                   ``>=1.0.2``
@@ -91,5 +89,18 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+==================  ================================================================
+Extra               Dependencies
+==================  ================================================================
+``sdk``             ``databricks-sdk==0.10.0``
+``azure-identity``  ``azure-identity>=1.3.1``
+``fab``             ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``standard``        ``apache-airflow-providers-standard``
+``openlineage``     ``apache-airflow-providers-openlineage>=2.3.0``
+==================  ================================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.7.3/changelog.html>`_.
