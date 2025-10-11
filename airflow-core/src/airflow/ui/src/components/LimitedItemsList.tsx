@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { Tooltip } from "./ui";
 
 type ListProps = {
+  readonly "data-testid"?: string;
   readonly icon?: ReactNode;
   readonly interactive?: boolean;
   readonly items: Array<ReactNode | string>;
@@ -31,6 +32,7 @@ type ListProps = {
 };
 
 export const LimitedItemsList = ({
+  "data-testid": dataTestId,
   icon,
   interactive = false,
   items,
@@ -52,7 +54,7 @@ export const LimitedItemsList = ({
   }
 
   return (
-    <HStack align="center" gap={1}>
+    <HStack align="center" data-testid={dataTestId} gap={1}>
       {icon}
       <Box fontSize="sm">
         {displayItems.map((item, index) => (
