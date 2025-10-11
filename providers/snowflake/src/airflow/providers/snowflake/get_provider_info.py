@@ -73,11 +73,13 @@ def get_provider_info():
                 "source-integration-name": "Google Cloud Storage (GCS)",
                 "target-integration-name": "Snowflake",
                 "python-module": "airflow.providers.snowflake.transfers.copy_into_snowflake",
+                "how-to-guide": "/docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst",
             },
             {
                 "source-integration-name": "Microsoft Azure Blob Storage",
                 "target-integration-name": "Snowflake",
                 "python-module": "airflow.providers.snowflake.transfers.copy_into_snowflake",
+                "how-to-guide": "/docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst",
             },
         ],
         "connection-types": [

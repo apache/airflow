@@ -172,7 +172,7 @@ Currently, **officially** using Airflow:
 1. [Danamica](https://www.danamica.dk) [[@testvinder](https://github.com/testvinder)]
 1. [Data Minded](https://www.dataminded.com) [[@datamindedbe](https://github.com/datamindedbe)]
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
-1. [Datadog](https://www.datadoghq.com/) [[@Datadog](https://github.com/Datadog]]
+1. [Datadog](https://www.datadoghq.com/) [[@Datadog](https://github.com/Datadog)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Datamaran](https://www.datamaran.com) [[@valexharo](https://github.com/valexharo)]
 1. [DataPipes](https://www.home.datapipes.io/) [[@rishabh-cldcvr](https://github.com/rishabh-cldcvr)]
