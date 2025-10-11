@@ -57,7 +57,7 @@ class GenericTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: str | list[str],
         destination_table: str,
         source_conn_id: str,
         source_hook_params: dict | None = None,
