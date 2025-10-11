@@ -295,3 +295,49 @@ However, you can also look at other non-performance-related scheduler configurat
   in the loop. i.e. if it scheduled something then it will start the next loop
   iteration straight away. This parameter is badly named (historical reasons) and it will be
   renamed in the future with deprecation of the current name.
+
+  
+.. _scheduler:db_cleanup:
+
+Database cleanup for long-running schedulers
+--------------------------------------------
+
+In very large installations with hundreds of DAGs and millions of task instances,
+the Scheduler may slow down over time as the number of completed ``DagRuns`` and
+``TaskInstances`` grows in the metadata database.
+
+If you observe scheduler loop times increasing (e.g. from sub-second to >10s per loop),
+you should periodically remove old metadata entries. This can be done using the
+``airflow db clean`` command:
+
+.. code-block:: bash
+
+   airflow db clean --clean-before-timestamp "4 hours ago"
+
+Adjust the interval based on your retention needs. Cleaning old data
+reduces query complexity and restores scheduler throughput. In Airflow 2.x,
+this cleanup was typically required weekly, but in Airflow 3.x deployments
+with high DAG volume, more frequent cleanup may be necessary.
+
+For production environments, consider automating this with a cron job
+or Kubernetes CronJob.
+
+In very large installations with hundreds of DAGs and millions of task instances,
+the Scheduler may slow down over time as the number of completed ``DagRuns`` and
+``TaskInstances`` grows in the metadata database.
+
+If you observe scheduler loop times increasing (e.g. from sub-second to >10s per loop),
+you should periodically remove old metadata entries. This can be done using the
+``airflow db clean`` command:
+
+.. code-block:: bash
+
+   airflow db clean --clean-before-timestamp "4 hours ago"
+
+Adjust the interval based on your retention needs. Cleaning old data
+reduces query complexity and restores scheduler throughput. In Airflow 2.x,
+this cleanup was typically required weekly, but in Airflow 3.x deployments
+with high DAG volume, more frequent cleanup may be necessary.
+
+For production environments, consider automating this with a cron job
+or Kubernetes CronJob.
