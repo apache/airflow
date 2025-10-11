@@ -52,6 +52,7 @@ dependencies = [
     "apache-airflow-core<3.3.0,>=3.2.0",
     "asgiref>=2.3.0",
     "attrs>=24.2.0, !=25.2.0",
+    "babel>=2.17.0",
     "fsspec>=2023.10.0",
     "httpx>=0.27.0",
     "jinja2>=3.1.5",
