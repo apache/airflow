@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-
-from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
-
-
-class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
-    """Middleware that automatically generates and includes auth header for simple auth manager."""
-
-    async def dispatch(self, request: Request, call_next):
-        token = SimpleAuthManagerLogin.create_token_all_admins()
-        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
-        return await call_next(request)
