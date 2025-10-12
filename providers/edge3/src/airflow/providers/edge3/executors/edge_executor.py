@@ -37,7 +37,6 @@ from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -52,6 +51,11 @@ if TYPE_CHECKING:
     CommandType = Sequence[str]
     # Task tuple to send to be executed
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")

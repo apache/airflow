@@ -45,11 +45,15 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerRegistrationReturn,
     WorkerSetStateReturn,
 )
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 
