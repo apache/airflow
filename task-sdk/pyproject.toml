@@ -154,7 +154,7 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]==0.32.0",
+    "datamodel-code-generator[http]==0.33.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
     "rich>=13.6.0",
