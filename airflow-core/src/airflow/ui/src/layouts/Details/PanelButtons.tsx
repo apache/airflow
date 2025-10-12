@@ -223,7 +223,7 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box position="absolute" ref={containerRef} top={1} width="100%" zIndex={1}>
+    <Box ml="-2px" position="absolute" px={4} ref={containerRef} top={1} width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
@@ -255,7 +255,7 @@ export const PanelButtons = ({
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex gap={1}>
+        <Flex alignItems="center" gap={1}>
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
