@@ -28,11 +28,12 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.version_compat import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
