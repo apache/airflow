@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-12T07:46:41.393849
+# This constraints file was automatically generated on 2025-10-12T19:45:35.426273
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -123,8 +123,8 @@ blinker==1.9.0
 boto3==1.40.49
 botocore==1.40.49
 build==1.3.0
-cachetools==6.2.0
-cadwyn==5.4.4
+cachetools==6.2.1
+cadwyn==5.4.5
 cassandra-driver==3.29.2
 cattrs==25.3.0
 celery==5.5.3
@@ -291,10 +291,10 @@ ibmcloudant==0.11.0
 icdiff==2.0.7
 id==1.5.0
 identify==2.6.15
-idna==3.10
+idna==3.11
 ijson==3.4.0.post0
 imagesize==1.4.1
-immutabledict==4.2.1
+immutabledict==4.2.2
 importlib_metadata==8.7.0
 impyla==0.22.0
 incremental==24.7.2
@@ -466,8 +466,8 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
-pydantic==2.11.10
-pydantic_core==2.33.2
+pydantic==2.12.0
+pydantic_core==2.41.1
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyenchant==3.3.0
