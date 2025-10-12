@@ -22,7 +22,7 @@
 # ]
 # ///
 """
-Check that AIRFLOW_V_X_Y_PLUS constants are only imported from test_utils in provider tests.
+Check that AIRFLOW_V_X_Y_PLUS constants are only imported from tests_common.test_utils in provider tests.
 """
 
 from __future__ import annotations
