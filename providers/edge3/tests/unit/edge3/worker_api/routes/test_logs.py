@@ -26,15 +26,10 @@ from airflow.providers.edge3.worker_api.routes.logs import logfile_path, push_lo
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 pytestmark = pytest.mark.db_test
 
