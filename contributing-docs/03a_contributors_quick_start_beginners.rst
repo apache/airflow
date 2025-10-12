@@ -123,7 +123,8 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
 
     git fetch upstream && git rebase upstream/main && git push --force-with-lease
 
-## Option B – One-Click GitHub Codespaces
+Option B – One-Click GitHub Codespaces
+--------------------------------------
 
 1. On **your fork**, click *Code → Codespaces → New codespace*.
 2. Wait for the VS Code web IDE to appear.  A terminal opens automatically.
