@@ -40,6 +40,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.version_compat import timezone
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -48,7 +49,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 

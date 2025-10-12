@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.version_compat import timezone
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes._v2_compat import HTTPException
 from airflow.providers.edge3.worker_api.routes.worker import (
@@ -32,15 +33,8 @@ from airflow.providers.edge3.worker_api.routes.worker import (
     update_queues,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 pytestmark = pytest.mark.db_test
 
