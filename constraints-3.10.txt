@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-11T19:49:31.500969
+# This constraints file was automatically generated on 2025-10-12T07:49:56.731292
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -559,7 +559,7 @@ pyexasol==1.1.0
 pygtrie==2.5.0
 pykerberos==1.2.4
 pymongo==4.15.3
-pymssql==2.3.7
+pymssql==2.3.8
 pyodbc==5.2.0
 pyodps==0.12.5
 pyparsing==3.2.5
