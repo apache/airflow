@@ -149,16 +149,18 @@ Option B – One-Click GitHub Codespaces
 
 .. code-block:: bash
 
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    uv tool install prek
-    prek install -f
-    uv tool install -e ./dev/breeze
-    uv run setup_vscode.py
-    breeze start-airflow
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      uv tool install prek
+      prek install -f
+      uv tool install -e ./dev/breeze
+      uv run setup_vscode.py
+      breeze start-airflow
 
-5. Edit a file in the editor, save, and commit via the Source Control
-sidebar.  Push when prompted.
+5. Edit a file in the editor, save, and commit via the Source Control sidebar.
+   Push when prompted.
+
 6. Press **Create pull request** when GitHub offers.
+
 
 
 Review & Merge
