@@ -28,11 +28,11 @@ from sqlalchemy import (
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]

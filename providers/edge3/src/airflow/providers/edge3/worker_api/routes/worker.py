@@ -23,7 +23,7 @@ from typing import Annotated
 from sqlalchemy import select
 
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     WorkerQueueUpdateBody,
@@ -43,7 +43,7 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
 )
 from airflow.stats import Stats
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]

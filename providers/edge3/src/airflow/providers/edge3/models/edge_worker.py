@@ -27,7 +27,7 @@ from sqlalchemy import Column, Integer, String, delete, select
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -37,7 +37,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]

@@ -51,14 +51,14 @@ from airflow.providers.edge3.cli.signalling import (
     write_pid_to_pidfile,
 )
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
-if AIRFLOW_V_3_0_PLUS:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
