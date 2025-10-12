@@ -6845,6 +6845,37 @@ class TestSchedulerJob:
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
 
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_with_timed_out_msg(self, mock_get_listener_manager, dag_maker, session):
+        """Test that notify_dagrun_state_changed is called with msg='timed_out' when DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_notify",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # Set the start time to make it appear timed out
+        dag_run.start_date = timezone.utcnow() - timedelta(seconds=120)  # 2 minutes ago
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        # Verify that the listener hook was called with msg="timed_out"
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"] == dag_run
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
