@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from json import loads
 from typing import Any
 
 from fastapi import Depends, status
@@ -31,6 +32,27 @@ from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
+THEME_FALLBACK = """
+{
+    "tokens": {
+        "colors": {
+            "brand": {
+                "50": { "value": "oklch(0.971 0.013 17.38)" },
+                "100": { "value": "oklch(0.936 0.032 17.717)" },
+                "200": { "value": "oklch(0.885 0.062 18.334)" },
+                "300": { "value": "oklch(0.808 0.114 19.571)" },
+                "400": { "value": "oklch(0.704 0.191 22.216)" },
+                "500": { "value": "oklch(0.637 0.237 25.331)" },
+                "600": { "value": "oklch(0.577 0.245 27.325)" },
+                "700": { "value": "oklch(0.505 0.213 27.518)" },
+                "800": { "value": "oklch(0.444 0.177 26.899)" },
+                "900": { "value": "oklch(0.396 0.141 25.723)" },
+                "950": { "value": "oklch(0.258 0.092 26.042)" }
+            }
+        }
+    }
+}
+"""
 
 API_CONFIG_KEYS = [
     "enable_swagger_ui",
@@ -59,6 +81,7 @@ def get_configs() -> ConfigResponse:
         "dashboard_alert": [alert for alert in DASHBOARD_UIALERTS if isinstance(alert, UIAlert)],
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "theme": loads(conf.get("api", "theme", fallback=THEME_FALLBACK)),
     }
 
     config.update({key: value for key, value in additional_config.items()})

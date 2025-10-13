@@ -107,3 +107,18 @@ class UIAlert(BaseModel):
 
     text: str
     category: Literal["info", "warning", "error"]
+
+
+class Theme(BaseModel):
+    """JSON to modify Chakra's theme."""
+
+    tokens: dict[
+        Literal["colors"],
+        dict[
+            Literal["brand"],
+            dict[
+                Literal["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"],
+                dict[Literal["value"], str],
+            ],
+        ],
+    ]

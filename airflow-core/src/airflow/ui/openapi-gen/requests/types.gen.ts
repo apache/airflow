@@ -1767,6 +1767,7 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
+    theme: Theme;
 };
 
 /**
@@ -2051,6 +2052,21 @@ export type TeamCollectionResponse = {
  */
 export type TeamResponse = {
     name: string;
+};
+
+/**
+ * JSON to modify Chakra's theme.
+ */
+export type Theme = {
+    tokens: {
+        [key: string]: {
+            [key: string]: {
+                [key: string]: {
+                    [key: string]: (string);
+                };
+            };
+        };
+    };
 };
 
 /**

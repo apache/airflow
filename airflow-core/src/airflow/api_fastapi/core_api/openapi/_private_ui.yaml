@@ -1329,6 +1329,8 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        theme:
+          $ref: '#/components/schemas/Theme'
       type: object
       required:
       - page_size
@@ -1341,6 +1343,7 @@ components:
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
+      - theme
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -2650,6 +2653,43 @@ components:
       - name
       title: TeamResponse
       description: Base serializer for Team.
+    Theme:
+      properties:
+        tokens:
+          additionalProperties:
+            additionalProperties:
+              additionalProperties:
+                additionalProperties:
+                  type: string
+                propertyNames:
+                  const: value
+                type: object
+              propertyNames:
+                enum:
+                - '50'
+                - '100'
+                - '200'
+                - '300'
+                - '400'
+                - '500'
+                - '600'
+                - '700'
+                - '800'
+                - '900'
+                - '950'
+              type: object
+            propertyNames:
+              const: brand
+            type: object
+          propertyNames:
+            const: colors
+          type: object
+          title: Tokens
+      type: object
+      required:
+      - tokens
+      title: Theme
+      description: JSON to modify Chakra's theme.
     TriggerResponse:
       properties:
         id:
