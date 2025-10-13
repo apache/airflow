@@ -55,6 +55,10 @@ def es_8_container_url() -> str:
             retry_on_timeout=True,
             max_retries=5,
         )
+        stats = client.cluster.stats()
+        indices = stats.get("indices", {})
+        print(f"stats: {stats})")
+        print(f"indices: {indices})")
         _wait_for_cluster_ready(client, timeout_s=120)
         _ensure_index(client, "airflow-logs", timeout_s=120)
         yield url
