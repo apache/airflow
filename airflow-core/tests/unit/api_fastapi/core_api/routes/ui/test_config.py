@@ -34,6 +34,7 @@ mock_config_response = {
     "dashboard_alert": [],
     "show_external_log_redirect": False,
     "external_log_name": None,
+    "theme": "",
 }
 
 
@@ -51,6 +52,7 @@ def mock_config_data():
             ("api", "default_wrap"): "false",
             ("api", "auto_refresh_interval"): "3",
             ("api", "require_confirmation_dag_change"): "false",
+            ("api", "theme"): "",
         }
     ):
         yield

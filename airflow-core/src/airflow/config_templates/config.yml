@@ -1360,6 +1360,14 @@ api:
       type: string
       example: ~
       default:
+    theme:
+      description: |
+        Creates and sets a custom color palette for the side/navbar based on a color.
+        It expects a hex color code. If the value is not provided UI will use default theme.
+      version_added: ~
+      type: string
+      example: "#dce7f5"
+      default:
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
