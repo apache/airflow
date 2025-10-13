@@ -27,15 +27,15 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 
+from airflow._shared.observability.stats import Stats
+from airflow._shared.observability.traces import NO_TRACE_ID
+from airflow._shared.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span, gen_context
+from airflow._shared.observability.traces.utils import gen_span_id_from_ti_key
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.observability.stats import Stats
-from airflow.observability.traces import NO_TRACE_ID
-from airflow.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span, gen_context
-from airflow.observability.traces.utils import gen_span_id_from_ti_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict

@@ -44,7 +44,7 @@ from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]

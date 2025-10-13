@@ -22,8 +22,8 @@ from datetime import datetime
 from opentelemetry import trace
 
 from airflow import DAG
-from airflow.observability.traces import otel_tracer
-from airflow.observability.traces.base_tracer import Trace
+from airflow._shared.observability.traces import otel_tracer
+from airflow._shared.observability.traces.base_tracer import Trace
 from airflow.sdk import chain, task
 
 logger = logging.getLogger("airflow.otel_test_dag")

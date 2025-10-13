@@ -40,7 +40,7 @@ from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
