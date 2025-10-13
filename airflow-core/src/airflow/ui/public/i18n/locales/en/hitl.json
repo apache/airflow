@@ -21,7 +21,6 @@
     "optionsLabel": "Options",
     "received": "Response received at ",
     "respond": "Respond",
-    "responded_by_user_id": "Responded by (User ID)",
     "responded_by_user_name": "Responded by (User Name)",
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"

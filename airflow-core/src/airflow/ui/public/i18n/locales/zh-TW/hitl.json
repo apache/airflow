@@ -21,7 +21,6 @@
     "optionsLabel": "選項",
     "received": "收到回應的時間：",
     "respond": "送出回應",
-    "responded_by_user_id": "回應者 ID",
     "responded_by_user_name": "回應者名稱",
     "success": "任務 {{taskId}} 回應成功",
     "title": "人類參與流程任務實例 - {{taskId}}"

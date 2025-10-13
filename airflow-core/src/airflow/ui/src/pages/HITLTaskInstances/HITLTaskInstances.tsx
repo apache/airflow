@@ -141,11 +141,6 @@ const taskInstanceColumns = ({
     header: translate("response.created"),
   },
   {
-    accessorKey: "responded_by_user_id",
-    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.id ?? ""} />,
-    header: translate("response.responded_by_user_id"),
-  },
-  {
     accessorKey: "responded_by_user_name",
     cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
     header: translate("response.responded_by_user_name"),
