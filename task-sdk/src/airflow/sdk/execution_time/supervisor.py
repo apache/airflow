@@ -1765,13 +1765,34 @@ def forward_to_log(
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
-    """Initialize the secrets backend on workers."""
+    """
+    Initialize secrets backend with auto-detected context.
+
+    Detection strategy:
+    - If SUPERVISOR_COMMS exists and is set → client chain (ExecutionAPISecretsBackend)
+    - Otherwise → server chain (MetastoreBackend)
+
+    Client contexts: workers, DAG processor, triggerer (have SUPERVISOR_COMMS)
+    Server contexts: API server, scheduler (no SUPERVISOR_COMMS)
+
+    This approach works regardless of import order or plugin loading timing.
+    """
     from airflow.configuration import ensure_secrets_loaded
-    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    # Check for client context (SUPERVISOR_COMMS)
+    try:
+        from airflow.sdk.execution_time import task_runner
 
-    return backends
+        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+            # Client context: worker, DAG processor, triggerer
+            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    except (ImportError, AttributeError):
+        pass
+
+    # Default to server context (no SUPERVISOR_COMMS = server)
+    # Server context: API server, scheduler, plugins
+    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH)
 
 
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:

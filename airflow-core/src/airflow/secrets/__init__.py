@@ -40,6 +40,7 @@ DEFAULT_SECRETS_SEARCH_PATH = [
 
 DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
     "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
 ]
 
 

@@ -149,7 +149,8 @@ def _get_connection(conn_id: str) -> Connection:
     except SecretCache.NotPresentException:
         pass  # continue to backends
 
-    # iterate over configured backends if not in cache (or expired)
+    # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
+    # in worker contexts or MetastoreBackend in API server contexts)
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
@@ -165,26 +166,10 @@ def _get_connection(conn_id: str) -> Connection:
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            conn_id=conn_id,
-        )
+    # If no backend found the connection, raise an error
+    from airflow.exceptions import AirflowNotFoundException
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.connection`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    #   Also applies to _async_get_connection.
-    from airflow.sdk.execution_time.comms import GetConnection
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
-
-    conn = _process_connection_result_conn(msg)
-    SecretCache.save_connection_uri(conn_id, conn.get_uri())
-    return conn
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
@@ -201,34 +186,32 @@ async def _async_get_connection(conn_id: str) -> Connection:
         _mask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
-        pass  # continue to API
+        pass  # continue to backends
 
-    from airflow.sdk.execution_time.comms import GetConnection
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # Try secrets backends first using async wrapper
+    # Try secrets backends using async wrapper (which may include SupervisorCommsSecretsBackend
+    # in worker contexts or MetastoreBackend in API server contexts)
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
             conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
             if conn:
-                # TODO: this should probably be in get conn
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
+                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                _mask_connection_secrets(conn)
                 return conn
         except Exception:
             # If one backend fails, try the next one
-            continue
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
 
-    # If no secrets backend has the connection, fall back to API server
-    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
-    conn = _process_connection_result_conn(msg)
-    SecretCache.save_connection_uri(conn_id, conn.get_uri())
-    _mask_connection_secrets(conn)
-    return conn
+    # If no backend found the connection, raise an error
+    from airflow.exceptions import AirflowNotFoundException
+
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
