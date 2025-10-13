@@ -34,7 +34,7 @@ from requests.sessions import Session
 from requests import exceptions as requests_exceptions
 from tenacity import (
     AsyncRetrying,
-    RetryError,
+    RetryCallState,
     retry_if_exception,
     stop_after_attempt,
     wait_exponential
@@ -184,6 +184,10 @@ class DbtCloudHook(HttpHook):
     Interact with dbt Cloud using the V2 (V3 if supported) API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
+    :param timeout_seconds: The timeout in seconds for HTTP requests.
+    :param retry_limit: The number of times to retry a request in case of failure.
+    :param retry_delay: The delay in seconds between retries.
+    :param retry_args: A dictionary of arguments to pass to the `tenacity.retry` decorator.
     """
 
     conn_name_attr = "dbt_cloud_conn_id"
@@ -219,7 +223,7 @@ class DbtCloudHook(HttpHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
 
-        def retry_after_func(retry_state):
+        def retry_after_func(retry_state: RetryCallState) -> None:
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
 
         if retry_args:

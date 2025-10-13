@@ -36,6 +36,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
     :param end_time: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
     :param account_id: The ID of a dbt Cloud account.
     :param poll_interval:  polling period in seconds to check for the status.
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     def __init__(

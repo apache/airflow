@@ -87,6 +87,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         run. For more information on retry logic, see:
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     :return: The ID of the triggered dbt Cloud job run.
     """
 
