@@ -204,13 +204,13 @@ class DbtCloudHook(HttpHook):
         }
 
     def __init__(
-            self,
-            dbt_cloud_conn_id: str = default_conn_name,
-            timeout_seconds: int = 30,
-            retry_limit: int = 3,
-            retry_delay: float = 1.0,
-            retry_args: dict[Any, Any] | None = None,
-            ) -> None:
+        self,
+        dbt_cloud_conn_id: str = default_conn_name,
+        timeout_seconds: int = 30,
+        retry_limit: int = 3,
+        retry_delay: float = 1.0,
+        retry_args: dict[Any, Any] | None = None,
+    ) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.timeout_seconds = timeout_seconds
@@ -328,19 +328,15 @@ class DbtCloudHook(HttpHook):
         if proxy:
             extra_request_args["proxy"] = proxy
 
-        try:
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+
+        # Create session once for the entire operation, outside the retry loop
+        async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
             async for attempt in self._a_get_retry_object():
                 with attempt:
-
-                    async with aiohttp.ClientSession(headers=headers) as session:
-                        async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
-                            response.raise_for_status()
-                            return await response.json()
-                        
-        except RetryError:
-            raise AirflowException(f"API requests to DBT Cloud failed {self.retry_limit} times. Giving up.")
-        except aiohttp.ClientResponseError as err:
-            raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
+                    async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
+                        response.raise_for_status()
+                        return await response.json()
  
 
     async def get_job_status(
