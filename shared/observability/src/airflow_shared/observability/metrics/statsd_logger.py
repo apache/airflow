@@ -22,21 +22,21 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
-from airflow.observability.metrics.protocols import Timer
-from airflow.observability.metrics.validators import (
+from airflow._shared.observability.metrics.protocols import Timer
+from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
     validate_stat,
 )
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from statsd import StatsClient
 
-    from airflow.observability.metrics.protocols import DeltaType
-    from airflow.observability.metrics.validators import (
+    from airflow._shared.observability.metrics.protocols import DeltaType
+    from airflow._shared.observability.metrics.validators import (
         ListValidator,
     )
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from airflow.observability.traces import NO_TRACE_ID
+from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.utils.hashlib_wrapper import md5
 
 if TYPE_CHECKING:

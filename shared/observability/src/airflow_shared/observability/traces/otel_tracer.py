@@ -34,12 +34,12 @@ from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags,
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
-from airflow._shared.timezones import timezone
-from airflow.configuration import conf
-from airflow.observability.traces.utils import (
+from airflow._shared.observability.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )
+from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.net import get_hostname
 
