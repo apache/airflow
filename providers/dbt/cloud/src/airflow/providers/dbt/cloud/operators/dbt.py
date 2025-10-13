@@ -124,6 +124,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         reuse_existing_run: bool = False,
         retry_from_failure: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -144,6 +145,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.reuse_existing_run = reuse_existing_run
         self.retry_from_failure = retry_from_failure
         self.deferrable = deferrable
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context):
         if self.trigger_reason is None:
@@ -273,7 +275,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     @cached_property
     def hook(self):
         """Returns DBT Cloud hook."""
-        return DbtCloudHook(self.dbt_cloud_conn_id)
+        return DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """
