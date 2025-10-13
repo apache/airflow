@@ -1563,7 +1563,7 @@ class DagRun(Base, LoggingMixin):
                     additional_tis.extend(new_tis)
                     expansion_happened = True
 
-                       if not new_tis and schedulable.state in SCHEDULEABLE_STATES:
+            if not new_tis and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
