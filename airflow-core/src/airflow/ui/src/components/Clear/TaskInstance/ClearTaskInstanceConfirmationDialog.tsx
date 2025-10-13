@@ -1,4 +1,5 @@
 import { VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDetails, prevent_running_task }: Props) => {
+  const { t: translate } = useTranslation();
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId || "",
     options: {
@@ -59,10 +61,10 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
 
   if (prevent_running_task === false) {
     handleConfirm();
-    return null
+    return null;
   }
   
-  if (taskCurrentState !== "queued" && taskCurrentState !== "scheduled") {
+  if (taskCurrentState !== "queued" && taskCurrentState !== "scheduled" && taskCurrentState !== "running") {
     handleConfirm();
     return null;
   }
@@ -72,12 +74,13 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align={"start"} gap={4}>
-            <Dialog.Title>Confirm Clear Task Instance</Dialog.Title>
+            <Dialog.Title>{translate("dags:runAndTaskActions.confirmationDialog.title")}</Dialog.Title>
             <Dialog.Description>
               {data?.task_instances?.[0] && (
                 <>
-                  Task is currently {taskCurrentState} state. 
-                  You are unable to clear this task instance until you disable/ uncheck the "Prevent rerun of running tasks" option in the  clear task dialog.
+                  {translate("dags:runAndTaskActions.confirmationDialog.description", {
+                    state: taskCurrentState,
+                  })}
                 </>
               )}
             </Dialog.Description>
@@ -85,10 +88,10 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
         </Dialog.Header>
         <Dialog.Footer>
           <Button colorPalette="blue" onClick={onClose}>
-            Cancel
+            {translate("common:modal.cancel")}
           </Button>
           <Button colorPalette="red" onClick={handleConfirm}>
-            Confirm
+            {translate("common:modal.confirm")}
           </Button>
         </Dialog.Footer>
       </Dialog.Content>

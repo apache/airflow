@@ -65,6 +65,10 @@
       "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream",
       "preventRunningTasks": "Prevent rerun if task is running"
+    },
+    "confirmationDialog": {
+      "title": "Cannot Clear Queued/ Scheduled Task Instance",
+      "description": "Task is currently in a {{state}} state. You are unable to clear this task instance until you disable/ uncheck the \"Prevent rerun of running tasks\" option in the  clear task dialog."
     }
   },
   "search": {
