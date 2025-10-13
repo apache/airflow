@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { getRelativeTime } from "src/utils/datetimeUtils";
 
 type Props = {
   readonly onClose: () => void;
@@ -56,10 +57,8 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
     return null;
   }
 
-  // Only auto-confirm for failed tasks if we have fresh data (not loading)
   const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state
-
-  if (prevent_running_task === false) {
+  if (!prevent_running_task) {
     handleConfirm();
     return null;
   }
@@ -80,6 +79,8 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
                 <>
                   {translate("dags:runAndTaskActions.confirmationDialog.description", {
                     state: taskCurrentState,
+                    time: data.task_instances[0].start_date && (getRelativeTime(data.task_instances[0].start_date)),
+                    user: data.task_instances[0].unixname || "unknown user",
                   })}
                 </>
               )}
@@ -87,9 +88,6 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
           </VStack>
         </Dialog.Header>
         <Dialog.Footer>
-          <Button colorPalette="blue" onClick={onClose}>
-            {translate("common:modal.cancel")}
-          </Button>
           <Button colorPalette="red" onClick={handleConfirm}>
             {translate("common:modal.confirm")}
           </Button>
