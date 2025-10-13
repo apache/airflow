@@ -2665,6 +2665,84 @@ class TestKubernetesPodOperatorAsync:
                 },
             )
 
+    @patch(HOOK_CLASS)
+    def test_execute_async_callbacks(self, mocked_hook):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from unit.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+        mocked_hook.return_value.get_pod.return_value = remote_pod_mock
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        context = create_context(k)
+
+        callback_event = {
+            "status": "success",
+            "message": TEST_SUCCESS_MESSAGE,
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+        k.trigger_reentry(context=context, event=callback_event)
+
+        # check on_operator_resuming callback
+        mock_callbacks.on_operator_resuming.assert_called_once()
+        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
+            "event": callback_event,
+        }
+
+        # check on_pod_cleanup callback
+        mock_callbacks.on_pod_cleanup.assert_called_once()
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_completion callback
+        mock_callbacks.on_pod_completion.assert_called_once()
+        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_teardown callback
+        mock_callbacks.on_pod_teardown.assert_called_once()
+        assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
+        }
+
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
