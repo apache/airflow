@@ -25,6 +25,7 @@ import os
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any, Literal
 
 from kubernetes.client import BatchV1Api, models as k8s
@@ -50,6 +51,7 @@ else:
     from airflow.models import BaseOperator
 from airflow.utils import yaml
 from airflow.utils.context import Context
+from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -83,8 +85,10 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
     :param wait_until_job_complete: Whether to wait until started job finished execution (either Complete or
         Failed). Default is False.
+    :param pod_creation_timeout: timeout in seconds to poll for pod creation. Default is 60.
     :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
         Used if the parameter `wait_until_job_complete` set True.
+    :param pod_poll_interval: Interval in seconds between polling the pod status. Defaults to job_poll_interval.
     :param deferrable: Run operator in the deferrable mode. Note that the parameter
         `wait_until_job_complete` must be set True.
     :param on_kill_propagation_policy: Whether and how garbage collection will be performed. Default is 'Foreground'.
@@ -117,6 +121,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ttl_seconds_after_finished: int | None = None,
         wait_until_job_complete: bool = False,
         job_poll_interval: float = 10,
+        pod_poll_interval: float | None = None,
+        pod_creation_timeout: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         on_kill_propagation_policy: Literal["Foreground", "Background", "Orphan"] = "Foreground",
         discover_pods_retry_number: int = 3,
@@ -125,10 +131,15 @@ class KubernetesJobOperator(KubernetesPodOperator):
     ) -> None:
         self._pod = None
         super().__init__(**kwargs)
+        if pod_poll_interval is None:
+            self.pod_poll_interval = job_poll_interval
+        else:
+            self.pod_poll_interval = pod_poll_interval
         self.job_template_file = job_template_file
         self.full_job_spec = full_job_spec
         self.job_request_obj: k8s.V1Job | None = None
         self.job: k8s.V1Job | None = None
+        self.pod_creation_timeout = pod_creation_timeout
         self.backoff_limit = backoff_limit
         self.completion_mode = completion_mode
         self.completions = completions
@@ -183,6 +194,35 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.hook.create_job(job=job_request_obj)
 
         return job_request_obj
+
+    def get_or_create_pod(self, pod_request_obj, context):
+        """
+        Poll for pods created by the job object.
+
+        Parameters
+        ----------
+        pod_request_obj : V1Pod
+            Kubernetes Pod object definition
+        context : Context
+            Airflow context
+
+        Returns
+        -------
+        V1Pod
+            Kubernetes Pod object from cluster hook.
+        """
+        pod = None
+        with timeout(seconds=self.pod_creation_timeout, error_message="Exceeded pod_creation_timeout."):
+            while pod is None:
+                try:
+                    pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+                except ApiException:
+                    log.exception("Error getting pod - retrying")
+                if pod:
+                    return pod
+                else:  # Wait for interval before retrying polling  # noqa: RET505
+                    sleep(self.pod_poll_interval)
+        return pod_request_obj
 
     def execute(self, context: Context):
         if self.deferrable and not self.wait_until_job_complete:
