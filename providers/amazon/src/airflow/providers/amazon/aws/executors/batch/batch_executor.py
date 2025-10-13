@@ -39,8 +39,8 @@ from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
-    from airflow._shared.observability.stats import Stats
     from airflow.sdk import timezone
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]

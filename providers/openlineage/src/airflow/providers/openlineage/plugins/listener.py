@@ -56,7 +56,7 @@ from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
 
 try:
-    from airflow._shared.observability.stats import Stats
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
