@@ -46,9 +46,22 @@ export const PoolBar = ({
           return undefined;
         }
 
+        // is configured NOT to include deferred in occupied slots, hide this chip.
+        // (We only have the flag on real pools; aggregated "Slots" objects don't carry it)
+        const isDeferredKey = key === "deferred_slots";
+
+        if (
+          isDeferredKey &&
+          "include_deferred" in pool && // type guard: only PoolResponse has this
+          !pool.include_deferred
+        ) {
+          return undefined;
+        }
+
         const slotType = key.replace("_slots", "");
         const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
         const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
+
         const poolContent = (
           <Tooltip content={tooltipContent} key={key}>
             <Flex
