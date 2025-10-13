@@ -51,7 +51,7 @@ export const useClearTaskInstances = ({
   const { t: translate } = useTranslation("dags");
 
   const onError = (error: ApiError) => {
-    if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException_RUNNING") ){
+    if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException") ){
       toaster.create({
         description: typeof error.detail === "string" ? error.detail : String(error.detail),
         title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
@@ -59,15 +59,6 @@ export const useClearTaskInstances = ({
       });
     }
 
-    else if ( error.detail !== null && error.detail.includes("AirflowClearRunningTaskException_QUEUED") ){
-      toaster.create({
-        description: typeof error.detail === "string" ? error.detail : String(error.detail),
-        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
-        type: "error",
-      });
-      
-    }
-    
     else{
       toaster.create({
         description: error.message,

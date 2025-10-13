@@ -95,7 +95,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from typing import Optional
 
 TR = TaskReschedule
 
@@ -196,7 +195,7 @@ def clear_task_instances(
     session: Session,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
-    prevent_running_task: Optional[bool] = None,
+    prevent_running_task: bool | None = None,
 ) -> None:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -225,18 +224,16 @@ def clear_task_instances(
         ti.prepare_db_for_next_try(session)
 
         #Task instance state checks:
-        is_running = ti.state == TaskInstanceState.RUNNING
-        is_queued = ti.state == TaskInstanceState.QUEUED
-        is_scheduled = ti.state == TaskInstanceState.SCHEDULED
-
-        if is_running or is_queued or is_scheduled:
-            if prevent_running_task and is_running:
-                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException_RUNNING: Task is running, stopping attempt to clear.")
-                # Prevents the task from re-running and clearing when prevent_running_task and is_running is True.
-
-            elif prevent_running_task and (is_queued or is_scheduled):
-                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException_QUEUED: Task is about to run or is scheduled to run, stopping attempt to clear.")
-                # Prevents the task from re-running and clearing when prevent_running_task is True and sends a warning toast.
+        is_transitional = ti.state in {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.SCHEDULED,
+        }
+        
+        if is_transitional:
+            if prevent_running_task:
+                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state.")
+                # Prevents the task from re-running and clearing when is_transitional and prevent_running_task from the frontend is True.
 
             else:
                 ti.state = TaskInstanceState.RESTARTING

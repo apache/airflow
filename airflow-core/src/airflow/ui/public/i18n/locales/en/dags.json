@@ -67,8 +67,8 @@
       "preventRunningTasks": "Prevent rerun if task is running"
     },
     "confirmationDialog": {
-      "title": "Cannot Clear Queued/ Scheduled Task Instance",
-      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. You are unable to clear this task instance until the task is not running or a user disables/ unchecks the \"Prevent rerun of running tasks\" option in the clear task dialog."
+      "title": " Cannot Clear Task Instance",
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun of running tasks\" option in the clear task dialog."
     }
   },
   "search": {

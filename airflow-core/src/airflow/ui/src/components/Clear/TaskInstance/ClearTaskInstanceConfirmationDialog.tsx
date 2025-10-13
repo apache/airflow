@@ -1,4 +1,5 @@
-import { VStack } from "@chakra-ui/react";
+import { VStack, Icon } from "@chakra-ui/react";
+import { GoAlertFill } from "react-icons/go";
 import { useTranslation } from "react-i18next";
 
 import { Button, Dialog } from "src/components/ui";
@@ -63,7 +64,7 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
     return null;
   }
   
-  if (taskCurrentState !== "queued" && taskCurrentState !== "scheduled" && taskCurrentState !== "running") {
+  if (taskCurrentState !== "queued" && taskCurrentState !== "scheduled") {
     handleConfirm();
     return null;
   }
@@ -73,7 +74,14 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align={"start"} gap={4}>
-            <Dialog.Title>{translate("dags:runAndTaskActions.confirmationDialog.title")}</Dialog.Title>
+            <Dialog.Title>
+              <>
+              <Icon size="md" color="tomato">
+                <GoAlertFill />
+              </Icon>
+              {translate("dags:runAndTaskActions.confirmationDialog.title")}
+              </>
+            </Dialog.Title>
             <Dialog.Description>
               {data?.task_instances?.[0] && (
                 <>
@@ -88,7 +96,7 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
           </VStack>
         </Dialog.Header>
         <Dialog.Footer>
-          <Button colorPalette="red" onClick={handleConfirm}>
+          <Button colorPalette="blue" onClick={onClose}>
             {translate("common:modal.confirm")}
           </Button>
         </Dialog.Footer>
