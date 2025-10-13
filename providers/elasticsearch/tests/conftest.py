@@ -44,8 +44,10 @@ def _ensure_index(es: Elasticsearch, index: str, timeout_s: int = 120) -> None:
 
 @pytest.fixture(scope="session")
 def es_8_container_url() -> str:
-    es = ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0").with_env(
-        "discovery.type", "single-node"
+    es = (
+        ElasticSearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.19.0")
+        .with_env("discovery.type", "single-node")
+        .with_env("cluster.routing.allocation.disk.threshold_enabled", "false")
     )
     with es:
         url = es.get_url()
