@@ -34,6 +34,71 @@ def ver_client(client):
     return client
 
 
+class TestTIRunStateV20250923:
+    """Test that API version 2025-09-23 does NOT include triggering_user_name field."""
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_run_excludes_triggering_user_name(
+        self,
+        ver_client,
+        session,
+        create_task_instance,
+        time_machine,
+    ):
+        """
+        Test that the triggering_user_name field is NOT present in API version 2025-09-23.
+
+        This field was added in version 2025-10-10, so older API clients should not
+        receive it in the response.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_triggering_user_exclusion",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        response = ver_client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "pid": 12345,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        json_response = response.json()
+
+        # Verify the dag_run is present
+        assert "dag_run" in json_response
+        dag_run = json_response["dag_run"]
+
+        # The triggering_user_name field should NOT be present in this API version
+        assert "triggering_user_name" not in dag_run, (
+            "triggering_user_name should not be present in API version 2025-09-23"
+        )
+
+        # Verify other expected fields are still present
+        assert dag_run["dag_id"] == ti.dag_id
+        assert dag_run["run_id"] == "test"
+        assert dag_run["state"] == "running"
+        assert dag_run["conf"] == {}
+
+
 class TestTIRunConfV20250923:
     """Test that API version 2025-09-23 converts NULL conf to empty dict."""
 
