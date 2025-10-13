@@ -24,9 +24,13 @@ from typing import TYPE_CHECKING
 
 from fsspec.implementations.local import LocalFileSystem
 
-from airflow._shared.observability.stats import Stats
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.module_loading import import_string
+
+try:
+    from airflow.sdk._shared.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
