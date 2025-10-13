@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-13T13:57:04.471042
+# This constraints file was automatically generated on 2025-10-13T19:45:54.132116
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -71,7 +71,7 @@ ansicolors==1.1.8
 anyio==4.11.0
 apprise==1.9.5
 argcomplete==3.6.2
-arro3-core==0.6.3
+arro3-core==0.6.4
 asana==5.2.2
 asgiref==3.10.0
 asn1crypto==1.5.1

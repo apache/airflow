@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-13T14:00:20.469413
+# This constraints file was automatically generated on 2025-10-13T19:49:18.222095
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -216,6 +216,7 @@ azure-storage-file-datalake==12.21.0
 azure-storage-file-share==12.22.0
 azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
+babel==2.17.0
 backoff==2.2.1
 bcrypt==5.0.0
 beautifulsoup4==4.14.2
@@ -545,7 +546,7 @@ qdrant-client==1.15.1
 reactivex==4.0.4
 redis==5.2.1
 redshift-connector==2.1.8
-referencing==0.36.2
+referencing==0.37.0
 regex==2025.9.18
 requests-file==2.1.0
 requests-kerberos==0.15.0
