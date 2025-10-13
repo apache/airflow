@@ -171,6 +171,7 @@ def get_dag_structure(
                 .where(
                     DagRun.id.in_(run_ids),
                 )
+                .distinct()
             ),
         )
     )
