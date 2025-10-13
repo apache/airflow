@@ -156,8 +156,6 @@ export const HITLTaskInstances = () => {
     // Only continue auto-refetching when filtering for unreceived responses
     // and at least one TaskInstance is still deferred without a response.
     refetchInterval: (query) => {
-      const isFilteringUnreceived = effectiveResponseReceived === "false";
-      if (!isFilteringUnreceived) return false;
       const hasDeferredWithoutResponse = Boolean(
         query.state.data?.hitl_details?.some(
           (detail: HITLDetail) => !detail.responded_at && detail.task_instance.state === "deferred",
