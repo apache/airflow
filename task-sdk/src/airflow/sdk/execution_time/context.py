@@ -190,12 +190,16 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    # Try secrets backends using async wrapper (which may include SupervisorCommsSecretsBackend
-    # in worker contexts or MetastoreBackend in API server contexts)
+    # Try secrets backends
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+            # Use async method if available, otherwise wrap sync method
+            if hasattr(secrets_backend, "aget_connection"):
+                conn = await secrets_backend.aget_connection(conn_id)  # type: ignore[assignment]
+            else:
+                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
                 _mask_connection_secrets(conn)
@@ -233,7 +237,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         pass  # Continue to check backends
 
     backends = ensure_secrets_backend_loaded()
-    # iterate over backends if not in cache (or expired)
+
+    # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
             var_val = secrets_backend.get_variable(key=key)
@@ -253,31 +258,13 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            key=key,
-        )
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.variable`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
-
-    if isinstance(msg, ErrorResponse):
-        raise AirflowRuntimeError(msg)
-
-    if TYPE_CHECKING:
-        assert isinstance(msg, VariableResult)
-    variable = _convert_variable_result_to_variable(msg, deserialize_json)
-    # Save raw value to ensure cache consistency regardless of deserialize_json parameter
-    SecretCache.save_variable(key, msg.value)
-    return variable.value
+    raise AirflowRuntimeError(
+        ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": f"Variable {key} not found"})
+    )
 
 
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
@@ -290,18 +277,21 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
 
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
+        if isinstance(secrets_backend, ExecutionAPISecretsBackend):
+            continue
         try:
             var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
                     "The variable %s is defined in the %s secrets backend, which takes "
-                    "precedence over reading from the database. The value in the database will be "
+                    "precedence over reading from the API Server. The value from the API Server will be "
                     "updated, but to read it you have to delete the conflicting variable "
                     "from %s",
                     key,
@@ -362,12 +352,16 @@ class ConnectionAccessor:
         return True
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
+        from airflow.exceptions import AirflowNotFoundException
+
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                 return default_conn
             raise
+        except AirflowNotFoundException:
+            return default_conn
 
 
 class VariableAccessor:

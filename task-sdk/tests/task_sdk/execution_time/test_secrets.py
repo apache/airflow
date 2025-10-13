@@ -125,59 +125,45 @@ class TestContextDetection:
     """Test context detection in ensure_secrets_backend_loaded."""
 
     def test_client_context_with_supervisor_comms(self, mock_supervisor_comms):
-        """Test that client chain is used when SUPERVISOR_COMMS is set."""
+        """Client context: SUPERVISOR_COMMS set → uses worker chain."""
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
         backends = ensure_secrets_backend_loaded()
-
-        # Should use worker chain (ExecutionAPISecretsBackend)
         backend_classes = [type(b).__name__ for b in backends]
         assert "ExecutionAPISecretsBackend" in backend_classes
+        assert "MetastoreBackend" not in backend_classes
 
-    def test_server_context_without_supervisor_comms(self, monkeypatch):
-        """Test that server chain is used when SUPERVISOR_COMMS is not available."""
-        # Mock task_runner to not have SUPERVISOR_COMMS
+    def test_server_context_with_env_var(self, monkeypatch):
+        """Server context: env var set → uses server chain."""
         import sys
-        from unittest.mock import Mock
 
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-        mock_task_runner = Mock()
-        mock_task_runner.SUPERVISOR_COMMS = None
-        monkeypatch.setitem(sys.modules, "airflow.sdk.execution_time.task_runner", mock_task_runner)
+        monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
+        # Ensure SUPERVISOR_COMMS is not available
+        if "airflow.sdk.execution_time.task_runner" in sys.modules:
+            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
         backends = ensure_secrets_backend_loaded()
-
-        # Should use server chain (MetastoreBackend)
         backend_classes = [type(b).__name__ for b in backends]
         assert "MetastoreBackend" in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
 
-    def test_server_context_when_import_fails(self, monkeypatch):
-        """Test that server chain is used when task_runner import fails."""
-        # Mock sys.modules to make task_runner import fail
+    def test_fallback_context_no_markers(self, monkeypatch):
+        """Fallback context: no SUPERVISOR_COMMS, no env var → only env vars + external."""
         import sys
 
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-        # Remove task_runner from sys.modules to simulate import failure
+        # Ensure no SUPERVISOR_COMMS
         if "airflow.sdk.execution_time.task_runner" in sys.modules:
             monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
-        # Make any attempt to import raise an error
-        import builtins
-
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if "task_runner" in name:
-                raise ImportError("Mocked import failure")
-            return original_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", mock_import)
+        # Ensure no env var
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
 
         backends = ensure_secrets_backend_loaded()
-
-        # Should default to server chain
         backend_classes = [type(b).__name__ for b in backends]
-        assert "MetastoreBackend" in backend_classes
+        assert "EnvironmentVariablesBackend" in backend_classes
+        assert "MetastoreBackend" not in backend_classes
+        assert "ExecutionAPISecretsBackend" not in backend_classes

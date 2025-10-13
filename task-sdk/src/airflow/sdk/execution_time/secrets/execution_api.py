@@ -43,7 +43,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         raise NotImplementedError("Use get_connection instead")
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
         """
         Return connection object by routing through SUPERVISOR_COMMS.
 
@@ -75,7 +75,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :param key: Variable key
         :return: Variable value or None if not found
         """
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         try:
@@ -86,8 +86,59 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 return None
 
             # Extract value from VariableResult
-            if hasattr(msg, "value"):
-                return msg.value
+            if isinstance(msg, VariableResult):
+                return msg.value  # Already a string | None
+            return None
+        except Exception:
+            # If SUPERVISOR_COMMS fails for any reason, return None
+            # to allow fallback to other backends
+            return None
+
+    async def aget_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
+        """
+        Return connection object asynchronously via SUPERVISOR_COMMS.
+
+        :param conn_id: connection id
+        :return: Connection object or None if not found
+        """
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
+        from airflow.sdk.execution_time.context import _process_connection_result_conn
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+
+            if isinstance(msg, ErrorResponse):
+                # Connection not found or error occurred
+                return None
+
+            # Convert ExecutionAPI response to SDK Connection
+            return _process_connection_result_conn(msg)
+        except Exception:
+            # If SUPERVISOR_COMMS fails for any reason, return None
+            # to allow fallback to other backends
+            return None
+
+    async def aget_variable(self, key: str) -> str | None:
+        """
+        Return variable value asynchronously via SUPERVISOR_COMMS.
+
+        :param key: Variable key
+        :return: Variable value or None if not found
+        """
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            msg = await SUPERVISOR_COMMS.asend(GetVariable(key=key))
+
+            if isinstance(msg, ErrorResponse):
+                # Variable not found or error occurred
+                return None
+
+            # Extract value from VariableResult
+            if isinstance(msg, VariableResult):
+                return msg.value  # Already a string | None
             return None
         except Exception:
             # If SUPERVISOR_COMMS fails for any reason, return None

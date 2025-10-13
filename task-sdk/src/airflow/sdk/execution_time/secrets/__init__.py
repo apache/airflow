@@ -21,4 +21,9 @@ from __future__ import annotations
 
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
-__all__ = ["ExecutionAPISecretsBackend"]
+__all__ = ["ExecutionAPISecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
+
+DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
+]
