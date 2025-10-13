@@ -51,7 +51,7 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]

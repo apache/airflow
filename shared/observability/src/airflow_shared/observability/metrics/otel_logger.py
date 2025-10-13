@@ -30,22 +30,22 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
 
-from airflow.configuration import conf
-from airflow.observability.metrics.protocols import Timer
-from airflow.observability.metrics.validators import (
+from airflow._shared.observability.metrics.protocols import Timer
+from airflow._shared.observability.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     ListValidator,
     PatternAllowListValidator,
     get_validator,
     stat_name_otel_handler,
 )
+from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
-    from airflow.observability.metrics.protocols import DeltaType
+    from airflow._shared.observability.metrics.protocols import DeltaType
 
 log = logging.getLogger(__name__)
 

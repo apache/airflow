@@ -21,20 +21,20 @@ import datetime
 import logging
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.observability.metrics.protocols import Timer
-from airflow.observability.metrics.validators import (
+from airflow._shared.observability.metrics.protocols import Timer
+from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
     validate_stat,
 )
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from datadog import DogStatsd
 
-    from airflow.observability.metrics.protocols import DeltaType
-    from airflow.observability.metrics.validators import (
+    from airflow._shared.observability.metrics.protocols import DeltaType
+    from airflow._shared.observability.metrics.validators import (
         ListValidator,
     )
 

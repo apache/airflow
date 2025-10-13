@@ -109,6 +109,7 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -255,4 +256,5 @@ shared_distributions = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

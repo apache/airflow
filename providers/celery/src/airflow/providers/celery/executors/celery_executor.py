@@ -58,7 +58,7 @@ from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 from airflow.utils.state import TaskInstanceState
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 

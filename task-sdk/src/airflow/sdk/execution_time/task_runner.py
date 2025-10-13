@@ -38,10 +38,10 @@ import lazy_object_proxy
 import structlog
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow._shared.observability.stats import Stats
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.listeners.listener import get_listener_manager
-from airflow.observability.stats import Stats
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,

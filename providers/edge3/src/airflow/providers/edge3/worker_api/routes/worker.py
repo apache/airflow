@@ -43,7 +43,7 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
 )
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
