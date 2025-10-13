@@ -95,6 +95,7 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
+    "natsort>=8.4.0",
     "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
     # opentelemetry-proto is a transitive dependency of
