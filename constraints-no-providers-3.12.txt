@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-06T19:47:13.126243
+# This constraints file was automatically generated on 2025-10-13T12:36:02.729714
 # via `uv sync --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -20,13 +20,13 @@ SQLAlchemy-Utils==0.42.0
 SQLAlchemy==1.4.54
 a2wsgi==1.10.10
 aiosqlite==0.21.0
-alembic==1.16.5
+alembic==1.17.0
 annotated-types==0.7.0
 anyio==4.11.0
 argcomplete==3.6.2
 asgiref==3.10.0
 attrs==25.4.0
-cadwyn==5.4.4
+cadwyn==5.4.5
 certifi==2025.10.5
 cffi==1.17.1
 charset-normalizer==3.4.3
@@ -47,9 +47,9 @@ greenlet==3.2.4
 grpcio==1.65.5
 h11==0.16.0
 httpcore==1.0.9
-httptools==0.6.4
+httptools==0.7.1
 httpx==0.28.1
-idna==3.10
+idna==3.11
 importlib_metadata==8.4.0
 itsdangerous==2.2.0
 jsonschema-specifications==2025.9.1
@@ -80,8 +80,8 @@ pluggy==1.6.0
 protobuf==4.25.8
 psutil==7.1.0
 pycparser==2.23
-pydantic==2.11.10
-pydantic_core==2.33.2
+pydantic==2.12.0
+pydantic_core==2.41.1
 pygtrie==2.5.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -117,7 +117,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.8.22
+uv==0.9.2
 uvicorn==0.37.0
 uvloop==0.21.0
 watchfiles==1.1.0
