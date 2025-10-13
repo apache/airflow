@@ -47,7 +47,7 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
-    from airflow._shared.observability.stats import Stats
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 

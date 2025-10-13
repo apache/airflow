@@ -57,7 +57,7 @@ from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import TaskInstanceState
 
 try:
-    from airflow._shared.observability.stats import Stats
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
