@@ -84,9 +84,7 @@ class GCSDagBundle(BaseDagBundle):
             if self.prefix:
                 # don't check when prefix is ""
                 if not self.gcs_hook.list(bucket_name=self.bucket_name, prefix=self.prefix):
-                    raise ValueError(
-                        f"GCS prefix 'gs://{self.bucket_name}/{self.prefix}' does not exist."
-                    )
+                    raise ValueError(f"GCS prefix 'gs://{self.bucket_name}/{self.prefix}' does not exist.")
             self.refresh()
 
     def initialize(self) -> None:
