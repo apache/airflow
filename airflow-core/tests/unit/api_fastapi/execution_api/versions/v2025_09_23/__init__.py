@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import pytest
-
-pytestmark = pytest.mark.db_test
-
-# This file previously contained tests for DagBag functionality, but those tests
-# have been moved to airflow-core/tests/unit/dag_processing/test_dagbag.py to match
-# the source code reorganization where DagBag moved from models to dag_processing.
-#
-# Tests for models-specific functionality (DBDagBag, DagPriorityParsingRequest, etc.)
-# would remain in this file, but currently no such tests exist.
