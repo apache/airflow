@@ -20,12 +20,12 @@ import json
 from copy import deepcopy
 from datetime import timedelta
 from typing import Any
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
-from requests.models import Response
 from requests import exceptions as requests_exceptions
+from requests.models import Response
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -95,6 +95,7 @@ def mock_response_json(response: dict):
     run_response = MagicMock(**response, spec=Response)
     run_response.json.return_value = response
     return run_response
+
 
 def request_exception_with_status(status_code: int) -> requests_exceptions.HTTPError:
     response = Response()
@@ -1090,9 +1091,9 @@ class TestDbtCloudHook:
         """Test that timeout is passed to extra_options in _run_and_get_response."""
         hook = DbtCloudHook(ACCOUNT_ID_CONN, timeout_seconds=timeout_seconds)
         mock_run_with_retry.return_value = mock_response_json({"data": {"id": JOB_ID}})
-        
+
         hook.get_job(job_id=JOB_ID, account_id=DEFAULT_ACCOUNT_ID)
-        
+
         call_args = mock_run_with_retry.call_args
         assert call_args is not None
         extra_options = call_args.kwargs.get("extra_options")
@@ -1108,17 +1109,16 @@ class TestDbtCloudHook:
     def test_timeout_passed_to_paginate(self, mock_run_with_retry, timeout_seconds):
         """Test that timeout is passed to extra_options in _paginate."""
         hook = DbtCloudHook(ACCOUNT_ID_CONN, timeout_seconds=timeout_seconds)
-        mock_response = mock_response_json({
-            "data": [{"id": JOB_ID}],
-            "extra": {
-                "filters": {"limit": 100},
-                "pagination": {"count": 1, "total_count": 1}
+        mock_response = mock_response_json(
+            {
+                "data": [{"id": JOB_ID}],
+                "extra": {"filters": {"limit": 100}, "pagination": {"count": 1, "total_count": 1}},
             }
-        })
+        )
         mock_run_with_retry.return_value = mock_response
-        
+
         hook.list_jobs(account_id=DEFAULT_ACCOUNT_ID)
-        
+
         call_args = mock_run_with_retry.call_args
         assert call_args is not None
         extra_options = call_args.kwargs.get("extra_options")
@@ -1135,9 +1135,9 @@ class TestDbtCloudHook:
         """Test that both timeout and proxies are passed to extra_options."""
         hook = DbtCloudHook(PROXY_CONN, timeout_seconds=timeout_seconds)
         mock_run_with_retry.return_value = mock_response_json({"data": {"id": JOB_ID}})
-        
+
         hook.get_job(job_id=JOB_ID, account_id=DEFAULT_ACCOUNT_ID)
-        
+
         call_args = mock_run_with_retry.call_args
         assert call_args is not None
         extra_options = call_args.kwargs.get("extra_options")
@@ -1182,20 +1182,30 @@ class TestDbtCloudHook:
     @pytest.mark.parametrize(
         "error_factory, retry_qty, retry_delay",
         [
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=500, message=""), 3, 0.1),
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=429, message=""), 5, 0.1),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=500, message=""
+                ),
+                3,
+                0.1,
+            ),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=429, message=""
+                ),
+                5,
+                0.1,
+            ),
             (lambda: aiohttp.ClientConnectorError(AsyncMock(), OSError("boom")), 2, 0.1),
-            (lambda: TimeoutError(), 2, 0.1)
+            (lambda: TimeoutError(), 2, 0.1),
         ],
         ids=["aiohttp_500", "aiohttp_429", "connector_error", "timeout"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_with_retryable_errors(self, get_mock, error_factory, retry_qty, retry_delay):
-        hook = DbtCloudHook(
-            ACCOUNT_ID_CONN,
-            retry_limit=retry_qty,
-            retry_delay=retry_delay
-            )
+    async def test_get_job_details_retry_with_retryable_errors(
+        self, get_mock, error_factory, retry_qty, retry_delay
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN, retry_limit=retry_qty, retry_delay=retry_delay)
 
         def fail_cm():
             cm = AsyncMock()
@@ -1211,30 +1221,38 @@ class TestDbtCloudHook:
 
         all_resp = [fail_cm() for _ in range(retry_qty - 1)]
         all_resp.append(ok_cm)
-        get_mock.side_effect = all_resp 
+        get_mock.side_effect = all_resp
 
         result = await hook.get_job_details(run_id=RUN_ID, account_id=None)
 
         assert result == {"data": "Success"}
         assert get_mock.call_count == retry_qty
-    
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "error_factory, expected_exception",
         [
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=404, message="Not Found"), aiohttp.ClientResponseError),
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=400, message="Bad Request"), aiohttp.ClientResponseError),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=404, message="Not Found"
+                ),
+                aiohttp.ClientResponseError,
+            ),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=400, message="Bad Request"
+                ),
+                aiohttp.ClientResponseError,
+            ),
             (lambda: ValueError("Invalid parameter"), ValueError),
         ],
         ids=["aiohttp_404", "aiohttp_400", "value_error"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_with_non_retryable_errors(self, get_mock, error_factory, expected_exception):
-        hook = DbtCloudHook(
-            ACCOUNT_ID_CONN,
-            retry_limit=3,
-            retry_delay=0.1
-        )
+    async def test_get_job_details_retry_with_non_retryable_errors(
+        self, get_mock, error_factory, expected_exception
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN, retry_limit=3, retry_delay=0.1)
 
         def fail_cm():
             cm = AsyncMock()
@@ -1252,20 +1270,36 @@ class TestDbtCloudHook:
     @pytest.mark.parametrize(
         argnames="error_factory, expected_exception",
         argvalues=[
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=503, message="Service Unavailable"), aiohttp.ClientResponseError),
-            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=500, message="Internal Server Error"), aiohttp.ClientResponseError),
-            (lambda: aiohttp.ClientConnectorError(AsyncMock(), OSError("Connection refused")), aiohttp.ClientConnectorError),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=503, message="Service Unavailable"
+                ),
+                aiohttp.ClientResponseError,
+            ),
+            (
+                lambda: aiohttp.ClientResponseError(
+                    request_info=AsyncMock(), history=(), status=500, message="Internal Server Error"
+                ),
+                aiohttp.ClientResponseError,
+            ),
+            (
+                lambda: aiohttp.ClientConnectorError(AsyncMock(), OSError("Connection refused")),
+                aiohttp.ClientConnectorError,
+            ),
             (lambda: TimeoutError("Request timeout"), TimeoutError),
         ],
-        ids=["aiohttp_503_exhausted", "aiohttp_500_exhausted", "connector_error_exhausted", "timeout_exhausted"],
+        ids=[
+            "aiohttp_503_exhausted",
+            "aiohttp_500_exhausted",
+            "connector_error_exhausted",
+            "timeout_exhausted",
+        ],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_with_exhausted_retries(self, get_mock, error_factory, expected_exception):
-        hook = DbtCloudHook(
-            ACCOUNT_ID_CONN,
-            retry_limit=2,
-            retry_delay=0.1
-        )
+    async def test_get_job_details_retry_with_exhausted_retries(
+        self, get_mock, error_factory, expected_exception
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN, retry_limit=2, retry_delay=0.1)
 
         def fail_cm():
             cm = AsyncMock()

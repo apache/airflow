@@ -32,13 +32,7 @@ from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
 from requests.sessions import Session
 from requests import exceptions as requests_exceptions
-from tenacity import (
-    AsyncRetrying,
-    RetryCallState,
-    retry_if_exception,
-    stop_after_attempt,
-    wait_exponential
-)
+from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
 
 from airflow.exceptions import AirflowException
@@ -275,7 +269,7 @@ class DbtCloudHook(HttpHook):
         headers["Content-Type"] = "application/json"
         headers["Authorization"] = f"Token {self.connection.password}"
         return headers, tenant
-    
+
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to DBT failed with reason: %s", attempt_num, error)
 
@@ -284,10 +278,7 @@ class DbtCloudHook(HttpHook):
         if isinstance(exception, requests_exceptions.RequestException):
             if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
                 exception.response is not None
-                and (
-                    exception.response.status_code >= 500
-                    or exception.response.status_code == 429
-                )
+                and (exception.response.status_code >= 500 or exception.response.status_code == 429)
             ):
                 return True
 
@@ -299,7 +290,7 @@ class DbtCloudHook(HttpHook):
             return True
 
         return False
-    
+
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
         Instantiate an async retry object.
@@ -308,7 +299,6 @@ class DbtCloudHook(HttpHook):
         """
         # for compatibility we use reraise to avoid handling request error
         return AsyncRetrying(**self.retry_args)
-
 
     @provide_account_id
     async def get_job_details(
@@ -332,7 +322,9 @@ class DbtCloudHook(HttpHook):
         if proxy:
             extra_request_args["proxy"] = proxy
 
-        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds) if self.timeout_seconds is not None else None
+        timeout = (
+            aiohttp.ClientTimeout(total=self.timeout_seconds) if self.timeout_seconds is not None else None
+        )
 
         async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
             async for attempt in self._a_get_retry_object():
@@ -340,7 +332,6 @@ class DbtCloudHook(HttpHook):
                     async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
                         response.raise_for_status()
                         return await response.json()
- 
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
@@ -384,11 +375,8 @@ class DbtCloudHook(HttpHook):
         if proxies is not None:
             extra_options["proxies"] = proxies
         response = self.run_with_advanced_retry(
-            _retry_args=self.retry_args,
-            endpoint=endpoint,
-            data=payload,
-            extra_options=extra_options or None
-            )
+            _retry_args=self.retry_args, endpoint=endpoint, data=payload, extra_options=extra_options or None
+        )
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
@@ -399,7 +387,12 @@ class DbtCloudHook(HttpHook):
             _paginate_payload["offset"] = limit
 
             while num_current_results < num_total_results:
-                response = self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=endpoint, data=_paginate_payload, extra_options=extra_options)
+                response = self.run_with_advanced_retry(
+                    _retry_args=self.retry_args,
+                    endpoint=endpoint,
+                    data=_paginate_payload,
+                    extra_options=extra_options,
+                )
                 resp_json = response.json()
                 results.append(response)
                 num_current_results += resp_json["extra"]["pagination"]["count"]
@@ -433,7 +426,12 @@ class DbtCloudHook(HttpHook):
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        return self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=full_endpoint, data=payload, extra_options=extra_options or None)
+        return self.run_with_advanced_retry(
+            _retry_args=self.retry_args,
+            endpoint=full_endpoint,
+            data=payload,
+            extra_options=extra_options or None,
+        )
 
     def list_accounts(self) -> list[Response]:
         """

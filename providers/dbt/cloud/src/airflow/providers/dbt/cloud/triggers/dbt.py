@@ -66,7 +66,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
-                "hook_params": self.hook_params
+                "hook_params": self.hook_params,
             },
         )
 
