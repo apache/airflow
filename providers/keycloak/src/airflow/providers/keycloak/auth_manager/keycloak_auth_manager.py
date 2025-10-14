@@ -270,6 +270,62 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             realm_name=realm,
         )
 
+    def _refresh_access_token(self, user: KeycloakAuthManagerUser) -> bool:
+        """
+        Refresh expired access token using refresh token.
+        
+        Args:
+            user: The user whose token needs to be refreshed
+        
+        Returns:
+            bool: True if refresh succeeded, False otherwise
+        """
+        if not user.refresh_token:
+            log.warning("No refresh token available for user %s", user.get_id())
+            return False
+        
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+        
+        token_url = self._get_token_url(server_url, realm)
+        
+        try:
+            response = requests.post(
+                token_url,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": user.refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                },
+                timeout=10,
+            )
+
+            if response.status_code == 200:
+                tokens = response.json()
+
+                user.access_token = tokens["access_token"]
+
+                if "refresh_token" in tokens:
+                    user.refresh_token = tokens["refresh_token"]
+
+                log.info("Successfully refreshed access token for user %s", user.get_id())
+                return True
+            else:
+                log.error(
+                    "Failed to refresh token for user %s: %s - %s",
+                    user.get_id(),
+                    response.status_code,
+                    response.text,
+                )
+                return False
+
+        except Exception as e:
+            log.error("Exception during token refresh for user %s: %s", user.get_id(), e)
+            return False
+
     def _is_authorized(
         self,
         *,
@@ -304,6 +360,35 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
+        if resp.status_code == 401:
+            log.info("Received 401 Unauthorized, attempting token refresh for user %s", user.get_id())
+            
+            if self._refresh_access_token(user):
+                log.info("Token refreshed for user %s, retrying authorization check", user.get_id())
+                resp = requests.post(
+                    self._get_token_url(server_url, realm),
+                    data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
+                    headers=self._get_headers(user.access_token),
+                )
+                
+                if resp.status_code == 200:
+                    return True
+                if resp.status_code == 403:
+                    return False
+                if resp.status_code == 400:
+                    error = json.loads(resp.text)
+                    raise AirflowException(
+                        f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+                    )
+                if resp.status_code == 401:
+                    raise AirflowException(
+                        "Authorization failed after token refresh. Please log in again."
+                    )
+            else:
+                raise AirflowException(
+                    "Access token expired and refresh failed. Please log in again."
+                )
+
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def _is_batch_authorized(
@@ -331,6 +416,35 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
+        if resp.status_code == 401:
+            log.info("Received 401 Unauthorized in batch check, attempting token refresh for user %s", user.get_id())
+            
+            if self._refresh_access_token(user):
+                log.info("Token refreshed for user %s, retrying batch authorization check", user.get_id())
+                resp = requests.post(
+                    self._get_token_url(server_url, realm),
+                    data=self._get_batch_payload(client_id, permissions),
+                    headers=self._get_headers(user.access_token),
+                )
+                
+                if resp.status_code == 200:
+                    return {(perm["scopes"][0], perm["rsname"]) for perm in resp.json()}
+                if resp.status_code == 403:
+                    return set()
+                if resp.status_code == 400:
+                    error = json.loads(resp.text)
+                    raise AirflowException(
+                        f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+                    )
+                if resp.status_code == 401:
+                    raise AirflowException(
+                        "Batch authorization failed after token refresh. Please log in again."
+                    )
+            else:
+                raise AirflowException(
+                    "Access token expired and refresh failed. Please log in again."
+                )
+
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     @staticmethod
