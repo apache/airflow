@@ -1485,13 +1485,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `conn_id,
-            conn_type, description, host, port, id`'
+            conn_type, description, host, port, id, connection_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `conn_id, conn_type,
-          description, host, port, id`'
+          description, host, port, id, connection_id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -2285,14 +2285,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
-            conf, duration`'
+            conf, duration, dag_run_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, dag_id,
           run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
-          duration`'
+          duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
@@ -3189,13 +3189,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date`'
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date`'
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -3768,13 +3768,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, dttm,
-            dag_id, task_id, run_id, event, logical_date, owner, extra`'
+            dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, dttm, dag_id,
-          task_id, run_id, event, logical_date, owner, extra`'
+          task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
       - name: dag_id
         in: query
         required: false
@@ -4106,13 +4106,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace`'
+            filename, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace`'
+          bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -4618,12 +4618,13 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id, pool`'
+            Prefix with `-` for descending order. Supported attributes: `id, pool,
+            name`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, pool`'
+          with `-` for descending order. Supported attributes: `id, pool, name`'
       - name: pool_name_pattern
         in: query
         required: false
@@ -5832,14 +5833,16 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator`'
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            run_after, logical_date, data_interval_start, data_interval_end`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator`'
+          data_interval_end, rendered_map_index, operator, run_after, logical_date,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -6660,14 +6663,16 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator`'
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            logical_date, run_after, data_interval_start, data_interval_end`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator`'
+          data_interval_end, rendered_map_index, operator, logical_date, run_after,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -8300,13 +8305,16 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
-            responded_at, created_at, responded_by_user_id, responded_by_user_name`'
+            responded_at, created_at, responded_by_user_id, responded_by_user_name,
+            dag_id, run_id, run_after, rendered_map_index, task_instance_operator,
+            task_instance_state`'
           default:
           - ti_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
-          created_at, responded_by_user_id, responded_by_user_name`'
+          created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id,
+          run_after, rendered_map_index, task_instance_operator, task_instance_state`'
       - name: dag_id_pattern
         in: query
         required: false
