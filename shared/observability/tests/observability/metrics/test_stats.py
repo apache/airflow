@@ -28,6 +28,7 @@ import pytest
 import statsd
 
 import airflow
+import airflow._shared.observability.stats
 from airflow._shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow._shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow._shared.observability.metrics.validators import (
@@ -515,7 +516,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "unit.core.test_stats.always_invalid",
+            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_invalid",
         }
     )
     @mock.patch("statsd.StatsClient")
@@ -528,7 +529,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "unit.core.test_stats.always_invalid",
+            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_invalid",
         }
     )
     @mock.patch("datadog.DogStatsd")
@@ -540,7 +541,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "unit.core.test_stats.always_valid",
+            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("statsd.StatsClient")
@@ -553,7 +554,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "unit.core.test_stats.always_valid",
+            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("datadog.DogStatsd")
