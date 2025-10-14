@@ -230,12 +230,14 @@ class DbtCloudHook(HttpHook):
             self.retry_args = copy.copy(retry_args)
             self.retry_args["retry"] = retry_if_exception(self._retryable_error)
             self.retry_args["after"] = retry_after_func
+            self.retry_args["reraise"] = True
         else:
             self.retry_args = {
                 "stop": stop_after_attempt(self.retry_limit),
                 "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
                 "retry": retry_if_exception(self._retryable_error),
                 "after": retry_after_func,
+                "reraise": True,
             }
 
     @staticmethod
@@ -305,8 +307,6 @@ class DbtCloudHook(HttpHook):
         :return: instance of AsyncRetrying class
         """
         # for compatibility we use reraise to avoid handling request error
-        if self.retry_args.get("reraise") is None:
-            return AsyncRetrying(reraise=True, **self.retry_args)
         return AsyncRetrying(**self.retry_args)
 
 
@@ -379,7 +379,9 @@ class DbtCloudHook(HttpHook):
     def _paginate(
         self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
     ) -> list[Response]:
-        extra_options = {"proxies": proxies} if proxies is not None else None
+        extra_options: dict[str, Any] = {"timeout": self.timeout_seconds}
+        if proxies is not None:
+            extra_options["proxies"] = proxies
         response = self.run_with_advanced_retry(
             _retry_args=self.retry_args,
             endpoint=endpoint,
@@ -415,7 +417,9 @@ class DbtCloudHook(HttpHook):
         self.method = method
         full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
         proxies = self._get_proxies(self.connection)
-        extra_options = {"proxies": proxies} if proxies is not None else None
+        extra_options: dict[str, Any] = {"timeout": self.timeout_seconds}
+        if proxies is not None:
+            extra_options["proxies"] = proxies
 
         if paginate:
             if isinstance(payload, str):
