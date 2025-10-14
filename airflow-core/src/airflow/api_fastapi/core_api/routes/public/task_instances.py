@@ -89,6 +89,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
+import inspect
 
 log = structlog.get_logger(__name__)
 
@@ -774,14 +775,23 @@ def post_clear_task_instances(
             end_date=body.end_date,
         )
 
+    params = inspect.signature(clear_task_instances).parameters
+    kwargs = {
+        "run_on_latest_version": body.run_on_latest_version,
+    }
+
+    # Only include this argument if the function supports it
+    if "prevent_running_task" in params:
+        kwargs["prevent_running_task"] = body.prevent_running_task
+
+
     if not dry_run:
         try:
             clear_task_instances(
                 task_instances,
                 session,
                 DagRunState.QUEUED if reset_dag_runs else False,
-                run_on_latest_version=body.run_on_latest_version,
-                prevent_running_task=body.prevent_running_task,
+                **kwargs
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

@@ -111,7 +111,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
 
   return (
     <>
-    <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={!open && openDialog} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog && !open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
