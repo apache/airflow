@@ -22,11 +22,12 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
+import { isValidFilterValue } from "../utils";
 
 export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const hasValue = filter.value !== null && filter.value !== undefined && String(filter.value).trim() !== "";
+  const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
@@ -46,7 +47,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
 
   return (
     <FilterPill
-      displayValue={hasValue ? String(filter.value) : ""}
+      displayValue={hasValue && typeof filter.value === "string" ? filter.value : ""}
       filter={filter}
       hasValue={hasValue}
       onChange={onChange}
@@ -56,7 +57,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
         label={filter.config.label}
         onChange={handleInputChange}
         placeholder={filter.config.placeholder}
-        value={String(filter.value ?? "")}
+        value={typeof filter.value === "string" ? filter.value : ""}
       />
     </FilterPill>
   );

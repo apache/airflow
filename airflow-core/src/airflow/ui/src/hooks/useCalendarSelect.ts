@@ -16,16 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown, MdDateRange } from "react-icons/md";
+import type { Dayjs } from "dayjs";
+import { useMemo } from "react";
 
-import type { FilterConfig } from "./types";
+export const useCalendarSelect = (currentMonth: Dayjs) =>
+  useMemo(() => {
+    const monthStart = currentMonth.startOf("month");
+    const monthEnd = currentMonth.endOf("month");
+    const startDate = monthStart.startOf("week");
+    const endDate = monthEnd.endOf("week");
 
-export const defaultFilterIcons: Record<FilterConfig["type"], React.ReactNode> = {
-  date: <MdCalendarToday />,
-  daterange: <MdDateRange />,
-  number: <MdNumbers />,
-  select: <MdArrowDropDown />,
-  text: <MdTextFields />,
-} as const;
+    const days = [];
+    let day = startDate;
 
-export const getDefaultFilterIcon = (type: FilterConfig["type"]): React.ReactNode => defaultFilterIcons[type];
+    while (day.isSame(endDate, "day") || day.isBefore(endDate, "day")) {
+      days.push(day);
+      day = day.add(1, "day");
+    }
+
+    return { days, monthEnd, monthStart };
+  }, [currentMonth]);
