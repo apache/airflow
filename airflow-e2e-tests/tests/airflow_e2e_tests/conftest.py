@@ -32,11 +32,37 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
+    E2E_TEST_MODE,
+    LOCALSTACK_PATH,
+    AWS_INIT_PATH,
+
 )
 
 console = Console(width=400, color_system="standard")
 compose_instance = None
 airflow_logs_path = None
+
+
+def _set_up_s3_integration(dot_env_file, tmp_dir):
+    copyfile(LOCALSTACK_PATH,
+             tmp_dir / "localstack.yml")
+
+    copyfile(AWS_INIT_PATH,
+             tmp_dir / "init-aws.sh")
+    current_permissions = os.stat(tmp_dir / "init-aws.sh").st_mode
+    os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AWS_ACCESS_KEY_ID=test\n"
+        "AWS_SECRET_ACCESS_KEY=test\n"
+        "AWS_DEFAULT_REGION=us-east-1\n"
+        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
+        "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://test-airflow-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
 def spin_up_airflow_environment(tmp_path_factory):
@@ -60,19 +86,25 @@ def spin_up_airflow_environment(tmp_path_factory):
     copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     dot_env_file = tmp_dir / ".env"
+    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
 
     console.print(f"[yellow]Creating .env file :[/ {dot_env_file}")
 
-    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
+    compose_file_names = ["docker-compose.yaml"]
+
+    if E2E_TEST_MODE == "remote_log":
+        compose_file_names.append("localstack.yml")
+        _set_up_s3_integration(dot_env_file, tmp_dir)
 
     # If we are using the image from ghcr.io/apache/airflow/main we do not pull
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
 
     console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-
-    compose_instance = DockerCompose(tmp_dir, compose_file_name=["docker-compose.yaml"], pull=pull)
+    compose_instance = DockerCompose(tmp_dir,
+                                     compose_file_name=compose_file_names,
+                                     pull=pull)
 
     compose_instance.start()
 
@@ -116,9 +148,9 @@ def pytest_sessionfinish(session, exitstatus):
     if airflow_logs_path is not None:
         copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
-    if compose_instance:
-        if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
-            compose_instance.stop()
+    # if compose_instance:
+    #     if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+    #         compose_instance.stop()
 
 
 def generate_test_report(results):

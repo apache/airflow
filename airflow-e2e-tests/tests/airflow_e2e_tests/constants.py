@@ -27,7 +27,7 @@ DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 os.environ["AIRFLOW_UID"] = str(os.getuid())
 
-DEFAULT_DOCKER_COMPOSE_PATH = (
+DOCKER_COMPOSE_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
 )
 
@@ -39,14 +39,6 @@ E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e
 # The logs folder where the Airflow logs will be copied to and uploaded to github artifacts
 LOGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "logs"
 TEST_REPORT_FILE = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "_e2e_test_report.json"
-
+LOCALSTACK_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "localstack.yml"
 E2E_TEST_MODE = os.environ.get("E2E_TEST_MODE", "basic")
-
-DOCKER_COMPOSE_PATH = None
-
-if E2E_TEST_MODE == "basic":
-    DOCKER_COMPOSE_PATH = DEFAULT_DOCKER_COMPOSE_PATH
-elif E2E_TEST_MODE == "remote_log":
-    DOCKER_COMPOSE_PATH = (
-        AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "docker-compose-with-localstack.yaml"
-    )
+AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.sh"
