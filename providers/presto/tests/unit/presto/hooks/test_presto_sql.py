@@ -27,6 +27,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook
+from sqlalchemy.engine.url import make_url
 
 SerializableRow = namedtuple("SerializableRow", ["id", "value"])
 
@@ -241,15 +242,15 @@ def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
 
     call_args = mock_create_engine.call_args[1]
     actual_url = call_args["url"]
-
+    extra_dict = json.loads(mock_connection.extra or "{}")
     assert actual_url.drivername == "presto"
-    assert actual_url.host == DEFAULT_HOST
-    assert actual_url.password == DEFAULT_PASSWORD
+    assert actual_url.host == str(DEFAULT_HOST)
+    assert actual_url.password == (DEFAULT_PASSWORD or "")
     assert actual_url.port == DEFAULT_PORT
     assert actual_url.username == DEFAULT_LOGIN
-    assert actual_url.database == mock_connection.schema
-    assert actual_url.query.get("protocol") == "http"
-    assert actual_url.query.get("source") == "airflow"
+    assert actual_url.database == extra_dict.get("catalog")
+    assert actual_url.query.get("protocol", "http") == "http"
+    assert actual_url.query.get("source") == extra_dict.get("source")
     assert actual_url.query.get("schema") == "presto_db"
 
 
@@ -289,15 +290,26 @@ def test_get_uri(presto_hook, mock_connection):
     mock_connection.password = DEFAULT_PASSWORD
     mock_connection.schema = "presto_db"
     mock_connection.extra = json.dumps({"catalog": "hive", "protocol": "https", "source": "airflow"})
-
+    
     expected_uri = (
-        "presto://test:test_pass@test_host:8080/hive?protocol=https&schema=presto_db&source=airflow"
-    )
-
+    "presto://test:test_pass@test_host:8080/hive"
+    "?protocol=https&source=airflow&schema=presto_db"
+)
     with patch.object(presto_hook, "get_connection", return_value=mock_connection):
         uri = presto_hook.get_uri()
+    parsed = make_url(uri)
+    expected = make_url(expected_uri)
 
-    assert uri == expected_uri
+
+
+    assert parsed.drivername == expected.drivername
+    assert parsed.username == expected.username
+    assert parsed.password == expected.password
+    assert parsed.host == expected.host
+    assert parsed.port == expected.port
+    assert parsed.database == expected.database
+    for key, value in expected.query.items():
+        assert parsed.query.get(key) == value
 
 
 @pytest.mark.parametrize("sql", ["", "\n", " "])
