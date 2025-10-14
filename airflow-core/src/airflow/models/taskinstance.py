@@ -222,15 +222,8 @@ def clear_task_instances(
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
-
-        #Task instance state checks:
-        is_transitional = ti.state in {
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.QUEUED,
-            TaskInstanceState.SCHEDULED,
-        }
         
-        if is_transitional:
+        if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
                 raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state.")
                 # Prevents the task from re-running and clearing when is_transitional and prevent_running_task from the frontend is True.
