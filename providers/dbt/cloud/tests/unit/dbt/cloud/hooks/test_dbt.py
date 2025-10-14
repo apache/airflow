@@ -1125,7 +1125,7 @@ class TestDbtCloudHook:
         ids=["aiohttp_500", "aiohttp_429", "connector_error", "timeout"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_retryable_errors(self, get_mock, error_factory, retry_qty, retry_delay):
+    async def test_get_job_details_retry_with_retryable_errors(self, get_mock, error_factory, retry_qty, retry_delay):
         hook = DbtCloudHook(
             ACCOUNT_ID_CONN,
             retry_limit=retry_qty,
@@ -1163,7 +1163,7 @@ class TestDbtCloudHook:
         ids=["aiohttp_404", "aiohttp_400", "value_error"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_raises_non_retryable_errors(self, get_mock, error_factory, expected_exception):
+    async def test_get_job_details_retry_with_non_retryable_errors(self, get_mock, error_factory, expected_exception):
         hook = DbtCloudHook(
             ACCOUNT_ID_CONN,
             retry_limit=3,
@@ -1194,7 +1194,7 @@ class TestDbtCloudHook:
         ids=["aiohttp_503_exhausted", "aiohttp_500_exhausted", "connector_error_exhausted", "timeout_exhausted"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_exhausted_raises_exception(self, get_mock, error_factory, expected_exception):
+    async def test_get_job_details_retry_with_exhausted_retries(self, get_mock, error_factory, expected_exception):
         hook = DbtCloudHook(
             ACCOUNT_ID_CONN,
             retry_limit=2,
