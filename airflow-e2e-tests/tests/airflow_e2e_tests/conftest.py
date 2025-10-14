@@ -26,15 +26,15 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
     DOCKER_IMAGE,
     E2E_DAGS_FOLDER,
-    LOGS_FOLDER,
-    TEST_REPORT_FILE,
     E2E_TEST_MODE,
     LOCALSTACK_PATH,
-    AWS_INIT_PATH,
+    LOGS_FOLDER,
+    TEST_REPORT_FILE,
 )
 
 console = Console(width=400, color_system="standard")
