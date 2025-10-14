@@ -398,9 +398,9 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
-        
+
         // COMPONENT-SPECIFIC SEMANTIC TOKENS
-        
+
         // components/DataTable/
         "data-table": {
           header: {
@@ -420,7 +420,7 @@ export const customConfig = defineConfig({
             muted: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
           },
         },
-        
+
         // components/EditableMarkdownButton.tsx
         "editable-markdown-button": {
           indicator: {
@@ -430,7 +430,7 @@ export const customConfig = defineConfig({
             bg: { value: { _light: "{colors.brand.200}", _dark: "{colors.brand.800}" } }
           }
         },
-        
+
         // components/FilterBar/
         "filter-bar": {
           pill: {
@@ -452,7 +452,7 @@ export const customConfig = defineConfig({
             bg: { value: { _light: "{colors.red.100}", _dark: "{colors.red.800}" } },
             line: { value: { _light: "{colors.red.500}", _dark: "{colors.red.400}" } }
           }
-        },        
+        },
         // components/ui/Toaster/Toaster.tsx
         toaster: {
           spinner: {
@@ -469,7 +469,7 @@ export const customConfig = defineConfig({
             hover: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } }
           }
         },
-        
+
         // layouts/Details/Graph/Graph.tsx
         graph: {
           node: {
@@ -504,8 +504,8 @@ export const customConfig = defineConfig({
             stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
           }
         },
-        
-        
+
+
         // layouts/Nav/
         nav: {
           bg: { value: { _light: "{colors.brand.100}", _dark: "{colors.brand.900}" } },
@@ -516,7 +516,7 @@ export const customConfig = defineConfig({
             }
           }
         },
-        
+
         // pages/Asset/AssetGraph.tsx
         "asset-graph": {
           bg: { value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" } },
@@ -534,7 +534,7 @@ export const customConfig = defineConfig({
             stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
           }
         },
-        
+
         // pages/Connections/TestConnectionButton.tsx
         "test-connection": {
           icon: {
@@ -542,21 +542,21 @@ export const customConfig = defineConfig({
             disconnected: { value: "{colors.red.600}" }
           }
         },
-        
+
         // pages/Dag/Calendar/HourlyCalendarView.tsx
         calendar: {
           "hour-label": {
             color: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
           }
         },
-        
+
         // pages/Variables/ImportVariablesForm.tsx
         "import-variables": {
           spinner: {
             color: { value: "{colors.brand.600}" }
           }
         },
-        
+
         // Generic tokens (used by HeaderCard, StatsCard, etc.)
         card: {
           default: {
@@ -575,7 +575,7 @@ export const customConfig = defineConfig({
             border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
           }
         },
-        
+
         // Generic tokens (used by FlexibleForm and other forms)
         form: {
           input: {

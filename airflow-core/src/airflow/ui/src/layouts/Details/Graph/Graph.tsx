@@ -38,11 +38,12 @@ import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { resolveTokenValue } from "src/theme";
 
 const nodeColor = (
-  { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
-  evenColor?: string,
-  oddColor?: string,
-  stateColorMap?: Record<string, string>,
+  node: ReactFlowNode<CustomNodeProps>,
+  colors: { evenColor?: string; oddColor?: string; stateColorMap?: Record<string, string> },
 ) => {
+  const { data: { depth, height, isOpen, taskInstance, width }, type } = node;
+  const { evenColor, oddColor, stateColorMap } = colors;
+
   if (height === undefined || width === undefined || type === "join") {
     return "";
   }
@@ -137,11 +138,15 @@ export const Graph = () => {
 
   const stateColorMap = useMemo(() => {
     const map: Record<string, string> = {};
+
     states.forEach((state, index) => {
-      if (state && stateColors[index]) {
-        map[state] = stateColors[index];
+      const color = stateColors[index];
+
+      if (state && color !== undefined) {
+        map[state] = color;
       }
     });
+
     return map;
   }, [states, stateColors]);
 
@@ -202,7 +207,7 @@ export const Graph = () => {
       <Controls showInteractive={false} />
       <MiniMap
         nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          nodeColor(node, groupEven, groupOdd, stateColorMap)
+          nodeColor(node, { evenColor: groupEven, oddColor: groupOdd, stateColorMap })
         }
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
           node.data.isSelected && selectedStroke !== undefined ? selectedStroke : ""

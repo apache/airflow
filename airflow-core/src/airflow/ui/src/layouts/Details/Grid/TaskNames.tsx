@@ -40,16 +40,15 @@ const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 const onMouseEnter = (
   event: MouseEvent<HTMLDivElement>,
   nodeId: string,
-  setHoveredTaskId: HoverContextType["setHoveredTaskId"],
-  hoverColor: string,
+  handlers: { hoverColor: string; setHoveredTaskId: HoverContextType["setHoveredTaskId"] },
 ) => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
-    task.style.backgroundColor = hoverColor;
+    task.style.backgroundColor = handlers.hoverColor;
   });
 
-  setHoveredTaskId(nodeId);
+  handlers.setHoveredTaskId(nodeId);
 };
 
 const onMouseLeave = (nodeId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => {
@@ -82,7 +81,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
       maxHeight="20px"
-      onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId, hoverColor ?? "")}
+      onMouseEnter={(event) => onMouseEnter(event, node.id, { hoverColor: hoverColor ?? "", setHoveredTaskId })}
       onMouseLeave={() => onMouseLeave(node.id, setHoveredTaskId)}
       transition="background-color 0.2s"
     >
