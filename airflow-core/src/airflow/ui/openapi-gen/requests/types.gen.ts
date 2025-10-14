@@ -2389,12 +2389,6 @@ export type GetDagStatsData = {
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
-export type GetDagReportsData = {
-    subdir: string;
-};
-
-export type GetDagReportsResponse = unknown;
-
 export type GetConfigData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
     section?: string | null;
@@ -4470,33 +4464,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dagReports': {
-        get: {
-            req: GetDagReportsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
