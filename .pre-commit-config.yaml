@@ -1613,6 +1613,7 @@ repos:
           ^airflow-core/src/airflow/operators/subdag\.py$|
           ^airflow-core/src/airflow/plugins_manager\.py$|
           ^airflow-core/src/airflow/providers_manager\.py$|
+          ^airflow-core/src/airflow/secrets/__init__.py$|
           ^airflow-core/src/airflow/serialization/definitions/[_a-z]+\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|
