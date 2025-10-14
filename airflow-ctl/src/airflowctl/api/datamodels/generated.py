@@ -255,6 +255,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
@@ -873,6 +874,7 @@ class TriggerDAGRunPostBody(BaseModel):
     run_after: Annotated[datetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -1396,6 +1398,7 @@ class DAGRunResponse(BaseModel):
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DAGRunsBatchBody(BaseModel):

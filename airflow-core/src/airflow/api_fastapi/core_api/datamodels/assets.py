@@ -174,6 +174,7 @@ class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
+    partition_key: str | None
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")
