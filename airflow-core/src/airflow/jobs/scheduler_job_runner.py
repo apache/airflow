@@ -933,6 +933,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
                         msg=msg,
+                        task_callback_type=(
+                            TaskInstanceState.UP_FOR_RETRY
+                            if ti.is_eligible_to_retry()
+                            else TaskInstanceState.FAILED
+                        ),
                         context_from_server=TIRunContext(
                             dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                             max_tries=ti.max_tries,
