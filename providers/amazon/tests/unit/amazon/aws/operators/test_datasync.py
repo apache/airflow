@@ -445,11 +445,9 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         with pytest.raises(AirflowException):
             self.set_up_operator(source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None, task_id="datasync_task2")
+            self.set_up_operator(destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(
-                source_location_uri=None, destination_location_uri=None, task_id="datasync_task3"
-            )
+            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
