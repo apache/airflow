@@ -79,12 +79,12 @@ class GCSDagBundle(BaseDagBundle):
             try:
                 self.gcs_hook.get_bucket(bucket_name=self.bucket_name)
             except NotFound:
-                raise FileNotFoundError(f"GCS bucket '{self.bucket_name}' does not exist.")
+                raise ValueError(f"GCS bucket '{self.bucket_name}' does not exist.")
 
             if self.prefix:
                 # don't check when prefix is ""
                 if not self.gcs_hook.list(bucket_name=self.bucket_name, prefix=self.prefix):
-                    raise FileNotFoundError(
+                    raise ValueError(
                         f"GCS prefix 'gs://{self.bucket_name}/{self.prefix}' does not exist."
                     )
             self.refresh()

@@ -117,7 +117,7 @@ class TestGCSDagBundle:
             prefix="project1_dags",
             bucket_name="non-existing-bucket",
         )
-        with pytest.raises(FileNotFoundError, match="GCS bucket 'non-existing-bucket' does not exist."):
+        with pytest.raises(ValueError, match="GCS bucket 'non-existing-bucket' does not exist."):
             bundle.initialize()
         mock_hook.get_bucket.assert_called_once_with(bucket_name="non-existing-bucket")
 
@@ -131,7 +131,7 @@ class TestGCSDagBundle:
             bucket_name=GCS_BUCKET_NAME,
         )
         with pytest.raises(
-            FileNotFoundError,
+            ValueError,
             match=f"GCS prefix 'gs://{GCS_BUCKET_NAME}/non-existing-prefix' does not exist.",
         ):
             bundle.initialize()
