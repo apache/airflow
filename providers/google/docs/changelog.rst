@@ -31,9 +31,6 @@ Changelog
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
-
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -104,8 +101,6 @@ Misc
 17.2.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

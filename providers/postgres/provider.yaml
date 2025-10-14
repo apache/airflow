@@ -109,3 +109,17 @@ asset-uris:
 dataset-uris:
   - schemes: [postgres, postgresql]
     handler: airflow.providers.postgres.assets.postgres.sanitize_uri
+
+config:
+  postgres:
+    description: |
+      Configuration for Postgres hooks and operators.
+    options:
+      azure_oauth_scope:
+        description: |
+          The scope to use while retrieving Oauth token for Postgres Flexible Server
+          from Azure Entra authentication.
+        version_added: 6.4.0
+        type: string
+        example: ~
+        default: "https://ossrdbms-aad.database.windows.net/.default"

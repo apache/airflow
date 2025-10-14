@@ -28,7 +28,7 @@ from sqlalchemy import (
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.utils import timezone
+from airflow.providers.edge3.version_compat import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 

@@ -386,7 +386,7 @@ def configure_logging(
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
     callsite_parameters: Iterable[CallsiteParameter] | None = None,
-    colors: bool | None = None,
+    colors: bool = True,
     output: LogOutputType | None = None,
     namespace_log_levels: str | dict[str, str] | None = None,
     cache_logger_on_first_use: bool = True,
@@ -401,15 +401,17 @@ def configure_logging(
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
     :param output: Where to write the logs too. If ``json_output`` is true this must be a binary stream
-    :param colors: Whether to use colors for non-JSON logs. If `None` is passed, then colors are used
-        if standard out is a TTY (that is, an interactive session).
+    :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
+        an interactive session), unless overridden by environment variables described below.
+        Please note that disabling colors also disables all styling, including bold and italics.
+        The following environment variables control color behavior (set to any non-empty value to activate):
 
-        It's possible to override this behavior by setting two standard environment variables to any value
-        except an empty string:
+        * ``NO_COLOR`` - Disables colors completely. This takes precedence over all other settings,
+        including ``FORCE_COLOR``.
 
-        * ``FORCE_COLOR`` activates colors, regardless of where output is going.
-        * ``NO_COLOR`` disables colors, regardless of where the output is going and regardless the value of
-          ``FORCE_COLOR``. Please note that ``NO_COLOR`` disables all styling, including bold and italics.
+        * ``FORCE_COLOR`` - Forces colors to be enabled, even when output is not going to a TTY. This only
+        takes effect if ``NO_COLOR`` is not set.
+
     :param callsite_parameters: A list parameters about the callsite (line number, function name etc) to
         include in the logs.
 
@@ -427,11 +429,12 @@ def configure_logging(
     if "fatal" not in NAME_TO_LEVEL:
         NAME_TO_LEVEL["fatal"] = NAME_TO_LEVEL["critical"]
 
-    if colors is None:
-        colors = os.environ.get("NO_COLOR", "") == "" and (
-            os.environ.get("FORCE_COLOR", "") != ""
-            or (sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty())
-        )
+    def is_atty():
+        return sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+    colors = os.environ.get("NO_COLOR", "") == "" and (
+        os.environ.get("FORCE_COLOR", "") != "" or (colors and is_atty())
+    )
 
     stdlib_config = stdlib_config or {}
     extra_processors = extra_processors or ()

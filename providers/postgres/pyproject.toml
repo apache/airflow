@@ -70,6 +70,9 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure"
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
@@ -91,6 +94,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",

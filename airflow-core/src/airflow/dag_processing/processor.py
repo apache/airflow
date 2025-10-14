@@ -31,11 +31,11 @@ from pydantic import BaseModel, Field, TypeAdapter
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
-    EmailNotificationRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.models.dagbag import DagBag
+from airflow.dag_processing.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -243,7 +243,7 @@ def _execute_callbacks(
             _execute_task_callbacks(dagbag, request, log)
         elif isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
-        elif isinstance(request, EmailNotificationRequest):
+        elif isinstance(request, EmailRequest):
             _execute_email_callbacks(dagbag, request, log)
 
 
@@ -354,9 +354,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
-def _execute_email_callbacks(
-    dagbag: DagBag, request: EmailNotificationRequest, log: FilteringBoundLogger
-) -> None:
+def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
     """Execute email notification for task failure/retry."""
     dag = dagbag.dags[request.ti.dag_id]
     task = dag.get_task(request.ti.task_id)

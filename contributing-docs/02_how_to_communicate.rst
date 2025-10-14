@@ -150,4 +150,4 @@ Here are a few rules that are important to keep in mind when you enter our commu
 ---------------
 
 If you want to quick start your contribution, you can follow with
-`Contributors Quick Start <03_contributors_quick_start.rst>`__
+`Contributors Quick Start <03a_contributors_quick_start_beginners.rst>`__

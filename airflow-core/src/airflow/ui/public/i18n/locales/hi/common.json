@@ -154,7 +154,6 @@
     },
     "tooltip": "{{direction}} तक स्क्रॉल करने के लिए {{hotkey}} दबाएं"
   },
-  "seconds": "{{count}}सेकंड",
   "security": {
     "actions": "क्रियाएं",
     "permissions": "अनुमतियां",

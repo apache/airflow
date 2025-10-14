@@ -90,7 +90,7 @@ Additional REST API endpoints are provided to distribute tasks and manage the ed
 are provided by the API server.
 
 
-Release: 1.3.0
+Release: 1.3.1
 
 Provider package
 ----------------

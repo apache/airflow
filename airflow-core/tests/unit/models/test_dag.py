@@ -37,8 +37,8 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import AirflowException, ParamValidationError
-from airflow.models import DagBag
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,

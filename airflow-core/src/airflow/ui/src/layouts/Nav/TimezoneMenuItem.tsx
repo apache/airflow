@@ -48,7 +48,7 @@ export const TimezoneMenuItem = ({ onOpen }: { readonly onOpen: () => void }) =>
 
   return (
     <Menu.Item onClick={onOpen} value="timezone">
-      <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
+      <FiClock size={20} style={{ marginRight: "8px" }} />
       {translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
     </Menu.Item>
   );

@@ -332,23 +332,23 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
-  #  # This should be copy of the "area:dev-tools" above and should be updated when
-  #  # we switch maintenance branch
-  #  backport-to-v3-1-test:
-  #    - scripts/**/*
-  #    - dev/**/*
-  #    - .github/**/*
-  #    - Dockerfile.ci
-  #    - CONTRIBUTING.rst
-  #    - contributing-docs/**/*
-  #    - yamllint-config.yml
-  #    - .asf.yaml
-  #    - .bash_completion
-  #    - .dockerignore
-  #    - .hadolint.yaml
-  #    - .pre-commit-config.yaml
-  #    - .rat-excludes
-  #    - .readthedocs.yml
+  # This should be copy of the "area:dev-tools" above and should be updated when
+  # we switch maintenance branch
+  backport-to-v3-1-test:
+    - scripts/**/*
+    - dev/**/*
+    - .github/**/*
+    - Dockerfile.ci
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
 
   kind:documentation:
     - airflow-core/docs/**/*

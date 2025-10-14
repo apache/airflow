@@ -27,11 +27,26 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Regenerate the rest API spec to fix CI (#55986)``
+* ``build(open-api): regenerate open api spec (#55931)``
+
+Misc
+~~~~
+
+* ``Bump Edge UI packages (#56016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.3.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
@@ -70,8 +85,6 @@ Doc-only
 
 1.2.0
 .....
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

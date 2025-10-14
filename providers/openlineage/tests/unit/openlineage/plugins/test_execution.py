@@ -28,7 +28,7 @@ import pytest
 
 from airflow.jobs.job import Job
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagBag, TaskInstance
+from airflow.models import TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.utils import timezone
@@ -37,7 +37,12 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
+else:
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
 TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dags")
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

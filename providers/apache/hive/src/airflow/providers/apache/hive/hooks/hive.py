@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import os
 import re
 import socket
@@ -30,18 +31,20 @@ from typing import TYPE_CHECKING, Any, Literal
 from deprecated import deprecated
 from typing_extensions import overload
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.apache.hive.version_compat import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    BaseHook,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.security import utils
+from airflow.utils.helpers import as_flattened_list
+
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
-import csv
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING, BaseHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.security import utils
-from airflow.utils.helpers import as_flattened_list
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -573,21 +576,15 @@ class HiveMetastoreHook(BaseHook):
         conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            try:
-                import saslwrapper as sasl
-            except ImportError:
-                import sasl
-
-            def sasl_factory() -> sasl.Client:
-                sasl_client = sasl.Client()
-                sasl_client.setAttr("host", host)
-                sasl_client.setAttr("service", kerberos_service_name)
-                sasl_client.init()
-                return sasl_client
-
+            from pyhive.hive import get_installed_sasl
             from thrift_sasl import TSaslClientTransport
 
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            sasl_auth = "GSSAPI"
+            transport = TSaslClientTransport(
+                lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name),
+                sasl_auth,
+                conn_socket,
+            )
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
 

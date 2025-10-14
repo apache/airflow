@@ -71,8 +71,6 @@ Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 Release: 4.3.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

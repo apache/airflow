@@ -57,8 +57,6 @@ apache-airflow-providers-cloudant package
 
 Release: 4.2.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

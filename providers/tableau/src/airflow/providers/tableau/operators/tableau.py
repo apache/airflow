@@ -143,6 +143,10 @@ class TableauOperator(BaseOperator):
             if getattr(resource, self.match_with) == self.find:
                 resource_id = resource.id
                 self.log.info("Found matching with id %s", resource_id)
+                self.log.info("Resource object %s", resource)
+                self.log.info("Content Name : %s", resource.name)
+                self.log.info("Content Folder : %s", resource.project_name)
+                self.log.info("Content URL : %s", resource.webpage_url)
                 return resource_id
 
         raise AirflowException(f"{self.resource} with {self.match_with} {self.find} not found!")

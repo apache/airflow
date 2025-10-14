@@ -31,8 +31,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 
@@ -45,8 +43,6 @@ Features
 9.2.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

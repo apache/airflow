@@ -17,18 +17,15 @@
  * under the License.
  */
 import { Text, type TextProps } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+
+import { renderDuration } from "src/utils";
 
 type Props = {
   readonly duration: number;
 } & TextProps;
 
-export const DurationTick = ({ duration, ...rest }: Props) => {
-  const { t: translate } = useTranslation();
-
-  return (
-    <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
-      {translate("seconds", { count: Math.floor(duration) })}
-    </Text>
-  );
-};
+export const DurationTick = ({ duration, ...rest }: Props) => (
+  <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
+    {renderDuration(duration)}
+  </Text>
+);

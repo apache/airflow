@@ -75,8 +75,6 @@ apache-airflow-providers-apache-iceberg package
 
 Release: 1.3.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

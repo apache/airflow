@@ -31,8 +31,6 @@ Changelog
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Features
 ~~~~~~~~
 

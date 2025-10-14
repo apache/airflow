@@ -1550,10 +1550,8 @@ class TestBigQueryAsyncHookMethods:
         project_id = "test_project"
         location = "US"
 
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(Exception, match="Cancellation failed"):
             await hook.cancel_job(job_id=job_id, project_id=project_id, location=location)
-
-        assert "Cancellation failed" in str(excinfo.value), "Exception message not passed correctly"
 
         mock_job_instance.cancel.assert_called_once()
 

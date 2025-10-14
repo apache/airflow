@@ -464,13 +464,24 @@ class DagInfo(InfoJsonEncodable):
         "fileloc",
         "owner",
         "owner_links",
-        "schedule_interval",  # For Airflow 2.
-        "timetable_summary",  # For Airflow 3.
+        "schedule_interval",  # For Airflow 2 only -> AF3 has timetable_summary
         "start_date",
         "tags",
     ]
-    casts = {"timetable": lambda dag: DagInfo.serialize_timetable(dag)}
+    casts = {
+        "timetable": lambda dag: DagInfo.serialize_timetable(dag),
+        "timetable_summary": lambda dag: DagInfo.timetable_summary(dag),
+    }
     renames = {"_dag_id": "dag_id"}
+
+    @classmethod
+    def timetable_summary(cls, dag: DAG) -> str | None:
+        """Extract summary from timetable if missing a ``timetable_summary`` property."""
+        if getattr(dag, "timetable_summary", None):
+            return dag.timetable_summary
+        if getattr(dag, "timetable", None):
+            return dag.timetable.summary
+        return None
 
     @classmethod
     def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
@@ -740,16 +751,20 @@ def get_airflow_state_run_facet(
     dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
 ) -> dict[str, AirflowStateRunFacet]:
     tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
+
+    def get_task_duration(ti):
+        if ti.duration is not None:
+            return ti.duration
+        if ti.end_date is not None and ti.start_date is not None:
+            return (ti.end_date - ti.start_date).total_seconds()
+        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+        return 0.0
+
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
-            tasksDuration={
-                ti.task_id: ti.duration
-                if ti.duration is not None
-                else (ti.end_date - ti.start_date).total_seconds()
-                for ti in tis
-            },
+            tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
         )
     }
 
@@ -797,6 +812,14 @@ def _emits_ol_events(task: AnyOperator) -> bool:
             not getattr(task, "on_success_callback", None),
             not task.outlets,
             not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
+            not (
+                getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
+                and get_base_airflow_version_tuple() >= (3, 1, 0)
+            ),
+            not (
+                getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
+                and get_base_airflow_version_tuple() >= (3, 1, 0)
+            ),
         )
     )
 

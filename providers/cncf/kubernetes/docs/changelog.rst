@@ -28,11 +28,22 @@ Changelog
 ---------
 
 
-10.8.1
+10.8.2
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Relax Kubernetes client version support to <34.0.0 (#55932)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.8.1
+......
+
 
 Bug Fixes
 ~~~~~~~~~
@@ -55,8 +66,6 @@ Misc
 10.8.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

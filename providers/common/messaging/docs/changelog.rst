@@ -29,9 +29,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
-
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
