@@ -87,7 +87,11 @@ const taskInstanceColumns = ({
         {
           accessorKey: "dag_id",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.dag_display_name} />
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+                <TruncatedText text={original.task_instance.dag_display_name} />
+              </RouterLink>
+            </Link>
           ),
           header: translate("common:dagId"),
         },
@@ -98,7 +102,13 @@ const taskInstanceColumns = ({
         {
           accessorKey: "run_id",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.dag_run_id} />
+            <Link asChild color="fg.info">
+              <RouterLink
+                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+              >
+                <TruncatedText text={original.task_instance.dag_run_id} />
+              </RouterLink>
+            </Link>
           ),
           header: translate("common:dagRunId"),
         },
