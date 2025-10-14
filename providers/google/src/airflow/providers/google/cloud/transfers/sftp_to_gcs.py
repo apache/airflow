@@ -120,6 +120,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.sftp_prefetch = sftp_prefetch
         self.use_stream = use_stream
         self.fail_on_file_not_exist = fail_on_file_not_exist
+
     @cached_property
     def sftp_hook(self):
         return SFTPHook(self.sftp_conn_id)
@@ -131,7 +132,6 @@ class SFTPToGCSOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
 
         if WILDCARD in self.source_path:
             total_wildcards = self.source_path.count(WILDCARD)
@@ -167,6 +167,7 @@ class SFTPToGCSOperator(BaseOperator):
                     raise e
                 self.log.info("File %s not found on SFTP server. Skipping transfer.", self.source_path)
                 return
+
     def _copy_single_object(
         self,
         gcs_hook: GCSHook,

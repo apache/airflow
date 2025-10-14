@@ -378,10 +378,8 @@ class TestSFTPToGCSOperator:
         assert result.outputs[0].namespace == f"gs://{TEST_BUCKET}"
         assert result.outputs[0].name == expected_destination
 
-    @pytest.mark.parametrize("fail_on_file_not_exist", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
-    def test_sftp_to_gcs_fail_on_file_not_exist(
-        self, fail_on_file_not_exist):
+    def test_sftp_to_gcs_fail_on_file_not_exist(self, fail_on_file_not_exist):
         if fail_on_file_not_exist:
             with pytest.raises(FileNotFoundError):
                 SFTPToGCSOperator(
