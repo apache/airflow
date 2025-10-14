@@ -37,6 +37,10 @@ import (
 )
 
 type (
+	// task is an interface of an task implementation.
+	Task interface {
+		Execute(ctx context.Context, logger *slog.Logger) error
+	}
 	// Bundle interface defines a type that is used "at execution time" to lookup a Task to execute
 	Bundle interface {
 		LookupTask(dagId, taskId string) (Task, bool)
@@ -258,13 +262,6 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			State:     api.Running,
 			StartDate: time.Now().UTC(),
 		})
-	logger.LogAttrs(
-		ctx,
-		slog.LevelInfo,
-		"Start context",
-		slog.Any("resp", runtimeContext),
-		logging.AttrErr(err),
-	)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
 		if errors.As(err, &httpError) {
