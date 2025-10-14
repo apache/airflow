@@ -150,6 +150,10 @@ dependencies = [
     "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     # End of shared logging dependencies
+    # Start of shared observability dependencies
+    "statsd>=3.3.0",
+    "datadog>=0.50.0",
+    # End of shared observability dependencies
 ]
 
 
