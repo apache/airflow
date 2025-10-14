@@ -130,7 +130,11 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_id",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.task_display_name} />
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+                <TruncatedText text={original.task_instance.task_id} />
+              </RouterLink>
+            </Link>
           ),
           header: translate("common:taskId"),
         },
@@ -141,9 +145,9 @@ const taskInstanceColumns = ({
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "responded_at",
-    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
-    header: translate("response.received"),
+    accessorKey: "task_instance_operator",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
+    header: translate("common:task.operator"),
   },
   {
     accessorKey: "created_at",
@@ -156,9 +160,9 @@ const taskInstanceColumns = ({
     header: translate("response.responded_by_user_name"),
   },
   {
-    accessorKey: "task_instance_operator",
-    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
-    header: translate("common:task.operator"),
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
+    header: translate("response.received"),
   },
 ];
 
