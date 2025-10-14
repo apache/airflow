@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import google.auth
+import pendulum
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.api_core import page_iterator
@@ -682,8 +683,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert job_id == expected_job_id
 
     def test_get_run_after_or_logical_date(self):
-        import pendulum
-
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models import DagRun
             from airflow.sdk.definitions.context import Context

@@ -21,6 +21,7 @@ import json
 import re
 from unittest import mock
 
+import pendulum
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from airflow.providers.google.cloud.operators.workflows import (
@@ -35,6 +36,15 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsUpdateWorkflowOperator,
 )
 from airflow.utils.hashlib_wrapper import md5
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.dagrun import DagRun
+else:
+    from airflow.models.dagrun import DagRun
+    from airflow.utils.context import Context
 
 BASE_PATH = "airflow.providers.google.cloud.operators.workflows.{}"
 LOCATION = "europe-west1"
@@ -90,16 +100,6 @@ class TestWorkflowsCreateWorkflowOperator:
         assert result == mock_object.to_dict.return_value
 
     def test_execute_without_workflow_id(self):
-        import pendulum
-
-        from airflow.models.dagrun import DagRun
-
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.definitions.context import Context
-        else:
-            from airflow.utils.context import Context
         op = WorkflowsCreateWorkflowOperator(
             task_id="test_task",
             workflow=WORKFLOW,
