@@ -184,7 +184,7 @@ class DbtCloudHook(HttpHook):
     Interact with dbt Cloud using the V2 (V3 if supported) API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
-    :param timeout_seconds: The timeout in seconds for HTTP requests.
+    :param timeout_seconds: Optional. The timeout in seconds for HTTP requests. If not provided, no timeout is applied.
     :param retry_limit: The number of times to retry a request in case of failure.
     :param retry_delay: The delay in seconds between retries.
     :param retry_args: A dictionary of arguments to pass to the `tenacity.retry` decorator.
@@ -210,7 +210,7 @@ class DbtCloudHook(HttpHook):
     def __init__(
         self,
         dbt_cloud_conn_id: str = default_conn_name,
-        timeout_seconds: int = 180,
+        timeout_seconds: int | None = None,
         retry_limit: int = 1,
         retry_delay: float = 1.0,
         retry_args: dict[Any, Any] | None = None,
@@ -332,9 +332,8 @@ class DbtCloudHook(HttpHook):
         if proxy:
             extra_request_args["proxy"] = proxy
 
-        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds) if self.timeout_seconds is not None else None
 
-        # Create session once for the entire operation, outside the retry loop
         async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
             async for attempt in self._a_get_retry_object():
                 with attempt:
@@ -379,14 +378,16 @@ class DbtCloudHook(HttpHook):
     def _paginate(
         self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
     ) -> list[Response]:
-        extra_options: dict[str, Any] = {"timeout": self.timeout_seconds}
+        extra_options: dict[str, Any] = {}
+        if self.timeout_seconds is not None:
+            extra_options["timeout"] = self.timeout_seconds
         if proxies is not None:
             extra_options["proxies"] = proxies
         response = self.run_with_advanced_retry(
             _retry_args=self.retry_args,
             endpoint=endpoint,
             data=payload,
-            extra_options=extra_options
+            extra_options=extra_options or None
             )
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
@@ -417,7 +418,9 @@ class DbtCloudHook(HttpHook):
         self.method = method
         full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
         proxies = self._get_proxies(self.connection)
-        extra_options: dict[str, Any] = {"timeout": self.timeout_seconds}
+        extra_options: dict[str, Any] = {}
+        if self.timeout_seconds is not None:
+            extra_options["timeout"] = self.timeout_seconds
         if proxies is not None:
             extra_options["proxies"] = proxies
 
@@ -430,7 +433,7 @@ class DbtCloudHook(HttpHook):
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        return self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=full_endpoint, data=payload, extra_options=extra_options)
+        return self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=full_endpoint, data=payload, extra_options=extra_options or None)
 
     def list_accounts(self) -> list[Response]:
         """
