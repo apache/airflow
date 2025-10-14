@@ -305,7 +305,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '97be693bf18bc2f050667dd282d243e2824b81e2'  # frozen: 1.0.6
+    rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -341,7 +341,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 69e8371612aaabe3bb5e548eea7b426475399842  # frozen: v1.15.0
+    rev: 840cce705b583e3f1f152679df542776eb1a27da  # frozen: v1.15.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
