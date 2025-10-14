@@ -50,6 +50,7 @@ from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
+    from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
 
@@ -1832,7 +1833,6 @@ class TestTriggerDagRun:
         """Test that custom timetable's generate_run_id is used for manual triggers (issue #55908)."""
         from pendulum import DateTime
 
-        from airflow.timetables.base import DataInterval
         from airflow.timetables.interval import CronDataIntervalTimetable
 
         class CustomTimetable(CronDataIntervalTimetable):
