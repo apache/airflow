@@ -196,8 +196,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
 
   // Get all unique states from the data
-  const states = [...new Set(data.map((item) => item.state ?? "none"))];
-  
+  const states = useMemo(() => [...new Set(data.map((item) => item.state ?? "none"))], [data]);
+
   // Use Chakra's useToken hook to get color tokens for each state
   const stateColorTokens = useToken(
     "colors",
@@ -205,13 +205,15 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   );
 
   // Create a mapping of state to computed color values for ChartJS
-  const stateColorMap: Record<string, string> = {};
+  const stateColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
 
-  states.forEach((state, index) => {
-    if (state) {
-      stateColorMap[state] = resolveTokenValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
-    }
-  });
+    states.forEach((state, index) => {
+      map[state] = resolveTokenValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
+    });
+
+    return map;
+  }, [states, stateColorTokens]);
 
   const chartData = useMemo(
     () => ({
@@ -237,7 +239,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   );
 
   const handleBarHover = useMemo(
-    () => createHandleBarHover(data, setHoveredTaskId, infoSubtle),
+    () => createHandleBarHover(data, setHoveredTaskId, infoSubtle ?? ""),
     [data, setHoveredTaskId, infoSubtle],
   );
 
