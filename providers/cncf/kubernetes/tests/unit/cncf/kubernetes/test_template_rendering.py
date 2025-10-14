@@ -24,7 +24,7 @@ import yaml
 from kubernetes.client import models as k8s
 from sqlalchemy.orm import make_transient
 
-from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
 from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.session import create_session
@@ -170,7 +170,7 @@ def test_render_k8s_pod_yaml_with_custom_pod_template_and_pod_override(
     "only Airflow 3 is supported in providers",
 )
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-@mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
+@mock.patch.object(RTIF, "get_k8s_pod_yaml")
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
 def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, create_task_instance):
     # Create new TI for the same Task

@@ -124,7 +124,7 @@ class TestKubernetesDecoratorsBase:
         session = self.dag_maker.session
         dag_run = self.dag_maker.create_dagrun(run_id=f"k8s_decorator_test_{DEFAULT_DATE.date()}")
         ti = dag_run.get_task_instance(task.operator.task_id, session=session)
-        return_val = task.operator.execute(context=ti.get_template_context(session=session))
+        return_val = task.operator.execute(context=self.dag_maker.get_template_context(ti))
 
         return ti, return_val
 

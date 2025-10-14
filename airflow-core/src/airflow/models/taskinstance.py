@@ -85,10 +85,8 @@ from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComMod
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -1029,176 +1027,6 @@ class TaskInstance(Base, LoggingMixin):
 
         return dr
 
-    @classmethod
-    @provide_session
-    def _check_and_change_state_before_execution(
-        cls,
-        task_instance: TaskInstance,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        hostname: str = "",
-        pool: str | None = None,
-        external_executor_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> bool:
-        """
-        Check dependencies and then sets state to RUNNING if they are met.
-
-        Returns True if and only if state is set to RUNNING, which implies that task should be
-        executed, in preparation for _run_raw_task.
-
-        :param verbose: whether to turn on more verbose logging
-        :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
-        :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
-        :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
-        :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
-        :param ignore_ti_state: Disregards previous task instance state
-        :param mark_success: Don't run the task, mark its state as success
-        :param test_mode: Doesn't record success or failure in the DB
-        :param hostname: The hostname of the worker running the task instance.
-        :param pool: specifies the pool to use to run the task instance
-        :param external_executor_id: The identifier of the celery executor
-        :param session: SQLAlchemy ORM Session
-        :return: whether the state was changed to running or not
-        """
-        if TYPE_CHECKING:
-            assert task_instance.task
-
-        ti: TaskInstance = task_instance
-        task = task_instance.task
-        ti.refresh_from_task(task, pool_override=pool)
-        ti.test_mode = test_mode
-        ti.refresh_from_db(session=session, lock_for_update=True)
-        ti.hostname = hostname
-        ti.pid = None
-
-        if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
-            Stats.incr("previously_succeeded", tags=ti.stats_tags)
-
-        if not mark_success:
-            # Firstly find non-runnable and non-requeueable tis.
-            # Since mark_success is not set, we do nothing.
-            non_requeueable_dep_context = DepContext(
-                deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
-                ignore_all_deps=ignore_all_deps,
-                ignore_ti_state=ignore_ti_state,
-                ignore_depends_on_past=ignore_depends_on_past,
-                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-                ignore_task_deps=ignore_task_deps,
-                description="non-requeueable deps",
-            )
-            if not ti.are_dependencies_met(
-                dep_context=non_requeueable_dep_context, session=session, verbose=True
-            ):
-                session.commit()
-                return False
-
-            # For reporting purposes, we report based on 1-indexed,
-            # not 0-indexed lists (i.e. Attempt 1 instead of
-            # Attempt 0 for the first attempt).
-            # Set the task start date. In case it was re-scheduled use the initial
-            # start date that is recorded in task_reschedule table
-            # If the task continues after being deferred (next_method is set), use the original start_date
-            ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
-            if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                tr_start_date = session.scalar(
-                    TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
-                )
-                if tr_start_date:
-                    ti.start_date = tr_start_date
-
-            # Secondly we find non-runnable but requeueable tis. We reset its state.
-            # This is because we might have hit concurrency limits,
-            # e.g. because of backfilling.
-            dep_context = DepContext(
-                deps=REQUEUEABLE_DEPS,
-                ignore_all_deps=ignore_all_deps,
-                ignore_depends_on_past=ignore_depends_on_past,
-                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-                ignore_task_deps=ignore_task_deps,
-                ignore_ti_state=ignore_ti_state,
-                description="requeueable deps",
-            )
-            if not ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                ti.state = None
-                cls.logger().warning(
-                    "Rescheduling due to concurrency limits reached "
-                    "at task runtime. Attempt %s of "
-                    "%s. State set to NONE.",
-                    ti.try_number,
-                    ti.max_tries + 1,
-                )
-                ti.queued_dttm = timezone.utcnow()
-                session.merge(ti)
-                session.commit()
-                return False
-
-        if ti.next_kwargs is not None:
-            cls.logger().info("Resuming after deferral")
-        else:
-            cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
-
-        if not test_mode:
-            session.add(Log(TaskInstanceState.RUNNING.value, ti))
-
-        ti.state = TaskInstanceState.RUNNING
-        ti.emit_state_change_metric(TaskInstanceState.RUNNING)
-
-        if external_executor_id:
-            ti.external_executor_id = external_executor_id
-
-        ti.end_date = None
-        if not test_mode:
-            session.merge(ti).task = task
-        session.commit()
-
-        # Closing all pooled connections to prevent
-        # "max number of connections reached"
-        settings.engine.dispose()
-        if verbose:
-            if mark_success:
-                cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
-            else:
-                cls.logger().info("Executing %s on %s", ti.task, ti.logical_date)
-        return True
-
-    @provide_session
-    def check_and_change_state_before_execution(
-        self,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        pool: str | None = None,
-        external_executor_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> bool:
-        return TaskInstance._check_and_change_state_before_execution(
-            task_instance=self,
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            hostname=get_hostname(),
-            pool=pool,
-            external_executor_id=external_executor_id,
-            session=session,
-        )
-
     def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
         Send a time metric representing how much time a given state transition took.
@@ -1255,33 +1083,6 @@ class TaskInstance(Base, LoggingMixin):
 
         self.next_method = None
         self.next_kwargs = None
-
-    @provide_session
-    def _run_raw_task(
-        self,
-        mark_success: bool = False,
-        session: Session = NEW_SESSION,
-        **kwargs: Any,
-    ) -> None:
-        """Only kept for tests."""
-        from airflow.sdk.definitions.dag import _run_task
-
-        if mark_success:
-            self.set_state(TaskInstanceState.SUCCESS)
-            log.info("[DAG TEST] Marking success for %s ", self.task_id)
-            return None
-
-        # TODO (TaskSDK): This is the old ti execution path. The only usage is
-        # in TI.run(...), someone needs to analyse if it's still actually used
-        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
-        # mechanism as Operator.test().
-        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
-        if taskrun_result is None:
-            return None
-        if taskrun_result.error:
-            raise taskrun_result.error
-        self.task = taskrun_result.ti.task  # type: ignore[assignment]
-        return None
 
     @staticmethod
     @provide_session
@@ -1421,7 +1222,7 @@ class TaskInstance(Base, LoggingMixin):
     def update_rtif(self, rendered_fields, session: Session = NEW_SESSION):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        rtif = RenderedTaskInstanceFields(ti=self, render_templates=False, rendered_fields=rendered_fields)
+        rtif = RenderedTaskInstanceFields(ti=self, rendered_fields=rendered_fields)
         RenderedTaskInstanceFields.write(rtif, session=session)
         session.flush()
         RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id, session=session)
@@ -1433,54 +1234,6 @@ class TaskInstance(Base, LoggingMixin):
                 .where(TaskInstance.id == self.id)
                 .values(last_heartbeat_at=timezone.utcnow())
             )
-
-    @provide_session
-    def run(
-        self,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        pool: str | None = None,
-        session: Session = NEW_SESSION,
-        raise_on_defer: bool = False,
-    ) -> None:
-        """Run TaskInstance (only kept for tests)."""
-        # This method is only used in ti.run and dag.test and task.test.
-        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.serialized_objects import SerializedDAG
-
-        original_task = self.task
-        if TYPE_CHECKING:
-            assert original_task is not None
-            assert original_task.dag is not None
-
-        # We don't set up all tests well...
-        if not isinstance(original_task.dag, SerializedDAG):
-            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
-            self.task = serialized_dag.get_task(original_task.task_id)
-
-        res = self.check_and_change_state_before_execution(
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            pool=pool,
-            session=session,
-        )
-        self.task = original_task
-        if not res:
-            return
-
-        self._run_raw_task(mark_success=mark_success)
 
     @classmethod
     def fetch_handle_failure_context(
@@ -1753,32 +1506,6 @@ class TaskInstance(Base, LoggingMixin):
             pass
 
         return context
-
-    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
-    # This is intentionally left untyped so Mypy complains less about this dead code.
-    def render_templates(self, context=None, jinja_env=None):
-        """
-        Render templates in the operator fields.
-
-        If the task was originally mapped, this may replace ``self.task`` with
-        the unmapped, fully rendered BaseOperator. The original ``self.task``
-        before replacement is returned.
-        """
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-
-        if not context:
-            context = self.get_template_context()
-        original_task = self.task
-
-        # If self.task is mapped, this call replaces self.task to point to the
-        # unmapped BaseOperator created by this function! This is because the
-        # MappedOperator is useless for template rendering, and we need to be
-        # able to access the unmapped task instead.
-        original_task.render_template_fields(context, jinja_env)
-        if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task
-
-        return original_task
 
     def set_duration(self) -> None:
         """Set task instance duration."""

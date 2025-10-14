@@ -67,7 +67,7 @@ class TestSparkSqlOperator:
         assert self._config["yarn_queue"] == operator._yarn_queue
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator, session):
+    def test_templating(self, dag_maker, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             SparkSqlOperator,
             # Templated fields
@@ -78,6 +78,5 @@ class TestSparkSqlOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkSqlOperator = ti.task
+        task = dag_maker.render_templates(ti)
         assert task.sql == "sql"

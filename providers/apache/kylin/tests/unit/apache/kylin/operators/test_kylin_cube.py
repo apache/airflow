@@ -24,13 +24,23 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
-from airflow.utils import state, timezone
+from airflow.utils import state
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstances import render_templates
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+else:
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
@@ -198,7 +208,7 @@ class TestKylinCubeOperator:
             )
         session.add(ti)
         session.commit()
-        ti.render_templates()
+        operator = render_templates(ti, operator)
         assert getattr(operator, "project") == "learn_kylin"
         assert getattr(operator, "cube") == "kylin_sales_cube"
         assert getattr(operator, "command") == "build"
