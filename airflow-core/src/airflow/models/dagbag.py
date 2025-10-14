@@ -100,6 +100,12 @@ class DBDagBag:
             return None
         return self._read_dag(serdag)
 
+    def get_dag(self, dag_id: str, run_id: str, *, session: Session) -> SerializedDAG | None:
+        dag_run = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, session=session)
+        if dag_run:
+            return self.get_dag_for_run(dag_run=dag_run, session=session)
+        return None
+
 
 def generate_md5_hash(context):
     bundle_name = context.get_current_parameters()["bundle_name"]
