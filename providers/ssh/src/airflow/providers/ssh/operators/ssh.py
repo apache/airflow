@@ -129,7 +129,7 @@ class SSHOperator(BaseOperator):
                 )
             hook = SSHHook(
                 ssh_conn_id=self.ssh_conn_id,
-                remote_host=self.remote_host,
+                remote_host=self.remote_host or "",
                 conn_timeout=self.conn_timeout,
                 cmd_timeout=self.cmd_timeout,
                 banner_timeout=self.banner_timeout,
