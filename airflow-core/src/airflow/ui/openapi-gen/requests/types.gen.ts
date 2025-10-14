@@ -562,6 +562,7 @@ export type DAGDetailsResponse = {
     owner_links?: {
     [key: string]: (string);
 } | null;
+    is_favorite?: boolean;
     /**
      * Return file token.
      */
@@ -1834,6 +1835,7 @@ export type DAGWithLatestDagRunsResponse = {
 } | null;
     latest_dag_runs: Array<DAGRunResponse>;
     pending_actions: Array<HITLDetail>;
+    is_favorite: boolean;
     /**
      * Return file token.
      */
@@ -2386,12 +2388,6 @@ export type GetDagStatsData = {
 };
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
-
-export type GetDagReportsData = {
-    subdir: string;
-};
-
-export type GetDagReportsResponse = unknown;
 
 export type GetConfigData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
@@ -4468,33 +4464,6 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dagReports': {
-        get: {
-            req: GetDagReportsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
