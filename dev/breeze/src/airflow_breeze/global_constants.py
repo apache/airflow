@@ -70,6 +70,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "elasticsearch",
     "tinkerpop",
     "kafka",
     "localstack",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
@@ -203,7 +205,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.9.1"
+UV_VERSION = "0.9.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900

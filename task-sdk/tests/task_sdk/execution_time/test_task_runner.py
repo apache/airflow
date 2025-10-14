@@ -22,6 +22,7 @@ import functools
 import json
 import os
 import textwrap
+import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    AirflowTaskTimeout,
     DownstreamTasksSkipped,
 )
 from airflow.listeners import hookimpl
@@ -114,6 +116,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _execute_task,
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
@@ -497,6 +500,24 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
     # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
+
+
+def test_execution_timeout(create_runtime_ti):
+    def sleep_and_catch_other_exceptions():
+        with contextlib.suppress(Exception):
+            # Catching Exception should NOT catch AirflowTaskTimeout
+            time.sleep(5)
+
+    op = PythonOperator(
+        task_id="test_timeout",
+        execution_timeout=timedelta(seconds=1),
+        python_callable=sleep_and_catch_other_exceptions,
+    )
+
+    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
+
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):

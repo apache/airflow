@@ -14,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from datetime import timedelta
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class DagReportResponse(BaseModel):
-    """DAG Report serializer for responses."""
-
-    file: str
-    duration: timedelta
-    dag_num: int
-    task_num: int
-    dags: str
-    warning_num: int
-
-
-class DagReportCollectionResponse(BaseModel):
-    """DAG Report Collection serializer for responses."""
-
-    dag_reports: list[DagReportResponse]
-    total_entries: int
