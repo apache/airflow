@@ -502,7 +502,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
 
 
-def test_execution_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
+def test_execution_timeout(create_runtime_ti):
     def sleep_and_catch_other_exceptions():
         with contextlib.suppress(Exception):
             # Catching Exception should NOT catch AirflowTaskTimeout
@@ -515,9 +515,6 @@ def test_execution_timeout(time_machine, create_runtime_ti, mock_supervisor_comm
     )
 
     ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
-
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
 
     with pytest.raises(AirflowTaskTimeout):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
