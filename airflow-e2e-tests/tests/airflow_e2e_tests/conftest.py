@@ -148,9 +148,9 @@ def pytest_sessionfinish(session, exitstatus):
     if airflow_logs_path is not None:
         copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
-    # if compose_instance:
-    #     if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
-    #         compose_instance.stop()
+    if compose_instance:
+        if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+            compose_instance.stop()
 
 
 def generate_test_report(results):
