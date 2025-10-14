@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -397,17 +397,6 @@ export const ensureUseDagSourceServiceGetDagSourceData = (queryClient: QueryClie
 export const ensureUseDagStatsServiceGetDagStatsData = (queryClient: QueryClient, { dagIds }: {
   dagIds?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }), queryFn: () => DagStatsService.getDagStats({ dagIds }) });
-/**
-* Get Dag Reports
-* Get DAG report.
-* @param data The data for the request.
-* @param data.subdir
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const ensureUseDagReportServiceGetDagReportsData = (queryClient: QueryClient, { subdir }: {
-  subdir: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }), queryFn: () => DagReportService.getDagReports({ subdir }) });
 /**
 * Get Config
 * @param data The data for the request.
