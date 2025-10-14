@@ -236,7 +236,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             upstream,
             onlyFailed,
           }}
-          prevent_running_task={preventRunningTask}
+          preventRunningTask={preventRunningTask}
         />
       )}
     </>

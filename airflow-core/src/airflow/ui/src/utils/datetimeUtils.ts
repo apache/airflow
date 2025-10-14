@@ -63,7 +63,7 @@ export const formatDate = (
 };
 
 export const getRelativeTime = (date: string | null | undefined): string => {
-  if (date !== null && !date) {
+  if (!date) {
     return "";
   }
   return dayjs(date).fromNow();

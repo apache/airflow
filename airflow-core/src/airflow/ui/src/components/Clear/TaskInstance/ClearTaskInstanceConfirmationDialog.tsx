@@ -21,13 +21,13 @@ type Props = {
     upstream?: boolean;
     onlyFailed?: boolean;
   };
-  readonly prevent_running_task: boolean;
+  readonly preventRunningTask: boolean;
 };
 
-const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDetails, prevent_running_task }: Props) => {
+const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDetails, preventRunningTask }: Props) => {
   const { t: translate } = useTranslation();
   const { data, isFetching } = useClearTaskInstancesDryRun({
-    dagId: dagDetails?.dagId || "",
+    dagId: dagDetails?.dagId ?? "",
     options: {
       enabled: open && !!dagDetails,
       refetchOnMount: "always",
@@ -36,13 +36,13 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
       gcTime: 0,
     },
     requestBody: {
-      dag_run_id: dagDetails?.dagRunId,
+      dag_run_id: dagDetails?.dagRunId ?? "",
       include_downstream: dagDetails?.downstream,
       include_future: dagDetails?.future,
       include_past: dagDetails?.past,
       include_upstream: dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
-      task_ids: [[dagDetails?.taskId || "", dagDetails?.mapIndex || 0]],
+      task_ids: [[dagDetails?.taskId ?? "", dagDetails?.mapIndex ?? 0]],
     },
   });
 
@@ -58,13 +58,9 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
     return null;
   }
 
-  const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state
-  if (!prevent_running_task) {
-    handleConfirm();
-    return null;
-  }
-  
-  if (taskCurrentState !== "queued" && taskCurrentState !== "scheduled") {
+  const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state;
+  // Ensure handleConfirm is only called once
+  if (!preventRunningTask || (taskCurrentState !== "queued" && taskCurrentState !== "scheduled")) {
     handleConfirm();
     return null;
   }
@@ -76,10 +72,10 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
           <VStack align={"start"} gap={4}>
             <Dialog.Title>
               <>
-              <Icon size="md" color="tomato">
-                <GoAlertFill />
-              </Icon>
-              {translate("dags:runAndTaskActions.confirmationDialog.title")}
+                <Icon size="md" color="tomato">
+                  <GoAlertFill />
+                </Icon>
+                {translate("dags:runAndTaskActions.confirmationDialog.title")}
               </>
             </Dialog.Title>
             <Dialog.Description>
@@ -87,7 +83,7 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
                 <>
                   {translate("dags:runAndTaskActions.confirmationDialog.description", {
                     state: taskCurrentState,
-                    time: data.task_instances[0].start_date && (getRelativeTime(data.task_instances[0].start_date)),
+                    time: data.task_instances[0].start_date && getRelativeTime(data.task_instances[0].start_date),
                     user: data.task_instances[0].unixname || "unknown user",
                   })}
                 </>
