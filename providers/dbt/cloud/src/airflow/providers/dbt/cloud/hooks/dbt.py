@@ -210,8 +210,8 @@ class DbtCloudHook(HttpHook):
     def __init__(
         self,
         dbt_cloud_conn_id: str = default_conn_name,
-        timeout_seconds: int = 30,
-        retry_limit: int = 3,
+        timeout_seconds: int = 180,
+        retry_limit: int = 1,
         retry_delay: float = 1.0,
         retry_args: dict[Any, Any] | None = None,
     ) -> None:
@@ -380,7 +380,12 @@ class DbtCloudHook(HttpHook):
         self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
     ) -> list[Response]:
         extra_options = {"proxies": proxies} if proxies is not None else None
-        response = self.run(endpoint=endpoint, data=payload, extra_options=extra_options)
+        response = self.run_with_advanced_retry(
+            _retry_args=self.retry_args,
+            endpoint=endpoint,
+            data=payload,
+            extra_options=extra_options
+            )
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
@@ -391,7 +396,7 @@ class DbtCloudHook(HttpHook):
             _paginate_payload["offset"] = limit
 
             while num_current_results < num_total_results:
-                response = self.run(endpoint=endpoint, data=_paginate_payload, extra_options=extra_options)
+                response = self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=endpoint, data=_paginate_payload, extra_options=extra_options)
                 resp_json = response.json()
                 results.append(response)
                 num_current_results += resp_json["extra"]["pagination"]["count"]
@@ -421,7 +426,7 @@ class DbtCloudHook(HttpHook):
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        return self.run(endpoint=full_endpoint, data=payload, extra_options=extra_options)
+        return self.run_with_advanced_retry(_retry_args=self.retry_args, endpoint=full_endpoint, data=payload, extra_options=extra_options)
 
     def list_accounts(self) -> list[Response]:
         """
