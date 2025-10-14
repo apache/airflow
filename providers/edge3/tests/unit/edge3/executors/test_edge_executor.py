@@ -31,7 +31,7 @@ from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWork
 from airflow.providers.edge3.version_compat import timezone
 
 try:
-    from airflow._shared.observability.stats import Stats
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
