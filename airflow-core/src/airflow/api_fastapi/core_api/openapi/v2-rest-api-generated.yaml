@@ -2704,53 +2704,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dagReports:
-    get:
-      tags:
-      - DagReport
-      summary: Get Dag Reports
-      description: Get DAG report.
-      operationId: get_dag_reports
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: subdir
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Subdir
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/config:
     get:
       tags:
