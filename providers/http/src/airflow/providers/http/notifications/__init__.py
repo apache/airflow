@@ -16,5 +16,3 @@
 # under the License.
 
 from __future__ import annotations
-
-from airflow.providers.http.notifications.http import HttpNotifier
