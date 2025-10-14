@@ -1080,6 +1080,71 @@ class TestDbtCloudHook:
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
 
+    @pytest.mark.parametrize(
+        argnames="timeout_seconds",
+        argvalues=[60, 180, 300],
+        ids=["60s", "180s", "300s"],
+    )
+    @patch.object(DbtCloudHook, "run_with_advanced_retry")
+    def test_timeout_passed_to_run_and_get_response(self, mock_run_with_retry, timeout_seconds):
+        """Test that timeout is passed to extra_options in _run_and_get_response."""
+        hook = DbtCloudHook(ACCOUNT_ID_CONN, timeout_seconds=timeout_seconds)
+        mock_run_with_retry.return_value = mock_response_json({"data": {"id": JOB_ID}})
+        
+        hook.get_job(job_id=JOB_ID, account_id=DEFAULT_ACCOUNT_ID)
+        
+        call_args = mock_run_with_retry.call_args
+        assert call_args is not None
+        extra_options = call_args.kwargs.get("extra_options")
+        assert extra_options is not None
+        assert extra_options["timeout"] == timeout_seconds
+
+    @pytest.mark.parametrize(
+        argnames="timeout_seconds",
+        argvalues=[60, 180, 300],
+        ids=["60s", "180s", "300s"],
+    )
+    @patch.object(DbtCloudHook, "run_with_advanced_retry")
+    def test_timeout_passed_to_paginate(self, mock_run_with_retry, timeout_seconds):
+        """Test that timeout is passed to extra_options in _paginate."""
+        hook = DbtCloudHook(ACCOUNT_ID_CONN, timeout_seconds=timeout_seconds)
+        mock_response = mock_response_json({
+            "data": [{"id": JOB_ID}],
+            "extra": {
+                "filters": {"limit": 100},
+                "pagination": {"count": 1, "total_count": 1}
+            }
+        })
+        mock_run_with_retry.return_value = mock_response
+        
+        hook.list_jobs(account_id=DEFAULT_ACCOUNT_ID)
+        
+        call_args = mock_run_with_retry.call_args
+        assert call_args is not None
+        extra_options = call_args.kwargs.get("extra_options")
+        assert extra_options is not None
+        assert extra_options["timeout"] == timeout_seconds
+
+    @pytest.mark.parametrize(
+        argnames="timeout_seconds",
+        argvalues=[60, 180, 300],
+        ids=["60s", "180s", "300s"],
+    )
+    @patch.object(DbtCloudHook, "run_with_advanced_retry")
+    def test_timeout_with_proxies(self, mock_run_with_retry, timeout_seconds):
+        """Test that both timeout and proxies are passed to extra_options."""
+        hook = DbtCloudHook(PROXY_CONN, timeout_seconds=timeout_seconds)
+        mock_run_with_retry.return_value = mock_response_json({"data": {"id": JOB_ID}})
+        
+        hook.get_job(job_id=JOB_ID, account_id=DEFAULT_ACCOUNT_ID)
+        
+        call_args = mock_run_with_retry.call_args
+        assert call_args is not None
+        extra_options = call_args.kwargs.get("extra_options")
+        assert extra_options is not None
+        assert extra_options["timeout"] == timeout_seconds
+        assert "proxies" in extra_options
+        assert extra_options["proxies"] == EXTRA_PROXIES["proxies"]
 
     @pytest.mark.parametrize(
         argnames="exception, expected",
@@ -1138,10 +1203,11 @@ class TestDbtCloudHook:
             return cm
 
         ok_resp = AsyncMock()
-        ok_resp.raise_for_status.return_value = None
+        ok_resp.raise_for_status = MagicMock(return_value=None)
         ok_resp.json = AsyncMock(return_value={"data": "Success"})
         ok_cm = AsyncMock()
         ok_cm.__aenter__.return_value = ok_resp
+        ok_cm.__aexit__.return_value = AsyncMock()
 
         all_resp = [fail_cm() for _ in range(retry_qty - 1)]
         all_resp.append(ok_cm)
