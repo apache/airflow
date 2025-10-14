@@ -16,25 +16,32 @@
 # under the License.
 from __future__ import annotations
 
-from task_sdk_tests import console
-from task_sdk_tests.constants import (
-    TASK_SDK_API_VERSION,
-)
+import time
+
+from airflow.sdk import DAG, task
+
+dag = DAG("test_dag", description="Test DAG for Task SDK testing with long-running task", schedule=None)
 
 
-def test_task_sdk_health(sdk_client):
-    """Test Task SDK health check using session setup."""
-    client = sdk_client
+@task(dag=dag)
+def get_task_instance_id(ti=None):
+    """Task that returns its own task instance ID"""
+    return str(ti.id)
 
-    console.print("[yellow]Making health check request...")
-    response = client.get("health/ping", headers={"Airflow-API-Version": TASK_SDK_API_VERSION})
 
-    console.print(" Health Check Response ".center(72, "="))
-    console.print(f"[bright_blue]Status Code:[/] {response.status_code}")
-    console.print(f"[bright_blue]Response:[/] {response.json()}")
-    console.print("=" * 72)
+@task(dag=dag)
+def long_running_task(ti=None):
+    """Long-running task that sleeps for 5 minutes to allow testing"""
+    print(f"Starting long-running task with TI ID: {ti.id}")
+    print("This task will run for 5 minutes to allow API testing...")
 
-    assert response.status_code == 200
-    assert response.json() == {"ok": ["airflow.api_fastapi.auth.tokens.JWTValidator"], "failing": {}}
+    time.sleep(3000)
 
-    console.print("[green]✅ Task SDK health check passed!")
+    print("Long-running task completed!")
+    return "test completed"
+
+
+get_ti_id = get_task_instance_id()
+long_task = long_running_task()
+
+get_ti_id >> long_task
