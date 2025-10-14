@@ -314,6 +314,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         be returned.
     :param output_file_name: Optional. The desired file name for the download artifact file.
         Defaults to <run_id>_<path> (e.g. "728368_run_results.json").
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     template_fields = ("dbt_cloud_conn_id", "run_id", "path", "account_id", "output_file_name")
@@ -327,6 +328,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         account_id: int | None = None,
         step: int | None = None,
         output_file_name: str | None = None,
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -336,9 +338,10 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.account_id = account_id
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context) -> str:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
@@ -373,6 +376,7 @@ class DbtCloudListJobsOperator(BaseOperator):
     :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
         For example, to use reverse order by the run ID use ``order_by=-id``.
     :param project_id: Optional. The ID of a dbt Cloud project.
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     template_fields = (
@@ -387,6 +391,7 @@ class DbtCloudListJobsOperator(BaseOperator):
         account_id: int | None = None,
         project_id: int | None = None,
         order_by: str | None = None,
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -394,9 +399,10 @@ class DbtCloudListJobsOperator(BaseOperator):
         self.account_id = account_id
         self.project_id = project_id
         self.order_by = order_by
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context) -> list:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
         list_jobs_response = hook.list_jobs(
             account_id=self.account_id, order_by=self.order_by, project_id=self.project_id
         )
