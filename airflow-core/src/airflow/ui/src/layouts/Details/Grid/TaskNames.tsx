@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, chakra, Flex, Link } from "@chakra-ui/react";
+import { Box, chakra, Flex, Link, useToken } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
@@ -25,6 +25,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 import { type HoverContextType, useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
+import { resolveTokenValue } from "src/theme";
 
 import type { GridTask } from "./utils";
 
@@ -40,11 +41,12 @@ const onMouseEnter = (
   event: MouseEvent<HTMLDivElement>,
   nodeId: string,
   setHoveredTaskId: HoverContextType["setHoveredTaskId"],
+  hoverColor: string,
 ) => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    task.style.backgroundColor = hoverColor;
   });
 
   setHoveredTaskId(nodeId);
@@ -67,6 +69,9 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
+  const [hoverColor] = useToken("colors", ["info.subtle"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
+
   return nodes.map((node, index) => (
     <Box
       bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
@@ -77,7 +82,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
       maxHeight="20px"
-      onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId)}
+      onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId, hoverColor ?? "")}
       onMouseLeave={() => onMouseLeave(node.id, setHoveredTaskId)}
       transition="background-color 0.2s"
     >
