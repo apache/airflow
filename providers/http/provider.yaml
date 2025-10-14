@@ -98,6 +98,7 @@ hooks:
 
 notifications:
   - airflow.providers.http.notifications.HttpNotifier
+
 triggers:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
