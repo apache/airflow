@@ -89,7 +89,7 @@ def mock_cursor(mock_get_conn: MagicMock | mock.AsyncMock):
     "custom_extra, expected_catalog, expected_protocol, expected_source, conn_schema_override, expected_query_schema",
     [
         pytest.param(
-            {"catalog": "reporting_db", "protocol": "https"},
+            {"catalog": "reporting_db", "protocol": "https", "source": "airflow"},
             "reporting_db",
             "https",
             "airflow",
@@ -99,21 +99,21 @@ def mock_cursor(mock_get_conn: MagicMock | mock.AsyncMock):
         ),
         pytest.param(
             {"source": "my_dag_run"},
-            "hive",
-            "http",
+            None,
+            "http",   
             "my_dag_run",
             "test_schema",
             "test_schema",
-            id="custom_source_only",
+            id="missing_protocol_should_default_http",
         ),
         pytest.param(
-            {"catalog": "logs"},
+            {"protocol": None, "catalog": "logs"},
             "logs",
-            "http",
+            "http",  
             "airflow",
             None,
             None,
-            id="empty_schema_in_connection",
+            id="explicit_protocol_none_should_default_http",
         ),
         pytest.param(
             {},
@@ -126,6 +126,7 @@ def mock_cursor(mock_get_conn: MagicMock | mock.AsyncMock):
         ),
     ],
 )
+
 def test_sqlalchemy_url_property(
     presto_hook,
     create_connection_without_db,
@@ -149,21 +150,25 @@ def test_sqlalchemy_url_property(
         schema=conn_schema_override or "",
         extra=json.dumps(custom_extra) if custom_extra else None,
     )
+    expected_catalog = custom_extra.get("catalog")
+    expected_protocol = custom_extra.get("protocol", "http")
+    expected_source = custom_extra.get("source")
+    
     create_connection_without_db(temp_conn)
 
-    # Patch the hook to return this exact connection
+
     with patch.object(presto_hook, "get_connection", return_value=temp_conn):
         url = presto_hook.sqlalchemy_url
 
-        # Check host, port, user, password, database
+
         assert url.host == DEFAULT_HOST
         assert url.port == DEFAULT_PORT
         assert url.username == DEFAULT_LOGIN
         assert url.password == DEFAULT_PASSWORD
         assert url.database == expected_catalog
 
-        # Check query parameters
         query = url.query
+        
         assert query.get("protocol") == expected_protocol
         assert query.get("source") == expected_source
         assert query.get("schema") == expected_query_schema
@@ -222,6 +227,7 @@ def test_run_single_query(
 
 def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
     """Test that get_sqlalchemy_engine returns a SQLAlchemy engine with the correct URL."""
+    
     mock_create_engine = mocker.patch("airflow.providers.common.sql.hooks.sql.create_engine", autospec=True)
     mock_engine = MagicMock()
     mock_create_engine.return_value = mock_engine
@@ -241,7 +247,7 @@ def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
     assert actual_url.password == DEFAULT_PASSWORD
     assert actual_url.port == DEFAULT_PORT
     assert actual_url.username == DEFAULT_LOGIN
-    assert actual_url.database == "hive"
+    assert actual_url.database == mock_connection.schema
     assert actual_url.query.get("protocol") == "http"
     assert actual_url.query.get("source") == "airflow"
     assert actual_url.query.get("schema") == "presto_db"
