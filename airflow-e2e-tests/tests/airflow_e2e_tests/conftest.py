@@ -35,7 +35,6 @@ from airflow_e2e_tests.constants import (
     E2E_TEST_MODE,
     LOCALSTACK_PATH,
     AWS_INIT_PATH,
-
 )
 
 console = Console(width=400, color_system="standard")
@@ -44,11 +43,9 @@ airflow_logs_path = None
 
 
 def _set_up_s3_integration(dot_env_file, tmp_dir):
-    copyfile(LOCALSTACK_PATH,
-             tmp_dir / "localstack.yml")
+    copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
 
-    copyfile(AWS_INIT_PATH,
-             tmp_dir / "init-aws.sh")
+    copyfile(AWS_INIT_PATH, tmp_dir / "init-aws.sh")
     current_permissions = os.stat(tmp_dir / "init-aws.sh").st_mode
     os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
 
@@ -59,7 +56,9 @@ def _set_up_s3_integration(dot_env_file, tmp_dir):
         "AWS_DEFAULT_REGION=us-east-1\n"
         "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
         "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW_CONN_AWS_S3_LOGS=aws://test:test@\n"
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
+        "AIRFLOW__LOGGING__DELETE_LOCAL_LOGS=true\n"
         "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://test-airflow-logs\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
@@ -102,9 +101,7 @@ def spin_up_airflow_environment(tmp_path_factory):
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
 
     console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-    compose_instance = DockerCompose(tmp_dir,
-                                     compose_file_name=compose_file_names,
-                                     pull=pull)
+    compose_instance = DockerCompose(tmp_dir, compose_file_name=compose_file_names, pull=pull)
 
     compose_instance.start()
 
