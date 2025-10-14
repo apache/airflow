@@ -157,9 +157,13 @@ def test_generic_params():
 @mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
+    import random
+
+    task_id = f"test_datasync_create_task_operator_{random.randint(0, 1000)}"
+
     def set_up_operator(
         self,
-        task_id="test_datasync_create_task_operator",
+        task_id=task_id,
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
@@ -191,7 +195,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
     def test_init(self, mock_get_conn):
         self.set_up_operator()
         # Airflow built-ins
-        assert self.datasync.task_id == MOCK_DATA["create_task_id"]
+        assert self.datasync.task_id.rsplit("_", 1)[0] == MOCK_DATA["create_task_id"]
         # Defaults
         assert self.datasync.aws_conn_id == "aws_default"
         assert not self.datasync.allow_random_task_choice
@@ -217,11 +221,9 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         with pytest.raises(AirflowException):
             self.set_up_operator(source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None, task_id="datasync_task2")
+            self.set_up_operator(destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(
-                source_location_uri=None, destination_location_uri=None, task_id="datasync_task3"
-            )
+            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
