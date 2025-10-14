@@ -74,7 +74,7 @@ def _providers_configuration_loaded(func):
     return wrapper
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def flower(args):
     """Start Flower, Celery monitoring tool."""
@@ -186,7 +186,7 @@ def logger_setup_handler(logger, **kwargs):
         logger.handlers[:] = [below_error_handler, from_error_handler]
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=not AIRFLOW_V_3_0_PLUS)
 @_providers_configuration_loaded
 def worker(args):
     """Start Airflow Celery worker."""
@@ -239,11 +239,11 @@ def worker(args):
         args.queues,
         "--concurrency",
         args.concurrency,
-        "--hostname",
-        args.celery_hostname,
         "--loglevel",
         celery_log_level,
     ]
+    if args.celery_hostname:
+        options.extend(["--hostname", args.celery_hostname])
     if autoscale:
         options.extend(["--autoscale", autoscale])
     if args.without_mingle:
@@ -288,7 +288,7 @@ def worker(args):
     )
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def stop_worker(args):
     """Send SIGTERM to Celery worker."""
@@ -322,7 +322,7 @@ def _check_if_active_celery_worker(hostname: str):
         raise SystemExit(f"Error: {hostname} is unknown!")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def list_workers(args):
     """List all active celery workers."""
@@ -343,7 +343,7 @@ def list_workers(args):
     AirflowConsole().print_as(data=workers, output=args.output)
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def shutdown_worker(args):
     """Request graceful shutdown of a celery worker."""
@@ -354,7 +354,7 @@ def shutdown_worker(args):
     celery_app.control.shutdown(destination=[args.celery_hostname])
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def shutdown_all_workers(args):
     """Request graceful shutdown all celery workers."""
@@ -372,7 +372,7 @@ def shutdown_all_workers(args):
     celery_app.control.broadcast("shutdown")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def add_queue(args):
     """Subscribe a Celery worker to specified queues."""
@@ -385,7 +385,7 @@ def add_queue(args):
         celery_app.control.add_consumer(queue, destination=[args.celery_hostname])
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def remove_queue(args):
     """Unsubscribe a Celery worker from specified queues."""
@@ -396,3 +396,35 @@ def remove_queue(args):
     queues = args.queues.split(",")
     for queue in queues:
         celery_app.control.cancel_consumer(queue, destination=[args.celery_hostname])
+
+
+@cli_utils.action_cli(check_db=False)
+@_providers_configuration_loaded
+def remove_all_queues(args):
+    """Unsubscribe a Celery worker from all its active queues."""
+    _check_if_active_celery_worker(hostname=args.celery_hostname)
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    inspect = celery_app.control.inspect()
+    active_workers = inspect.active_queues()
+
+    if not active_workers or args.celery_hostname not in active_workers:
+        print(f"No active queues found for worker: {args.celery_hostname}")
+        return
+
+    worker_queues = active_workers[args.celery_hostname]
+    queue_names = [queue["name"] for queue in worker_queues if "name" in queue]
+
+    if not queue_names:
+        print(f"No queues to remove for worker: {args.celery_hostname}")
+        return
+
+    print(
+        f"Removing {len(queue_names)} queue(s) from worker {args.celery_hostname}: {', '.join(queue_names)}"
+    )
+
+    for queue_name in queue_names:
+        celery_app.control.cancel_consumer(queue_name, destination=[args.celery_hostname])
+
+    print(f"Successfully removed all queues from worker: {args.celery_hostname}")

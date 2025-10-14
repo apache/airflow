@@ -36,6 +36,7 @@
 
     Connection types <connections/http>
     Operators <operators>
+    Triggers <triggers>
 
 .. toctree::
     :hidden:

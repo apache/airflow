@@ -30,8 +30,6 @@ Changelog
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -50,8 +48,6 @@ Misc
 6.1.4
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

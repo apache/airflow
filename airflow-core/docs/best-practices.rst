@@ -310,7 +310,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.13.1"
+      pip install "ruff>=0.14.0"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -346,8 +346,6 @@ Running ``ruff`` will produce:
    dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
-
-For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
 
 .. _best_practices/dynamic_dag_generation:
 
@@ -727,7 +725,7 @@ Unit tests ensure that there is no incorrect code in your Dag. You can write uni
 
     import pytest
 
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
 
     @pytest.fixture()

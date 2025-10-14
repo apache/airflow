@@ -28,11 +28,20 @@ Changelog
 ---------
 
 
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix import for SMTP provider (#56053)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.3.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
@@ -45,8 +54,6 @@ Features
 2.2.1
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

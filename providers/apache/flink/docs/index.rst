@@ -70,8 +70,6 @@ apache-airflow-providers-apache-flink package
 
 Release: 1.7.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

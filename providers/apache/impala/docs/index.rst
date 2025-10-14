@@ -86,8 +86,6 @@ apache-airflow-providers-apache-impala package
 
 Release: 1.7.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
