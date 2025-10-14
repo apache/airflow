@@ -202,7 +202,7 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
 
   test-e2e-integration-tests-remote-log:
-    name: "Test e2e integration tests with PROD image"
+    name: "Remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
       runners: ${{ inputs.runners }}

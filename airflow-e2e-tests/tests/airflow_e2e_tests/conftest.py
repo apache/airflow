@@ -42,7 +42,7 @@ compose_instance = None
 airflow_logs_path = None
 
 
-def _set_up_s3_integration(dot_env_file, tmp_dir):
+def _setup_s3_integration(dot_env_file, tmp_dir):
     copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
 
     copyfile(AWS_INIT_PATH, tmp_dir / "init-aws.sh")
@@ -51,8 +51,6 @@ def _set_up_s3_integration(dot_env_file, tmp_dir):
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
-        "AWS_ACCESS_KEY_ID=test\n"
-        "AWS_SECRET_ACCESS_KEY=test\n"
         "AWS_DEFAULT_REGION=us-east-1\n"
         "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
         "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
@@ -94,7 +92,7 @@ def spin_up_airflow_environment(tmp_path_factory):
 
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
-        _set_up_s3_integration(dot_env_file, tmp_dir)
+        _setup_s3_integration(dot_env_file, tmp_dir)
 
     # If we are using the image from ghcr.io/apache/airflow/main we do not pull
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
