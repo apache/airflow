@@ -784,6 +784,7 @@ class AssetEvent(Base):
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     __tablename__ = "asset_event"
     __table_args__ = (
@@ -857,5 +858,48 @@ class AssetEvent(Base):
             "source_map_index",
             "source_aliases",
         ]:
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class AssetPartitionDagRun(Base):
+    """
+    Keep track of new runs of a dag run per partition key.
+
+    Where dag_run_id is null, the dag run has not yet been created.
+    We should not allow more than one like this. But to guard against
+    an accident, we should always work on the latest one.
+
+    """
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_dag_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
+
+    __tablename__ = "asset_partition_dag_run"
+
+
+class PartitionedAssetKeyLog(Base):
+    """Model for storing asset events that need processing."""
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    asset_event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    asset_partition_dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "partitioned_asset_key_log"
+
+    def __repr__(self):
+        args = []
+        for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
