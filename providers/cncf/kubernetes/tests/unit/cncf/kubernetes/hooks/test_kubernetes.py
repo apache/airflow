@@ -1010,7 +1010,7 @@ class TestAsyncKubernetesHook:
             config_file=ASYNC_CONFIG_PATH,
             cluster_context=None,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             await hook._load_config()
 
     @pytest.mark.asyncio

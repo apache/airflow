@@ -30,7 +30,12 @@ if TYPE_CHECKING:
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
-from airflow.sdk.exceptions import AirflowException
+try:
+    from airflow.sdk.exceptions import AirflowException
+except ModuleNotFoundError:
+    # The shared libraries are unable to see the 'sdk' package, so redefine here
+    class AirflowException(Exception):  # type: ignore[no-redef]
+        """Base class for all Airflow exceptions."""
 
 
 class TaskNotFound(AirflowException):
@@ -45,17 +50,6 @@ class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
     status_code = HTTPStatus.BAD_REQUEST
-
-
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
-
-    status_code = HTTPStatus.NOT_FOUND
-
-
-class AirflowSensorTimeout(AirflowException):
-    """Raise when there is a timeout on sensor polling."""
-
 
 class AirflowRescheduleException(AirflowException):
     """
@@ -299,6 +293,10 @@ class DeserializationError(Exception):
             super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
 
 
+class AirflowClearRunningTaskException(AirflowException):
+    """Raise when the user attempts to clear currently running tasks."""
+
+
 _DEPRECATED_EXCEPTIONS = {
     "AirflowTaskTerminated": "airflow.sdk.exceptions.AirflowTaskTerminated",
     "DuplicateTaskIdFound": "airflow.sdk.exceptions.DuplicateTaskIdFound",
@@ -339,5 +337,4 @@ def __getattr__(name: str):
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
-class AirflowClearRunningTaskException(AirflowException):
-    """Raise when the user attempts to clear currently running tasks."""
+
