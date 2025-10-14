@@ -77,6 +77,14 @@ dependencies = [
     "packaging>=24.0",
     "typing-extensions>=4.14.1",
     # End of shared configuration dependencies
+    # Start of shared observability dependencies
+    "sqlalchemy>=1.4.36",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "opentelemetry-proto<9999,>=1.27.0",
+    "statsd>=3.3.0",
+    "datadog>=0.50.0",
+    # End of shared observability dependencies
 ]
 
 [project.optional-dependencies]
