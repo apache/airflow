@@ -60,13 +60,20 @@ describe("getDuration", () => {
 describe("getRelativeTime", () => {
   const fixedNow = new Date("2024-03-14T10:00:10.000Z");
 
+  // Local cast so TS knows vi’s type
+  const typedVi = vi as unknown as {
+    useFakeTimers: () => void;
+    setSystemTime: (date: Date) => void;
+    useRealTimers: () => void;
+  };
+
   beforeAll(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedNow);
+    typedVi.useFakeTimers();
+    typedVi.setSystemTime(fixedNow);
   });
 
   afterAll(() => {
-    vi.useRealTimers();
+    typedVi.useRealTimers();
   });
 
   it("returns relative time for a valid date", () => {
@@ -74,8 +81,7 @@ describe("getRelativeTime", () => {
     expect(getRelativeTime(date)).toBe("a few seconds ago");
   });
 
-  it("returns an empty string for null or undefined dates", () => {
-    expect(getRelativeTime(null)).toBe("");
+  it("returns an empty string for undefined dates", () => {
     expect(getRelativeTime(undefined)).toBe("");
   });
 

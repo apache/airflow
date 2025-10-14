@@ -1,7 +1,7 @@
+import { useEffect } from "react";
 import { VStack, Icon } from "@chakra-ui/react";
 import { GoAlertFill } from "react-icons/go";
 import { useTranslation } from "react-i18next";
-
 import { Button, Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { getRelativeTime } from "src/utils/datetimeUtils";
@@ -24,7 +24,13 @@ type Props = {
   readonly preventRunningTask: boolean;
 };
 
-const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDetails, preventRunningTask }: Props) => {
+const ClearTaskInstanceConfirmationDialog = ({
+  onClose,
+  open,
+  onConfirm,
+  dagDetails,
+  preventRunningTask,
+}: Props) => {
   const { t: translate } = useTranslation();
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId ?? "",
@@ -46,30 +52,33 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
     },
   });
 
-  // Shared confirm handler to reduce duplication
   const handleConfirm = () => {
-    if (onConfirm) {
-      onConfirm();
-    }
+    if (onConfirm !== undefined) onConfirm();
     onClose();
   };
+  
+  const taskCurrentState = data?.task_instances?.[0]?.state;
 
-  if (isFetching) {
-    return null;
-  }
+  useEffect(() => {
+    if (!isFetching && open && data) {
+      const isRunningState =
+        taskCurrentState === "queued" ||
+        taskCurrentState === "scheduled" 
 
-  const taskCurrentState = !isFetching && data && data.task_instances?.[0]?.state;
-  // Ensure handleConfirm is only called once
-  if (!preventRunningTask || (taskCurrentState !== "queued" && taskCurrentState !== "scheduled")) {
-    handleConfirm();
-    return null;
-  }
+      if (!preventRunningTask || !isRunningState) {
+        handleConfirm();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFetching, data, open]);
+
+  if (isFetching) return null;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <VStack align={"start"} gap={4}>
+          <VStack align="start" gap={4}>
             <Dialog.Title>
               <>
                 <Icon size="md" color="tomato">
@@ -81,11 +90,16 @@ const ClearTaskInstanceConfirmationDialog = ({ onClose, open, onConfirm, dagDeta
             <Dialog.Description>
               {data?.task_instances?.[0] && (
                 <>
-                  {translate("dags:runAndTaskActions.confirmationDialog.description", {
-                    state: taskCurrentState,
-                    time: data.task_instances[0].start_date && getRelativeTime(data.task_instances[0].start_date),
-                    user: data.task_instances[0].unixname || "unknown user",
-                  })}
+                  {translate(
+                    "dags:runAndTaskActions.confirmationDialog.description",
+                    {
+                      state: taskCurrentState,
+                      time:
+                        data.task_instances[0].start_date &&
+                        getRelativeTime(data.task_instances[0].start_date),
+                      user: data.task_instances[0].unixname || "unknown user",
+                    }
+                  )}
                 </>
               )}
             </Dialog.Description>
