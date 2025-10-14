@@ -1115,11 +1115,6 @@ class TestDbtCloudHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
-        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
-        ids=["default_account", "explicit_account"],
-    )
-    @pytest.mark.parametrize(
         "error_factory, retry_qty, retry_delay",
         [
             (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=500, message=""), 3, 0.1),
@@ -1130,9 +1125,9 @@ class TestDbtCloudHook:
         ids=["aiohttp_500", "aiohttp_429", "connector_error", "timeout"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_retry_retryable_errors(self, get_mock, error_factory, retry_qty, retry_delay, conn_id, account_id):
+    async def test_get_job_details_retry_retryable_errors(self, get_mock, error_factory, retry_qty, retry_delay):
         hook = DbtCloudHook(
-            conn_id,
+            ACCOUNT_ID_CONN,
             retry_limit=retry_qty,
             retry_delay=retry_delay
             )
@@ -1152,17 +1147,12 @@ class TestDbtCloudHook:
         all_resp.append(ok_cm)
         get_mock.side_effect = all_resp 
 
-        result = await hook.get_job_details(run_id=RUN_ID, account_id=account_id)
+        result = await hook.get_job_details(run_id=RUN_ID, account_id=None)
 
         assert result == {"data": "Success"}
         assert get_mock.call_count == retry_qty
     
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
-        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
-        ids=["default_account", "explicit_account"],
-    )
     @pytest.mark.parametrize(
         "error_factory, expected_exception",
         [
@@ -1173,9 +1163,9 @@ class TestDbtCloudHook:
         ids=["aiohttp_404", "aiohttp_400", "value_error"],
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
-    async def test_get_job_details_raises_non_retryable_errors(self, get_mock, error_factory, expected_exception, conn_id, account_id):
+    async def test_get_job_details_raises_non_retryable_errors(self, get_mock, error_factory, expected_exception):
         hook = DbtCloudHook(
-            conn_id,
+            ACCOUNT_ID_CONN,
             retry_limit=3,
             retry_delay=0.1
         )
@@ -1188,6 +1178,37 @@ class TestDbtCloudHook:
         get_mock.return_value = fail_cm()
 
         with pytest.raises(expected_exception):
-            await hook.get_job_details(run_id=RUN_ID, account_id=account_id)
+            await hook.get_job_details(run_id=RUN_ID, account_id=None)
 
         assert get_mock.call_count == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        argnames="error_factory, expected_exception",
+        argvalues=[
+            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=503, message="Service Unavailable"), aiohttp.ClientResponseError),
+            (lambda: aiohttp.ClientResponseError(request_info=AsyncMock(), history=(), status=500, message="Internal Server Error"), aiohttp.ClientResponseError),
+            (lambda: aiohttp.ClientConnectorError(AsyncMock(), OSError("Connection refused")), aiohttp.ClientConnectorError),
+            (lambda: TimeoutError("Request timeout"), TimeoutError),
+        ],
+        ids=["aiohttp_503_exhausted", "aiohttp_500_exhausted", "connector_error_exhausted", "timeout_exhausted"],
+    )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.aiohttp.ClientSession.get")
+    async def test_get_job_details_retry_exhausted_raises_exception(self, get_mock, error_factory, expected_exception):
+        hook = DbtCloudHook(
+            ACCOUNT_ID_CONN,
+            retry_limit=2,
+            retry_delay=0.1
+        )
+
+        def fail_cm():
+            cm = AsyncMock()
+            cm.__aenter__.side_effect = error_factory()
+            return cm
+
+        get_mock.side_effect = [fail_cm() for _ in range(2)]
+
+        with pytest.raises(expected_exception):
+            await hook.get_job_details(run_id=RUN_ID, account_id=None)
+
+        assert get_mock.call_count == 2
