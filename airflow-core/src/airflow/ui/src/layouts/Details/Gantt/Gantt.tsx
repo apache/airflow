@@ -89,10 +89,11 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [gridColor, selectedItemColor, hoveredItemColor] = useToken("colors", [
+  const [gridColor, selectedItemColor, hoveredItemColor, infoSubtle] = useToken("colors", [
     "gantt.grid.color",
     "gantt.bg.selected",
     "gantt.bg.hover",
+    "info.subtle",
   ]).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
@@ -236,8 +237,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   );
 
   const handleBarHover = useMemo(
-    () => createHandleBarHover(data, setHoveredTaskId),
-    [data, setHoveredTaskId],
+    () => createHandleBarHover(data, setHoveredTaskId, infoSubtle),
+    [data, setHoveredTaskId, infoSubtle],
   );
 
   const chartOptions = useMemo(

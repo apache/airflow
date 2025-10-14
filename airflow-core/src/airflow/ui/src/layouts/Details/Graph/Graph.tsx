@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -35,18 +35,20 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { resolveTokenValue } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
   evenColor?: string,
   oddColor?: string,
+  stateColorMap?: Record<string, string>,
 ) => {
   if (height === undefined || width === undefined || type === "join") {
     return "";
   }
 
-  if (taskInstance?.state !== undefined && !isOpen) {
-    return `var(--chakra-colors-${taskInstance.state}-solid)`;
+  if (taskInstance?.state && !isOpen && stateColorMap) {
+    return stateColorMap[taskInstance.state] ?? "";
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {
@@ -122,6 +124,27 @@ export const Graph = () => {
 
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
+  // Get unique states and their colors
+  const states = useMemo(
+    () => [...new Set(gridTISummaries?.task_instances.map((ti) => ti.state).filter(Boolean) ?? [])],
+    [gridTISummaries],
+  );
+
+  const stateColors = useToken(
+    "colors",
+    states.map((state) => `${state}.solid`),
+  ).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
+
+  const stateColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    states.forEach((state, index) => {
+      if (state && stateColors[index]) {
+        map[state] = stateColors[index];
+      }
+    });
+    return map;
+  }, [states, stateColors]);
+
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes = data?.nodes.map((node) => {
     const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
@@ -179,7 +202,7 @@ export const Graph = () => {
       <Controls showInteractive={false} />
       <MiniMap
         nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          nodeColor(node, groupEven, groupOdd)
+          nodeColor(node, groupEven, groupOdd, stateColorMap)
         }
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
           node.data.isSelected && selectedStroke !== undefined ? selectedStroke : ""
