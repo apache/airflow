@@ -253,13 +253,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date`'
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date`'
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
