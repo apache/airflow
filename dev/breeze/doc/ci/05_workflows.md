@@ -245,23 +245,23 @@ Successful test runs trigger several cleanup and publishing tasks:
 
 Here's what each workflow group does and when it runs:
 
-| Workflow Group                     | Purpose                                                    | PR      | main    | v*-*-test |
-|------------------------------------|------------------------------------------------------------|---------|---------|-----------|
-| **Build Info**                     | Analyzes changes and determines which tests to run        | Yes     | Yes     | Yes       |
-| **Basic Tests**                    | Runs quick validation: Breeze, UI, static checks          | Yes     | Yes     | Yes       |
-| **CI Image Build**                 | Builds Docker images for testing                          | Yes     | Yes     | Yes       |
-| **Additional CI Image Checks**     | Validates CI images meet quality standards                | Yes     | Yes     | Yes       |
-| **Generate Constraints**           | Creates dependency version lock files                     | Yes     | Yes     | Yes       |
-| **CI Image Checks**                | Runs static analysis and builds docs (AMD only)          | Yes     | Yes     | Yes       |
-| **Provider Tests**                 | Tests integration with external services                  | Yes     | Yes     | Yes (1)   |
-| **Unit Tests (Multiple Groups)**   | Runs core functionality tests with different databases    | Yes     | Yes     | Yes (1)   |
-| **Special Tests**                  | Handles integration and system tests (AMD only)          | Yes (3) | Yes     | Yes (1)   |
-| **Helm Tests**                     | Tests Kubernetes deployment via Helm                     | Yes     | Yes     | Yes (1)       |
-| **PROD Image Build**               | Builds production-ready Docker images                    | Yes     | Yes     | Yes       |
-| **Additional PROD Image Tests**    | Final validation of production images (AMD only)         | Yes     | Yes     | Yes       |
-| **Kubernetes Tests**               | Tests deployment in Kubernetes environments              | Yes     | Yes     | Yes (1)       |
-| **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                  | Yes     | Yes     | Yes       |
-| **Finalize Tests**                 | Publishes results and updates shared resources           | Yes     | Yes (2) | Yes (2)   |
+| Workflow Group                     | Purpose                                                     | PR      | main    | v*-*-test |
+|------------------------------------|-------------------------------------------------------------|---------|---------|-----------|
+| **Build Info**                     | Analyzes changes and determines which tests to run          | Yes     | Yes     | Yes       |
+| **Basic Tests**                    | Runs quick validation: Breeze, UI, static checks            | Yes     | Yes     | Yes       |
+| **CI Image Build**                 | Builds Docker images for testing                            | Yes     | Yes     | Yes       |
+| **Additional CI Image Checks**     | Validates CI images meet quality standards                  | Yes     | Yes     | Yes       |
+| **Generate Constraints**           | Creates dependency version lock files                       | Yes     | Yes     | Yes       |
+| **CI Image Checks**                | Runs static analysis and builds docs (AMD only)             | Yes     | Yes     | Yes       |
+| **Provider Tests**                 | Tests integration with external services                    | Yes     | Yes     | Yes (1)   |
+| **Unit Tests (Multiple Groups)**   | Runs core functionality tests with different databases      | Yes     | Yes     | Yes (1)   |
+| **Special Tests**                  | Handles integration and system tests (AMD only)             | Yes (3) | Yes     | Yes (1)   |
+| **Helm Tests**                     | Tests Kubernetes deployment via Helm                        | Yes     | Yes     | Yes (1)   |
+| **PROD Image Build**               | Builds production-ready Docker images                       | Yes     | Yes     | Yes       |
+| **Additional PROD Image Tests**    | Final validation of production images (AMD only)            | Yes     | Yes     | Yes       |
+| **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
+| **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
+| **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
 
@@ -271,11 +271,11 @@ Some workflows run only on AMD architecture because they produce architecture-in
 
 A few jobs run as individual tasks rather than composite workflows:
 
-| Individual Job                     | Purpose                                                    | PR      | main    | v*-*-test |
-|------------------------------------|------------------------------------------------------------|---------|---------|-----------|
-| **Pin Versions Hook** (AMD only)   | Ensures dependency versions are properly locked           | Yes     | Yes     | Yes       |
-| **Go SDK Tests**                   | Tests Go language components                              | Yes     | Yes     | Yes       |
-| **Summarize Warnings** (AMD only)  | Collects and organizes warnings from all test runs       | Yes     | Yes     | Yes       |
+| Individual Job                     | Purpose                                                     | PR      | main    | v*-*-test |
+|------------------------------------|-------------------------------------------------------------|---------|---------|-----------|
+| **Pin Versions Hook** (AMD only)   | Ensures dependency versions are properly locked             | Yes     | Yes     | Yes       |
+| **Go SDK Tests**                   | Tests Go language components                                | Yes     | Yes     | Yes       |
+| **Summarize Warnings** (AMD only)  | Collects and organizes warnings from all test runs          | Yes     | Yes     | Yes       |
 
 #### Why These Remain Separate
 
