@@ -33,6 +33,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -53,6 +54,40 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
+
+
+class CustomTimetable(CronDataIntervalTimetable):
+    """Custom timetable that generates custom run IDs."""
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        run_after,
+        data_interval: DataInterval | None,
+        **kwargs,
+    ) -> str:
+        if data_interval:
+            return f"custom_{data_interval.start.strftime('%Y%m%d%H%M%S')}"
+        return f"custom_manual_{run_after.strftime('%Y%m%d%H%M%S')}"
+
+
+@pytest.fixture
+def custom_timetable_plugin(monkeypatch):
+    """Fixture to register CustomTimetable for serialization."""
+    from airflow import plugins_manager
+    from airflow.utils.module_loading import qualname
+
+    timetable_class_name = qualname(CustomTimetable)
+    existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
+
+    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
+    monkeypatch.setattr(
+        plugins_manager,
+        "timetable_classes",
+        {**existing_timetables, timetable_class_name: CustomTimetable},
+    )
+
 
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "test_dag1"
@@ -1829,29 +1864,13 @@ class TestTriggerDagRun:
         }
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
+    @pytest.mark.usefixtures("custom_timetable_plugin")
     def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
         """Test that custom timetable's generate_run_id is used for manual triggers (issue #55908)."""
-        from pendulum import DateTime
-
-        from airflow.timetables.interval import CronDataIntervalTimetable
-
-        class CustomTimetable(CronDataIntervalTimetable):
-            def generate_run_id(
-                self,
-                *,
-                run_type: DagRunType,
-                run_after: DateTime,
-                data_interval: DataInterval | None,
-                **kwargs,
-            ) -> str:
-                if data_interval:
-                    return f"custom_{data_interval.start.strftime('%Y%m%d%H%M%S')}"
-                return f"custom_manual_{run_after.strftime('%Y%m%d%H%M%S')}"
-
         custom_dag_id = "test_custom_timetable_dag"
         with dag_maker(
             dag_id=custom_dag_id,
-            timetable=CustomTimetable("0 0 * * *", timezone="UTC"),
+            schedule=CustomTimetable("0 0 * * *", timezone="UTC"),
             session=session,
             serialized=True,
         ):
