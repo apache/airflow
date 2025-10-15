@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -1411,8 +1412,6 @@ def test_mapped_operator_retry_delay_default(dag_maker):
     on a MappedOperator without an explicit retry_delay value in partial_kwargs.
     The property should fall back to SerializedBaseOperator.retry_delay (300 seconds).
     """
-    import datetime
-
     with dag_maker(dag_id="test_retry_delay", serialized=True) as dag:
         # Create a mapped operator without explicitly setting retry_delay
         MockOperator.partial(task_id="mapped_task").expand(arg2=[1, 2, 3])
@@ -1432,8 +1431,6 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
     This test verifies that when retry_delay is explicitly set in partial(),
     the MappedOperator returns that value instead of the default.
     """
-    import datetime
-
     custom_retry_delay = datetime.timedelta(seconds=600)
 
     with dag_maker(dag_id="test_retry_delay_explicit", serialized=True) as dag:
