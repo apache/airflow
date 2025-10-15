@@ -47,11 +47,13 @@ def get_provider_info():
                 ],
             },
             {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.operators.bteq"]},
+            {"integration-name": "Tpt", "python-modules": ["airflow.providers.teradata.operators.tpt"]},
         ],
         "hooks": [
             {"integration-name": "Teradata", "python-modules": ["airflow.providers.teradata.hooks.teradata"]},
             {"integration-name": "Ttu", "python-modules": ["airflow.providers.teradata.hooks.ttu"]},
             {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.hooks.bteq"]},
+            {"integration-name": "Tpt", "python-modules": ["airflow.providers.teradata.hooks.tpt"]},
         ],
         "transfers": [
             {
