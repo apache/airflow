@@ -27,6 +27,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
@@ -103,14 +104,22 @@ async def resolve_user_from_token(token_str: str | None) -> BaseUser:
 
 
 async def get_user(
+    request: Request,
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
-    token_str = None
+    # A user might have been already built by a middleware, if so, it is stored in `request.state.user`
+    user: BaseUser | None = getattr(request.state, "user", None)
+    if user:
+        return user
+
+    token_str: str | None
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         token_str = bearer_credentials.credentials
     elif oauth_token:
         token_str = oauth_token
+    else:
+        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
 
     return await resolve_user_from_token(token_str)
 
