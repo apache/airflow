@@ -1148,7 +1148,7 @@ Email subject:
 
 ```
 cat <<EOF
-[RESULT][VOTE] Airflow Providers - release of ${PREPARE_RELEASE_DATE}
+[RESULT][VOTE] Airflow Providers - release of ${RELEASE_DATE}
 EOF
 ```
 
@@ -1158,7 +1158,7 @@ Email content:
 cat <<EOF
 Hello,
 
-Apache Airflow Providers prepared on ${PREPARE_RELEASE_DATE} have been accepted.
+Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
 - FIRST LAST NAME (binding)
@@ -1179,7 +1179,7 @@ Vote thread: https://lists.apache.org/thread/cs6mcvpn2lk9w2p4oz43t20z3fg5nl7l
 I'll continue with the release process, and the release announcement will follow shortly.
 
 Cheers,
-<your name>
+${RELEASE_MANAGER_NAME}
 EOF
 ```
 
@@ -1339,12 +1339,14 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
+  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> all-providers
 ```
 
 Or if you just want to publish a few selected providers, you can run:
 
 ```shell script
+  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 PACKAGE2 ..
 ```
 

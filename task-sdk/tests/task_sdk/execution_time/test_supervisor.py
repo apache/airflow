@@ -667,6 +667,7 @@ class TestWatchedSubprocess:
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
+            "task_instance_id": str(ti.id),
         } in captured_logs
 
     def test_supervisor_handles_already_running_task(self):
@@ -1846,6 +1847,7 @@ REQUEST_TEST_CASES = [
                 "end_date": None,
                 "clear_number": 0,
                 "conf": None,
+                "triggering_user_name": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -1866,6 +1868,7 @@ REQUEST_TEST_CASES = [
                     run_after=timezone.parse("2024-01-15T12:00:00Z"),
                     consumed_asset_events=[],
                     state=DagRunState.SUCCESS,
+                    triggering_user_name=None,
                 )
             ),
         ),
