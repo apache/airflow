@@ -158,26 +158,24 @@ class PrestoHook(DbApiHook):
         schema = conn.schema
 
         if not conn.host:
-            raise AirflowException("Presto connection error: 'host' is missing in the connection.")
+            raise ValueError("Presto connection error: 'host' is missing in the connection.")
         if not conn.port:
-            raise AirflowException("Presto connection error: 'port' is missing in connection.")
+            raise ValueError("Presto connection error: 'port' is missing in connection.")
         if not conn.login:
-            raise AirflowException("Presto connection error: 'login' is missing in Connection")
+            raise ValueError("Presto connection error: 'login' is missing in Connection")
 
         # adding only when **kwargs are given by user
         query = {
             k: v
             for k, v in {
-                "protocol": extra.get("protocol", "http"),
+                "schema": extra.get("schema"),
+                "protocol": extra.get("protocol"),
                 "source": extra.get("source"),
                 "catalog": extra.get("catalog"),
             }.items()
             if v is not None
         }
-
-        if schema:
-            query["schema"] = schema
-
+        
         url_query_params = {k: v for k, v in query.items() if v is not None}
 
         return URL.create(

@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.19, pytest-8.4.2, pluggy-1.6.0 -- /usr/local/bin/python3
+cachedir: .pytest_cache
+rootdir: /opt/airflow
+configfile: pyproject.toml
+plugins: anyio-4.11.0, asyncio-1.2.0, cov-7.0.0, custom-exit-code-0.3.0, requests-mock-1.12.1, timeouts-1.2.1, time-machine-2.19.0, mock-3.15.1, icdiff-0.9, instafail-0.5.0, xdist-3.8.0, rerunfailures-16.1, kgb-7.2, unordered-0.7.0
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
+collecting ... collected 17 items
+
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_property[custom_catalog_and_protocol] PASSED [  5%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_property[missing_protocol_should_default_http] PASSED [ 11%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_property[explicit_protocol_none_should_default_http] PASSED [ 17%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_property[all_defaults] PASSED [ 23%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_single_query[single_query_return_all] PASSED [ 29%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_single_query[multi_query_return_last] PASSED [ 35%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_get_sqlalchemy_engine PASSED [ 41%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_with_multiple_statements PASSED [ 47%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_get_uri PASSED [ 52%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_with_empty_sql[] PASSED [ 58%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_with_empty_sql[\n] PASSED [ 64%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_run_with_empty_sql[ ] PASSED [ 70%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_with_invalid_names PASSED [ 76%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_execution_timeout_exceeded PASSED [ 82%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_handles_missing_or_invalid_extras[no_extra_provided] PASSED [ 88%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_handles_missing_or_invalid_extras[empty_extra_dict] PASSED [ 94%]
+providers/presto/tests/unit/presto/hooks/test_presto_sql.py::test_sqlalchemy_url_handles_missing_or_invalid_extras[invalid_extra_json] PASSED [100%]
+===================== Warning summary. Total: 3, Unique: 3 =====================
+other: total 3, unique 3
+  runtest: total 3, unique 3
+Warnings saved into /opt/airflow/devel-common/warnings.txt file.
+
+======================== 17 passed, 2 warnings in 7.71s ========================
