@@ -41,7 +41,7 @@ from airflow.utils.hashlib_wrapper import md5
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk import Context
 else:
     from airflow.utils.context import Context
 
