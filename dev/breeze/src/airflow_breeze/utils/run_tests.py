@@ -128,6 +128,7 @@ def run_docker_compose_tests(
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
     if include_success_outputs:
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
+    env["AIRFLOW_UID"] = str(os.getuid())
     # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
         ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
