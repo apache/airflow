@@ -192,7 +192,7 @@ jobs:
       - name: "Run Task SDK integration tests"
         run: breeze testing task-sdk-integration-tests
 
-  test-e2e-integration-tests:
+  test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
@@ -200,3 +200,13 @@ jobs:
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
+
+  test-e2e-integration-tests-remote-log:
+    name: "Remote logging tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "remote_log"

@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``1b2c3d4e5f6g`` (head) | ``ab6dc0c82d0e`` | ``3.2.0``         | Add length to dag_bundle_team.dag_bundle_name.               |
+| ``5cc8117e9285`` (head) | ``1b2c3d4e5f6g`` | ``3.2.0``         | Add Human In the Loop Detail History table.                  |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``1b2c3d4e5f6g``        | ``ab6dc0c82d0e`` | ``3.2.0``         | Add length to dag_bundle_team.dag_bundle_name.               |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``ab6dc0c82d0e``        | ``15d84ca19038`` | ``3.2.0``         | Change ``serialized_dag`` data column to JSONB for           |
 |                         |                  |                   | PostgreSQL.                                                  |

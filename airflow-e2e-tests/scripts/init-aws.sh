@@ -1,4 +1,4 @@
-#
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from moto import mock_aws
-
-from airflow.providers.amazon.aws.hooks.kinesis import KinesisHook
-
-
-class TestKinesisHook:
-    @mock_aws
-    def test_get_conn(self):
-        hook = KinesisHook(aws_conn_id="aws_default")
-        assert hook.get_conn() is not None
+aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
+aws --endpoint-url=http://localstack:4566 s3 ls
