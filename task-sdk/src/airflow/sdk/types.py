@@ -52,6 +52,7 @@ class DagRunProtocol(Protocol):
     run_type: Any
     run_after: AwareDatetime
     conf: dict[str, Any] | None
+    triggering_user_name: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
