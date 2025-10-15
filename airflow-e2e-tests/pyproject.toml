@@ -39,6 +39,7 @@ dependencies = [
     "apache-airflow-devel-common",
     "python-on-whales>=0.70.0",
     "testcontainers>=4.12.0",
+    "boto3",
 ]
 
 [tool.pytest.ini_options]

@@ -22,6 +22,8 @@ package sdk
 
 import (
 	"context"
+
+	"github.com/apache/airflow/go-sdk/pkg/api"
 )
 
 const (
@@ -61,7 +63,19 @@ type ConnectionClient interface {
 	GetConnection(ctx context.Context, connID string) (Connection, error)
 }
 
+type XComClient interface {
+	GetXCom(
+		ctx context.Context,
+		dagId, runId, taskId string,
+		mapIndex *int,
+		key string,
+		value any,
+	) (any, error)
+	PushXCom(ctx context.Context, ti api.TaskInstance, key string, value any) error
+}
+
 type Client interface {
 	VariableClient
 	ConnectionClient
+	XComClient
 }

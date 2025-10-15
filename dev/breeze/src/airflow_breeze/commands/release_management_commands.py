@@ -260,13 +260,13 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.22"
+AIRFLOW_UV_VERSION = "0.9.2"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
-RICH_VERSION = "14.1.0"
-PREK_VERSION = "0.2.1"
-HATCH_VERSION = "1.14.2"
-PYYAML_VERSION = "6.0.2"
+RICH_VERSION = "14.2.0"
+PREK_VERSION = "0.2.8"
+HATCH_VERSION = "1.15.0"
+PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
 AIRFLOW_BUILD_DOCKERFILE = f"""

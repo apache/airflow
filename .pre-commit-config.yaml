@@ -305,7 +305,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '97be693bf18bc2f050667dd282d243e2824b81e2'  # frozen: 1.0.6
+    rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -341,7 +341,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b933184438555436e38621f46ceb0c417cbed400  # frozen: v1.13.0
+    rev: 122d24ec728f140b38330ae8b04e3c5fe8b774c5  # frozen: v1.15.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -412,7 +412,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.13.1']
+        additional_dependencies: ['ruff==0.14.0']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -1613,6 +1613,7 @@ repos:
           ^airflow-core/src/airflow/operators/subdag\.py$|
           ^airflow-core/src/airflow/plugins_manager\.py$|
           ^airflow-core/src/airflow/providers_manager\.py$|
+          ^airflow-core/src/airflow/secrets/__init__.py$|
           ^airflow-core/src/airflow/serialization/definitions/[_a-z]+\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|
