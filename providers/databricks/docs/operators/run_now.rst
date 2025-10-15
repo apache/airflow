@@ -48,10 +48,3 @@ All other parameters are optional and described in documentation for ``Databrick
 * ``idempotency_token``
 * ``repair_run``
 * ``cancel_previous_runs``
-
-DatabricksRunNowDeferrableOperator
-==================================
-
-Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
-
-It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
