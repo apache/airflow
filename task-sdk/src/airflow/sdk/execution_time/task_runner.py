@@ -35,6 +35,7 @@ from urllib.parse import quote
 
 import attrs
 import lazy_object_proxy
+import psutil
 import structlog
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
@@ -884,6 +885,24 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
         )
 
 
+def _get_resource_usage() -> tuple[float, float] | None:
+    """Get current resource usage for the task process."""
+    try:
+        process = psutil.Process()
+
+        # Get CPU usage
+        cpu_percent = process.cpu_percent(interval=0)
+
+        # Get memory usage in MB
+        mem_info = process.memory_info()
+        memory_mb = mem_info.rss / (1024 * 1024)
+
+        return (cpu_percent, memory_mb)
+    except Exception:
+        # Resource tracking not available on this task
+        return None
+
+
 def _defer_task(
     defer: TaskDeferred, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
@@ -943,6 +962,9 @@ def run(
     state: TaskInstanceState
     error: BaseException | None = None
 
+    # Initialize resource tracking
+    end_resources: tuple[float, float] | None = None
+
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -956,6 +978,9 @@ def run(
                     map_index=ti.map_index,
                 )
 
+        # Initialize CPU tracking by making the first call before task execution
+        _get_resource_usage()
+
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -966,6 +991,10 @@ def run(
 
             try:
                 result = _execute_task(context=context, ti=ti, log=log)
+
+                # Get resource usage after task execution
+                end_resources = _get_resource_usage()
+
             except Exception:
                 import jinja2
 
@@ -987,6 +1016,13 @@ def run(
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
+
+        # Send metrics to Stats backend
+        if end_resources is not None:
+            cpu_percent, memory_mb = end_resources
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+            Stats.gauge(f"task.cpu_usage_percent.{ti.dag_id}.{ti.task_id}", cpu_percent, tags=stats_tags)
+            Stats.gauge(f"task.memory_usage_mb.{ti.dag_id}.{ti.task_id}", memory_mb, tags=stats_tags)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
