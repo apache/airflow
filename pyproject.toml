@@ -622,12 +622,12 @@ extend-select = [
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
-    "D102", # TODO: Missing docstring in public method
-    "D103", # TODO: Missing docstring in public function
+    "D102", # Unwanted; Missing docstring in public method
+    "D103", # Unwanted; Missing docstring in public function
     "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
     "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
     "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
-    "D203",
+    "D203", # Conflicts with D211.  Both can not be enabled.
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
     "TC003", # Do not move imports from stdlib to TYPE_CHECKING block

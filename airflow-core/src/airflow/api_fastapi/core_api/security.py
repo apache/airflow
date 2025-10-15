@@ -46,7 +46,14 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.core_api.base import OrmClause
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBody
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
+    BulkActionOnExistence,
+    BulkBody,
+    BulkCreateAction,
+    BulkDeleteAction,
+    BulkUpdateAction,
+)
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
@@ -297,6 +304,7 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
 
         requests: list[IsAuthorizedPoolRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for pool in action.entities:
                 pool_name = (
                     cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
@@ -304,14 +312,15 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                 # For each pool, build a `IsAuthorizedPoolRequest`
                 # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
                 # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
-                req: IsAuthorizedPoolRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": PoolDetails(
-                        name=pool_name,
-                        team_name=pool_name_to_team.get(pool_name),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedPoolRequest = {
+                        "method": method,
+                        "details": PoolDetails(
+                            name=pool_name,
+                            team_name=pool_name_to_team.get(pool_name),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
@@ -394,6 +403,7 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
 
         requests: list[IsAuthorizedConnectionRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for connection in action.entities:
                 connection_id = (
                     cast("str", connection)
@@ -403,14 +413,15 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                 # For each pool, build a `IsAuthorizedConnectionRequest`
                 # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
                 # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
-                req: IsAuthorizedConnectionRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": ConnectionDetails(
-                        conn_id=connection_id,
-                        team_name=conn_id_to_team.get(connection_id),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedConnectionRequest = {
+                        "method": method,
+                        "details": ConnectionDetails(
+                            conn_id=connection_id,
+                            team_name=conn_id_to_team.get(connection_id),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
@@ -507,6 +518,7 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
 
         requests: list[IsAuthorizedVariableRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for variable in action.entities:
                 variable_key = (
                     cast("str", variable)
@@ -516,14 +528,15 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                 # For each variable, build a `IsAuthorizedVariableRequest`
                 # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
                 # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
-                req: IsAuthorizedVariableRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": VariableDetails(
-                        key=variable_key,
-                        team_name=var_key_to_team.get(variable_key),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedVariableRequest = {
+                        "method": method,
+                        "details": VariableDetails(
+                            key=variable_key,
+                            team_name=var_key_to_team.get(variable_key),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
@@ -633,3 +646,15 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
             return True
     return False
+
+
+def _get_resource_methods_from_bulk_request(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> list[ResourceMethod]:
+    resource_methods: list[ResourceMethod] = [MAP_BULK_ACTION_TO_AUTH_METHOD[action.action]]
+    # If ``action_on_existence`` == ``overwrite``, we need to check the user has ``PUT`` access as well.
+    # With ``action_on_existence`` == ``overwrite``, a create request is actually an update request if the
+    # resource already exists, hence adding this check.
+    if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
+        resource_methods.append("PUT")
+    return resource_methods
