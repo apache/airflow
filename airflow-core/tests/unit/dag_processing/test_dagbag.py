@@ -114,7 +114,8 @@ def test_validate_executor_field_with_team_restriction(mock_executor_lookup, moc
                 "configured executors for team 'test_team'."
             ),
         ):
-            _validate_executor_fields(dag)
+            with conf_vars({("core", "multi_team"): "True"}):
+                _validate_executor_fields(dag)
 
         # Verify the executor lookup was called with the team name from config
         mock_executor_lookup.assert_called_with("team.restricted.executor", team_name="test_team")
@@ -137,7 +138,8 @@ def test_validate_executor_field_no_team_associated(mock_executor_lookup):
             "executor to use one of the configured executors."
         ),
     ):
-        _validate_executor_fields(dag)
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag)
 
     mock_executor_lookup.assert_called_with("unknown.executor", team_name=None)
 
@@ -152,7 +154,8 @@ def test_validate_executor_field_valid_team_executor(mock_executor_lookup, mock_
             dag.bundle_name = "test_bundle"
             BaseOperator(task_id="t1", executor="team.valid.executor")
 
-        _validate_executor_fields(dag)
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag)
 
         # Verify the executor lookup was called with the team name which is fetched from bundle config
         mock_executor_lookup.assert_called_with("team.valid.executor", team_name="test_team")
