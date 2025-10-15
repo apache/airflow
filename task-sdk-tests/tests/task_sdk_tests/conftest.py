@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from shutil import copytree
 
 import pytest
 
@@ -28,6 +29,7 @@ from task_sdk_tests.constants import (
     AIRFLOW_ROOT_PATH,
     DOCKER_COMPOSE_FILE_PATH,
     DOCKER_IMAGE,
+    TASK_SDK_DAGS_FOLDER,
     TASK_SDK_HOST_PORT,
 )
 
@@ -105,6 +107,7 @@ def docker_compose_setup(tmp_path_factory):
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
     tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
     copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
+    copytree(TASK_SDK_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     # Set environment variables
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
@@ -116,6 +119,7 @@ def docker_compose_setup(tmp_path_factory):
         console.print("[yellow]Starting docker-compose for session...")
         compose.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started successfully!\n")
+        compose.compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
 
         yield compose
     except Exception as e:
