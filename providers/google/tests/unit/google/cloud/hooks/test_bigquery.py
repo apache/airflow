@@ -51,6 +51,7 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_src_fmt_configs,
     _validate_value,
 )
+from airflow.sdk import Context
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
