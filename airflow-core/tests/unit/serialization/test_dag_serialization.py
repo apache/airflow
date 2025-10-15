@@ -504,8 +504,6 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         with warnings.catch_warnings():
             dags, import_errors = collect_dags()
         serialized_dags = {}
