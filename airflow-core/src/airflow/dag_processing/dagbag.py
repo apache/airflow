@@ -141,22 +141,20 @@ def _validate_executor_fields(dag: DAG) -> None:
     log = logging.getLogger(__name__)
     dag_team_name = None
 
-    # Get team name from bundle configuration if available
-    if hasattr(dag, "bundle_name") and dag.bundle_name:
-        try:
+    # Check if multi team is available by reading the multi_team configuration (which is boolean)
+    if conf.getboolean("core", "multi_team"):
+        # Get team name from bundle configuration if available
+        if hasattr(dag, "bundle_name") and dag.bundle_name:
             from airflow.dag_processing.bundles.manager import DagBundlesManager
 
             bundle_manager = DagBundlesManager()
             bundle_config = bundle_manager._bundle_config[dag.bundle_name]
-            # TODO[multi-team] Raise exceptions below instead of logging once we have a multi-team feature flag configuration
+
             dag_team_name = bundle_config.team_name
-            log.debug(
-                "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, dag.bundle_name
-            )
-        except Exception as e:
-            log.debug(
-                "Could not determine team from bundle configuration for DAG '%s': %s", dag.dag_id, str(e)
-            )
+            if dag_team_name:
+                log.debug(
+                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, dag.bundle_name
+                )
 
     for task in dag.tasks:
         if not task.executor:
