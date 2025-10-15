@@ -301,6 +301,8 @@ def cleanup_tables(args):
         confirm=not args.yes,
         skip_archive=args.skip_archive,
         batch_size=args.batch_size,
+        dag_ids=args.dag_ids,
+        exclude_dag_ids=args.exclude_dag_ids,
     )
 
 
