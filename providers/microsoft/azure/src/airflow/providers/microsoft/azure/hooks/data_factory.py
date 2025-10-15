@@ -1214,7 +1214,4 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param config: Extra parameters for the ADF client.
         """
         client = await self.get_async_conn()
-        try:
-            await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)
-        except Exception as e:
-            raise AirflowException(e)
+        await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)

@@ -92,10 +92,8 @@ class TestAmazonSystemTestHelpers:
 
     def test_fetch_variable_no_value_found_raises_exception(self):
         # This would be the (None, None, None) test case from above.
-        with pytest.raises(ValueError) as raised_exception:
+        with pytest.raises(ValueError, match=NO_VALUE_MSG.format(key=ANY_STR)):
             utils.fetch_variable(key=ANY_STR, test_name=TEST_NAME)
-
-        assert NO_VALUE_MSG.format(key=ANY_STR) in str(raised_exception.value)
 
     ENV_ID_TEST_CASES = [
         # Happy Cases
@@ -129,10 +127,8 @@ class TestAmazonSystemTestHelpers:
             if not result == env_id:
                 assert LOWERCASE_ENV_ID_MSG in captured_output.getvalue()
         else:
-            with pytest.raises(ValueError) as raised_exception:
+            with pytest.raises(ValueError, match=INVALID_ENV_ID_MSG):
                 _validate_env_id(env_id)
-
-            assert INVALID_ENV_ID_MSG in str(raised_exception.value)
 
     def test_set_env_id_generates_if_required(self):
         # No environment variable nor SSM value has been found

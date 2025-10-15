@@ -439,6 +439,29 @@ class TestRemoteCeleryControlCommands:
             celery_command.remove_queue(args)
             mock_cancel_consumer.assert_called_once_with("test1", destination=["celery@host_1"])
 
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.cancel_consumer")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_remove_all_queues(self, mock_inspect, mock_cancel_consumer):
+        args = self.parser.parse_args(["celery", "remove-all-queues", "-H", "celery@host_1"])
+        mock_instance = MagicMock()
+        mock_instance.active_queues.return_value = {
+            "celery@host_1": [{"name": "queue1"}, {"name": "queue2"}],
+            "celery@host_2": [{"name": "queue3"}],
+        }
+        mock_inspect.return_value = mock_instance
+        with patch(
+            "airflow.providers.celery.cli.celery_command._check_if_active_celery_worker", return_value=None
+        ):
+            celery_command.remove_all_queues(args)
+            # Verify cancel_consumer was called for each queue
+            expected_calls = [
+                mock.call("queue1", destination=["celery@host_1"]),
+                mock.call("queue2", destination=["celery@host_1"]),
+            ]
+            mock_cancel_consumer.assert_has_calls(expected_calls, any_order=True)
+            assert mock_cancel_consumer.call_count == 2
+
 
 @patch("airflow.providers.celery.cli.celery_command.Process")
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")

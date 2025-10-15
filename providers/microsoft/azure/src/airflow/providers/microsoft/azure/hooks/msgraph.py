@@ -152,6 +152,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         return {
             "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "drive_id": StringField(lazy_gettext("Drive ID"), widget=BS3TextFieldWidget()),
             "api_version": StringField(
                 lazy_gettext("API Version"), widget=BS3TextFieldWidget(), default=APIVersion.v1.value
             ),

@@ -192,10 +192,17 @@ Features
 
 * ``Adding OAuth support for SnowflakeHook  (#47191)``
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Existing connections using key pairs break as a result of changing the connection string to be base64 encoded.
+
+  * ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+
 Bug Fixes
 ~~~~~~~~~
 
-* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
 * ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
 * ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``

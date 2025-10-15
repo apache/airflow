@@ -175,7 +175,6 @@
     },
     "tooltip": "Premi {{hotkey}} per scorrere a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Azioni",
     "permissions": "Permessi",

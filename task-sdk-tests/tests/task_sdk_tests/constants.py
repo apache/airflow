@@ -28,6 +28,25 @@ DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 TASK_SDK_HOST_PORT = os.environ.get("TASK_SDK_HOST_PORT", "localhost:8080")
-TASK_SDK_API_VERSION = "2025-08-10"
+
+
+# This represents the Execution API schema version, NOT the Task SDK package version.
+#
+# Purpose:
+# - Defines the API contract between Task SDK and Airflow's Execution API
+# - Enables backward compatibility when API schemas evolve
+# - Uses calver format (YYYY-MM-DD) based on expected release dates
+#
+# Usage:
+# - Sent as "Airflow-API-Version" header with every API request
+# - Server uses this to determine which schema version to serve
+# - Allows older Task SDK versions to work with newer Airflow servers
+#
+# Version vs Package Version:
+# - API Version: "2025-09-23" (schema compatibility)
+# - Package Version: "1.1.0" (Task SDK release version)
+#
+# Keep this in sync with: task-sdk/src/airflow/sdk/api/datamodels/_generated.py
+TASK_SDK_API_VERSION = "2025-09-23"
 
 DOCKER_COMPOSE_FILE_PATH = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"

@@ -283,11 +283,15 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | None = None) -> Callable:
+        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+
+        all_attrs = self.allowed_attrs + to_replace_attrs
+
         def inner(
             order_by: list[str] = Query(
                 default=[default] if default is not None else [self.get_primary_key_string()],
                 description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
-                f"Supported attributes: `{', '.join(self.allowed_attrs) if self.allowed_attrs else self.get_primary_key_string()}`",
+                f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
             ),
         ) -> SortParam:
             return self.set_value(order_by)
@@ -309,6 +313,7 @@ class FilterOptionEnum(Enum):
     ANY_EQUAL = "any_eq"
     ALL_EQUAL = "all_eq"
     IS_NONE = "is_none"
+    CONTAINS = "contains"
 
 
 class FilterParam(BaseParam[T]):
@@ -366,6 +371,13 @@ class FilterParam(BaseParam[T]):
                 return select.where(self.attribute.is_not(None))
             if self.value is True:
                 return select.where(self.attribute.is_(None))
+        if self.filter_option == FilterOptionEnum.CONTAINS:
+            # For JSON/JSONB columns, convert to text before applying LIKE
+            from sqlalchemy import Text, cast
+
+            if str(self.attribute.type).upper() in ("JSON", "JSONB"):
+                return select.where(cast(self.attribute, Text).contains(self.value))
+            return select.where(self.attribute.contains(self.value))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
     @classmethod

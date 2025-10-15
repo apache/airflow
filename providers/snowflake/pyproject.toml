@@ -66,10 +66,10 @@ dependencies = [
     "pyarrow>=18.0.0; python_version >= '3.13'",
     "snowflake-connector-python>=3.7.1",
     "snowflake-sqlalchemy>=1.4.0",
-    "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
-    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.13'",
+    "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
+    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.14'",
 ]
 
 # The optional dependencies should be modified in place in the generated file

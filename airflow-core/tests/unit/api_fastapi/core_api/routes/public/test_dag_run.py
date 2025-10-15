@@ -113,6 +113,10 @@ def setup(request, dag_maker, session=None):
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
+    # Set end_date for testing duration filter
+    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
+    # Set conf for testing conf_contains filter (values ordered for predictable sorting)
+    dag_run1.conf = {"env": "development", "version": "1.0"}
 
     for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -130,6 +134,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run2.triggering_user_name = "bob_service"
+    # Set end_date for testing duration filter
+    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
+    # Set conf for testing conf_contains filter
+    dag_run2.conf = {"env": "production", "debug": True}
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -151,6 +159,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set end_date for testing duration filter
+    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
+    # Set conf for testing conf_contains filter
+    dag_run3.conf = {"env": "staging", "test_mode": True}
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -161,6 +173,10 @@ def setup(request, dag_maker, session=None):
     )
     # Leave triggering_user_name as None for testing
     dag_run4.triggering_user_name = None
+    # Set end_date for testing duration filter
+    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
+    # Set conf for testing conf_contains filter
+    dag_run4.conf = {"env": "testing", "mode": "ci"}
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -188,7 +204,7 @@ def get_dag_run_dict(run: DagRun):
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
         "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu(run.end_date),
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
         "duration": run.duration,
         "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
         "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
@@ -450,26 +466,30 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": START_DATE2.isoformat(),
+                    "end_date_gt": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                    "end_date_gt": (
+                        START_DATE1 + timedelta(seconds=50)
+                    ).isoformat(),  # Between the two end dates
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],  # Both should match as their end_date > start + 50s
             ),
             (
                 DAG1_ID,
@@ -629,6 +649,23 @@ class TestGetDagRuns:
                 {"dag_version": [1, 999]},
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Multiple versions, only existing ones match
+            # Test duration filters
+            ("~", {"duration_gte": 200}, [DAG1_RUN2_ID]),  # Test >= 200 seconds
+            ("~", {"duration_lt": 100}, [DAG2_RUN1_ID]),  # Test < 100 seconds
+            (
+                "~",
+                {"duration_gte": 100, "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Test between 100 and 150 (inclusive)
+            # Test conf_contains filter
+            ("~", {"conf_contains": "development"}, [DAG1_RUN1_ID]),  # Test for "development" env
+            (
+                "~",
+                {"conf_contains": "debug"},
+                [DAG1_RUN2_ID],
+            ),  # Test for debug key
+            ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
+            ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -907,10 +944,12 @@ class TestListDagRunsBatch:
             ),
             (
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                # Only DAG2 runs match: their start_date is 2024-04-15, so end_date >= 2024-04-15
+                # DAG1 runs have start_date 2024-01-15, so end_date < 2024-04-15
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
             (
                 {

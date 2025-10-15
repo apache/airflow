@@ -147,7 +147,8 @@ class TaskLogReader:
                     empty_iterations += 1
                     if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
                         # we have not received any logs for a while, so we stop the stream
-                        yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
+                        # this is emitted as json to avoid breaking the ndjson stream format
+                        yield '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n'
                         return
             else:
                 # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations

@@ -28,7 +28,7 @@ runs:
     - name: "Test migration file 2 to 3 migration: ${{env.BACKEND}}"
       shell: bash
       run: |
-        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0 --answer y &&
+        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0  --airflow-extras pydantic --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
                     ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:
@@ -57,7 +57,7 @@ runs:
     - name: "Test ORM migration 2 to 3: ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0 --answer y &&
+        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0 --airflow-extras pydantic --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
              ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:

@@ -101,6 +101,8 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Laufzeit Von",
+    "durationTo": "Laufzeit Bis",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
     "runAfterFrom": "Gelaufen-nach von filtern",
@@ -161,7 +163,6 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",

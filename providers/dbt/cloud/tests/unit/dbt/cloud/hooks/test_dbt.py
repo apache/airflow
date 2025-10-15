@@ -36,7 +36,11 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
@@ -57,6 +61,7 @@ RUN_ID = 5555
 
 BASE_URL = "https://cloud.getdbt.com/"
 SINGLE_TENANT_URL = "https://single.tenant.getdbt.com/"
+NOT_VAILD_DBT_STATUS = "not a valid DbtCloudJobRunStatus"
 
 DEFAULT_LIST_PROJECTS_RESPONSE = {
     "data": [
@@ -127,7 +132,7 @@ class TestDbtCloudJobRunStatus:
         ids=_get_ids(invalid_job_run_statuses),
     )
     def test_invalid_job_run_status(self, statuses):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=NOT_VAILD_DBT_STATUS):
             DbtCloudJobRunStatus.check_is_valid(statuses)
 
     @pytest.mark.parametrize(
@@ -144,7 +149,7 @@ class TestDbtCloudJobRunStatus:
         ids=_get_ids(invalid_job_run_statuses),
     )
     def test_invalid_terminal_job_run_status(self, statuses):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=NOT_VAILD_DBT_STATUS):
             DbtCloudJobRunStatus.check_is_valid(statuses)
 
 

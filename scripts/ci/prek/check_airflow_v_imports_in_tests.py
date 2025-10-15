@@ -22,7 +22,7 @@
 # ]
 # ///
 """
-Check that AIRFLOW_V_X_Y_PLUS constants are only imported from test_utils in provider tests.
+Check that AIRFLOW_V_X_Y_PLUS constants are only imported from tests_common.test_utils in provider tests.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def check_airflow_v_imports_and_fix(test_file: Path) -> list[str]:
                 console.print("Found AIRFLOW_V_*_PLUS import in test file:", test_file)
                 if node.module != "tests_common.test_utils.version_compat":
                     errors.append(
-                        f"{test_file}: AIRFLOW_V_*_PLUS should only be imported from tests.test_utils.version_compat, "
+                        f"{test_file}: AIRFLOW_V_*_PLUS should only be imported from tests_common.test_utils.version_compat, "
                         f"but found import from '{node.module}'"
                     )
                     # Replace the import line
@@ -79,7 +79,9 @@ def main():
             console.print(f"[red]{err}")
         console.print("\n[red]Some AIRFLOW_V_*_PLUS imports were incorrect![/]")
         sys.exit(1)
-    console.print("[green]All AIRFLOW_V_*_PLUS imports in tests are from tests.test_utils.version_compat.")
+    console.print(
+        "[green]All AIRFLOW_V_*_PLUS imports in tests are from tests_common.test_utils.version_compat."
+    )
 
 
 if __name__ == "__main__":

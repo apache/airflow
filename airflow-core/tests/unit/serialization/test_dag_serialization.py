@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import dataclasses
 import importlib
@@ -99,6 +100,43 @@ from tests_common.test_utils.timetables import (
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
+
+@contextlib.contextmanager
+def operator_defaults(overrides):
+    """
+    Temporarily patches OPERATOR_DEFAULTS, restoring original values after context exit.
+
+    Example:
+        with operator_defaults({"retries": 2, "retry_delay": 200.0}):
+            # Test code with modified operator defaults
+    """
+    from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
+
+    original_values = {}
+    try:
+        # Store original values and apply overrides
+        for key, value in overrides.items():
+            original_values[key] = OPERATOR_DEFAULTS.get(key)
+            OPERATOR_DEFAULTS[key] = value
+
+        # Clear the cache to ensure fresh generation
+        SerializedBaseOperator.generate_client_defaults.cache_clear()
+
+        yield
+    finally:
+        # Cleanup: restore original values
+        for key, original_value in original_values.items():
+            if original_value is None and key in OPERATOR_DEFAULTS:
+                # Key didn't exist originally, remove it
+                del OPERATOR_DEFAULTS[key]
+            else:
+                # Restore original value
+                OPERATOR_DEFAULTS[key] = original_value
+
+        # Clear cache again to restore normal behavior
+        SerializedBaseOperator.generate_client_defaults.cache_clear()
+
+
 AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
 
 
@@ -117,14 +155,13 @@ TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 3,
-    "client_defaults": {"tasks": {"retry_delay": 300.0}},
     "dag": {
         "default_args": {
             "__type": "dict",
             "__var": {
                 "depends_on_past": False,
                 "retries": 1,
-                "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                "retry_delay": {"__type": "timedelta", "__var": 240.0},
                 "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
             },
         },
@@ -165,7 +202,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "bash_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "ui_color": "#f0ede4",
                     "template_ext": [".sh", ".bash"],
@@ -224,7 +261,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "custom_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "template_fields": ["bash_command"],
@@ -294,7 +331,7 @@ def make_simple_dag():
         schedule=timedelta(days=1),
         default_args={
             "retries": 1,
-            "retry_delay": timedelta(minutes=5),
+            "retry_delay": timedelta(minutes=4),
             "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
         },
@@ -3072,7 +3109,7 @@ def test_handle_v1_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                     "sla": {"__type": "timedelta", "__var": 100.0},
                 },
@@ -3110,7 +3147,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3173,7 +3210,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3383,7 +3420,7 @@ def test_handle_v2_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                 },
             },
@@ -3425,7 +3462,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "ui_color": "#f0ede4",
@@ -3491,7 +3528,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
@@ -4004,8 +4041,9 @@ class TestDeserializationDefaultsResolution:
         result = SerializedBaseOperator._apply_defaults_to_encoded_op(encoded_op, None)
         assert result == encoded_op
 
+    @operator_defaults({"retries": 2})
     def test_multiple_tasks_share_client_defaults(self):
-        """Test that multiple tasks can share the same client_defaults."""
+        """Test that multiple tasks can share the same client_defaults when there are actually non-default values."""
         with DAG(dag_id="test_dag") as dag:
             BashOperator(task_id="task1", bash_command="echo 1")
             BashOperator(task_id="task2", bash_command="echo 2")
@@ -4024,6 +4062,10 @@ class TestDeserializationDefaultsResolution:
         deserialized_task1 = deserialized_dag.get_task("task1")
         deserialized_task2 = deserialized_dag.get_task("task2")
 
+        # Both tasks should have retries=2 from client_defaults
+        assert deserialized_task1.retries == 2
+        assert deserialized_task2.retries == 2
+
         # Both tasks should have the same default values from client_defaults
         for field in client_defaults:
             if hasattr(deserialized_task1, field) and hasattr(deserialized_task2, field):
@@ -4035,6 +4077,7 @@ class TestDeserializationDefaultsResolution:
 class TestMappedOperatorSerializationAndClientDefaults:
     """Test MappedOperator serialization with client defaults and callback properties."""
 
+    @operator_defaults({"retry_delay": 200.0})
     def test_mapped_operator_client_defaults_application(self):
         """Test that client_defaults are correctly applied to MappedOperator during deserialization."""
         with DAG(dag_id="test_mapped_dag") as dag:
@@ -4099,6 +4142,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
             ),
         ],
     )
+    @operator_defaults({"retry_delay": 200.0})
     def test_mapped_operator_client_defaults_optimization(
         self, task_config, dag_id, task_id, non_default_fields
     ):

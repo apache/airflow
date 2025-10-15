@@ -161,7 +161,6 @@
     },
     "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
   },
-  "seconds": "{{count}}초",
   "security": {
     "actions": "작업",
     "permissions": "권한",

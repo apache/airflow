@@ -74,7 +74,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     undefined,
   );
 
-  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
   const [versionDisplayMode, setVersionDisplayMode] = useLocalStorage<string>(
     `version_display_mode-${dagId}`,
     "dag",

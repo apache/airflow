@@ -912,12 +912,15 @@ class DataprocHook(GoogleBaseHook):
         state = None
         start = time.monotonic()
         while state not in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
+            self.log.debug("Waiting for job %s to complete", job_id)
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
+            self.log.debug("Sleeping for %s seconds", wait_time)
             time.sleep(wait_time)
             try:
                 job = self.get_job(project_id=project_id, region=region, job_id=job_id)
                 state = job.status.state
+                self.log.debug("Job %s is in state %s", job_id, state)
             except ServerError as err:
                 self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
 

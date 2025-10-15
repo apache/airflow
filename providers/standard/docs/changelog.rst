@@ -43,6 +43,11 @@ Features
 
 * ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DagBag imports in Airflow 3.2+ (#56109)``
+
 Misc
 ~~~~
 
@@ -52,6 +57,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix 'example_bash_decorator' DAG (#56020)``
    * ``Enable pt011 rule 2 (#55749)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 3rd ad-hoc wave of providers (#56007)``
 
 1.8.0
 .....

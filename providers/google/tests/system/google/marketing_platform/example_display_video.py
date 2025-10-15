@@ -83,7 +83,7 @@ DISPLAY_VIDEO_SERVICE_ACCOUNT_KEY = "google_display_video_service_account_key"
 ADVERTISER_ID = "{{ task_instance.xcom_pull('get_display_video_advertiser_id') }}"
 GMP_PARTNER_ID = "{{ task_instance.xcom_pull('get_display_video_gmp_partner_id') }}"
 SDF_VERSION = "SDF_VERSION_8_1"
-BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}"
+BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 ENTITY_TYPE = "CAMPAIGN"
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
 

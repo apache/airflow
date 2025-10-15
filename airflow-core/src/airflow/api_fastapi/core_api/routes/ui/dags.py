@@ -61,10 +61,12 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagsFilterDep,
     requires_access_dag,
 )
 from airflow.models import DagModel, DagRun
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
@@ -114,6 +116,7 @@ def get_dags(
     has_pending_actions: QueryPendingActionsFilter,
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
+    user: GetUserDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get DAGs with recent DagRun."""
@@ -152,6 +155,13 @@ def get_dags(
     )
 
     dags = [dag for dag in session.scalars(dags_select)]
+
+    # Fetch favorite status for each DAG for the current user
+    user_id = str(user.get_id())
+    favorites_select = select(DagFavorite.dag_id).where(
+        DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
+    )
+    favorite_dag_ids = set(session.scalars(favorites_select))
 
     # Populate the last 'dag_runs_limit' DagRuns for each DAG
     recent_runs_subquery = (
@@ -224,6 +234,7 @@ def get_dags(
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
+                "is_favorite": dag.dag_id in favorite_dag_ids,
             }
         )
         for dag in dags
