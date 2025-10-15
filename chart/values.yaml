@@ -2406,6 +2406,28 @@ statsd:
   podAnnotations: {}
   env: []
 
+  # StatsD Service Monitor
+  serviceMonitor:
+    # Enables creation of a ServiceMonitor for StatsD metrics scraping.
+    enabled: false
+
+    # If true, keeps original metric labels as exported by the app.
+    # If false, Prometheus may override them.
+    honorLabels: true
+
+    # Scrape interval for Prometheus (e.g., 30s, 1m, etc.).
+    interval: 10s
+
+    # Timeout for the metrics scrape request.
+    scrapeTimeout: ""
+
+    # Additional labels to attach to the ServiceMonitor object.
+    labels: {}
+
+    # (Optional) Namespace where the ServiceMonitor will be created.
+    # If not set, defaults to .Release.Namespace.
+    # namespace: "monitoring"
+
 # PgBouncer settings
 pgbouncer:
   # Enable PgBouncer
