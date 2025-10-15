@@ -11131,8 +11131,97 @@ components:
       description: Serializer for Plugin FastAPI root middleware responses.
     HITLDetail:
       properties:
+        options:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Options
+        subject:
+          type: string
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
+          anyOf:
+          - $ref: '#/components/schemas/HITLUser'
+          - type: 'null'
+        responded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Responded At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
         task_instance:
           $ref: '#/components/schemas/TaskInstanceResponse'
+      type: object
+      required:
+      - options
+      - subject
+      - created_at
+      - task_instance
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
+    HITLDetailCollection:
+      properties:
+        hitl_details:
+          items:
+            $ref: '#/components/schemas/HITLDetail'
+          type: array
+          title: Hitl Details
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - hitl_details
+      - total_entries
+      title: HITLDetailCollection
+      description: Schema for a collection of Human-in-the-loop details.
+    HITLDetailHisotry:
+      properties:
         options:
           items:
             type: string
@@ -11198,28 +11287,11 @@ components:
           default: false
       type: object
       required:
-      - task_instance
       - options
       - subject
       - created_at
-      title: HITLDetail
-      description: Schema for Human-in-the-loop detail.
-    HITLDetailCollection:
-      properties:
-        hitl_details:
-          items:
-            $ref: '#/components/schemas/HITLDetail'
-          type: array
-          title: Hitl Details
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - hitl_details
-      - total_entries
-      title: HITLDetailCollection
-      description: Schema for a collection of Human-in-the-loop details.
+      title: HITLDetailHisotry
+      description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
         responded_by:
@@ -12107,6 +12179,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        hitl_detail:
+          anyOf:
+          - $ref: '#/components/schemas/HITLDetailHisotry'
+          - type: 'null'
       type: object
       required:
       - task_id
@@ -12135,6 +12211,7 @@ components:
       - executor
       - executor_config
       - dag_version
+      - hitl_detail
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
     TaskInstanceResponse:

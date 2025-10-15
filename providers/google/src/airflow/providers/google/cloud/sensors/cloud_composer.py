@@ -121,15 +121,22 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
             )
 
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
+        logical_date = context.get("logical_date", None)
+        if logical_date is None:
+            raise RuntimeError(
+                "logical_date is None. Please make sure the sensor is not used in an asset-triggered Dag. "
+                "CloudComposerDAGRunSensor was designed to be used in time-based scheduled Dags only, "
+                "and asset-triggered Dags do not have logical_date. "
+            )
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
-                return context["logical_date"], context["logical_date"] - self.execution_range
-            return context["logical_date"] - self.execution_range, context["logical_date"]
+                return logical_date, logical_date - self.execution_range
+            return logical_date - self.execution_range, logical_date
         if isinstance(self.execution_range, list) and len(self.execution_range) > 0:
             return self.execution_range[0], self.execution_range[1] if len(
                 self.execution_range
-            ) > 1 else context["logical_date"]
-        return context["logical_date"] - timedelta(1), context["logical_date"]
+            ) > 1 else logical_date
+        return logical_date - timedelta(1), logical_date
 
     def poke(self, context: Context) -> bool:
         start_date, end_date = self._get_logical_dates(context)

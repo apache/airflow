@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import google.auth
+import pendulum
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.api_core import page_iterator
@@ -50,6 +51,13 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_src_fmt_configs,
     _validate_value,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import Context
+else:
+    from airflow.utils.context import Context
 
 pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
 
@@ -673,10 +681,21 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             job_id=None,
             dag_id=test_dag_id,
             task_id="test_job_id",
-            logical_date=datetime(2020, 1, 23),
+            logical_date=None,
             configuration=configuration,
+            run_after=datetime(2020, 1, 23),
         )
         assert job_id == expected_job_id
+
+    def test_get_run_after_or_logical_date(self):
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models import DagRun
+
+            ctx = Context(dag_run=DagRun(run_after=pendulum.datetime(2025, 1, 1)))
+        else:
+            ctx = Context(logical_date=pendulum.datetime(2025, 1, 1))
+
+        assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 1, 1)
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_job",

@@ -234,6 +234,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["test3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test4", "conn_type": "test4"},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -253,6 +260,14 @@ class TestFastApiSecurity:
                 {
                     "method": "DELETE",
                     "details": ConnectionDetails(conn_id="test3"),
+                },
+                {
+                    "method": "POST",
+                    "details": ConnectionDetails(conn_id="test4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": ConnectionDetails(conn_id="test4"),
                 },
             ],
             user=user,
@@ -304,6 +319,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["var3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "var4", "value": "value4"},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -323,6 +345,14 @@ class TestFastApiSecurity:
                 {
                     "method": "DELETE",
                     "details": VariableDetails(key="var3"),
+                },
+                {
+                    "method": "POST",
+                    "details": VariableDetails(key="var4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": VariableDetails(key="var4"),
                 },
             ],
             user=user,
@@ -374,6 +404,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["pool3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"pool": "pool4", "slots": 1},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -393,6 +430,14 @@ class TestFastApiSecurity:
                 {
                     "method": "DELETE",
                     "details": PoolDetails(name="pool3"),
+                },
+                {
+                    "method": "POST",
+                    "details": PoolDetails(name="pool4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": PoolDetails(name="pool4"),
                 },
             ],
             user=user,

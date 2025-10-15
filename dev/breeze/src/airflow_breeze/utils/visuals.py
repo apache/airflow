@@ -90,7 +90,7 @@ CHEATSHEET = f"""
         Direct links to those services that you can use from the host:
 
           * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@localhost (password: airflow)
-          * API server or webserver:    http://localhost:{WEB_HOST_PORT}
+          * API server or webserver:    http://localhost:{WEB_HOST_PORT} (username: admin, password: admin)
           * Flower:    http://localhost:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://localhost:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://localhost:{MYSQL_HOST_PORT}/airflow?user=root
