@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
@@ -35,6 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    get_user,
     is_safe_url,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -103,6 +105,46 @@ class TestFastApiSecurity:
             await resolve_user_from_token(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
+
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
+        user = Mock()
+        request = Mock()
+        request.state.user = user
+
+        result = await get_user(request, None, None)
+
+        assert result == user
+        mock_resolve_user_from_token.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "oauth_token, bearer_credentials_creds, cookies, expected",
+        [
+            ("oauth_token", None, {}, "oauth_token"),
+            (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
+            (None, None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
+        ],
+    )
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_with_token(
+        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, cookies, expected
+    ):
+        user = Mock()
+        mock_resolve_user_from_token.return_value = user
+
+        request = Mock()
+        request.state.user = None
+        request.cookies = cookies
+        bearer_credentials = None
+        if bearer_credentials_creds:
+            bearer_credentials = Mock()
+            bearer_credentials.scheme = "bearer"
+            bearer_credentials.credentials = bearer_credentials_creds
+
+        result = await get_user(request, oauth_token, bearer_credentials)
+
+        assert result == user
+        mock_resolve_user_from_token.assert_called_once_with(expected)
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
