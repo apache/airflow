@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-14T16:33:16.665058
+# This constraints file was automatically generated on 2025-10-15T17:36:37.316865
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -97,7 +97,7 @@ aws-sam-translator==1.101.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.35.1
+azure-core==1.36.0
 azure-cosmos==4.14.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
@@ -115,9 +115,9 @@ azure-mgmt-resource==24.0.0
 azure-mgmt-storage==23.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
-azure-storage-blob==12.26.0
-azure-storage-file-datalake==12.21.0
-azure-storage-file-share==12.22.0
+azure-storage-blob==12.27.0
+azure-storage-file-datalake==12.22.0
+azure-storage-file-share==12.23.0
 azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
@@ -142,7 +142,7 @@ celery==5.5.3
 certifi==2025.10.5
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.40.1
+cfn-lint==1.40.2
 chardet==5.2.0
 charset-normalizer==3.4.4
 checksumdir==1.3.0
@@ -160,7 +160,7 @@ colorlog==6.9.0
 comm==0.2.3
 confluent-kafka==2.12.0
 connexion==2.14.2
-coverage==7.10.7
+coverage==7.11.0
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -269,7 +269,7 @@ google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-cloud-workflows==1.18.2
 google-crc32c==1.7.1
-google-genai==1.43.0
+google-genai==1.44.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
@@ -285,7 +285,7 @@ grpcio==1.65.5
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
-hatch==1.14.2
+hatch==1.15.0
 hatchling==1.27.0
 hdfs==2.7.3
 hf-xet==1.1.10
@@ -297,7 +297,7 @@ httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
 huggingface-hub==0.35.3
-humanize==4.13.0
+humanize==4.14.0
 hvac==2.3.0
 hyperframe==6.1.0
 hyperlink==21.0.0
@@ -534,7 +534,7 @@ python-on-whales==0.78.0
 python-slugify==8.0.4
 python-telegram-bot==22.5
 python3-saml==1.16.0
-pytokens==0.1.10
+pytokens==0.2.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
@@ -578,7 +578,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.11.0
-sentry-sdk==2.41.0
+sentry-sdk==2.42.0
 setproctitle==1.3.7
 setuptools==80.9.0
 shapely==2.1.2
