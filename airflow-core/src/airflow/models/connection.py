@@ -27,8 +27,8 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
@@ -42,6 +42,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -126,19 +127,21 @@ class Connection(Base, LoggingMixin):
 
     __tablename__ = "connection"
 
-    id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
-    host = Column(String(500))
-    schema = Column(String(500))
-    login = Column(Text())
-    _password = Column("password", Text())
-    port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
-    _extra = Column("extra", Text())
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True)
+    conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
+    )
+    host: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    login: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,
