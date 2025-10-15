@@ -297,6 +297,9 @@ labelPRBasedOnFilePath:
   provider:vertica:
     - providers/vertica/**
 
+  provider:voyageai:
+    - providers/voyageai/**
+
   provider:weaviate:
     - providers/weaviate/**
 

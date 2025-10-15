@@ -375,6 +375,9 @@ packages = []
 "vertica" = [
     "apache-airflow-providers-vertica>=3.9.1"
 ]
+"voyageai" = [
+    "apache-airflow-providers-voyageai"
+]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
@@ -483,6 +486,7 @@ packages = []
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
+    "apache-airflow-providers-voyageai",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.13\"",
     "apache-airflow-providers-ydb>=1.4.0; python_version !=\"3.13\"",
@@ -1200,6 +1204,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/trino/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/src",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/voyageai/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/voyageai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/src",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/yandex/src",
@@ -1410,6 +1416,7 @@ apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
+apache-airflow-providers-voyageai = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
@@ -1529,6 +1536,7 @@ members = [
     "providers/teradata",
     "providers/trino",
     "providers/vertica",
+    "providers/voyageai",
     "providers/weaviate",
     "providers/yandex",
     "providers/ydb",
