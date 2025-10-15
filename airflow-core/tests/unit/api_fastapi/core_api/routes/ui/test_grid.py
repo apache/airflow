@@ -754,6 +754,7 @@ class TestGetGridDataEndpoint:
             assert ti["dag_version_number"] is not None
             assert isinstance(ti["dag_version_number"], int)
             assert ti["dag_version_number"] >= 1
+
     def test_structure_includes_historical_removed_task_with_proper_shape(self, session, test_client):
         # Ensure the structure endpoint returns synthetic node for historical/removed task
         response = test_client.get(f"/grid/structure/{DAG_ID_3}")
