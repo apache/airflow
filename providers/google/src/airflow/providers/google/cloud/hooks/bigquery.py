@@ -89,10 +89,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from requests import Session
 
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.definitions.context import Context
-    else:
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
 
