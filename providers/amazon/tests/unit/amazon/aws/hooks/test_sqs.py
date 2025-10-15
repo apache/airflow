@@ -28,6 +28,7 @@ QUEUE_URL = "https://sqs.region.amazonaws.com/123456789/test-queue"
 QUEUE_NAME = "test-queue"
 MESSAGE_BODY = "test message"
 
+MAX_MESSAGE_SIZE = "262144"
 DELAY = 5
 DEDUPE = "banana"
 MSG_ATTRIBUTES = {
@@ -81,8 +82,8 @@ class TestSqsHook:
         """Test creating a queue with custom attributes."""
         queue_name = "test-queue-with-attributes"
         attributes = {
-            "DelaySeconds": "5",
-            "MaximumMessageSize": "262144",
+            "DelaySeconds": str(DELAY),
+            "MaximumMessageSize": MAX_MESSAGE_SIZE,
         }
 
         queue_url = hook.create_queue(queue_name=queue_name, attributes=attributes)
@@ -94,8 +95,8 @@ class TestSqsHook:
         queue_attrs = hook.get_conn().get_queue_attributes(
             QueueUrl=queue_url, AttributeNames=["DelaySeconds", "MaximumMessageSize"]
         )
-        assert queue_attrs["Attributes"]["DelaySeconds"] == "5"
-        assert queue_attrs["Attributes"]["MaximumMessageSize"] == "262144"
+        assert queue_attrs["Attributes"]["DelaySeconds"] == str(DELAY)
+        assert queue_attrs["Attributes"]["MaximumMessageSize"] == MAX_MESSAGE_SIZE
 
     def test_send_message(self, hook):
         """Test sending a message to a queue."""
@@ -107,21 +108,11 @@ class TestSqsHook:
 
     def test_send_message_with_attributes(self, hook):
         """Test sending a message with message attributes."""
-        message_attributes = {
-            "Author": {
-                "StringValue": "test-user",
-                "DataType": "String",
-            },
-            "Priority": {
-                "StringValue": "1",
-                "DataType": "Number",
-            },
-        }
 
         response = hook.send_message(
             queue_url=self.queue_url,
             message_body=MESSAGE_BODY,
-            message_attributes=message_attributes,
+            message_attributes=MSG_ATTRIBUTES,
         )
 
         assert isinstance(response, dict)
@@ -131,12 +122,17 @@ class TestSqsHook:
         received = hook.get_conn().receive_message(QueueUrl=self.queue_url, MessageAttributeNames=["All"])
         assert "Messages" in received
         message = received["Messages"][0]
-        assert message["MessageAttributes"]["Author"]["StringValue"] == "test-user"
-        assert message["MessageAttributes"]["Priority"]["StringValue"] == "1"
+        assert (
+            message["MessageAttributes"]["Author"]["StringValue"] == MSG_ATTRIBUTES["Author"]["StringValue"]
+        )
+        assert (
+            message["MessageAttributes"]["Priority"]["StringValue"]
+            == MSG_ATTRIBUTES["Priority"]["StringValue"]
+        )
 
     def test_send_message_with_delay(self, hook):
         """Test sending a message with a delay."""
-        delay_seconds = 5
+        delay_seconds = DELAY
 
         response = hook.send_message(
             queue_url=self.queue_url,
