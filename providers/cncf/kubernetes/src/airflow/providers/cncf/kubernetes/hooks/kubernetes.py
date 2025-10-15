@@ -39,11 +39,6 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
-from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodOperatorHookProtocol,
-    container_is_completed,
-    container_is_running,
-)
 from airflow.providers.cncf.kubernetes.version_compat import BaseHook
 from airflow.utils import yaml
 
@@ -68,6 +63,35 @@ def _load_body_to_dict(body: str) -> dict:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
 
+
+class PodOperatorHookProtocol(Protocol):
+    """
+    Protocol to define methods relied upon by KubernetesPodOperator.
+
+    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
+    hooks that don't extend KubernetesHook.  We use this protocol to document the
+    methods used by KPO and ensure that these methods exist on such other hooks.
+    """
+
+    @property
+    def core_v1_client(self) -> client.CoreV1Api:
+        """Get authenticated client object."""
+
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
+
+    def get_namespace(self) -> str | None:
+        """Return the namespace that defined in the connection."""
+
+    def get_xcom_sidecar_container_image(self) -> str | None:
+        """Return the xcom sidecar image that defined in the connection."""
+
+    def get_xcom_sidecar_container_resources(self) -> str | None:
+        """Return the xcom sidecar resources that defined in the connection."""
 
 class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     """
@@ -933,40 +957,4 @@ class AsyncKubernetesHook(KubernetesHook):
             if self.is_job_complete(job=job):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", name, poll_interval)
-            await asyncio.sleep(poll_interval)
-
-    async def wait_until_container_complete(
-        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
-    ) -> None:
-        """
-        Wait for the given container in the given pod to be completed.
-
-        :param name: Name of Pod to fetch.
-        :param namespace: Namespace of the Pod.
-        :param container_name: name of the container within the pod to monitor
-        :param poll_interval: Interval in seconds between polling the container status
-        """
-        while True:
-            pod = await self.get_pod(name=name, namespace=namespace)
-            if container_is_completed(pod=pod, container_name=container_name):
-                break
-            self.log.info("Waiting for container '%s' state to be completed", container_name)
-            await asyncio.sleep(poll_interval)
-
-    async def wait_until_container_started(
-        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
-    ) -> None:
-        """
-        Wait for the given container in the given pod to be started.
-
-        :param name: Name of Pod to fetch.
-        :param namespace: Namespace of the Pod.
-        :param container_name: name of the container within the pod to monitor
-        :param poll_interval: Interval in seconds between polling the container status
-        """
-        while True:
-            pod = await self.get_pod(name=name, namespace=namespace)
-            if container_is_running(pod=pod, container_name=container_name):
-                break
-            self.log.info("Waiting for container '%s' state to be running", container_name)
             await asyncio.sleep(poll_interval)

@@ -125,11 +125,11 @@ class KubernetesJobTrigger(BaseTrigger):
             xcom_results = []
             for pod_name in self.pod_names:
                 pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
-                await self.hook.wait_until_container_complete(
+                await self.pod_manager.wait_until_container_complete(
                     name=pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
                 )
                 self.log.info("Checking if xcom sidecar container is started.")
-                await self.hook.wait_until_container_started(
+                await self.pod_manager.wait_until_container_started(
                     name=pod_name,
                     namespace=self.pod_namespace,
                     container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
@@ -173,4 +173,4 @@ class KubernetesJobTrigger(BaseTrigger):
             config_file=self.config_file,
             cluster_context=self.cluster_context,
         )
-        return PodManager(kube_client=sync_hook.core_v1_client)
+        return PodManager(kube_hook=sync_hook)

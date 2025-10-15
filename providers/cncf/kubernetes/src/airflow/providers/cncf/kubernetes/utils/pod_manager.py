@@ -27,7 +27,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 import tenacity
@@ -53,6 +53,8 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
     from urllib3.response import HTTPResponse
+
+    from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
@@ -87,36 +89,6 @@ class PodPhase:
     SUCCEEDED = "Succeeded"
 
     terminal_states = {FAILED, SUCCEEDED}
-
-
-class PodOperatorHookProtocol(Protocol):
-    """
-    Protocol to define methods relied upon by KubernetesPodOperator.
-
-    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
-    hooks that don't extend KubernetesHook.  We use this protocol to document the
-    methods used by KPO and ensure that these methods exist on such other hooks.
-    """
-
-    @property
-    def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated client object."""
-
-    @property
-    def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
-
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Read pod object from kubernetes API."""
-
-    def get_namespace(self) -> str | None:
-        """Return the namespace that defined in the connection."""
-
-    def get_xcom_sidecar_container_image(self) -> str | None:
-        """Return the xcom sidecar image that defined in the connection."""
-
-    def get_xcom_sidecar_container_resources(self) -> str | None:
-        """Return the xcom sidecar resources that defined in the connection."""
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
@@ -325,17 +297,18 @@ class PodManager(LoggingMixin):
 
     def __init__(
         self,
-        kube_client: client.CoreV1Api,
+        kube_hook: KubernetesHook,
         callbacks: list[type[KubernetesPodOperatorCallback]] | None = None,
     ):
         """
         Create the launcher.
 
-        :param kube_client: kubernetes client
+        :param kube_hook: sync ubernetes hook
         :param callbacks:
         """
         super().__init__()
-        self._client = kube_client
+        self._hook = kube_hook
+        self._client = kube_hook.core_v1_client
         self._watch = watch.Watch()
         self._callbacks = callbacks or []
         self.stop_watching_events = False
@@ -1021,6 +994,42 @@ class PodManager(LoggingMixin):
                 return
 
             time.sleep(1)
+
+    async def wait_until_container_complete(
+        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
+    ) -> None:
+        """
+        Wait for the given container in the given pod to be completed.
+
+        :param name: Name of Pod to fetch.
+        :param namespace: Namespace of the Pod.
+        :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
+        """
+        while True:
+            pod = await self._hook.get_pod(name=name, namespace=namespace)
+            if container_is_completed(pod=pod, container_name=container_name):
+                break
+            self.log.info("Waiting for container '%s' state to be completed", container_name)
+            await asyncio.sleep(poll_interval)
+
+    async def wait_until_container_started(
+        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
+    ) -> None:
+        """
+        Wait for the given container in the given pod to be started.
+
+        :param name: Name of Pod to fetch.
+        :param namespace: Namespace of the Pod.
+        :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
+        """
+        while True:
+            pod = await self._hook.get_pod(name=name, namespace=namespace)
+            if container_is_running(pod=pod, container_name=container_name):
+                break
+            self.log.info("Waiting for container '%s' state to be running", container_name)
+            await asyncio.sleep(poll_interval)
 
 
 class OnFinishAction(str, enum.Enum):
