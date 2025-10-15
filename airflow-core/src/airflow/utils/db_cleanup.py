@@ -419,10 +419,16 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: list[str]) -> None:
+def _confirm_delete(
+    *,
+    date: DateTime,
+    tables: list[str],
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
+) -> None:
     for_tables = f" for tables {tables!r}" if tables else ""
     for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
-    excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if dag_ids else ""
+    excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
     question = (
         f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
