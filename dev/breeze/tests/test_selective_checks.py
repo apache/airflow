@@ -708,7 +708,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
