@@ -340,6 +340,7 @@ BASIC_AUTOAPI_IGNORE_PATTERNS = [
     "*/tests/system/*/tests/*",
     "*/tests/system/example_empty.py",
     "*/check_translations_completeness.py",
+    "*/copilot_translations.py",
 ]
 
 IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)

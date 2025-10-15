@@ -21,6 +21,8 @@
 # dependencies = [
 #   "rich>=13.6.0",
 #   "rich-click",
+#   "requests>=2.32.0",
+#   "jinja2>=3.1.5",
 # ]
 # ///
 from __future__ import annotations
@@ -30,7 +32,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 import rich_click as click
 from rich import print
@@ -456,8 +458,28 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     default=False,
     help="Add missing translations for the selected language, prefixed with 'TODO: translate:'.",
 )
-def cli(language: str | None = None, add_missing: bool = False):
-    if add_missing:
+@click.option(
+    "--with-copilot",
+    is_flag=True,
+    default=False,
+    help="(Experimental) Use Copilot to auto-generate missing translations (requires authentication for GitHub Copilot).",
+)
+@click.option(
+    "--translate-with-copilot",
+    is_flag=True,
+    default=False,
+    help="(Experimental) Use Copilot to auto-translate all the TODO entries in the selected language (requires authentication for GitHub Copilot).",
+)
+def cli(
+    language: str | None = None,
+    add_missing: bool = False,
+    with_copilot: bool = False,
+    translate_with_copilot: bool = False,
+):
+    if add_missing or translate_with_copilot:
+        if add_missing and translate_with_copilot:
+            raise ValueError("--add_missing and --translate-with-copilot cannot be used together")
+
         if not language:
             raise ValueError("--language is required when passing --add_missing")
         locale_path = LOCALES_DIR / language
@@ -488,10 +510,27 @@ def cli(language: str | None = None, add_missing: bool = False):
             )
             found_difference = found_difference or lang_diff
             if add_missing:
-                add_missing_translations(language, filtered_summary, console)
+                add_missing_translations(language, with_copilot, filtered_summary, console)
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
+
+    if translate_with_copilot:
+        from copilot_translations import CopilotTranslator
+
+        translator = CopilotTranslator(console)
+        for filename, _ in summary.items():
+            lang_path = LOCALES_DIR / cast("str", language) / filename
+            translator.translate(lang_path)
+
+    # refresh summary after adding missing translations
+    if with_copilot or translate_with_copilot:
+        locale_files = get_locale_files()
+        found_difference = print_file_set_differences(locale_files, console, language)
+        summary, missing_counts = compare_keys(locale_files, console)
+        lang_diff = print_language_summary(locale_files, summary, console)
+        found_difference = found_difference or lang_diff
+
     has_todos, coverage_per_language = print_translation_progress(
         console,
         [lf for lf in locale_files if language is None or lf.locale == language],
@@ -519,13 +558,22 @@ def cli(language: str | None = None, add_missing: bool = False):
             console.print(summary_table)
 
 
-def add_missing_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
+def add_missing_translations(
+    language: str, with_copilot: bool, summary: dict[str, LocaleSummary], console: Console
+):
     """
     Add missing translations for the selected language.
 
     It does it by copying them from English and prefixing with 'TODO: translate:'.
     Ensures all required plural forms for the language are added.
     """
+    if with_copilot:
+        from copilot_translations import CopilotTranslator
+
+        translator = CopilotTranslator(console)
+    else:
+        translator = None
+
     suffixes = PLURAL_SUFFIXES.get(language, ["_one", "_other"])
     for filename, diff in summary.items():
         missing_keys = set(diff.missing_keys.get(language, []))
@@ -586,6 +634,9 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
             json.dump(lang_data, f, ensure_ascii=False, indent=2)
             f.write("\n")  # Ensure newline at the end of the file
         console.print(f"[green]Added missing translations to {lang_path}[/green]")
+
+        if with_copilot and translator is not None:
+            translator.translate(lang_path)
 
 
 if __name__ == "__main__":
