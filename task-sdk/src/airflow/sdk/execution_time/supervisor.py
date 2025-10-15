@@ -1765,13 +1765,48 @@ def forward_to_log(
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
-    """Initialize the secrets backend on workers."""
+    """
+    Initialize secrets backend with auto-detected context.
+
+    Detection strategy:
+    1. SUPERVISOR_COMMS exists and is set → client chain (ExecutionAPISecretsBackend)
+    2. _AIRFLOW_PROCESS_CONTEXT=server env var → server chain (MetastoreBackend)
+    3. Neither → fallback chain (only env vars + external backends, no MetastoreBackend)
+
+    Client contexts: task runner in worker (has SUPERVISOR_COMMS)
+    Server contexts: API server, scheduler (set _AIRFLOW_PROCESS_CONTEXT=server)
+    Fallback contexts: supervisor, unknown contexts (no SUPERVISOR_COMMS, no env var)
+
+    The fallback chain ensures supervisor can use external secrets (AWS Secrets Manager,
+    Vault, etc.) while falling back to API client, without trying MetastoreBackend.
+    """
+    import os
+
     from airflow.configuration import ensure_secrets_loaded
-    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+    from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    # 1. Check for client context (SUPERVISOR_COMMS)
+    try:
+        from airflow.sdk.execution_time import task_runner
 
-    return backends
+        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+            # Client context: task runner with SUPERVISOR_COMMS
+            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    except (ImportError, AttributeError):
+        pass
+
+    # 2. Check for explicit server context
+    if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
+        # Server context: API server, scheduler
+        # uses the default server list
+        return ensure_secrets_loaded()
+
+    # 3. Fallback for unknown contexts (supervisor, etc.)
+    # Only env vars + external backends from config, no MetastoreBackend, no ExecutionAPISecretsBackend
+    fallback_backends = [
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    ]
+    return ensure_secrets_loaded(default_backends=fallback_backends)
 
 
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:

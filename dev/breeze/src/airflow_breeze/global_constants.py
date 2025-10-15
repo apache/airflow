@@ -70,6 +70,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "elasticsearch",
     "tinkerpop",
     "kafka",
     "localstack",
@@ -82,6 +83,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
@@ -203,7 +205,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.9.1"
+UV_VERSION = "0.9.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -806,7 +808,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13.8",
+    "3.13": "3.13.9",
 }
 
 # Number of slices for low dep tests

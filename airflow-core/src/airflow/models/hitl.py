@@ -80,50 +80,12 @@ class HITLUser(TypedDict):
     name: str
 
 
-class HITLDetail(Base):
-    """Human-in-the-loop request and corresponding response."""
+class HITLDetailPropertyMixin:
+    """The property part of HITLDetail and HITLDetailHistory."""
 
-    __tablename__ = "hitl_detail"
-    ti_id = Column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        primary_key=True,
-        nullable=False,
-    )
-
-    # User Request Detail
-    options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    subject = Column(Text, nullable=False)
-    body = Column(Text, nullable=True)
-    defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    multiple = Column(Boolean, unique=False, default=False)
-    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
-    assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
-    # Response Content Detail
-    responded_at = Column(UtcDateTime, nullable=True)
-    responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    chosen_options = Column(
-        sqlalchemy_jsonfield.JSONField(json=json),
-        nullable=True,
-        default=None,
-    )
-    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
-    task_instance = relationship(
-        "TaskInstance",
-        lazy="joined",
-        back_populates="hitl_detail",
-    )
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            (ti_id,),
-            ["task_instance.id"],
-            name="hitl_detail_ti_fkey",
-            ondelete="CASCADE",
-            onupdate="CASCADE",
-        ),
-    )
+    responded_at: UtcDateTime
+    responded_by: dict[str, Any]
+    assignees: list[dict[str, str]]
 
     @hybrid_property
     def response_received(self) -> bool:
@@ -169,3 +131,49 @@ class HITLDetail(Base):
             id=self.responded_by["id"],
             name=self.responded_by["name"],
         )
+
+
+class HITLDetail(Base, HITLDetailPropertyMixin):
+    """Human-in-the-loop request and corresponding response."""
+
+    __tablename__ = "hitl_detail"
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
+
+    # User Request Detail
+    options = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    subject = Column(Text, nullable=False)
+    body = Column(Text, nullable=True)
+    defaults = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    multiple = Column(Boolean, unique=False, default=False)
+    params = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    assignees = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    # Response Content Detail
+    responded_at = Column(UtcDateTime, nullable=True)
+    responded_by = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    chosen_options = Column(
+        sqlalchemy_jsonfield.JSONField(json=json),
+        nullable=True,
+        default=None,
+    )
+    params_input = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    task_instance = relationship(
+        "TaskInstance",
+        lazy="joined",
+        back_populates="hitl_detail",
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (ti_id,),
+            ["task_instance.id"],
+            name="hitl_detail_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+    )
