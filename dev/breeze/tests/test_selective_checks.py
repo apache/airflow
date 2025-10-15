@@ -719,14 +719,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
-                                "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                                "description": "common.compat...dbt.cloud",
+                                "test_types": "Providers[common.compat] Providers[dbt.cloud]",
                             },
                             {
-                                "description": "discord...google",
-                                "test_types": "Providers[discord] Providers[google]",
+                                "description": "dingding...discord",
+                                "test_types": "Providers[dingding] Providers[discord]",
                             },
-                            {"description": "http", "test_types": "Providers[http]"},
+                            {
+                                "description": "google...http",
+                                "test_types": "Providers[google] Providers[http]",
+                            },
                             {"description": "pagerduty", "test_types": "Providers[pagerduty]"},
                         ]
                     ),
