@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import copy
 import asyncio
+import copy
 import json
 import time
 import warnings
@@ -29,11 +29,10 @@ from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast
 
 import aiohttp
 from asgiref.sync import sync_to_async
+from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from requests.sessions import Session
-from requests import exceptions as requests_exceptions
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
-
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -218,7 +217,8 @@ class DbtCloudHook(HttpHook):
         self.retry_delay = retry_delay
 
         def retry_after_func(retry_state: RetryCallState) -> None:
-            self._log_request_error(retry_state.attempt_number, retry_state.outcome)
+            error_msg = str(retry_state.outcome.exception()) if retry_state.outcome else "Unknown error"
+            self._log_request_error(retry_state.attempt_number, error_msg)
 
         if retry_args:
             self.retry_args = copy.copy(retry_args)
