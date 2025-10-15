@@ -160,7 +160,7 @@ def _get_connection(conn_id: str) -> Connection:
                 _mask_connection_secrets(conn)
                 return conn
         except Exception:
-            log.exception(
+            log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
@@ -206,7 +206,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 return conn
         except Exception:
             # If one backend fails, try the next one
-            log.exception(
+            log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
