@@ -43,10 +43,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.definitions.context import Context
-    else:
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 from airflow.utils.hashlib_wrapper import md5
 
