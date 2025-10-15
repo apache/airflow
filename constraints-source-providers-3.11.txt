@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-15T20:52:58.689536
+# This constraints file was automatically generated on 2025-10-15T22:19:39.248883
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -279,7 +279,7 @@ graphviz==0.20.3
 greenback==1.2.1
 greenlet==3.2.4
 gremlinpython==3.7.4
-grpc-google-iam-v1==0.14.2
+grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.62.3
