@@ -96,18 +96,18 @@ class GitDagBundle(BaseDagBundle):
                 try:
                     self._clone_bare_repo_if_required()
                 except GitCommandError as e:
-                    raise AirflowException("Error cloning repository") from e
+                    raise RuntimeError("Error cloning repository") from e
                 except InvalidGitRepositoryError as e:
-                    raise AirflowException(f"Invalid git repository at {self.bare_repo_path}") from e
+                    raise RuntimeError(f"Invalid git repository at {self.bare_repo_path}") from e
                 self._ensure_version_in_bare_repo()
             self.bare_repo.close()
 
             try:
                 self._clone_repo_if_required()
             except GitCommandError as e:
-                raise AirflowException("Error cloning repository") from e
+                raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
-                raise AirflowException(f"Invalid git repository at {self.repo_path}") from e
+                raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:

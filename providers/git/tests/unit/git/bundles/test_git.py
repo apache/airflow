@@ -653,7 +653,7 @@ class TestGitDagBundle:
             mock_clone.side_effect = GitCommandError("clone", "Simulated error")
             bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
             with pytest.raises(
-                AirflowException,
+                RuntimeError,
                 match=re.escape("Error cloning repository"),
             ):
                 bundle.initialize()
