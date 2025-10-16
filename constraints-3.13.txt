@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-16T00:50:26.101889
+# This constraints file was automatically generated on 2025-10-16T09:27:29.146740
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -456,15 +456,15 @@ openlineage-python==1.39.0
 openlineage_sql==1.39.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
-opentelemetry-api==1.37.0
-opentelemetry-exporter-otlp-proto-common==1.37.0
-opentelemetry-exporter-otlp-proto-grpc==1.37.0
-opentelemetry-exporter-otlp-proto-http==1.37.0
-opentelemetry-exporter-otlp==1.37.0
-opentelemetry-exporter-prometheus==0.58b0
-opentelemetry-proto==1.37.0
-opentelemetry-sdk==1.37.0
-opentelemetry-semantic-conventions==0.58b0
+opentelemetry-api==1.38.0
+opentelemetry-exporter-otlp-proto-common==1.38.0
+opentelemetry-exporter-otlp-proto-grpc==1.38.0
+opentelemetry-exporter-otlp-proto-http==1.38.0
+opentelemetry-exporter-otlp==1.38.0
+opentelemetry-exporter-prometheus==0.59b0
+opentelemetry-proto==1.38.0
+opentelemetry-sdk==1.38.0
+opentelemetry-semantic-conventions==0.59b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.0
 ordered-set==4.1.0
@@ -547,7 +547,7 @@ pyzmq==27.1.0
 qdrant-client==1.15.1
 reactivex==4.0.4
 redis==5.2.1
-redshift-connector==2.1.8
+redshift-connector==2.1.9
 referencing==0.37.0
 regex==2025.9.18
 requests-file==2.1.0

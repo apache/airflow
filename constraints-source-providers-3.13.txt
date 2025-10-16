@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-16T00:47:06.350365
+# This constraints file was automatically generated on 2025-10-16T09:24:10.127910
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -140,7 +140,7 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.1.8
 cloudpickle==3.1.1
-cohere==5.18.0
+cohere==5.19.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.3
@@ -397,15 +397,15 @@ openlineage-python==1.39.0
 openlineage_sql==1.39.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
-opentelemetry-api==1.37.0
-opentelemetry-exporter-otlp-proto-common==1.37.0
-opentelemetry-exporter-otlp-proto-grpc==1.37.0
-opentelemetry-exporter-otlp-proto-http==1.37.0
-opentelemetry-exporter-otlp==1.37.0
-opentelemetry-exporter-prometheus==0.58b0
-opentelemetry-proto==1.37.0
-opentelemetry-sdk==1.37.0
-opentelemetry-semantic-conventions==0.58b0
+opentelemetry-api==1.38.0
+opentelemetry-exporter-otlp-proto-common==1.38.0
+opentelemetry-exporter-otlp-proto-grpc==1.38.0
+opentelemetry-exporter-otlp-proto-http==1.38.0
+opentelemetry-exporter-otlp==1.38.0
+opentelemetry-exporter-prometheus==0.59b0
+opentelemetry-proto==1.38.0
+opentelemetry-sdk==1.38.0
+opentelemetry-semantic-conventions==0.59b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.0
 ordered-set==4.1.0
