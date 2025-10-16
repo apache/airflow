@@ -19,4 +19,3 @@
 from airflow.providers.http.notifications.http import HttpNotifier
 
 __all__ = ["HttpNotifier"]
-
