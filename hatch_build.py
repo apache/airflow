@@ -156,7 +156,8 @@ CORE_EXTRAS: dict[str, list[str]] = {
 
 DOC_EXTRAS: dict[str, list[str]] = {
     "doc": [
-        "astroid>=3; python_version >= '3.9'",
+        # Astroid 4 released 5 Oct 2025 breaks autoapi https://github.com/apache/airflow/issues/56420
+        "astroid>=3,<4; python_version >= '3.9'",
         "checksumdir>=1.2.0; python_version >= '3.9'",
         "click>=8.1.8; python_version >= '3.9'",
         "docutils>=0.21; python_version >= '3.9'",
@@ -201,7 +202,9 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
-        "rich-click>=1.7.0",
+        # Temporarily pinned to fix for changes in https://github.com/ewels/rich-click/releases/tag/v1.9.0
+        # Example failure without it: https://github.com/apache/airflow/actions/runs/17770084165/job/50505281673?pr=55725
+        "rich-click>=1.7.1,<1.9.0",
         "semver>=3.0.2",
         "towncrier>=23.11.0",
         "twine>=4.0.2",
@@ -227,7 +230,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-aiofiles",
         "types-certifi",
         "types-croniter",
-        "types-docutils",
+        "types-docutils<0.22.0",
         "types-paramiko",
         "types-protobuf",
         "types-python-dateutil",
@@ -479,9 +482,8 @@ DEPENDENCIES = [
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
-    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
-    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
-    "universal-pathlib>=0.2.2,!=0.2.4",
+    # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
+    "universal-pathlib>=0.2.6,<0.3.0",
     "werkzeug>=3.1.3,<4",
 ]
 
