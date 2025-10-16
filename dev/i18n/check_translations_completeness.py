@@ -53,6 +53,7 @@ PLURAL_SUFFIXES = {
     "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
     "ca": MOST_COMMON_PLURAL_SUFFIXES,
     "de": MOST_COMMON_PLURAL_SUFFIXES,
+    "el": MOST_COMMON_PLURAL_SUFFIXES,
     "en": MOST_COMMON_PLURAL_SUFFIXES,
     "es": ["_one", "_many", "_other"],
     "fr": ["_one", "_many", "_other"],
