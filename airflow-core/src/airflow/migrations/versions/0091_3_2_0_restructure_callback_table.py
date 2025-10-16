@@ -20,7 +20,7 @@
 Restructure callback table.
 
 Revision ID: b87d2135fa50
-Revises: 5cc8117e9285
+Revises: 69ddce9a7247
 Create Date: 2025-09-10 13:58:23.435028
 
 """
@@ -35,7 +35,7 @@ import airflow
 
 # revision identifiers, used by Alembic.
 revision = "b87d2135fa50"
-down_revision = "5cc8117e9285"
+down_revision = "69ddce9a7247"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
