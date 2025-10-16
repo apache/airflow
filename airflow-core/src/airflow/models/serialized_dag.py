@@ -34,7 +34,6 @@ from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
