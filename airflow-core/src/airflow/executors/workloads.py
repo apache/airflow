@@ -44,7 +44,7 @@ class BaseWorkload(BaseModel):
     """The identity token for this workload"""
 
     @staticmethod
-    def generate_token(sub_id: str, generator: JWTGenerator | None = None):
+    def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
         return generator.generate({"sub": sub_id}) if generator else ""
 
 
@@ -112,7 +112,6 @@ class ExecuteTask(BaseDagBundleWorkload):
     """Execute the given Task."""
 
     ti: TaskInstance
-    """The TaskInstance to execute"""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -124,8 +123,6 @@ class ExecuteTask(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
     ) -> ExecuteTask:
-        from pathlib import Path
-
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
@@ -140,7 +137,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
-            token=BaseWorkload.generate_token(str(ti.id), generator),
+            token=cls.generate_token(str(ti.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
@@ -162,8 +159,6 @@ class ExecuteCallback(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
     ) -> ExecuteCallback:
-        from pathlib import Path
-
         if not bundle_info:
             bundle_info = BundleInfo(
                 name=dag_run.dag_model.bundle_name,
@@ -174,7 +169,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         return cls(
             callback=Callback.model_validate(callback, from_attributes=True),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc),
-            token=BaseWorkload.generate_token(str(callback.id), generator),
+            token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
         )
