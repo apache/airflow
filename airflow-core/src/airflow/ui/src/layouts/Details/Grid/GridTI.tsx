@@ -83,8 +83,8 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
-  const start: string | undefined = instance.min_start_date ?? undefined;
-  const end: string | undefined = instance.max_end_date ?? undefined;
+  const start: string | undefined = instance?.min_start_date
+  const end: string | undefined = instance?.max_end_date
   const hasStart = start !== undefined;
   const hasEnd = end !== undefined;
 
