@@ -925,8 +925,13 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return from_timestamp(var)
         elif type_ == DAT.POD:
-            if not _has_kubernetes():
-                raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
+            # Attempt to import kubernetes for deserialization. Using attempt_import=True allows
+            # lazy loading of kubernetes libraries only when actually needed for POD deserialization.
+            if not _has_kubernetes(attempt_import=True):
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries. "
+                    "Please install the cncf.kubernetes provider."
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
@@ -3799,13 +3804,20 @@ class SerializedAssetWatcher(AssetWatcher):
     trigger: dict
 
 
-def _has_kubernetes() -> bool:
+def _has_kubernetes(attempt_import: bool = False) -> bool:
+    """
+    Check if kubernetes libraries are available.
+
+    :param attempt_import: If true, attempt to import kubernetes libraries if not already loaded. If
+        False, only check if already in sys.modules (avoids expensive import).
+    :return: True if kubernetes libraries are available, False otherwise.
+    """
     global HAS_KUBERNETES
     if "HAS_KUBERNETES" in globals():
         return HAS_KUBERNETES
 
     # Check if kubernetes is already imported before triggering expensive import
-    if "kubernetes.client" not in sys.modules:
+    if "kubernetes.client" not in sys.modules and not attempt_import:
         HAS_KUBERNETES = False
         return False
 
