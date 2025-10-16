@@ -32,7 +32,7 @@ class TestHttpNotifier:
     def test_http_notifier(self, mock_http_hook):
         notifier = HttpNotifier(
             http_conn_id="test_conn_id",
-            endpoint="/test",
+            endpoint="/testing",
             method="POST",
             json={"message": "testing"},
             headers={"Content-Type": "application/json"},
@@ -40,7 +40,7 @@ class TestHttpNotifier:
         notifier.notify({})
 
         mock_http_hook.return_value.run.assert_called_once_with(
-            endpoint="/test",
+            endpoint="/testing",
             data=None,
             headers={"Content-Type": "application/json"},
             extra_options={},
