@@ -1431,17 +1431,6 @@ export const ensureUseLoginServiceLoginData = (queryClient: QueryClient, { next 
 */
 export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLogoutKeyFn(), queryFn: () => LoginService.logout() });
 /**
-* Refresh
-* Refresh the authentication token.
-* @param data The data for the request.
-* @param data.next
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const ensureUseLoginServiceRefreshData = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceRefreshKeyFn({ next }), queryFn: () => LoginService.refresh({ next }) });
-/**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
 * @throws ApiError
