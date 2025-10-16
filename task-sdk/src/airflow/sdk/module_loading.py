@@ -19,27 +19,52 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from importlib import import_module
+from typing import Any
 
-
-def import_string(dotted_path: str):
+def import_string(dotted_path: str) -> Any:
     """
-    Import a dotted module path and return the attribute/class designated by the last name in the path.
+    Import `dotted_path` and return the attribute designated by the tail of the path.
+    Supports nested attributes (e.g., "pkg.mod.Class.Nested.attr").
 
-    Raise ImportError if the import failed.
+    Raises ImportError with a clear message if resolution fails.
     """
-    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
-    try:
-        module_path, class_name = dotted_path.rsplit(".", 1)
-    except ValueError:
-        raise ImportError(f"{dotted_path} doesn't look like a module path")
+    if not dotted_path or "." not in dotted_path:
+        raise ImportError(f"{dotted_path!r} doesn't look like a module path")
 
-    module = import_module(module_path)
+    parts: list[str] = dotted_path.split(".")
+    n = len(parts)
 
-    try:
-        return getattr(module, class_name)
-    except AttributeError:
-        raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
+    module = None
+    module_idx = None
 
+    for i in range(n, 0, -1):
+        mod_path = ".".join(parts[:i])
+        try:
+            module = import_module(mod_path)
+            module_idx = i
+            break
+        except Exception:
+            continue
+
+    if module is None or module_idx is None:
+        raise ImportError(f"Could not import any module from {dotted_path!r}")
+
+    if module_idx == n:
+        raise ImportError(
+            f'{dotted_path!r} resolved to a module. Provide an attribute/class after the module path.'
+        )
+
+    obj: Any = module
+    for name in parts[module_idx:]:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+            raise ImportError(
+                f'Module/object "{ ".".join(parts[:module_idx]) }" has no attribute "{name}" '
+                f'while resolving {dotted_path!r}'
+            ) from e
+
+    return obj
 
 def qualname(o: object | Callable) -> str:
     """Convert an attribute/class/function to a string importable by ``import_string``."""
