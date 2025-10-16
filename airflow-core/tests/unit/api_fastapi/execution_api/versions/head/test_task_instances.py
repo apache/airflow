@@ -1152,6 +1152,50 @@ class TestTIUpdateState:
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
 
+    @pytest.mark.parametrize(
+        "target_state",
+        [
+            State.UP_FOR_RETRY,
+            TerminalTIState.FAILED,
+            TerminalTIState.SUCCESS,
+        ],
+    )
+    def test_ti_update_state_clears_deferred_fields(
+        self, client, session, create_task_instance, target_state
+    ):
+        """Test that next_method and next_kwargs are cleared when transitioning to terminal/retry states."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_clears_deferred_fields",
+            state=State.RUNNING,
+        )
+        # Simulate a task that resumed from deferred state with next_method/next_kwargs set
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"event": "test_event", "data": "test_data"}
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": target_state,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        if target_state == State.UP_FOR_RETRY:
+            # Retry creates a new TI ID, so we need to fetch by unique key
+            ti = session.scalar(
+                select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            )
+        else:
+            session.expire_all()
+            ti = session.get(TaskInstance, ti.id)
+
+        assert ti.state == target_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
         ti = create_task_instance(
