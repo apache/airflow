@@ -39,7 +39,7 @@ export const TaskInstancesColumn = ({
   onCellClick,
   runId,
   taskInstances,
-  versionDisplayMode = "none",
+  versionDisplayMode = "all",
 }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
@@ -47,6 +47,7 @@ export const TaskInstancesColumn = ({
 
   const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
 
+  // todo: how does this work with mapped? same task id for multiple tis
   return nodes.map((node, idx) => {
     const taskInstance = taskInstanceMap.get(node.id);
 

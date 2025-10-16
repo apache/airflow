@@ -222,6 +222,7 @@ export const PanelButtons = ({
         const newLayout = view === "graph" ? [70, 30] : [30, 70];
 
         panelGroup.setLayout(newLayout);
+        // Used setTimeout to ensure DOM has been updated
         setTimeout(() => {
           void fitView();
         }, 1);
