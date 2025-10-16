@@ -1207,6 +1207,71 @@ class TestTIUpdateState:
         session.refresh(ti)
         assert ti.state == State.SUCCESS
 
+    def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
+        """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
+        with dag_maker(dag_id="test_dag_no_fail_fast", serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="task1", session=session)
+        ti.state = State.RUNNING
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+        session.refresh(ti)
+
+        with mock.patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True) as mock_get_dag:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+            assert response.status_code == 204
+            # Verify SerializedDAG was NOT loaded (memory optimization)
+            mock_get_dag.assert_not_called()
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+
+    def test_ti_update_state_to_failed_with_fail_fast(self, client, session, dag_maker):
+        """Test that SerializedDAG IS loaded and other tasks stopped when fail_fast=True."""
+        with dag_maker(dag_id="test_dag_with_fail_fast", fail_fast=True, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+        ti1.state = State.RUNNING
+        ti1.start_date = DEFAULT_START_DATE
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+        ti2.state = State.QUEUED
+        session.commit()
+        session.refresh(ti1)
+        session.refresh(ti2)
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances._stop_remaining_tasks", autospec=True
+        ) as mock_stop:
+            response = client.patch(
+                f"/execution/task-instances/{ti1.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+            assert response.status_code == 204
+            mock_stop.assert_called_once()
+
+        session.expire_all()
+        ti1 = session.get(TaskInstance, ti1.id)
+        assert ti1.state == State.FAILED
+
 
 class TestTISkipDownstream:
     def setup_method(self):

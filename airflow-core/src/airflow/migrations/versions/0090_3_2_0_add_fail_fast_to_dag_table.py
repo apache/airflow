@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,19 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Add ``fail_fast`` column to dag table.
+
+Revision ID: 69ddce9a7247
+Revises: 5cc8117e9285
+Create Date: 2025-10-16 03:22:59.016272
+"""
+
 from __future__ import annotations
 
-import os
-from pathlib import Path
+import sqlalchemy as sa
+from alembic import op
 
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
-TASK_SDK_TESTS_ROOT = Path(__file__).resolve().parents[2]
+# revision identifiers, used by Alembic.
+revision = "69ddce9a7247"
+down_revision = "5cc8117e9285"
+branch_labels = None
+depends_on = None
+airflow_version = "3.2.0"
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
-DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
-DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 
-DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-TASK_SDK_HOST_PORT = os.environ.get("TASK_SDK_HOST_PORT", "localhost:8080")
+def upgrade():
+    """Add fail_fast column to dag table."""
+    op.add_column("dag", sa.Column("fail_fast", sa.Boolean(), nullable=False, server_default="0"))
 
-DOCKER_COMPOSE_FILE_PATH = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"
+
+def downgrade():
+    """Drop fail_fast column in dag table."""
+    op.drop_column("dag", "fail_fast")

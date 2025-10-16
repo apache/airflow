@@ -871,7 +871,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions"]
+exempt-modules = ["typing", "typing_extensions", "sqlalchemy.orm.Mapped"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
