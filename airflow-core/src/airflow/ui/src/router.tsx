@@ -43,6 +43,7 @@ import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
+import { Playground } from "src/pages/Playground";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -155,6 +156,10 @@ export const routerConfig = [
       {
         element: <Connections />,
         path: "connections",
+      },
+      {
+        element: <Playground />,
+        path: "playground",
       },
       pluginRoute,
       {
