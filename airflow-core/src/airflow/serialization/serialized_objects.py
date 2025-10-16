@@ -28,6 +28,7 @@ import itertools
 import logging
 import math
 import re
+import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from functools import cached_property, lru_cache
@@ -3802,6 +3803,11 @@ def _has_kubernetes() -> bool:
     global HAS_KUBERNETES
     if "HAS_KUBERNETES" in globals():
         return HAS_KUBERNETES
+
+    # Check if kubernetes is already imported before triggering expensive import
+    if "kubernetes.client" not in sys.modules:
+        HAS_KUBERNETES = False
+        return False
 
     # Loading kube modules is expensive, so delay it until the last moment
 
