@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { VStack, Icon } from "@chakra-ui/react";
 import { GoAlertFill } from "react-icons/go";
 import { useTranslation } from "react-i18next";
@@ -52,27 +52,31 @@ const ClearTaskInstanceConfirmationDialog = ({
     },
   });
 
+  const [isReady, setIsReady] = useState(false);
+
   const handleConfirm = () => {
     if (onConfirm !== undefined) onConfirm();
     onClose();
   };
-  
+
   const taskCurrentState = data?.task_instances?.[0]?.state;
 
   useEffect(() => {
     if (!isFetching && open && data) {
-      const isRunningState =
+      const isInTriggeringState =
         taskCurrentState === "queued" ||
-        taskCurrentState === "scheduled" 
+        taskCurrentState === "scheduled";
 
-      if (!preventRunningTask || !isRunningState) {
+      if (!preventRunningTask || !isInTriggeringState) {
         handleConfirm();
+      } else {
+        // show dialog only if running task is in a QUEUED or SCHEDULED state.
+        setIsReady(true);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFetching, data, open]);
-
-  if (isFetching) return null;
+  }, [isFetching, data, open]); 
+  
+  if (!isReady || isFetching) return null;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
@@ -80,12 +84,10 @@ const ClearTaskInstanceConfirmationDialog = ({
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Dialog.Title>
-              <>
-                <Icon size="md" color="tomato">
-                  <GoAlertFill />
-                </Icon>
-                {translate("dags:runAndTaskActions.confirmationDialog.title")}
-              </>
+              <Icon size="md" color="tomato">
+                <GoAlertFill />
+              </Icon>
+              {translate("dags:runAndTaskActions.confirmationDialog.title")}
             </Dialog.Title>
             <Dialog.Description>
               {data?.task_instances?.[0] && (
@@ -94,10 +96,8 @@ const ClearTaskInstanceConfirmationDialog = ({
                     "dags:runAndTaskActions.confirmationDialog.description",
                     {
                       state: taskCurrentState,
-                      time:
-                        data.task_instances[0].start_date &&
-                        getRelativeTime(data.task_instances[0].start_date),
-                      user: data.task_instances[0].unixname || "unknown user",
+                      time: data.task_instances[0].start_date && getRelativeTime(data.task_instances[0].start_date),
+                      user: data.task_instances[0].unixname ?? "unknown user",
                     }
                   )}
                 </>

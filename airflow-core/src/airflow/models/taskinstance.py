@@ -226,7 +226,7 @@ def clear_task_instances(
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
                 raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state.")
-                # Prevents the task from re-running and clearing when is_transitional and prevent_running_task from the frontend is True.
+                # Prevents the task from re-running and clearing when prevent_running_task from the frontend and the tas is running is True.
 
             else:
                 ti.state = TaskInstanceState.RESTARTING

@@ -53,6 +53,7 @@ export const useClearTaskInstances = ({
     const detail = typeof error.detail === "string" ? error.detail : "";
     const ifDetailIsIncluded = detail.includes("AirflowClearRunningTaskException");
 
+    // specific error toast for the AirflowClearRunningTaskException.
     if ( detail !== null &&  ifDetailIsIncluded){
       toaster.create({
         description: detail,
@@ -61,8 +62,9 @@ export const useClearTaskInstances = ({
       });
     }
 
+    // error toast for any other error.
     else{
-      const message = typeof error.message === "string" ? error.message : translate("common:unknownError");
+      const message = typeof error.message === "string" ? error.message : translate("common:error.defaultMessage");
       toaster.create({
         description: message,
         title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
