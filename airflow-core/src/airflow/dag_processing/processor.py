@@ -72,9 +72,10 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
-    from airflow.sdk.bases.operator import Operator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.typing_compat import Self
 
 
@@ -239,7 +240,7 @@ def _serialize_dags(
 
 def _get_dag_with_task(
     dagbag: DagBag, dag_id: str, task_id: str | None = None
-) -> tuple[DAG, Operator | None]:
+) -> tuple[DAG, BaseOperator | MappedOperator | None]:
     """
     Retrieve a DAG and optionally a task from the DagBag.
 
@@ -340,6 +341,9 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 
     dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
 
+    if TYPE_CHECKING:
+        assert task is not None
+
     if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
         callbacks = task.on_retry_callback
     else:
@@ -391,6 +395,9 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
     """Execute email notification for task failure/retry."""
     dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
 
     if not task.email:
         log.warning(
