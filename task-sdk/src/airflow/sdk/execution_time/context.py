@@ -172,9 +172,8 @@ def _get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
-    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+    raise RuntimeError(f"The conn_id `{conn_id}` isn't defined")
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
@@ -218,9 +217,8 @@ async def _async_get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
-    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+    raise RuntimeError(f"The conn_id `{conn_id}` isn't defined")
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
@@ -360,15 +358,13 @@ class ConnectionAccessor:
         return hash(self.__class__.__name__)
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
-        from airflow.exceptions import AirflowNotFoundException
-
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                 return default_conn
             raise
-        except AirflowNotFoundException:
+        except RuntimeError:
             return default_conn
 
 
