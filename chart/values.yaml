@@ -2174,8 +2174,9 @@ dagProcessor:
     securityContexts:
       container: {}
 
-  # Labels specific to dag processor objects and pods
+  # Labels specific to dag processor objects
   labels: {}
+
   # Environment variables to add to dag processor container
   env: []
 
