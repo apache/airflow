@@ -455,20 +455,31 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     "--add-missing",
     is_flag=True,
     default=False,
-    help="Add missing translations for the selected language, prefixed with 'TODO: translate:'.",
+    help="Add missing translations for all languages except English, prefixed with 'TODO: translate:'.",
 )
 def cli(language: str | None = None, add_missing: bool = False):
-    if add_missing:
-        if not language:
-            raise ValueError("--language is required when passing --add_missing")
-        locale_path = LOCALES_DIR / language
-        locale_path.mkdir(exist_ok=True)
     locale_files = get_locale_files()
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
     found_difference = print_file_set_differences(locale_files, console, language)
     summary, missing_counts = compare_keys(locale_files, console)
     console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
+    if add_missing and language != "en":
+        # Loop through all languages except 'en' and add missing translations
+        if language:
+            language_files = [lf for lf in locale_files if lf.locale == language]
+        else:
+            language_files = [lf for lf in locale_files if lf.locale != "en"]
+        for lf in language_files:
+            filtered_summary = {}
+            for filename, diff in summary.items():
+                filtered_summary[filename] = LocaleSummary(
+                    missing_keys={lf.locale: diff.missing_keys.get(lf.locale, [])},
+                    extra_keys={lf.locale: diff.extra_keys.get(lf.locale, [])},
+                )
+            add_missing_translations(lf.locale, filtered_summary, console)
+        # After adding, re-run the summary for all languages
+        summary, missing_counts = compare_keys(get_locale_files(), console)
     if language:
         locales = [lf.locale for lf in locale_files]
         if language not in locales:
@@ -488,8 +499,6 @@ def cli(language: str | None = None, add_missing: bool = False):
                 [lf for lf in locale_files if lf.locale == language], filtered_summary, console
             )
             found_difference = found_difference or lang_diff
-            if add_missing:
-                add_missing_translations(language, filtered_summary, console)
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
