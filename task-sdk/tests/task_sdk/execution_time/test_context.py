@@ -956,7 +956,6 @@ class TestSecretsBackend:
 
     def test_get_connection_not_found_raises_error(self, mock_supervisor_comms):
         """Test that _get_connection raises error when no backend finds connection."""
-        from airflow.exceptions import AirflowNotFoundException
 
         # Backend returns None (not found)
         class EmptyBackend:
@@ -966,5 +965,5 @@ class TestSecretsBackend:
         with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
             mock_load.return_value = [EmptyBackend()]
 
-            with pytest.raises(AirflowNotFoundException, match="isn't defined"):
+            with pytest.raises(RuntimeError, match="isn't defined"):
                 _get_connection("nonexistent_conn")
