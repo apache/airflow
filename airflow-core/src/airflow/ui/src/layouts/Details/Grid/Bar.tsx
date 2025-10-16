@@ -43,7 +43,7 @@ type Props = {
   readonly versionDisplayMode?: string;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDisplayMode = "all" }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDisplayMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -98,11 +98,12 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
       </Flex>
 
       <TaskInstancesColumn
+        hasMixedVersions={run.has_mixed_versions}
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
         taskInstances={gridTISummaries?.task_instances ?? []}
-        versionDisplayMode={Boolean(run.has_mixed_versions) ? versionDisplayMode : "none"}
+        versionDisplayMode={versionDisplayMode}
       />
     </Box>
   );

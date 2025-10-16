@@ -54,7 +54,7 @@ export const Grid = ({
   runType,
   showGantt,
   triggeringUser,
-  versionDisplayMode = "all",
+  versionDisplayMode,
 }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);

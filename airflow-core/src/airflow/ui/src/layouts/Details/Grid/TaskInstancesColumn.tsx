@@ -27,6 +27,7 @@ import type { GridTask } from "./utils";
 
 type Props = {
   readonly depth?: number;
+  readonly hasMixedVersions?: boolean;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
@@ -35,11 +36,12 @@ type Props = {
 };
 
 export const TaskInstancesColumn = ({
+  hasMixedVersions,
   nodes,
   onCellClick,
   runId,
   taskInstances,
-  versionDisplayMode = "all",
+  versionDisplayMode,
 }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
@@ -47,30 +49,37 @@ export const TaskInstancesColumn = ({
 
   const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
 
-  // todo: how does this work with mapped? same task id for multiple tis
   return nodes.map((node, idx) => {
+    // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstanceMap.get(node.id);
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
-    const prevNode = idx > 0 ? nodes[idx - 1] : undefined;
-    const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
-    const hasVersionChange = Boolean(
-      versionDisplayMode === "dag" &&
-        prevTaskInstance &&
-        prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
-    );
+    const hasVersionChangeFlag =
+      hasMixedVersions &&
+      (versionDisplayMode === "dag" || versionDisplayMode === "all") &&
+      idx > 0 &&
+      (() => {
+        const prevNode = nodes[idx - 1];
+
+        if (!prevNode) {
+          return false;
+        }
+        const prevTaskInstance = taskInstanceMap.get(prevNode.id);
+
+        return prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
+      })();
 
     return (
       <Box key={node.id} position="relative">
-        {Boolean(hasVersionChange) && (
+        {hasVersionChangeFlag ? (
           <DagVersionIndicator
             dagVersionNumber={taskInstance.dag_version_number ?? null}
             orientation="horizontal"
           />
-        )}
+        ) : null}
         <GridTI
           dagId={dagId}
           instance={taskInstance}
