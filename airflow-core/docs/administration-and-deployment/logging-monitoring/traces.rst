@@ -39,7 +39,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_on = True
     otel_task_log_event = True
 
-Configure the SDK, by exporting the regular OpenTelemetry variables to your environment
+Configure the OpenTelemetry SDK, by exporting the regular OpenTelemetry variables to your environment
 
 .. code-block:: ini
 
