@@ -64,7 +64,8 @@ methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to th
 and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
 ``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
 
-The default authentication option described is related with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
+The default authentication option described in the Web Authentication section of Airflow core and is related
+with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 
 .. code-block:: ini
 

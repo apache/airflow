@@ -64,6 +64,12 @@ classifiers = [
 
 dynamic = ["version", "optional-dependencies", "dependencies"]
 
+[dependency-groups]
+dev = [
+    "local-providers",
+    "apache-airflow-task-sdk"
+]
+
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! YOU MIGHT BE SURPRISED NOT SEEING THE DEPENDENCIES AS `project.dependencies`     !!!!!!!!!
 # !!! AND EXTRAS AS `project.optional-dependencies`                                    !!!!!!!!!
@@ -586,12 +592,6 @@ module=[
     "apache_beam.*"
 ]
 ignore_errors = true
-
-[tool.uv]
-dev-dependencies = [
-  "local-providers",
-  "apache-airflow-task-sdk"
-]
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
