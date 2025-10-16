@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 from collections import abc
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -36,6 +36,9 @@ from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.param import SerializedParamsDict
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -177,11 +180,11 @@ class DAGDetailsResponse(DAGResponse):
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.Mapping | None) -> dict | None:
+    def get_params(cls, params: SerializedParamsDict | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {k: v.dump() for k, v in params.items()}
+        return {k: v.resolve(suppress_exception=True) for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field(deprecated=True)  # type: ignore[prop-decorator]

@@ -93,6 +93,7 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -1028,16 +1029,14 @@ class BaseSerialization:
         }
 
     @classmethod
-    def _deserialize_param(cls, param_dict: dict):
+    def _deserialize_param(cls, param_dict: dict) -> SerializedParam:
         """
-        Workaround to serialize Param on older versions.
+        Deserialize an encoded Param to a server-side SerializedParam.
 
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
-        class_name = param_dict["__class"]
-        class_: type[Param] = import_string(class_name)
         attrs = ("default", "description", "schema")
         kwargs = {}
 
@@ -1054,7 +1053,12 @@ class BaseSerialization:
                 if is_serialized(val):
                     val = cls.deserialize(val)
                 kwargs[attr] = val
-        return class_(**kwargs)
+
+        return SerializedParam(
+            default=kwargs.get("default"),
+            description=kwargs.get("description"),
+            **(kwargs.get("schema") or {}),
+        )
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
@@ -1076,23 +1080,21 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
-        """Deserialize a DAG's Params dict."""
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> SerializedParamsDict:
+        """Deserialize an encoded ParamsDict to a server-side SerializedParamsDict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
         else:
             encoded_param_pairs = encoded_params
 
-        op_params = {}
-        for k, v in encoded_param_pairs:
-            if isinstance(v, dict) and "__class" in v:
-                op_params[k] = cls._deserialize_param(v)
-            else:
-                # Old style params, convert it
-                op_params[k] = Param(v)
+        def deserialized_param(v):
+            if not isinstance(v, dict) or "__class" not in v:
+                return SerializedParam(v)  # Old style param serialization format.
+            return cls._deserialize_param(v)
 
-        return ParamsDict(op_params)
+        op_params = {k: deserialized_param(v) for k, v in encoded_param_pairs}
+        return SerializedParamsDict(op_params)
 
     @classmethod
     @lru_cache(maxsize=4)  # Cache for "operator", "dag", and a few others
@@ -1284,6 +1286,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     outlets: Sequence = []
     owner: str = "airflow"
+    params: SerializedParamsDict = SerializedParamsDict()
     pool: str = "default_pool"
     pool_slots: int = 1
     priority_weight: int = 1
@@ -1317,18 +1320,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     is_mapped = False
 
-    def __init__(
-        self,
-        *,
-        task_id: str,
-        params: Mapping[str, Any] | None = None,
-        _airflow_from_mapped: bool = False,
-    ) -> None:
+    def __init__(self, *, task_id: str, _airflow_from_mapped: bool = False) -> None:
         super().__init__()
 
         self._BaseOperator__from_mapped = _airflow_from_mapped
         self.task_id = task_id
-        self.params = ParamsDict(params)
         # Move class attributes into object attributes.
         self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name: str | None = None
@@ -1603,9 +1599,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-                if op.params:  # Merge existing params if needed.
-                    v, new = op.params, v
-                    v.update(new)
             elif k == "partial_kwargs":
                 # Use unified deserializer that supports both encoded and non-encoded values
                 v = cls._deserialize_partial_kwargs(v, client_defaults)
@@ -2381,7 +2374,7 @@ class SerializedDAG(BaseSerialization):
     max_active_tasks: int
     max_consecutive_failed_dag_runs: int
     owner_links: dict[str, str]
-    params: ParamsDict  # TODO (GH-52141): Should use a scheduler-specific type.
+    params: SerializedParamsDict
     partial: bool
     render_template_as_native_obj: bool
     start_date: datetime.datetime | None
@@ -2416,7 +2409,7 @@ class SerializedDAG(BaseSerialization):
         self.max_active_tasks = 16  # Schema default
         self.max_consecutive_failed_dag_runs = 0  # Schema default
         self.owner_links = {}
-        self.params = ParamsDict()
+        self.params = SerializedParamsDict()
         self.partial = False
         self.render_template_as_native_obj = False
         self.start_date = None
@@ -3256,11 +3249,7 @@ class SerializedDAG(BaseSerialization):
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-
-        # create a copy of params before validating
-        copied_params = copy.deepcopy(self.params)
-        if conf:
-            copied_params.update(conf)
+        copied_params = self.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
