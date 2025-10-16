@@ -639,6 +639,7 @@ class TestConnection:
         assert conn.password == "airflow"
         assert conn.port is None
 
+    @pytest.mark.db_test
     def test_env_var_priority(self):
         from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
