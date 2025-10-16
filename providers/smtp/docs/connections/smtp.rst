@@ -247,7 +247,7 @@ Using ``SmtpHook`` in a Dag
 
    from datetime import datetime
 
-   from airflow import Dag
+   from airflow import DAG
    from airflow.operators.python import PythonOperator
    from airflow.providers.smtp.hooks.smtp import SmtpHook
 
@@ -261,7 +261,7 @@ Using ``SmtpHook`` in a Dag
            )
 
 
-   with Dag(
+   with DAG(
        dag_id="test_gmail_oauth2",
        start_date=datetime(2025, 7, 1),
        schedule=None,
