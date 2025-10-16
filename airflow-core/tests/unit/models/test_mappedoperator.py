@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -1401,3 +1402,45 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
+
+
+def test_mapped_operator_retry_delay_default(dag_maker):
+    """
+    Test that MappedOperator.retry_delay returns default value when not explicitly set.
+
+    This test verifies the fix for a KeyError that occurred when accessing retry_delay
+    on a MappedOperator without an explicit retry_delay value in partial_kwargs.
+    The property should fall back to SerializedBaseOperator.retry_delay (300 seconds).
+    """
+    with dag_maker(dag_id="test_retry_delay", serialized=True) as dag:
+        # Create a mapped operator without explicitly setting retry_delay
+        MockOperator.partial(task_id="mapped_task").expand(arg2=[1, 2, 3])
+
+    # Get the deserialized mapped task
+    mapped_deser = dag.task_dict["mapped_task"]
+
+    # Accessing retry_delay should not raise KeyError
+    # and should return the default value (300 seconds)
+    assert mapped_deser.retry_delay == datetime.timedelta(seconds=300)
+
+
+def test_mapped_operator_retry_delay_explicit(dag_maker):
+    """
+    Test that MappedOperator.retry_delay returns explicit value when set.
+
+    This test verifies that when retry_delay is explicitly set in partial(),
+    the MappedOperator returns that value instead of the default.
+    """
+    custom_retry_delay = datetime.timedelta(seconds=600)
+
+    with dag_maker(dag_id="test_retry_delay_explicit", serialized=True) as dag:
+        # Create a mapped operator with explicit retry_delay
+        MockOperator.partial(task_id="mapped_task_with_retry", retry_delay=custom_retry_delay).expand(
+            arg2=[1, 2, 3]
+        )
+
+    # Get the deserialized mapped task
+    mapped_deser = dag.task_dict["mapped_task_with_retry"]
+
+    # Should return the explicitly set value
+    assert mapped_deser.retry_delay == custom_retry_delay

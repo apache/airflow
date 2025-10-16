@@ -181,17 +181,6 @@ def init_error_handlers(app: FastAPI) -> None:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
 
-def init_middlewares(app: FastAPI) -> None:
-    from airflow.configuration import conf
-
-    if "SimpleAuthManager" in conf.get("core", "auth_manager") and conf.getboolean(
-        "core", "simple_auth_manager_all_admins"
-    ):
-        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
-
-        app.add_middleware(SimpleAllAdminMiddleware)
-
-
 def init_ui_plugins(app: FastAPI) -> None:
     """Initialize UI plugins."""
     from airflow import plugins_manager

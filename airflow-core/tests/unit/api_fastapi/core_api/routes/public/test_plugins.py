@@ -61,8 +61,6 @@ class TestGetPlugins:
     def test_should_respond_200(
         self, test_client, session, query_params, expected_total_entries, expected_names
     ):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         response = test_client.get("/plugins", params=query_params)
         assert response.status_code == 200
 
@@ -71,8 +69,6 @@ class TestGetPlugins:
         assert [plugin["name"] for plugin in body["plugins"]] == expected_names
 
     def test_external_views_model_validator(self, test_client):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         response = test_client.get("plugins")
         body = response.json()
 
@@ -120,8 +116,6 @@ class TestGetPlugins:
         assert response.status_code == 403
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")
 
         response = test_client.get("/plugins")

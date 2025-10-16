@@ -135,5 +135,8 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 # Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
 
+# Task SDK integration tests
+/task-sdk-tests/ @amoghrajesh
+
 # Golang SDK
 /go-sdk/ @ashb @kaxil @amoghrajesh
