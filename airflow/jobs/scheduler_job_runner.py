@@ -1846,14 +1846,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
                 ti,
             )
+            msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
                     task_instance=ti.key,
-                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                    extra=msg,
                 )
             )
-            executor.fail(ti.key)
+            try:
+                dag = self.dagbag.get_dag(ti.dag_id)
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.warning(
+                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
+                    exc_info=True,
+                )
+            else:
+                ti.task = task
+                if task.on_failure_callback:
+                    request = TaskCallbackRequest(
+                        full_filepath=ti.dag_model.fileloc,
+                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                        msg=msg,
+                        processor_subdir=ti.dag_model.processor_subdir,
+                    )
+                executor.send_callback(request)
+            finally:
+                ti.set_state(TaskInstanceState.FAILED, session=session)
+                executor.fail(ti.key)
 
     @deprecated(
         reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
