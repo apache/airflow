@@ -361,6 +361,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 ]
         else:
             message = []
+            metadata["end_of_log"] = True
         return message, metadata
 
     def _format_msg(self, hit: Hit):
