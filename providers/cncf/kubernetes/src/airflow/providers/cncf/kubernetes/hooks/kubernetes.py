@@ -67,6 +67,7 @@ def _load_body_to_dict(body: str) -> dict:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
 
+
 class PodOperatorHookProtocol(Protocol):
     """
     Protocol to define methods relied upon by KubernetesPodOperator.
