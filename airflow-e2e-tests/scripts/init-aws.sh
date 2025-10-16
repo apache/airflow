@@ -1,4 +1,4 @@
-#
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
-
-from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import mapped_column
-
-
-class DagFavorite(Base):
-    """Association table model linking users to their favorite DAGs."""
-
-    __tablename__ = "dag_favorite"
-
-    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    dag_id: Mapped[str] = mapped_column(
-        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
-    )
+aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
+aws --endpoint-url=http://localstack:4566 s3 ls

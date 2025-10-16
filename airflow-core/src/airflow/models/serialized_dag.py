@@ -27,9 +27,9 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, select, tuple_
+from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -49,7 +49,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -280,15 +280,17 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    _data = Column(
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
+    _data: Mapped[dict | None] = mapped_column(
         "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
     )
-    _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
-    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
-    dag_hash = Column(String(32), nullable=False)
+    _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[UtcDateTime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
+    dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
 
     dag_runs = relationship(
         DagRun,
@@ -304,7 +306,7 @@ class SerializedDagModel(Base):
         innerjoin=True,
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
-    dag_version_id = Column(
+    dag_version_id: Mapped[str] = mapped_column(
         UUIDType(binary=False),
         ForeignKey("dag_version.id", ondelete="CASCADE"),
         nullable=False,
