@@ -20,6 +20,151 @@
 Changelog
 ---------
 
+1.5.4
+.....
+
+* ``[providers-fab/v1-5] Update dependencies for FAB provider to not be conflicting with 2.11.1 (#53029)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+1.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[providers-fab/v1-5] Use different default algorithms for different werkzeug versions (#46384) (#46392)``
+
+Misc
+~~~~
+
+* ``[providers-fab/v1-5] Upgrade to FAB 4.5.3 (#45874) (#45918)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Correctly import isabs from os.path (#45178)``
+* ``[providers-fab/v1-5] Invalidate user session on password reset (#45139)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fab_auth_manager: allow get_user method to return the user authenticated via Kerberos (#43662)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Expand and improve the kerberos api authentication documentation (#43682)``
+
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(providers/fab): Use asset in common provider (#43112)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix revoke Dag stale permission on airflow < 2.10 (#42844)``
+* ``fix(providers/fab): alias is_authorized_dataset to is_authorized_asset (#43469)``
+* ``fix: Change CustomSecurityManager method name (#43034)``
+
+Misc
+~~~~
+
+* ``Upgrade Flask-AppBuilder to 4.5.2 (#43309)``
+* ``Upgrade Flask-AppBuilder to 4.5.1 (#43251)``
+* ``Move user and roles schemas to fab provider (#42869)``
+* ``Move the session auth backend to FAB auth manager (#42878)``
+* ``Add logging to the migration commands (#43516)``
+* ``DOC fix documentation error in 'apache-airflow-providers-fab/access-control.rst' (#43495)``
+* ``Rename dataset as asset in UI (#43073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Prepare docs for Oct 2nd wave of providers (#43409)``
+   * ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
+
+1.4.1
+.....
+
+Misc
+~~~~
+
+* ``Update Rest API tests to no longer rely on FAB auth manager. Move tests specific to FAB permissions to FAB provider (#42523)``
+* ``Rename dataset related python variable names to asset (#41348)``
+* ``Simplify expression for get_permitted_dag_ids query (#42484)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add FAB migration commands (#41804)``
+* ``Separate FAB migration from Core Airflow migration (#41437)``
+
+Misc
+~~~~
+
+* ``Deprecated kerberos auth removed (#41693)``
+* ``Deprecated configuration removed (#42129)``
+* ``Move 'is_active' user property to FAB auth manager (#42042)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``Revert "Provider fab auth manager deprecated methods removed (#41720)" (#41960)``
+* ``Provider fab auth manager deprecated methods removed (#41720)``
+* ``Make kerberos an optional and devel dependency for impala and fab (#41616)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add TODOs in providers code for Subdag code removal (#41963)``
+   * ``Add fixes by breeze/precommit-lint static checks (#41604) (#41618)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix pre-commit for auto update of fab migration versions (#42382)``
+   * ``Handle 'AUTH_ROLE_PUBLIC' in FAB auth manager (#42280)``
+
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Feature: Allow set Dag Run resource into Dag Level permission (#40703)``
+
+Misc
+~~~~
+
+* ``Remove deprecated SubDags (#41390)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.2.2
 .....
 

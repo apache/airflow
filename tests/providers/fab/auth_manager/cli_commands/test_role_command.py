@@ -23,9 +23,10 @@ from io import StringIO
 from typing import TYPE_CHECKING
 
 import pytest
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 from airflow.cli import cli_parser
-from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import role_command
@@ -47,11 +48,12 @@ class TestCliRoles:
     @pytest.fixture(autouse=True)
     def _set_attrs(self):
         self.parser = cli_parser.get_parser()
-        with get_application_builder() as appbuilder:
-            self.appbuilder = appbuilder
-            self.clear_users_and_roles()
-            yield
-            self.clear_users_and_roles()
+        with conf_vars({("fab", "UPDATE_FAB_PERMS"): "False"}):
+            with get_application_builder() as appbuilder:
+                self.appbuilder = appbuilder
+                self.clear_users_and_roles()
+                yield
+                self.clear_users_and_roles()
 
     def clear_users_and_roles(self):
         session = self.appbuilder.get_session
