@@ -396,7 +396,7 @@ While enabling lineage on a Dag implicitly enables it for all tasks within that 
 
     from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
-    with Dag(...) as dag:
+    with DAG(...) as dag:
         t1 = MyOperator(...)
         t2 = AnotherOperator(...)
 
