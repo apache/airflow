@@ -24,7 +24,7 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 
 export const StatsCard = ({
-  colorScheme,
+  colorPalette,
   count,
   icon,
   isLoading = false,
@@ -34,7 +34,7 @@ export const StatsCard = ({
   onClick,
   state,
 }: {
-  readonly colorScheme: string;
+  readonly colorPalette: string;
   readonly count: number;
   readonly icon?: React.ReactNode;
   readonly isLoading?: boolean;
@@ -50,14 +50,19 @@ export const StatsCard = ({
 
   const content = (
     <HStack
+      _hover={{
+        bg: "colorPalette.subtle",
+        borderColor: "colorPalette.emphasized",
+      }}
       alignItems="center"
       borderRadius="lg"
       borderWidth={1}
       color="fg.emphasized"
+      colorPalette={colorPalette}
       cursor="pointer"
       p={2}
     >
-      <StateBadge colorPalette={colorScheme} mr={2} state={state}>
+      <StateBadge colorPalette={colorPalette} mr={2} state={state}>
         {icon}
         {count}
       </StateBadge>

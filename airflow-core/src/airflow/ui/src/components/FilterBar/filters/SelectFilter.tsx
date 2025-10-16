@@ -65,30 +65,29 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
         border="0.5px solid"
         borderColor="border"
         borderRadius="full"
+        colorPalette="gray"
         display="flex"
-        h="full"
         overflow="hidden"
         width="330px"
       >
         <Text
           alignItems="center"
-          bg="gray.muted"
+          alignSelf="stretch"
+          bg="colorPalette.muted"
           borderLeftRadius="full"
           display="flex"
+          flexShrink={0}
           fontSize="sm"
           fontWeight="medium"
-          h="full"
-          px={4}
+          px={3}
           py={2}
-          whiteSpace="nowrap"
         >
           {filter.config.label}:
         </Text>
         <Select.Root
-          border="none"
           collection={createListCollection({ items: config.options })}
-          h="full"
           onValueChange={handleValueChange}
+          size="sm"
           value={hasValue ? [String(filter.value)] : []}
         >
           <Select.Trigger triggerProps={{ border: "none" }}>

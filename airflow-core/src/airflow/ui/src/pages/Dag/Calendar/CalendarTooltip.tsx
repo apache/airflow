@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, Text, VStack, useToken } from "@chakra-ui/react";
 import { useMemo } from "react";
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
+
+import { resolveTokenValue } from "src/theme";
 
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
@@ -42,6 +44,9 @@ const stateColorMap = {
 export const CalendarTooltip = ({ cellData, triggerRef, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
 
+  const [bgInverted, fgInverted] = useToken("colors", ["bg.inverted", "fg.inverted"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
+
   const tooltipStyle = useMemo(() => {
     if (!triggerRef.current) {
       return { display: "none" };
@@ -50,9 +55,9 @@ export const CalendarTooltip = ({ cellData, triggerRef, viewMode = "total" }: Pr
     const rect = triggerRef.current.getBoundingClientRect();
 
     return {
-      backgroundColor: "var(--chakra-colors-bg-inverted)",
+      backgroundColor: bgInverted,
       borderRadius: "4px",
-      color: "var(--chakra-colors-fg-inverted)",
+      color: fgInverted,
       fontSize: "14px",
       left: `${rect.left + globalThis.scrollX + rect.width / 2}px`,
       minWidth: "200px",
@@ -63,11 +68,11 @@ export const CalendarTooltip = ({ cellData, triggerRef, viewMode = "total" }: Pr
       whiteSpace: "nowrap" as const,
       zIndex: 1000,
     };
-  }, [triggerRef]);
+  }, [triggerRef, bgInverted, fgInverted]);
 
   const arrowStyle = useMemo(
     () => ({
-      borderBottom: "4px solid var(--chakra-colors-bg-inverted)",
+      borderBottom: `4px solid ${bgInverted}`,
       borderLeft: "4px solid transparent",
       borderRight: "4px solid transparent",
       content: '""',
@@ -78,7 +83,7 @@ export const CalendarTooltip = ({ cellData, triggerRef, viewMode = "total" }: Pr
       transform: "translateX(-50%)",
       width: 0,
     }),
-    [],
+    [bgInverted],
   );
 
   if (!cellData) {

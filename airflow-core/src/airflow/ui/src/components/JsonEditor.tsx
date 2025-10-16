@@ -17,14 +17,19 @@
  * under the License.
  */
 import { json } from "@codemirror/lang-json";
+import { useToken } from "@chakra-ui/react";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror, { type ReactCodeMirrorProps, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { forwardRef } from "react";
 
 import { useColorMode } from "src/context/colorMode";
+import { resolveTokenValue } from "src/theme";
 
 export const JsonEditor = forwardRef<ReactCodeMirrorRef, ReactCodeMirrorProps>((props, ref) => {
   const { colorMode } = useColorMode();
+
+  const [borderColor] = useToken("colors", ["border.emphasized"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   return (
     <CodeMirror
@@ -38,7 +43,7 @@ export const JsonEditor = forwardRef<ReactCodeMirrorRef, ReactCodeMirrorProps>((
       height="200px"
       ref={ref}
       style={{
-        border: "1px solid var(--chakra-colors-border-emphasized)",
+        border: `1px solid ${borderColor}`,
         borderRadius: "8px",
         outline: "none",
         padding: "2px",

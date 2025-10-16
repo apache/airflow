@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, useToken } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
+import { resolveTokenValue } from "src/theme";
 
 import ActionButton from "../ui/ActionButton";
 
@@ -35,17 +36,21 @@ export const FavoriteDagButton = ({ dagId, isFavorite = false, withText = true }
 
   const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
 
+  const [brandSolidColor] = useToken("colors", ["brand.solid"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
+
   const onToggle = () => toggleFavorite(isFavorite);
 
   return (
     <Box>
       <ActionButton
         actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
+        colorPalette="brand"
         icon={
           <FiStar
             style={{
-              fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
-              stroke: "var(--chakra-colors-brand-solid)",
+              fill: isFavorite ? brandSolidColor : "none",
+              stroke: brandSolidColor,
             }}
           />
         }

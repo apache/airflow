@@ -21,7 +21,6 @@
 
 /* eslint-disable max-lines */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
-import type { CSSProperties } from "react";
 
 const generateSemanticTokens = (color: string, darkContrast: string = "white") => ({
   solid: { value: `{colors.${color}.600}` },
@@ -32,6 +31,13 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   emphasized: { value: { _light: `{colors.${color}.300}`, _dark: `{colors.${color}.700}` } },
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
+
+// Utility function to resolve CSS variables to their computed values
+// See: https://github.com/chakra-ui/panda/discussions/2200
+export const resolveTokenValue = (variable: string): string =>
+  getComputedStyle(document.documentElement)
+    .getPropertyValue(variable.slice(4, variable.length - 1))
+    .trim();
 
 export const customConfig = defineConfig({
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
@@ -392,35 +398,205 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
+
+        // COMPONENT-SPECIFIC SEMANTIC TOKENS
+
+        // components/DataTable/
+        "data-table": {
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } },
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } }
+          },
+          row: {
+            bg: {
+              default: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+              hover: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } }
+            },
+            border: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.800}" } }
+          },
+          cell: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            muted: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+        },
+
+        // components/EditableMarkdownButton.tsx
+        "editable-markdown-button": {
+          indicator: {
+            bg: { value: "{colors.brand.500}" }
+          },
+          header: {
+            bg: { value: { _light: "{colors.brand.200}", _dark: "{colors.brand.800}" } }
+          }
+        },
+
+        // components/FilterBar/
+        "filter-bar": {
+          pill: {
+            close: {
+              color: { value: { _light: "{colors.gray.400}", _dark: "{colors.gray.400}" } },
+              bg: {
+                hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+              }
+            }
+          }
+        },
+        // components/TrendCountChart.tsx
+        "trend-count-chart": {
+          success: {
+            bg: { value: { _light: "{colors.green.100}", _dark: "{colors.green.800}" } },
+            line: { value: { _light: "{colors.green.500}", _dark: "{colors.green.400}" } }
+          },
+          failed: {
+            bg: { value: { _light: "{colors.red.100}", _dark: "{colors.red.800}" } },
+            line: { value: { _light: "{colors.red.500}", _dark: "{colors.red.400}" } }
+          }
+        },
+        // components/ui/Toaster/Toaster.tsx
+        toaster: {
+          spinner: {
+            color: { value: "{colors.brand.600}" }
+          }
+        },
+        // layouts/Details/Gantt/Gantt.tsx
+        gantt: {
+          grid: {
+            color: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.800}" } }
+          },
+          bg: {
+            selected: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } },
+            hover: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.800}" } }
+          }
+        },
+
+        // layouts/Details/Graph/Graph.tsx
+        graph: {
+          node: {
+            success: { value: "{colors.green.500}" },
+            failed: { value: "{colors.red.500}" },
+            running: { value: "{colors.cyan.500}" },
+            queued: { value: "{colors.yellow.500}" },
+            skipped: { value: "{colors.gray.400}" },
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } }
+          },
+          edge: {
+            default: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            active: { value: "{colors.brand.600}" }
+          },
+          background: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.900}" } },
+          bg: { value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" } },
+          pattern: { value: { _light: "{colors.gray.800}", _dark: "{colors.gray.200}" } },
+          controls: {
+            bg: {
+              default: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+              hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+            }
+          },
+          minimap: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            group: {
+              odd: { value: { _light: "white", _dark: "{colors.gray.900}" } },
+              even: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.300}" } }
+            }
+          },
+          selected: {
+            stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
+          }
+        },
+
+
+        // layouts/Nav/
+        nav: {
+          bg: { value: { _light: "{colors.brand.100}", _dark: "{colors.brand.900}" } },
+          button: {
+            bg: {
+              default: { value: { _light: "{colors.brand.600}", _dark: "{colors.brand.600}" } },
+              active: { value: { _light: "{colors.brand.600}", _dark: "{colors.brand.400}" } }
+            }
+          }
+        },
+
+        // pages/Asset/AssetGraph.tsx
+        "asset-graph": {
+          bg: { value: { _light: "{colors.brand.50}", _dark: "{colors.brand.950}" } },
+          pattern: { value: { _light: "{colors.gray.800}", _dark: "{colors.gray.200}" } },
+          controls: {
+            bg: {
+              default: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+              hover: { value: { _light: "{colors.gray.100}", _dark: "{colors.gray.700}" } }
+            }
+          },
+          minimap: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } }
+          },
+          selected: {
+            stroke: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } }
+          }
+        },
+
+        // pages/Connections/TestConnectionButton.tsx
+        "test-connection": {
+          icon: {
+            connected: { value: "{colors.green.600}" },
+            disconnected: { value: "{colors.red.600}" }
+          }
+        },
+
+        // pages/Dag/Calendar/HourlyCalendarView.tsx
+        calendar: {
+          "hour-label": {
+            color: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          }
+        },
+
+        // pages/Variables/ImportVariablesForm.tsx
+        "import-variables": {
+          spinner: {
+            color: { value: "{colors.brand.600}" }
+          }
+        },
+
+        // Generic tokens (used by HeaderCard, StatsCard, etc.)
+        card: {
+          default: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 1px 3px rgba(0, 0, 0, 0.1)", _dark: "0 1px 3px rgba(0, 0, 0, 0.3)" } }
+          },
+          elevated: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.700}" } },
+            shadow: { value: { _light: "0 4px 6px rgba(0, 0, 0, 0.1)", _dark: "0 4px 6px rgba(0, 0, 0, 0.3)" } }
+          },
+          header: {
+            bg: { value: { _light: "{colors.gray.50}", _dark: "{colors.gray.700}" } },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            border: { value: { _light: "{colors.gray.200}", _dark: "{colors.gray.600}" } }
+          }
+        },
+
+        // Generic tokens (used by FlexibleForm and other forms)
+        form: {
+          input: {
+            bg: { value: { _light: "white", _dark: "{colors.gray.800}" } },
+            border: { value: { _light: "{colors.gray.300}", _dark: "{colors.gray.600}" } },
+            focus: { value: "{colors.brand.600}" },
+            error: { value: "{colors.red.500}" },
+            text: { value: { _light: "{colors.gray.900}", _dark: "{colors.gray.100}" } },
+            placeholder: { value: { _light: "{colors.gray.500}", _dark: "{colors.gray.500}" } }
+          },
+          label: {
+            text: { value: { _light: "{colors.gray.700}", _dark: "{colors.gray.300}" } },
+            required: { value: "{colors.red.500}" }
+          },
+          help: {
+            text: { value: { _light: "{colors.gray.600}", _dark: "{colors.gray.400}" } }
+          }
+        },
       },
     },
   },
 });
 
 export const system = createSystem(defaultConfig, customConfig);
-
-// Utility function to resolve CSS variables to their computed values
-// See: https://github.com/chakra-ui/panda/discussions/2200
-export const getComputedCSSVariableValue = (variable: string): string =>
-  getComputedStyle(document.documentElement)
-    .getPropertyValue(variable.slice(4, variable.length - 1))
-    .trim();
-
-// Returns ReactFlow style props using Chakra UI CSS variables
-export const getReactFlowThemeStyle = (colorMode: "dark" | "light"): CSSProperties =>
-  ({
-    // Background
-    "--xy-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-brand-950)" : "var(--chakra-colors-brand-50)",
-    "--xy-background-pattern-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-200)" : "var(--chakra-colors-gray-800)",
-
-    // Controls
-    "--xy-controls-button-background-color":
-      colorMode === "dark" ? "var(--chakra-colors-gray-800)" : "var(--chakra-colors-white)",
-    "--xy-controls-button-background-color-hover":
-      colorMode === "dark" ? "var(--chakra-colors-gray-700)" : "var(--chakra-colors-gray-100)",
-
-    // MiniMap
-    "--xy-minimap-background-color": "var(--chakra-colors-bg)",
-  }) as CSSProperties;
