@@ -77,7 +77,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. note::
 
-    To support the OpenTelemetry exporter standard, the ``metrics`` configurations are transparently superseded by use of standard OpenTelemetry SDK environment variables.
+    To support the OpenTelemetry exporter standard, the ``metrics`` configurations are transparently overridden by use of standard OpenTelemetry SDK environment variables.
 
     - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` supersede ``otel_host``, ``otel_port`` and ``otel_ssl_active``
     - ``OTEL_METRIC_EXPORT_INTERVAL`` supersedes ``otel_interval_milliseconds``
