@@ -33,7 +33,7 @@ Global labels can be set using the ``labels`` parameter in your values file. The
 Component-Specific Labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also set specific labels for individual Airflow components. These labels will be merged with the global labels, with component-specific labels taking precedence.
+You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to override them as needed.
 
 For example, to add specific labels to different components:
 
@@ -57,6 +57,3 @@ For example, to add specific labels to different components:
     webserver:
       labels:
         role: ui
-
-.. note::
-    Component-specific labels take precedence over global labels when there are conflicts. This allows you to override global labels for specific components when needed.
