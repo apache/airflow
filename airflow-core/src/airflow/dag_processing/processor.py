@@ -294,22 +294,25 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
-   
-    ti = getattr(request, "ti", None)
-    dag_id_for_log = getattr(ti, "dag_id", None)
-    task_id_for_log = getattr(ti, "task_id", None)
-    run_id_for_log = getattr(ti, "run_id", None)
-
+    # Check if this is a failure callback early
     if not request.is_failure_callback:
         log.warning(
             "Task callback requested but is not a failure callback",
-            dag_id=dag_id_for_log,
-            task_id=task_id_for_log,
-            run_id=run_id_for_log,
+            dag_id=getattr(getattr(request, "ti", None), "dag_id", None),
+            task_id=getattr(getattr(request, "ti", None), "task_id", None),
+            run_id=getattr(getattr(request, "ti", None), "run_id", None),
         )
         return
 
-    
+    # Defensive lookup for dag_id and ensure ti exists
+    ti = getattr(request, "ti", None)
+    if ti is None:
+        log.warning(
+            "Callback request missing task instance; skipping callbacks (request=%s)",
+            request,
+        )
+        return
+
     dag_id = getattr(ti, "dag_id", None)
     if not dag_id:
         log.warning(
@@ -318,7 +321,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
         )
         return
 
-    
+    # Prefer DagBag.get_dag if available; otherwise fall back to dagbag.dags.get
     get_dag = getattr(dagbag, "get_dag", None)
     if callable(get_dag):
         dag = get_dag(dag_id)
@@ -333,8 +336,8 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
         )
         return
 
-    
-    task = dag.get_task(getattr(ti, "task_id"))
+    # Now ti is guaranteed to be not None, so model_dump is safe
+    task = dag.get_task(ti.task_id)
 
     if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
         callbacks = task.on_retry_callback
@@ -345,9 +348,9 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
         log.warning(
             "Callback requested but no callback found",
             dag_id=dag_id,
-            task_id=getattr(ti, "task_id", None),
-            run_id=getattr(ti, "run_id", None),
-            ti_id=getattr(ti, "id", None),
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            ti_id=ti.id,
         )
         return
 
@@ -382,7 +385,6 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             callback(context)
         except Exception:
             log.exception("Error in callback at index %d: %s", idx, callback_repr)
-
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
     """Execute email notification for task failure/retry."""
     dag = dagbag.dags[request.ti.dag_id]
