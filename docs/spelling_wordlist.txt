@@ -385,6 +385,7 @@ DagFileProcessorManager
 dagfolder
 dagmodel
 DagParam
+dagProcessor
 Dagre
 dagre
 DagRun
