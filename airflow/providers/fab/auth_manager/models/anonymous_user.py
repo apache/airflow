@@ -29,10 +29,13 @@ class AnonymousUser(AnonymousUserMixin, BaseUser):
     _roles: set[tuple[str, str]] = set()
     _perms: set[tuple[str, str]] = set()
 
+    first_name = "Anonymous"
+    last_name = ""
+
     @property
     def roles(self):
         if not self._roles:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+            public_role = current_app.config.get("AUTH_ROLE_PUBLIC", None)
             self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
         return self._roles
 
@@ -48,3 +51,6 @@ class AnonymousUser(AnonymousUserMixin, BaseUser):
                 (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
             }
         return self._perms
+
+    def get_name(self) -> str:
+        return "Anonymous"
