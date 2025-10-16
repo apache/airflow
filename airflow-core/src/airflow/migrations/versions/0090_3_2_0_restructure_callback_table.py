@@ -55,7 +55,7 @@ def upgrade():
     op.rename_table("callback_request", "callback")
     with op.batch_alter_table("callback", schema=None) as batch_op:
         batch_op.add_column(sa.Column("type", sa.String(length=20), nullable=False))
-        batch_op.add_column(sa.Column("fetch_method", sa.String(length=20), nullable=True))
+        batch_op.add_column(sa.Column("fetch_method", sa.String(length=20), nullable=False))
         batch_op.add_column(sa.Column("data", airflow.utils.sqlalchemy.ExtendedJSON(), nullable=True))
         batch_op.add_column(sa.Column("state", sa.String(length=10), nullable=True))
         batch_op.add_column(sa.Column("output", sa.Text(), nullable=True))

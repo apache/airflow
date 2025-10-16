@@ -109,12 +109,12 @@ class Callback(Base):
     type: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Method used to fetch the callback, of type: CallbackFetchMethod
-    fetch_method: Mapped[str | None] = mapped_column(String(20))
+    fetch_method: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Used by subclasses to store information about how to run the callback
     data: Mapped[dict] = mapped_column(ExtendedJSON)
 
-    # State of the Callback of type: CallbackState
+    # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
 
     # Return value of the callback if successful, otherwise exception details
