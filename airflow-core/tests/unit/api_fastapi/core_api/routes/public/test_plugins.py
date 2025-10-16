@@ -74,8 +74,9 @@ class TestGetPlugins:
 
         test_plugin = next((plugin for plugin in body["plugins"] if plugin["name"] == "test_plugin"), None)
         assert test_plugin is not None
-        assert test_plugin["external_views"] == [
-            # external_views
+
+        # Base external_view that is always present
+        expected_views = [
             {
                 "name": "Test IFrame Airflow Docs",
                 "href": "https://airflow.apache.org/",
@@ -85,27 +86,39 @@ class TestGetPlugins:
                 "destination": "nav",
                 "category": "browse",
             },
-            # appbuilder_menu_items
-            {
-                "category": "Search",
-                "destination": "nav",
-                "href": "https://www.google.com",
-                "icon": None,
-                "icon_dark_mode": None,
-                "name": "Google",
-                "url_route": None,
-            },
-            {
-                "category": None,
-                "destination": "nav",
-                "href": "https://www.apache.org/",
-                "icon": None,
-                "icon_dark_mode": None,
-                "label": "The Apache Software Foundation",
-                "name": "apache",
-                "url_route": None,
-            },
         ]
+
+        # The test plugin conditionally defines appbuilder_menu_items based on flask_appbuilder availability
+        try:
+            import flask_appbuilder  # noqa: F401
+
+            expected_views.extend(
+                [
+                    {
+                        "category": "Search",
+                        "destination": "nav",
+                        "href": "https://www.google.com",
+                        "icon": None,
+                        "icon_dark_mode": None,
+                        "name": "Google",
+                        "url_route": None,
+                    },
+                    {
+                        "category": None,
+                        "destination": "nav",
+                        "href": "https://www.apache.org/",
+                        "icon": None,
+                        "icon_dark_mode": None,
+                        "label": "The Apache Software Foundation",
+                        "name": "apache",
+                        "url_route": None,
+                    },
+                ]
+            )
+        except ImportError:
+            pass
+
+        assert test_plugin["external_views"] == expected_views
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/plugins")
