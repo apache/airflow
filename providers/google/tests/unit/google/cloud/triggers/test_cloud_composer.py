@@ -46,6 +46,7 @@ TEST_STATES = ["success"]
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_POLL_INTERVAL = 10
 TEST_COMPOSER_AIRFLOW_VERSION = 3
+TEST_USE_REST_API = True
 TEST_IMPERSONATION_CHAIN = "test_impersonation_chain"
 TEST_EXEC_RESULT = {
     "output": [{"line_number": 1, "content": "test_content"}],
@@ -90,6 +91,7 @@ def dag_run_trigger(mock_conn):
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
         poll_interval=TEST_POLL_INTERVAL,
         composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
+        use_rest_api=TEST_USE_REST_API,
     )
 
 
@@ -146,6 +148,7 @@ class TestCloudComposerDAGRunTrigger:
                 "impersonation_chain": TEST_IMPERSONATION_CHAIN,
                 "poll_interval": TEST_POLL_INTERVAL,
                 "composer_airflow_version": TEST_COMPOSER_AIRFLOW_VERSION,
+                "use_rest_api": TEST_USE_REST_API,
             },
         )
         assert actual_data == expected_data

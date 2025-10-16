@@ -502,6 +502,7 @@ class TestSchedulerJob:
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
             context_from_server=mock.ANY,
+            task_callback_type=TaskInstanceState.FAILED,
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         scheduler_job.executor.callback_sink.reset_mock()
@@ -6774,6 +6775,43 @@ class TestSchedulerJob:
         assert callback_request.context_from_server is not None
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
+
+    @pytest.mark.parametrize(
+        "retries,callback_kind,expected",
+        [
+            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, "failure", TaskInstanceState.FAILED),
+        ],
+    )
+    def test_external_kill_sets_callback_type_param(
+        self, dag_maker, session, retries, callback_kind, expected
+    ):
+        """External kill should mark callback type based on retry eligibility."""
+        with dag_maker(dag_id=f"ext_kill_{callback_kind}", fileloc="/test_path1/"):
+            if callback_kind == "retry":
+                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+            else:
+                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance(task_id="t1")
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+
+        # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
+        executor.event_buffer[ti.key] = State.FAILED, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        scheduler_job.executor.callback_sink.send.assert_called()
+        request = scheduler_job.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected
 
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""

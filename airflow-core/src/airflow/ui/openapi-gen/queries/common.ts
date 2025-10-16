@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -212,12 +212,6 @@ export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";
 export const UseDagStatsServiceGetDagStatsKeyFn = ({ dagIds }: {
   dagIds?: string[];
 } = {}, queryKey?: Array<unknown>) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
-export type DagReportServiceGetDagReportsDefaultResponse = Awaited<ReturnType<typeof DagReportService.getDagReports>>;
-export type DagReportServiceGetDagReportsQueryResult<TData = DagReportServiceGetDagReportsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useDagReportServiceGetDagReportsKey = "DagReportServiceGetDagReports";
-export const UseDagReportServiceGetDagReportsKeyFn = ({ subdir }: {
-  subdir: string;
-}, queryKey?: Array<unknown>) => [useDagReportServiceGetDagReportsKey, ...(queryKey ?? [{ subdir }])];
 export type ConfigServiceGetConfigDefaultResponse = Awaited<ReturnType<typeof ConfigService.getConfig>>;
 export type ConfigServiceGetConfigQueryResult<TData = ConfigServiceGetConfigDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConfigServiceGetConfigKey = "ConfigServiceGetConfig";
@@ -769,12 +763,6 @@ export const useLoginServiceLogoutKey = "LoginServiceLogout";
 export const UseLoginServiceLogoutKeyFn = ({ next }: {
   next?: string;
 } = {}, queryKey?: Array<unknown>) => [useLoginServiceLogoutKey, ...(queryKey ?? [{ next }])];
-export type LoginServiceRefreshDefaultResponse = Awaited<ReturnType<typeof LoginService.refresh>>;
-export type LoginServiceRefreshQueryResult<TData = LoginServiceRefreshDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useLoginServiceRefreshKey = "LoginServiceRefresh";
-export const UseLoginServiceRefreshKeyFn = ({ next }: {
-  next?: string;
-} = {}, queryKey?: Array<unknown>) => [useLoginServiceRefreshKey, ...(queryKey ?? [{ next }])];
 export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<ReturnType<typeof AuthLinksService.getAuthMenus>>;
 export type AuthLinksServiceGetAuthMenusQueryResult<TData = AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";

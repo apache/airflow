@@ -630,9 +630,12 @@ hooks:
       - airflow.providers.amazon.aws.hooks.glue
       - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
-  - integration-name: Amazon Kinesis Data Firehose
+  - integration-name: Amazon Kinesis Data Stream
     python-modules:
       - airflow.providers.amazon.aws.hooks.kinesis
+  - integration-name: Amazon Kinesis Data Firehose
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.firehose
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function

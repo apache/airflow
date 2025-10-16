@@ -29,6 +29,7 @@ from airflow.sdk.execution_time.context import (
     _get_variable,
     _set_variable,
 )
+from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 
 from tests_common.test_utils.config import conf_vars
 
@@ -98,7 +99,7 @@ class TestConnectionCacheIntegration:
             password="pass",
         )
 
-        mock_ensure_backends.return_value = []
+        mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
 
         mock_supervisor_comms.send.return_value = conn_result
 
@@ -188,7 +189,7 @@ class TestVariableCacheIntegration:
         value = "test_value"
         var_result = VariableResult(key=key, value=value)
 
-        mock_ensure_backends.return_value = []
+        mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
         mock_supervisor_comms.send.return_value = var_result
 
         result = _get_variable(key, deserialize_json=False)
@@ -316,7 +317,7 @@ class TestCacheDisabled:
         conn_id = "test_conn"
         conn_result = ConnectionResult(conn_id=conn_id, conn_type="mysql", host="host")
 
-        mock_ensure_backends.return_value = []
+        mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
 
         mock_supervisor_comms.send.return_value = conn_result
 
