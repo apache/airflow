@@ -35,6 +35,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
+from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -74,7 +75,10 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.typing_compat import Self
 
 
@@ -240,6 +244,39 @@ def _serialize_dags(
     return serialized_dags, serialization_import_errors
 
 
+def _get_dag_with_task(
+    dagbag: DagBag, dag_id: str, task_id: str | None = None
+) -> tuple[DAG, BaseOperator | MappedOperator | None]:
+    """
+    Retrieve a DAG and optionally a task from the DagBag.
+
+    :param dagbag: DagBag to retrieve from
+    :param dag_id: DAG ID to retrieve
+    :param task_id: Optional task ID to retrieve from the DAG
+    :return: tuple of (dag, task) where task is None if not requested
+    :raises ValueError: If DAG or task is not found
+    """
+    if dag_id not in dagbag.dags:
+        raise ValueError(
+            f"DAG '{dag_id}' not found in DagBag. "
+            f"This typically indicates a race condition where the DAG was removed or failed to parse."
+        )
+
+    dag = dagbag.dags[dag_id]
+
+    if task_id is not None:
+        try:
+            task = dag.get_task(task_id)
+            return dag, task
+        except TaskNotFound:
+            raise ValueError(
+                f"Task '{task_id}' not found in DAG '{dag_id}'. "
+                f"This typically indicates a race condition where the task was removed or the DAG structure changed."
+            ) from None
+
+    return dag, None
+
+
 def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
@@ -256,8 +293,7 @@ def _execute_callbacks(
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
 
-    dag = dagbag.dags[request.dag_id]
-
+    dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
     if not callbacks:
         log.warning("Callback requested, but dag didn't have any", dag_id=request.dag_id)
@@ -309,8 +345,10 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
         )
         return
 
-    dag = dagbag.dags[request.ti.dag_id]
-    task = dag.get_task(request.ti.task_id)
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
 
     if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
         callbacks = task.on_retry_callback
@@ -362,8 +400,10 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
     """Execute email notification for task failure/retry."""
-    dag = dagbag.dags[request.ti.dag_id]
-    task = dag.get_task(request.ti.task_id)
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
 
     if not task.email:
         log.warning(
