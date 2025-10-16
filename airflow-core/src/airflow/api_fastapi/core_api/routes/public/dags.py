@@ -176,7 +176,7 @@ def get_dags(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
@@ -400,7 +400,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="DELETE")), Depends(action_logging())],

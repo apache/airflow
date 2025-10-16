@@ -771,7 +771,7 @@ def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState 
         return [None if s in ("none", None) else DagRunState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
         )
 
@@ -797,7 +797,7 @@ def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None]
         return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for run type. Valid values are {', '.join(DagRunType)}",
         )
 
@@ -835,7 +835,7 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
         return [None if s in ("no_status", "none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
         )
 
