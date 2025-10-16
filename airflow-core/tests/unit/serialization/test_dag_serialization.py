@@ -82,6 +82,7 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.module_loading import qualname
+from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -2558,8 +2559,8 @@ def test_kubernetes_optional():
             "__var": PodGenerator.serialize_pod(executor_config_pod),
         }
 
-        with pytest.raises(RuntimeError):
-            module.BaseSerialization.from_dict(pod_override)
+        # we silently ignore the pod override if kubernetes is not available
+        assert module.BaseSerialization.from_dict(pod_override) == NOTSET
 
         # basic serialization should succeed
         module.SerializedDAG.to_dict(make_simple_dag())

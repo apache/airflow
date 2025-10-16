@@ -926,7 +926,8 @@ class BaseSerialization:
             return from_timestamp(var)
         elif type_ == DAT.POD:
             if not _has_kubernetes():
-                raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
+                # we silently ignore the pod if kubernetes is not installed
+                return NOTSET
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
