@@ -350,7 +350,6 @@ def get_grid_ti_summaries(
             status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
         )
 
-    # Build TI details per task_id, adding only the requested duration field.
     ti_details: dict[str, list[dict[str, object | None]]] = collections.defaultdict(list)
     for ti in task_instances:
         ti_details[ti.task_id].append(
