@@ -49,10 +49,10 @@ if mypy_folder not in ALLOWED_FOLDERS:
     sys.exit(1)
 
 arguments = [mypy_folder]
-if mypy_folder == "providers/src/airflow/providers":
+if mypy_folder == "providers/src/airflow/providers/fab":
     arguments.extend(
         [
-            "providers/tests",
+            "providers/tests/fab",
             "--namespace-packages",
         ]
     )
