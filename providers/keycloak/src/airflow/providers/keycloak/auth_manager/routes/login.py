@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Request
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -67,7 +67,9 @@ def login_callback(request: Request):
         access_token=tokens["access_token"],
         refresh_token=tokens["refresh_token"],
     )
-    token = get_auth_manager().generate_jwt(user)
+    auth_manager = cast(KeycloakAuthManager, get_auth_manager())
+    token = auth_manager.generate_jwt(user)
+    auth_manager.schedule_dag_permission_warmup(user)
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
@@ -93,7 +95,9 @@ def refresh(
     tokens = client.refresh_token(user.refresh_token)
     user.refresh_token = tokens["refresh_token"]
     user.access_token = tokens["access_token"]
-    token = get_auth_manager().generate_jwt(user)
+    auth_manager = cast(KeycloakAuthManager, get_auth_manager())
+    token = auth_manager.generate_jwt(user)
+    auth_manager.schedule_dag_permission_warmup(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
     response = RedirectResponse(url=redirect_url, status_code=303)

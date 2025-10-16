@@ -52,7 +52,7 @@ This command will create scopes, resources and permissions in one-go.
 
 .. code-block:: bash
 
-  airflow keycloak create-all
+  airflow keycloak-auth-manager create-all
 
 Step-by-step creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -63,19 +63,19 @@ This command will create scopes for certain types of permissions.
 
 .. code-block:: bash
 
-  airflow keycloak create-scopes
+  airflow keycloak-auth-manager create-scopes
 
 This command will create resources for certain types of permissions.
 
 .. code-block:: bash
 
-  airflow keycloak create-resources
+  airflow keycloak-auth-manager create-resources
 
 Finally, with the command below, we create the permissions using the previously created scopes and resources.
 
 .. code-block:: bash
 
-  airflow keycloak create-permissions
+  airflow keycloak-auth-manager create-permissions
 
 This will create
 

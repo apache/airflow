@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import requests
@@ -38,6 +38,11 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cache import (
+    ContextAttributes,
+    KeycloakDagPermissionCache,
+    OptionalContextAttributes,
+)
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -87,6 +92,22 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     Leverages Keycloak to perform authentication and authorization in Airflow.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._dag_cache = KeycloakDagPermissionCache(
+            permission_resolver=lambda method, user, dag_id, attributes: self._is_authorized(
+                method=method,
+                resource_type=KeycloakResource.DAG,
+                user=user,
+                resource_id=dag_id,
+                attributes=attributes,
+            ),
+        )
+
+    def init(self) -> None:
+        super().init()
+        self._dag_cache.init()
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
@@ -149,12 +170,53 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     ) -> bool:
         dag_id = details.id if details else None
         access_entity_str = access_entity.value if access_entity else None
+        team_name = getattr(details, "team_name", None)
+        attributes: ContextAttributes = {"dag_entity": access_entity_str}
+        if team_name:
+            attributes["team_name"] = team_name
         return self._is_authorized(
             method=method,
             resource_type=KeycloakResource.DAG,
             user=user,
             resource_id=dag_id,
-            attributes={"dag_entity": access_entity_str},
+            attributes=attributes,
+        )
+
+    def schedule_dag_permission_warmup(
+        self,
+        user: KeycloakAuthManagerUser,
+        *,
+        method: ResourceMethod = "GET",
+    ) -> None:
+        method_value = cast("ExtendedResourceMethod", method)
+        if not self._dag_cache.permissions_cache_enabled:
+            return
+
+        user_snapshot = KeycloakAuthManagerUser(
+            user_id=str(user.get_id()),
+            name=str(user.get_name()),
+            access_token=getattr(user, "access_token", ""),
+            refresh_token=getattr(user, "refresh_token", ""),
+        )
+        self._dag_cache.schedule_dag_permission_warmup(
+            user_snapshot,
+            method=method_value,
+        )
+
+    def filter_authorized_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        method_value = cast("ExtendedResourceMethod", method)
+        return self._dag_cache.filter_authorized_dag_ids(
+            dag_ids=dag_ids,
+            user=user,
+            method=method_value,
+            team_name=team_name,
         )
 
     def is_authorized_backfill(
@@ -277,7 +339,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_type: KeycloakResource,
         user: KeycloakAuthManagerUser,
         resource_id: str | None = None,
-        attributes: dict[str, str | None] | None = None,
+        attributes: OptionalContextAttributes = None,
     ) -> bool:
         client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
@@ -311,14 +373,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         *,
         permissions: list[tuple[ExtendedResourceMethod, str]],
         user: KeycloakAuthManagerUser,
-    ) -> set[tuple[ExtendedResourceMethod, str]]:
+        attributes: OptionalContextAttributes = None,
+    ) -> set[tuple[str, str]]:
         client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         resp = requests.post(
             self._get_token_url(server_url, realm),
-            data=self._get_batch_payload(client_id, permissions),
+            data=self._get_batch_payload(client_id, permissions, attributes),
             headers=self._get_headers(user.access_token),
         )
 
@@ -350,13 +413,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return payload
 
     @staticmethod
-    def _get_batch_payload(client_id: str, permissions: list[tuple[ExtendedResourceMethod, str]]):
+    def _get_batch_payload(
+        client_id: str,
+        permissions: list[tuple[ExtendedResourceMethod, str]],
+        attributes: OptionalContextAttributes = None,
+    ):
         payload: dict[str, Any] = {
             "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
             "audience": client_id,
             "permission": [f"{permission[1]}#{permission[0]}" for permission in permissions],
             "response_mode": "permissions",
         }
+        if attributes:
+            payload["context"] = {"attributes": prune_dict(attributes)}
 
         return payload
 

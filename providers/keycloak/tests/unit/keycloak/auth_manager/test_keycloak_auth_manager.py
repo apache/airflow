@@ -67,6 +67,9 @@ def auth_manager():
 def user():
     user = Mock()
     user.access_token = "access_token"
+    user.refresh_token = "refresh_token"
+    user.get_id.return_value = "user_id"
+    user.get_name.return_value = "user_name"
     return user
 
 
@@ -426,3 +429,67 @@ class TestKeycloakAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
+
+    def test_filter_authorized_dag_ids_uses_batch_permissions(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b", "dag_c"}
+        with patch.object(
+            auth_manager._dag_cache,
+            "_check_dag_authorizations",
+            return_value={
+                "dag_a": True,
+                "dag_b": False,
+                "dag_c": True,
+            },
+        ) as mock_check_authorizations:
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name="team-blue",
+            )
+
+        assert result == {"dag_a", "dag_c"}
+        mock_check_authorizations.assert_called_once()
+        call_args = mock_check_authorizations.call_args
+        dag_ids_arg = call_args.args[0]
+        assert set(dag_ids_arg) == dag_ids
+        call_kwargs = call_args.kwargs
+        assert call_kwargs["user"] is user
+        assert call_kwargs["attributes"] == {"team_name": "team-blue"}
+        assert call_kwargs["method"] == "GET"
+        assert call_kwargs["log_context"] == {"user_id": str(user.get_id())}
+
+    def test_filter_authorized_dag_ids_delegates_to_cache(self, auth_manager, user):
+        with patch.object(
+            auth_manager._dag_cache, "filter_authorized_dag_ids", return_value={"dag_a"}
+        ) as mock_filter:
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids={"dag_a", "dag_b"},
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == {"dag_a"}
+        mock_filter.assert_called_once_with(
+            dag_ids={"dag_a", "dag_b"},
+            user=user,
+            method="GET",
+            team_name=None,
+        )
+
+    def test_schedule_dag_permission_warmup_delegates_to_cache(self, auth_manager, user):
+        with patch.object(auth_manager._dag_cache, "schedule_dag_permission_warmup") as mock_schedule:
+            auth_manager.schedule_dag_permission_warmup(user, method="POST")
+
+        mock_schedule.assert_called_once()
+        args, kwargs = mock_schedule.call_args
+        assert args[0].get_id() == str(user.get_id())
+        assert kwargs["method"] == "POST"
+
+    def test_schedule_dag_permission_warmup_skipped_when_disabled(self, auth_manager, user):
+        auth_manager._dag_cache._permissions_cache_ttl_seconds = 0
+        with patch.object(auth_manager._dag_cache, "schedule_dag_permission_warmup") as mock_schedule:
+            auth_manager.schedule_dag_permission_warmup(user)
+
+        mock_schedule.assert_not_called()

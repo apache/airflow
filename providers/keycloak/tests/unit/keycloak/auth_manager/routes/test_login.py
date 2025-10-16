@@ -63,6 +63,7 @@ class TestLoginRouter:
         )
         mock_keycloak_client.userinfo.assert_called_once_with("access_token")
         mock_auth_manager.generate_jwt.assert_called_once()
+        mock_auth_manager.schedule_dag_permission_warmup.assert_called_once()
         user = mock_auth_manager.generate_jwt.call_args[0][0]
         assert user.get_id() == "sub"
         assert user.get_name() == "preferred_username"
@@ -117,6 +118,7 @@ class TestLoginRouter:
 
         assert "location" in response.headers
         assert response.headers["location"] == next_url
+        mock_auth_manager.schedule_dag_permission_warmup.assert_called_once_with(mock_user)
 
     # Test when user is None or refresh_token is not set
     @patch("airflow.api_fastapi.core_api.security.get_user", new_callable=AsyncMock)
@@ -138,6 +140,9 @@ class TestLoginRouter:
         mock_sec_get_auth_manager.return_value = mock_auth_manager_sec
         mock_auth_manager_sec.get_user_from_token = AsyncMock(return_value=mock_user)
 
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+
         next_url = "http://localhost:8080"
         response = client.get(
             AUTH_MANAGER_FASTAPI_APP_PREFIX + "/refresh",
@@ -149,3 +154,4 @@ class TestLoginRouter:
         assert response.status_code == 400
         assert "_token" not in response.cookies
         assert "location" not in response.headers
+        mock_auth_manager.schedule_dag_permission_warmup.assert_not_called()
