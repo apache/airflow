@@ -81,6 +81,8 @@ def test_get_field_non_prefixed(input, expected):
 
 def test_add_managed_identity_connection_widgets():
     pytest.importorskip("airflow.providers.fab")
+    # TODO: remove this because fab5 is available now, but it requires recursively fixing tests
+    pytest.importorskip("flask_appbuilder")
 
     class FakeHook:
         @classmethod

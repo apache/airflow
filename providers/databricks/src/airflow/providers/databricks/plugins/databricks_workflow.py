@@ -27,11 +27,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_tas
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.fab.www import auth
-else:
-    from airflow.www import auth  # type: ignore
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -46,15 +41,6 @@ if TYPE_CHECKING:
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
 REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
-
-
-def get_auth_decorator():
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-    else:
-        from airflow.auth.managers.models.resource_details import DagAccessEntity
-
-    return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
 
 def get_databricks_task_ids(
@@ -87,6 +73,12 @@ if not AIRFLOW_V_3_0_PLUS:
     from flask_appbuilder.api import expose
 
     from airflow.utils.session import NEW_SESSION, provide_session
+    from airflow.www import auth
+
+    def get_auth_decorator():
+        from airflow.auth.managers.models.resource_details import DagAccessEntity
+
+        return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
     class RepairDatabricksTasks(BaseView, LoggingMixin):
         """Repair databricks tasks from Airflow."""
