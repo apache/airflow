@@ -30,7 +30,7 @@ import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
@@ -42,13 +42,20 @@ export const Details = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parsedMapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(parsedMapIndex),
+    },
+  );
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
@@ -140,11 +147,7 @@ export const Details = () => {
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("duration")}</Table.Cell>
-            <Table.Cell>
-              {Boolean(tryInstance?.start_date) // eslint-disable-next-line unicorn/no-null
-                ? getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
-                : ""}
-            </Table.Cell>
+            <Table.Cell>{renderDuration(tryInstance?.duration)}</Table.Cell>
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("startDate")}</Table.Cell>

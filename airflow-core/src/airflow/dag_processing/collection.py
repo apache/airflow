@@ -925,7 +925,10 @@ class AssetModelOperation(NamedTuple):
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
-                [_encode_trigger(watcher.trigger) for watcher in asset.watchers]
+                [
+                    {**_encode_trigger(watcher.trigger), "watcher_name": watcher.name}
+                    for watcher in asset.watchers
+                ]
                 if name_uri in active_assets
                 else []
             )
@@ -986,6 +989,7 @@ class AssetModelOperation(NamedTuple):
                 ]
             ]
             session.add_all(new_trigger_models)
+            session.flush()  # Flush to get the IDs assigned
             orm_triggers.update(
                 (BaseEventTrigger.hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
@@ -994,18 +998,22 @@ class AssetModelOperation(NamedTuple):
             # Add new references
             for name_uri, trigger_hashes in refs_to_add.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers.extend(
-                    [orm_triggers.get(trigger_hash) for trigger_hash in trigger_hashes]
-                )
+
+                for trigger_hash in trigger_hashes:
+                    trigger = triggers.get(trigger_hash)
+                    orm_trigger = orm_triggers.get(trigger_hash)
+                    if orm_trigger and trigger:
+                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
 
         if refs_to_remove:
             # Remove old references
             for name_uri, trigger_hashes in refs_to_remove.items():
                 asset_model = assets[name_uri]
-                asset_model.triggers = [
-                    trigger
-                    for trigger in asset_model.triggers
-                    if BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
+                asset_model.watchers = [
+                    watcher
+                    for watcher in asset_model.watchers
+                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -1014,4 +1022,5 @@ class AssetModelOperation(NamedTuple):
         )
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
-                asset_model.triggers = []
+                # Delete all watchers for this orphaned asset
+                asset_model.watchers = []

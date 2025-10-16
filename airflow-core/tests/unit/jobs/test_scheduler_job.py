@@ -44,6 +44,7 @@ from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
+from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -55,7 +56,6 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue,
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DagBag, sync_bag_to_db
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -502,6 +502,7 @@ class TestSchedulerJob:
             "finished with state failed, but the task instance's state attribute is queued. "
             "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
             context_from_server=mock.ANY,
+            task_callback_type=TaskInstanceState.FAILED,
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         scheduler_job.executor.callback_sink.reset_mock()
@@ -2081,6 +2082,94 @@ class TestSchedulerJob:
 
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
+
+    def test_adopt_sets_last_heartbeat_on_adopt(self, dag_maker, session, mock_executor):
+        with dag_maker("test_adopt_sets_last_heartbeat_on_adopt", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        ti.last_heartbeat_at = None
+        session.commit()
+
+        # Executor adopts all TIs (returns empty list to reset), so TI is adopted
+        mock_executor.try_adopt_task_instances.return_value = []
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        ti.refresh_from_db(session=session)
+        assert ti.state == State.QUEUED
+        assert ti.queued_by_job_id == new_scheduler_job.id
+        assert ti.last_heartbeat_at is not None
+
+    def test_adopt_sets_dagrun_conf_when_none(self, dag_maker, session, mock_executor):
+        with dag_maker("test_adopt_sets_dagrun_conf_when_none", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        # Ensure conf starts as None
+        dr.conf = None
+        session.merge(dr)
+        session.flush()
+        dr = session.scalar(select(DagRun).where(DagRun.id == dr.id))
+        assert dr.conf is None
+
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = old_scheduler_job.id
+        session.commit()
+
+        # Executor adopts all TIs (returns empty list to reset), so TI is adopted
+        mock_executor.try_adopt_task_instances.return_value = []
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        # DagRun.conf should be set to {} on adoption when it was None
+        session.refresh(dr)
+        assert dr.conf == {}
+
+    def test_purge_without_heartbeat_skips_when_missing_dag_version(self, dag_maker, session, caplog):
+        with dag_maker("test_purge_without_heartbeat_skips_when_missing_dag_version", session=session):
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        # Simulate missing dag_version
+        ti.dag_version_id = None
+        session.merge(ti)
+        session.commit()
+
+        with caplog.at_level("WARNING", logger="airflow.jobs.scheduler_job_runner"):
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        # Should log a warning and skip processing
+        assert any("DAG Version not found for TaskInstance" in rec.message for rec in caplog.records)
+        mock_executor.send_callback.assert_not_called()
+        # State should be unchanged (not failed)
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.RUNNING
 
     @staticmethod
     def mock_failure_callback(context):
@@ -6686,6 +6775,43 @@ class TestSchedulerJob:
         assert callback_request.context_from_server is not None
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
+
+    @pytest.mark.parametrize(
+        "retries,callback_kind,expected",
+        [
+            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, "failure", TaskInstanceState.FAILED),
+        ],
+    )
+    def test_external_kill_sets_callback_type_param(
+        self, dag_maker, session, retries, callback_kind, expected
+    ):
+        """External kill should mark callback type based on retry eligibility."""
+        with dag_maker(dag_id=f"ext_kill_{callback_kind}", fileloc="/test_path1/"):
+            if callback_kind == "retry":
+                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+            else:
+                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance(task_id="t1")
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+
+        # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
+        executor.event_buffer[ti.key] = State.FAILED, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        scheduler_job.executor.callback_sink.send.assert_called()
+        request = scheduler_job.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected
 
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""

@@ -359,7 +359,7 @@ export type StateData = {
     tryNumber: number;
 };
 
-export type StateResponse = null;
+export type StateResponse = unknown;
 
 export type LogfilePathData = {
     /**
@@ -418,7 +418,7 @@ export type PushLogsData = {
     tryNumber: number;
 };
 
-export type PushLogsResponse = null;
+export type PushLogsResponse = unknown;
 
 export type RegisterData = {
     /**
@@ -460,7 +460,7 @@ export type UpdateQueuesData = {
     workerName: string;
 };
 
-export type UpdateQueuesResponse = null;
+export type UpdateQueuesResponse = unknown;
 
 export type HealthResponse = {
     [key: string]: (string);
@@ -475,46 +475,46 @@ export type RequestWorkerMaintenanceData = {
     workerName: string;
 };
 
-export type RequestWorkerMaintenanceResponse = null;
+export type RequestWorkerMaintenanceResponse = unknown;
 
 export type UpdateWorkerMaintenanceData = {
     requestBody: MaintenanceRequest;
     workerName: string;
 };
 
-export type UpdateWorkerMaintenanceResponse = null;
+export type UpdateWorkerMaintenanceResponse = unknown;
 
 export type ExitWorkerMaintenanceData = {
     workerName: string;
 };
 
-export type ExitWorkerMaintenanceResponse = null;
+export type ExitWorkerMaintenanceResponse = unknown;
 
 export type RequestWorkerShutdownData = {
     workerName: string;
 };
 
-export type RequestWorkerShutdownResponse = null;
+export type RequestWorkerShutdownResponse = unknown;
 
 export type DeleteWorkerData = {
     workerName: string;
 };
 
-export type DeleteWorkerResponse = null;
+export type DeleteWorkerResponse = unknown;
 
 export type AddWorkerQueueData = {
     queueName: string;
     workerName: string;
 };
 
-export type AddWorkerQueueResponse = null;
+export type AddWorkerQueueResponse = unknown;
 
 export type RemoveWorkerQueueData = {
     queueName: string;
     workerName: string;
 };
 
-export type RemoveWorkerQueueResponse = null;
+export type RemoveWorkerQueueResponse = unknown;
 
 export type $OpenApiTs = {
     '/edge_worker/v1/jobs/fetch/{worker_name}': {
@@ -547,7 +547,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -593,7 +593,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -660,7 +660,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Bad Request
                  */
@@ -715,7 +715,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -728,7 +728,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -741,7 +741,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -756,7 +756,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -771,7 +771,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -786,7 +786,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */
@@ -799,7 +799,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: null;
+                200: unknown;
                 /**
                  * Validation Error
                  */

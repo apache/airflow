@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
 import uuid6
-from sqlalchemy import Column, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -99,35 +99,35 @@ class Callback(Base):
 
     __tablename__ = "callback"
 
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses
     __mapper_args__ = {
         "polymorphic_identity": "callback",
         "polymorphic_on": "type",
     }
-    type = Column(String(20), nullable=False)
+    type: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Method used to fetch the callback, of type: CallbackFetchMethod
-    fetch_method = Column(String(20), nullable=True)
+    fetch_method: Mapped[str | None] = mapped_column(String(20))
 
     # Used by subclasses to store information about how to run the callback
-    data = Column(ExtendedJSON)
+    data: Mapped[dict] = mapped_column(ExtendedJSON)
 
     # State of the Callback of type: CallbackState
-    state = Column(String(10))
+    state: Mapped[str | None] = mapped_column(String(10))
 
     # Return value of the callback if successful, otherwise exception details
-    output = Column(Text)
+    output: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Used for prioritization. Higher weight -> higher priority
-    priority_weight = Column(Integer, nullable=False)
+    priority_weight: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Creation time of the callback
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Used for callbacks of type CallbackType.TRIGGERER
-    trigger_id = Column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
 
     def __init__(self, priority_weight: int = 1):

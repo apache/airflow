@@ -27,7 +27,7 @@
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
-/airflow-ctl/ @bugraoz93 @kaxil @potiuk
+/airflow-ctl/ @bugraoz93 @potiuk
 
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
@@ -47,7 +47,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon
 airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
 airflow-core/src/airflow/ui/public/i18n/locales/it/ @bbovenzi # + @aoelvp94
-airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @0ne-stone
+airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @onestn
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
 airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @victoru2
@@ -134,6 +134,9 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 # AIP-72 - Task SDK
 # Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
+
+# Task SDK integration tests
+/task-sdk-tests/ @amoghrajesh
 
 # Golang SDK
 /go-sdk/ @ashb @kaxil @amoghrajesh

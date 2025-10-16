@@ -79,8 +79,6 @@ apache-airflow-providers-teradata package
 
 Release: 3.2.1
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

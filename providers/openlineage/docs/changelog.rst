@@ -26,11 +26,40 @@
 Changelog
 ---------
 
-2.7.0
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``Adjust OpenLineage utils to be compatible with Airflow 3.1.0 (#56040)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+   * ``Move DagBag to airflow/dag_processing (#55139)``
+
+2.7.1
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
+Misc
+~~~~
+
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Decouple secrets_masker project from airflow configuration (#55259)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.7.0
+.....
+
 
 Features
 ~~~~~~~~

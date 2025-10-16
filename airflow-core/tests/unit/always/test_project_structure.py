@@ -428,6 +428,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator",
         "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
@@ -494,13 +495,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateQueryOperator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunQueryOperator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator",
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator",
-        "airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360RunQuerySensor",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator",
     }
 

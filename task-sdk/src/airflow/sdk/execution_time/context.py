@@ -116,6 +116,14 @@ def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Conne
     return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
 
 
+def _mask_connection_secrets(conn: Connection) -> None:
+    """Mask sensitive connection fields from logs."""
+    if conn.password:
+        mask_secret(conn.password)
+    if conn.extra:
+        mask_secret(conn.extra)
+
+
 def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
     from airflow.sdk.definitions.variable import Variable
 
@@ -127,72 +135,116 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
-    # TODO: check cache first (also in _async_get_connection)
-    # enabled only if SecretCache.init() has been called first
+    # Check cache first (optional; only on dag processor)
+    try:
+        uri = SecretCache.get_connection_uri(conn_id)
+        from airflow.sdk.definitions.connection import Connection
 
-    # iterate over configured backends if not in cache (or expired)
+        conn = Connection.from_uri(uri, conn_id=conn_id)
+        _mask_connection_secrets(conn)
+        return conn
+    except SecretCache.NotPresentException:
+        pass  # continue to backends
+
+    # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
+    # in worker contexts or MetastoreBackend in API server contexts)
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = secrets_backend.get_connection(conn_id=conn_id)
+            conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
             if conn:
-                # TODO: this should probably be in get conn
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
+                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                _mask_connection_secrets(conn)
                 return conn
         except Exception:
-            log.exception(
+            log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            conn_id=conn_id,
-        )
+    # If no backend found the connection, raise an error
+    from airflow.exceptions import AirflowNotFoundException
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.connection`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    #   Also applies to _async_get_connection.
-    from airflow.sdk.execution_time.comms import GetConnection
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
-
-    return _process_connection_result_conn(msg)
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
-    # TODO: add async support for secrets backends
+    from asgiref.sync import sync_to_async
 
-    from airflow.sdk.execution_time.comms import GetConnection
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.cache import SecretCache
 
-    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+    # Check cache first
+    try:
+        uri = SecretCache.get_connection_uri(conn_id)
+        from airflow.sdk.definitions.connection import Connection
 
-    return _process_connection_result_conn(msg)
+        conn = Connection.from_uri(uri, conn_id=conn_id)
+        _mask_connection_secrets(conn)
+        return conn
+    except SecretCache.NotPresentException:
+        pass  # continue to backends
+
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+    # Try secrets backends
+    backends = ensure_secrets_backend_loaded()
+    for secrets_backend in backends:
+        try:
+            # Use async method if available, otherwise wrap sync method
+            if hasattr(secrets_backend, "aget_connection"):
+                conn = await secrets_backend.aget_connection(conn_id)  # type: ignore[assignment]
+            else:
+                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+
+            if conn:
+                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                _mask_connection_secrets(conn)
+                return conn
+        except Exception:
+            # If one backend fails, try the next one
+            log.debug(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    # If no backend found the connection, raise an error
+    from airflow.exceptions import AirflowNotFoundException
+
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
-    # TODO: check cache first
-    # enabled only if SecretCache.init() has been called first
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
+    # Check cache first
+    try:
+        var_val = SecretCache.get_variable(key)
+        if var_val is not None:
+            if deserialize_json:
+                import json
+
+                var_val = json.loads(var_val)
+            if isinstance(var_val, str):
+                mask_secret(var_val, key)
+            return var_val
+    except SecretCache.NotPresentException:
+        pass  # Continue to check backends
+
     backends = ensure_secrets_backend_loaded()
-    # iterate over backends if not in cache (or expired)
+
+    # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
             var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
+                # Save raw value before deserialization to maintain cache consistency
+                SecretCache.save_variable(key, var_val)
                 if deserialize_json:
                     import json
 
@@ -206,29 +258,13 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            key=key,
-        )
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.variable`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
-
-    if isinstance(msg, ErrorResponse):
-        raise AirflowRuntimeError(msg)
-
-    if TYPE_CHECKING:
-        assert isinstance(msg, VariableResult)
-    variable = _convert_variable_result_to_variable(msg, deserialize_json)
-    return variable.value
+    raise AirflowRuntimeError(
+        ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": f"Variable {key} not found"})
+    )
 
 
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
@@ -239,19 +275,23 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     #   keep Task SDK as a separate package than execution time mods.
     import json
 
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
+        if isinstance(secrets_backend, ExecutionAPISecretsBackend):
+            continue
         try:
             var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
                     "The variable %s is defined in the %s secrets backend, which takes "
-                    "precedence over reading from the database. The value in the database will be "
+                    "precedence over reading from the API Server. The value from the API Server will be "
                     "updated, but to read it you have to delete the conflicting variable "
                     "from %s",
                     key,
@@ -272,6 +312,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
 
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
+    # Invalidate cache after setting the variable
+    SecretCache.invalidate_variable(key)
+
 
 def _delete_variable(key: str) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
@@ -279,12 +322,16 @@ def _delete_variable(key: str) -> None:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import DeleteVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
+
+    # Invalidate cache after deleting the variable
+    SecretCache.invalidate_variable(key)
 
 
 class ConnectionAccessor:
@@ -305,12 +352,16 @@ class ConnectionAccessor:
         return True
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
+        from airflow.exceptions import AirflowNotFoundException
+
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                 return default_conn
             raise
+        except AirflowNotFoundException:
+            return default_conn
 
 
 class VariableAccessor:

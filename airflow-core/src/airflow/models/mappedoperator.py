@@ -140,6 +140,9 @@ class MappedOperator(DAGNode):
 
     is_mapped: ClassVar[bool] = True
 
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTask({self.task_type}): {self.task_id}>"
+
     @property
     def node_id(self) -> str:
         return self.task_id
@@ -271,7 +274,7 @@ class MappedOperator(DAGNode):
 
     @property
     def retry_delay(self) -> datetime.timedelta:
-        return self.partial_kwargs["retry_delay"]
+        return self.partial_kwargs.get("retry_delay", SerializedBaseOperator.retry_delay)
 
     @property
     def retry_exponential_backoff(self) -> bool:
