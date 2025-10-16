@@ -178,11 +178,13 @@ export const renderStructuredLog = ({
     });
   }
 
-  elements.push(
-    <chakra.span className="event" key={2} whiteSpace="pre-wrap">
-      {addLinks(event)}
-    </chakra.span>,
-  );
+  if (!event.startsWith("::group::")) {
+    elements.push(
+      <chakra.span className="event" key={2} whiteSpace="pre-wrap">
+        {addLinks(event)}
+      </chakra.span>,
+    );
+  }
 
   if (Object.hasOwn(reStructured, "filename") && Object.hasOwn(reStructured, "lineno")) {
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
