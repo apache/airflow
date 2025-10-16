@@ -71,7 +71,7 @@ spec:
         tier: airflow
         component: dag-processor
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.dagProcessor.labels) }}
+        {{- if or .Values.labels .Values.dagProcessor.labels }}
           {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
