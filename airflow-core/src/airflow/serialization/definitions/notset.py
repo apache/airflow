@@ -15,21 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
-from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import mapped_column
-
-
-class DagFavorite(Base):
-    """Association table model linking users to their favorite DAGs."""
-
-    __tablename__ = "dag_favorite"
-
-    user_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
-    dag_id: Mapped[str] = mapped_column(
-        StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), primary_key=True
-    )
+# TODO (GH-52141): Have different NOTSET and ArgNotSet in the scheduler.
+__all__ = ["NOTSET", "ArgNotSet"]
