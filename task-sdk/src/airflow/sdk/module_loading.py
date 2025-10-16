@@ -26,7 +26,7 @@ def import_string(dotted_path: str) -> Any:
     Import `dotted_path` and return the attribute designated by the tail of the path.
     Supports nested attributes (e.g., "pkg.mod.Class.Nested.attr").
 
-    Raises ImportError with a clear message if resolution fails.
+    Raises ImportError if resolution fails.
     """
     if not dotted_path or "." not in dotted_path:
         raise ImportError(f"{dotted_path!r} doesn't look like a module path")
