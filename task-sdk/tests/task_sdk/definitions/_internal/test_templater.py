@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import jinja2
 import pytest
 
 from airflow.sdk import DAG, ObjectStoragePath
 from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedEnvironment, Templater
+from airflow.sdk.definitions.param import DagParam
 
 
 class TestTemplater:
@@ -90,6 +92,25 @@ class TestTemplater:
         rendered_content = templater.render_template(content, context)
 
         assert rendered_content == "template_file.txt"
+
+    def test_resolve_mixin_instance_check(self):
+        """Test that isinstance(value, ResolveMixin) correctly resolves ResolveMixin objects."""
+        templater = Templater()
+        dag = DAG(dag_id="test_dag", schedule=None)
+        context = {
+            "dag_run": type('MockDagRun', (), {'conf': {'test_param': 'param_value'}}),
+            "params": {'test_param': 'default_param_value'}
+        }
+
+        dag_param = DagParam(dag, "test_param", "default_value")
+
+        resolved_param = templater.render_template(dag_param, context)
+        assert resolved_param == "param_value"
+
+        path_obj = Path("/tmp/nonexistent/file.txt")
+        resolved_path = templater.render_template(path_obj, context)
+        assert resolved_path is path_obj
+        assert isinstance(resolved_path, Path)
 
 
 @pytest.fixture
