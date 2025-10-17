@@ -75,12 +75,7 @@ dependencies = [
     "google-api-python-client>=2.0.2",
     "google-auth>=2.29.0",
     "google-auth-httplib2>=0.0.1",
-    # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
-    # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
-    # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    "google-cloud-aiplatform[evaluation]>=1.98.0",
-    "ray[default]>=2.42.0 ; python_version < '3.13'",
-    "google-cloud-bigquery-storage>=2.31.0 ; python_version < '3.13'",
+    "google-cloud-aiplatform[evaluation]>=1.117.0",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     "google-cloud-bigquery>=3.24.0",
