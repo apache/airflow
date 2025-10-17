@@ -215,6 +215,20 @@ class SerializedTaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
+    def hierarchical_alphabetical_sort(self) -> list[DAGNode]:
+        """
+        Sort children in hierarchical alphabetical order.
+
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+        return sorted(
+            self.children.values(),
+            key=lambda node: (not isinstance(node, SerializedTaskGroup), node.node_id),
+        )
+
     def topological_sort(self) -> list[DAGNode]:
         """
         Sorts children in topographical order.
@@ -228,19 +242,45 @@ class SerializedTaskGroup(DAGNode):
         if not self.children:
             return graph_sorted
         while graph_unsorted:
+            acyclic = False
             for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                    # Check for task's group is a child (or grand child) of this TG,
-                    tg = edge.task_group
-                    while tg:
-                        if tg.node_id in graph_unsorted:
+                # Check if node has upstream dependencies still in the unsorted graph
+                has_upstream_in_graph = False
+
+                if isinstance(node, SerializedTaskGroup):
+                    # For task groups, check upstream_group_ids and upstream_task_ids
+                    for upstream_id in node.upstream_group_ids | node.upstream_task_ids:
+                        if upstream_id in graph_unsorted:
+                            has_upstream_in_graph = True
                             break
-                        tg = tg.parent_group
                 else:
+                    # For tasks, use upstream_list
+                    for edge in node.upstream_list:
+                        if edge.node_id in graph_unsorted:
+                            has_upstream_in_graph = True
+                            break
+                        # Check for task's group is a child (or grand child) of this TG
+                        tg = edge.task_group
+                        while tg:
+                            if tg.node_id in graph_unsorted:
+                                has_upstream_in_graph = True
+                                break
+                            tg = tg.parent_group
+                        if has_upstream_in_graph:
+                            break
+
+                if not has_upstream_in_graph:
+                    # No upstream dependencies in graph, add to sorted list
+                    acyclic = True
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
+
+            if not acyclic:
+                # If no nodes were resolved, we have a cycle or stuck state
+                # Add remaining nodes in arbitrary order to avoid losing them
+                for node in graph_unsorted.values():
+                    graph_sorted.append(node)
+                break
         return graph_sorted
 
     def add(self, node: DAGNode) -> DAGNode:
