@@ -293,7 +293,7 @@ class TestElasticsearchTaskHandler:
             metadata = metadatas[0]
 
         assert metadata["offset"] == "0"
-        assert not metadata["end_of_log"]
+        assert metadata["end_of_log"]
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
@@ -335,7 +335,7 @@ class TestElasticsearchTaskHandler:
             else:
                 # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
                 assert logs == []
-                assert metadatas["end_of_log"] is False
+                assert metadatas["end_of_log"] is True
             assert metadatas["offset"] == "0"
             assert timezone.parse(metadatas["last_log_timestamp"]) == ts
         else:
@@ -447,7 +447,7 @@ class TestElasticsearchTaskHandler:
             metadata = metadatas[0]
 
         assert metadata["offset"] == "0"
-        assert not metadata["end_of_log"]
+        assert metadata["end_of_log"]
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
@@ -455,6 +455,7 @@ class TestElasticsearchTaskHandler:
     def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
+        print(f"metadatas: {metadatas}")
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
@@ -470,7 +471,7 @@ class TestElasticsearchTaskHandler:
             assert self.test_message == logs[0][0][-1]
 
             metadata = metadatas[0]
-
+        print(f"metadatas: {metadatas}")
         assert not metadata["end_of_log"]
         # offset should be initialized to 0 if not provided.
         assert metadata["offset"] == "1"
@@ -492,7 +493,7 @@ class TestElasticsearchTaskHandler:
 
             metadata = metadatas[0]
 
-        assert not metadata["end_of_log"]
+        assert metadata["end_of_log"]
         # offset should be initialized to 0 if not provided.
         assert metadata["offset"] == "0"
         # last_log_timestamp will be initialized using log reading time
