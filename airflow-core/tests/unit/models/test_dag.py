@@ -181,7 +181,7 @@ class TestDag:
         clear_db_assets()
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_dag_test_auto_parses_when_not_serialized(self, testing_dag_bundle, session):
+    def test_dag_test_auto_parses_when_not_serialized(self, test_dags_bundle, session):
         """
         DAG.test() should auto-parse and sync the DAG if it's not serialized yet.
         """
@@ -189,11 +189,12 @@ class TestDag:
 
         dag_id = "test_example_bash_operator"
 
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dag = dagbag.dags.get(dag_id)
+
         # Ensure not serialized yet
         assert DBDagBag().get_latest_version_of_dag(dag_id, session=session) is None
         assert session.query(DagRun).filter(DagRun.dag_id == dag_id).scalar() is None
-
-        dag = DAG(dag_id=dag_id, schedule=None)
 
         dr = dag.test()
         assert dr is not None

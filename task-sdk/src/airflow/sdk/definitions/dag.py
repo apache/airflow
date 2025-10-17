@@ -1209,6 +1209,7 @@ class DAG:
 
                 manager = DagBundlesManager()
                 manager.sync_bundles_to_db(session=session)
+                session.commit()
                 # sync all bundles? or use the dags-folder bundle?
                 # What if the test dag is in a different bundle?
                 for bundle in manager.get_all_dag_bundles():
