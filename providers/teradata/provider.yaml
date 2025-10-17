@@ -62,6 +62,9 @@ operators:
   - integration-name: Bteq
     python-modules:
       - airflow.providers.teradata.operators.bteq
+  - integration-name: Tpt
+    python-modules:
+      - airflow.providers.teradata.operators.tpt
 
 hooks:
   - integration-name: Teradata
@@ -73,6 +76,9 @@ hooks:
   - integration-name: Bteq
     python-modules:
       - airflow.providers.teradata.hooks.bteq
+  - integration-name: Tpt
+    python-modules:
+      - airflow.providers.teradata.hooks.tpt
 
 transfers:
   - source-integration-name: Teradata
