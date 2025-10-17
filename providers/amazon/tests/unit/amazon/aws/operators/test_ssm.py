@@ -74,6 +74,30 @@ class TestSsmRunCommandOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
+    def test_deferrable_with_region(self, mock_conn):
+        """Test that deferrable mode properly passes region and other AWS parameters to trigger."""
+        self.operator.deferrable = True
+        self.operator.region_name = "us-west-2"
+        self.operator.verify = False
+        self.operator.botocore_config = {"retries": {"max_attempts": 5}}
+
+        command_id = self.operator.execute({})
+
+        assert command_id == COMMAND_ID
+        mock_conn.send_command.assert_called_once_with(DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS)
+        
+        # Verify defer was called with correct trigger parameters
+        self.operator.defer.assert_called_once()
+        call_args = self.operator.defer.call_args
+        trigger = call_args[1]["trigger"]  # Get the trigger from kwargs
+        
+        # Verify the trigger has the correct parameters
+        assert trigger.command_id == COMMAND_ID
+        assert trigger.region_name == "us-west-2"
+        assert trigger.verify is False
+        assert trigger.botocore_config == {"retries": {"max_attempts": 5}}
+        assert trigger.aws_conn_id == self.operator.aws_conn_id
+
 
 class TestSsmGetCommandInvocationOperator:
     @pytest.fixture
