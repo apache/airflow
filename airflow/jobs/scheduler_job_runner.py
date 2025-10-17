@@ -1871,7 +1871,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         msg=msg,
                         processor_subdir=ti.dag_model.processor_subdir,
                     )
-                executor.send_callback(request)
+                    executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
                 executor.fail(ti.key)
