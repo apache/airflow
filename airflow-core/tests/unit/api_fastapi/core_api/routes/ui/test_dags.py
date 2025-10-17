@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
-import pendulum
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -67,7 +66,8 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
-                dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
+                if dag_run.start_date is not None:
+                    dag_run.end_date = dag_run.start_date.add(hours=1)
                 session.add(dag_run)
         session.commit()
 
