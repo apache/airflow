@@ -22,6 +22,7 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import Column
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
@@ -256,7 +257,7 @@ class MockJobRunner(BaseJobRunner):
     def __init__(self, job: Job, func=None):
         super().__init__(job)
         self.job = job
-        self.job.job_type = self.job_type
+        self.job.job_type = Column(self.job_type)
         self.func = func
 
     def _execute(self):
