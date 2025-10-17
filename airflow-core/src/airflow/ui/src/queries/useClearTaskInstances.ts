@@ -49,29 +49,48 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: ApiError) => {
-    const detail = typeof error.detail === "string" ? error.detail : "";
-    const ifDetailIsIncluded = detail.includes("AirflowClearRunningTaskException");
+  const onError = (error: unknown) => {
+    // Narrow the type safely
+    if (error && typeof error === "object" && "detail" in error) {
+      const apiError = error as ApiError;
 
-    // specific error toast for the AirflowClearRunningTaskException.
-    if ( detail !== null &&  ifDetailIsIncluded){
-      toaster.create({
-        description: detail,
-        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
-        type: "error",
-      });
-    }
+      const detail = typeof apiError.detail === "string" ? apiError.detail : "";
+      const ifDetailIsIncluded =
+        typeof detail === "string" && detail.includes("AirflowClearRunningTaskException");
 
-    // error toast for any other error.
-    else{
-      const message = typeof error.message === "string" ? error.message : translate("common:error.defaultMessage");
+      if (detail && ifDetailIsIncluded) {
+        toaster.create({
+          description: detail,
+          title: translate("dags:runAndTaskActions.clear.error", {
+            type: translate("common:taskInstance_one"),
+          }),
+          type: "error",
+        });
+      } else {
+        const message =
+          typeof apiError.message === "string"
+            ? apiError.message : translate("common:error.defaultMessage");
+
+        toaster.create({
+          description: message,
+          title: translate("dags:runAndTaskActions.clear.error", {
+            type: translate("common:taskInstance_one"),
+          }),
+          type: "error",
+        });
+      }
+    } else {
+      // Fallback for completely unknown errors
       toaster.create({
-        description: message,
-        title: translate("dags:runAndTaskActions.clear.error", { type: translate("common:taskInstance_one") }),
+        description: translate("common:error.defaultMessage"),
+        title: translate("dags:runAndTaskActions.clear.error", {
+          type: translate("common:taskInstance_one"),
+        }),
         type: "error",
       });
     }
   };
+
 
   const onSuccess = async (
     _: TaskInstanceCollectionResponse,

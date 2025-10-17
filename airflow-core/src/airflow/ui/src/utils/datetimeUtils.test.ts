@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
 
@@ -60,20 +60,13 @@ describe("getDuration", () => {
 describe("getRelativeTime", () => {
   const fixedNow = new Date("2024-03-14T10:00:10.000Z");
 
-  // Local cast so TS knows vi’s type
-  const typedVi = vi as unknown as {
-    useFakeTimers: () => void;
-    setSystemTime: (date: Date) => void;
-    useRealTimers: () => void;
-  };
-
   beforeAll(() => {
-    typedVi.useFakeTimers();
-    typedVi.setSystemTime(fixedNow);
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedNow);
   });
 
   afterAll(() => {
-    typedVi.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("returns relative time for a valid date", () => {
