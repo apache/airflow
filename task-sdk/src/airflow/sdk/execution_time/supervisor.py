@@ -1280,12 +1280,25 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = asset_resp
         elif isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
+            asset_event_resp = self.client.asset_events.get(
+                uri=msg.uri,
+                name=msg.name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(alias_name=msg.alias_name)
+            asset_event_resp = self.client.asset_events.get(
+                alias_name=msg.alias_name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
