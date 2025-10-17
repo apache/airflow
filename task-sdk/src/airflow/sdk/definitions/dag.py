@@ -1202,7 +1202,7 @@ class DAG:
             scheduler_dag = DBDagBag().get_latest_version_of_dag(dag_id=self.dag_id, session=session)
             if not scheduler_dag:
                 from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+                from airflow.dag_processing.dagbag import DagBag
                 from airflow.sdk.definitions._internal.dag_parsing_context import (
                     _airflow_parsing_context_manager,
                 )
@@ -1219,7 +1219,13 @@ class DAG:
                         dagbag = DagBag(
                             dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False
                         )
-                        sync_bag_to_db(dagbag, bundle.name, bundle.version)
+                        try:
+                            from airflow.dag_processing.dagbag import sync_bag_to_db
+
+                            sync_bag_to_db(dagbag, bundle.name, bundle.version)
+                        except ImportError:
+                            # backwards compatibility for 3.1
+                            dagbag.sync_bag_to_db(bundle.name, bundle.version)  # type: ignore[attr-defined]
                     scheduler_dag = DBDagBag().get_latest_version_of_dag(dag_id=self.dag_id, session=session)
                     if scheduler_dag:
                         break

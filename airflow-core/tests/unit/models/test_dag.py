@@ -53,6 +53,7 @@ from airflow.models.dag import (
     get_asset_triggered_next_run_info,
     get_next_data_interval,
 )
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -185,7 +186,6 @@ class TestDag:
         """
         DAG.test() should auto-parse and sync the DAG if it's not serialized yet.
         """
-        from airflow.models.dagbag import DBDagBag
 
         dag_id = "test_example_bash_operator"
 
@@ -194,7 +194,7 @@ class TestDag:
 
         # Ensure not serialized yet
         assert DBDagBag().get_latest_version_of_dag(dag_id, session=session) is None
-        assert session.query(DagRun).filter(DagRun.dag_id == dag_id).scalar() is None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is None
 
         dr = dag.test()
         assert dr is not None
@@ -202,7 +202,7 @@ class TestDag:
         # Serialized DAG should now exist and DagRun would be created
         ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
         assert ser is not None
-        assert session.query(DagRun).filter(DagRun.dag_id == dag_id).scalar() is not None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
     def teardown_method(self) -> None:
         clear_db_runs()
