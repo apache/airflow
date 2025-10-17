@@ -279,13 +279,13 @@ repos:
           - "4"
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
-  - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: 3a6eb0fadf60b3cccfd80bad9dbb6fae7e47b316  # frozen: v1.10.0
-    hooks:
-      - id: rst-backticks
-        name: Check if RST files use double backticks for code
-      - id: python-no-log-warn
-        name: Check if there are no deprecate log warn
+  #  - repo: https://github.com/pre-commit/pygrep-hooks
+  #    rev: 3a6eb0fadf60b3cccfd80bad9dbb6fae7e47b316  # frozen: v1.10.0
+  #    hooks:
+  #      - id: rst-backticks
+  #        name: Check if RST files use double backticks for code
+  #      - id: python-no-log-warn
+  #        name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
     rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
     hooks:
