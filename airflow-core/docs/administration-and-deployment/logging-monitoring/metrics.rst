@@ -258,7 +258,7 @@ Name                                                 Description
 ``pool.starving_tasks.<pool_name>``                  Number of starving tasks in the pool
 ``pool.starving_tasks``                              Number of starving tasks in the pool. Metric with pool_name tagging.
 ``task.cpu_usage_percent.<dag_id>.<task_id>``        CPU usage percentage of a task
-``task.memory_mb.<dag_id>.<task_id>``                Memory usage in MB (RSS) of a task
+``task.memory_usage_mb.<dag_id>.<task_id>``          Memory usage in MB (RSS) of a task
 ``triggers.running.<hostname>``                      Number of triggers currently running for a triggerer (described by hostname)
 ``triggers.running``                                 Number of triggers currently running for a triggerer (described by hostname).
                                                      Metric with hostname tagging.
