@@ -298,7 +298,7 @@ class DagRun(StrictBaseModel):
     clear_number: int = 0
     run_type: DagRunType
     state: DagRunState
-    conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    conf: dict[str, Any] | None = None
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
 

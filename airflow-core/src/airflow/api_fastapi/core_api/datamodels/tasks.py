@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 from collections import abc
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import computed_field, field_validator, model_validator
 
@@ -28,6 +28,9 @@ from airflow.api_fastapi.common.types import TimeDeltaWithValidation
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.serialization.serialized_objects import encode_priority_weight_strategy
 from airflow.task.priority_strategy import PriorityWeightStrategy
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.param import SerializedParamsDict
 
 
 def _get_class_ref(obj) -> dict[str, str | None]:
@@ -93,11 +96,11 @@ class TaskResponse(BaseModel):
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.MutableMapping | None) -> dict | None:
+    def get_params(cls, params: SerializedParamsDict | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {param_name: param_val.dump() for param_name, param_val in params.items()}
+        return {k: v.resolve(suppress_exception=True) for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]

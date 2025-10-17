@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import random
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
@@ -333,7 +334,10 @@ def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     tag_string = cls.get_constant_tags()
 
     protocol = "https" if ssl_active else "http"
-    endpoint = f"{protocol}://{host}:{port}/v1/traces"
+    # Allow transparent support for standard OpenTelemetry SDK environment variables.
+    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
+    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", f"{protocol}://{host}:{port}/v1/traces")
+
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     log.info("Should use simple processor: %s", use_simple_processor)
     return OtelTrace(

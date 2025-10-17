@@ -34,3 +34,18 @@ class AddTriggeringUserNameField(VersionChange):
         """Remove the `triggering_user_name` field from the dag_run object when converting to the previous version."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("triggering_user_name", None)
+
+
+class MakeDagRunConfNullable(VersionChange):
+    """Make DagRun.conf field nullable to match database schema."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def ensure_conf_is_dict_in_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Ensure conf is always a dict (never None) in previous versions."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            if response.body["dag_run"].get("conf") is None:
+                response.body["dag_run"]["conf"] = {}

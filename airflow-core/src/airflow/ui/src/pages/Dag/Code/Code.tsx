@@ -156,7 +156,7 @@ export const Code = () => {
       <Box
         css={{
           "& *::selection": {
-            bg: "gray.emphasized",
+            bg: "blue.emphasized",
           },
         }}
         fontSize="14px"
