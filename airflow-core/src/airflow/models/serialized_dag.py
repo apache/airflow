@@ -316,7 +316,7 @@ class SerializedDagModel(Base):
         dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
         sorted_dag_data = SerializedDagModel._sort_serialized_dag_dict(dag_data)
-        sorted_dag_data_json = json.dumps(sorted_dag_data, sort_keys=True).encode("utf-8")
+        sorted_dag_data_json = json.dumps(sorted_dag_data).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
