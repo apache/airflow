@@ -883,7 +883,7 @@ class Client(httpx.Client):
 
     @retry(
         retry=retry_if_exception(_should_retry_api_request),
-        stop=stop_after_attempt(7),
+        stop=stop_after_attempt(API_RETRIES),
         wait=_get_retry_wait_time,
         before_sleep=before_log(log, logging.WARNING),
         reraise=True,
