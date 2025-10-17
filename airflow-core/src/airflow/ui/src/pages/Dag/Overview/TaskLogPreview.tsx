@@ -39,7 +39,11 @@ export const TaskLogPreview = ({
   const { t: translate } = useTranslation("dag");
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { data, error, isLoading } = useLogs(
+  const {
+    error,
+    isLoading,
+    parsedData: data,
+  } = useLogs(
     {
       dagId: taskInstance.dag_id,
       limit: 100,

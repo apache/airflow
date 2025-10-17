@@ -34,6 +34,7 @@ import {
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
+  MdOutlineFileDownload,
 } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
@@ -45,6 +46,7 @@ import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
@@ -62,6 +64,7 @@ type Props = {
 };
 
 export const TaskLogHeader = ({
+  downloadLogs,
   expanded,
   isFullscreen = false,
   onSelectTryNumber,
@@ -233,6 +236,10 @@ export const TaskLogHeader = ({
               <Menu.Item onClick={toggleSource} value="source">
                 <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
                 <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
+              </Menu.Item>
+              <Menu.Item onClick={downloadLogs} value="download">
+                <MdOutlineFileDownload /> {translate("download.download")}
+                <Menu.ItemCommand>{translate("download.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
             </Menu.Content>
           </Menu.Root>
