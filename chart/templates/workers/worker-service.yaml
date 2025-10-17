@@ -24,8 +24,8 @@
 
 {{- /* Build worker groups list: use celeryQueueGroups if defined, otherwise create default worker */ -}}
 {{- $workerGroups := list }}
-{{- if .Values.workers.celeryQueueGroups }}
-  {{- $workerGroups = .Values.workers.celeryQueueGroups }}
+{{- if .Values.workers.celery.celeryQueueGroups }}
+  {{- $workerGroups = .Values.workers.celery.celeryQueueGroups }}
 {{- else }}
   {{- $defaultWorker := dict "name" "" }}
   {{- $workerGroups = list $defaultWorker }}

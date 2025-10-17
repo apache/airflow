@@ -1000,34 +1000,6 @@ workers:
   # If true, dedicated Service Accounts for every worker type will be created.
   useWorkerDedicatedServiceAccounts: false
 
-  # Celery queue groups for different queues and node assignments
-  # When defined, ONLY these worker groups will be created (no default worker deployment)
-  # Each worker group creates a separate Deployment assigned to specific nodes and queues
-  celeryQueueGroups: []
-  # celeryQueueGroups:
-  # - name: default-workers
-  #   queues: "default,email,notifications"
-  #   replicas: 3
-  #   resources:
-  #     requests:
-  #       memory: "512Mi"
-  #       cpu: "500m"
-  #     limits:
-  #       memory: "1Gi"
-  #       cpu: "1"
-  # - name: heavy-workers
-  #   queues: "reports,batch_processing"
-  #   replicas: 2
-  #   nodeSelector:
-  #     workload: "compute-intensive"
-  #   resources:
-  #     requests:
-  #       memory: "2Gi"
-  #       cpu: "2"
-  #     limits:
-  #       memory: "4Gi"
-  #       cpu: "4"
-
   celery:
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
@@ -1041,6 +1013,34 @@ workers:
       name: ~
       # Annotations to add to worker kubernetes service account.
       annotations: {}
+
+    # Celery queue groups for different queues and node assignments
+    # When defined, ONLY these worker groups will be created (no default worker deployment)
+    # Each worker group creates a separate Deployment assigned to specific nodes and queues
+    celeryQueueGroups: []
+    # celeryQueueGroups:
+    # - name: default-workers
+    #   queues: "default,email,notifications"
+    #   replicas: 3
+    #   resources:
+    #     requests:
+    #       memory: "512Mi"
+    #       cpu: "500m"
+    #     limits:
+    #       memory: "1Gi"
+    #       cpu: "1"
+    # - name: heavy-workers
+    #   queues: "reports,batch_processing"
+    #   replicas: 2
+    #   nodeSelector:
+    #     workload: "compute-intensive"
+    #   resources:
+    #     requests:
+    #       memory: "2Gi"
+    #       cpu: "2"
+    #     limits:
+    #       memory: "4Gi"
+    #       cpu: "4"
 
   kubernetes:
     # Create ServiceAccount for pods created with pod-template-file

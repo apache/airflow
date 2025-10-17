@@ -2568,88 +2568,6 @@
                     "type": "boolean",
                     "default": false
                 },
-                "celeryQueueGroups": {
-                    "description": "Celery queue groups for different queues and node assignments. When defined, ONLY these worker groups will be created (no default worker deployment). Each worker group creates a separate Deployment assigned to specific nodes and queues.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "type": "object",
-                        "required": [
-                            "name",
-                            "queues",
-                            "replicas"
-                        ],
-                        "additionalProperties": false,
-                        "properties": {
-                            "name": {
-                                "description": "Unique name for the worker group",
-                                "type": "string"
-                            },
-                            "queues": {
-                                "description": "Comma-separated list of Celery queues",
-                                "type": "string"
-                            },
-                            "replicas": {
-                                "description": "Number of worker replicas",
-                                "type": "integer"
-                            },
-                            "nodeSelector": {
-                                "description": "Node selector for pod assignment",
-                                "type": "object",
-                                "additionalProperties": {
-                                    "type": "string"
-                                }
-                            },
-                            "affinity": {
-                                "description": "Affinity rules",
-                                "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
-                            },
-                            "tolerations": {
-                                "description": "Tolerations for node taints",
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
-                                }
-                            },
-                            "topologySpreadConstraints": {
-                                "description": "Pod topology spread constraints",
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
-                                }
-                            },
-                            "resources": {
-                                "description": "CPU, memory, and other resource requests/limits",
-                                "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                            },
-                            "labels": {
-                                "description": "Additional labels for pods",
-                                "type": "object",
-                                "additionalProperties": {
-                                    "type": "string"
-                                }
-                            },
-                            "podAnnotations": {
-                                "description": "Additional pod annotations",
-                                "type": "object",
-                                "additionalProperties": {
-                                    "type": "string"
-                                }
-                            },
-                            "priorityClassName": {
-                                "description": "Priority class name",
-                                "type": "string"
-                            },
-                            "env": {
-                                "description": "Additional environment variables",
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
-                                }
-                            }
-                        }
-                    }
-                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
@@ -2683,6 +2601,88 @@
                                     "default": {},
                                     "additionalProperties": {
                                         "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "celeryQueueGroups": {
+                            "description": "Celery queue groups for different queues and node assignments. When defined, ONLY these worker groups will be created (no default worker deployment). Each worker group creates a separate Deployment assigned to specific nodes and queues.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "queues",
+                                    "replicas"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "Unique name for the worker group",
+                                        "type": "string"
+                                    },
+                                    "queues": {
+                                        "description": "Comma-separated list of Celery queues",
+                                        "type": "string"
+                                    },
+                                    "replicas": {
+                                        "description": "Number of worker replicas",
+                                        "type": "integer"
+                                    },
+                                    "nodeSelector": {
+                                        "description": "Node selector for pod assignment",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "affinity": {
+                                        "description": "Affinity rules",
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                                    },
+                                    "tolerations": {
+                                        "description": "Tolerations for node taints",
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                                        }
+                                    },
+                                    "topologySpreadConstraints": {
+                                        "description": "Pod topology spread constraints",
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                                        }
+                                    },
+                                    "resources": {
+                                        "description": "CPU, memory, and other resource requests/limits",
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                    },
+                                    "labels": {
+                                        "description": "Additional labels for pods",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "podAnnotations": {
+                                        "description": "Additional pod annotations",
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "priorityClassName": {
+                                        "description": "Priority class name",
+                                        "type": "string"
+                                    },
+                                    "env": {
+                                        "description": "Additional environment variables",
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                                        }
                                     }
                                 }
                             }
