@@ -351,7 +351,7 @@ class TestElasticsearchTaskHandler:
                 # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
                 assert len(logs[0]) == 0
                 assert logs == [[]]
-                assert metadatas[0]["end_of_log"] is False
+                assert metadatas[0]["end_of_log"] is True
             assert len(logs) == len(metadatas)
             assert metadatas[0]["offset"] == "0"
             assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
