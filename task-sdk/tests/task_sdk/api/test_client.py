@@ -225,6 +225,42 @@ class TestClient:
         assert len(responses) == 1
         assert mock_sleep.call_count == 0
 
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_network_error(self, mock_sleep):
+        """Test that network errors trigger retry and eventually recover."""
+        call_count = 0
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise httpx.NetworkError("Connection failed")
+            return httpx.Response(200, json={"detail": "Recovered from error"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert call_count == 3
+        assert mock_sleep.call_count == 2
+
+    @mock.patch("time.sleep", return_value=None)
+    def test_retry_handling_timeout_error(self, mock_sleep):
+        """Test that timeout errors trigger retry and eventually recover."""
+        call_count = 0
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise httpx.TimeoutException("Request timed out")
+            return httpx.Response(200, json={"detail": "Recovered from error"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        response = client.get("http://error")
+        assert response.status_code == 200
+        assert call_count == 3
+        assert mock_sleep.call_count == 2
+
     def test_token_renewal(self):
         responses: list[httpx.Response] = [
             httpx.Response(200, json={"ok": "1"}),

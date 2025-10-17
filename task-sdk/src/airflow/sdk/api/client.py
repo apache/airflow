@@ -30,8 +30,13 @@ import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
-from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import (
+    before_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 from uuid6 import uuid7
 
 from airflow.configuration import conf
@@ -812,6 +817,37 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 
 
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """Determine if an API request should be retrie based on the exception type."""
+    if isinstance(exception, httpx.HTTPStatusError):
+        status = exception.response.status_code
+        return status >= 500 or status == 429
+
+    # for all other httpx errors (network, timeout, connect, etc.), retry
+    if isinstance(exception, httpx.RequestError):
+        return True
+
+    return False
+
+
+def _get_retry_wait_time(retry_state) -> float:
+    """
+    Calculate wait time for retry, respecting Retry-After header on 429 responses.
+
+    For rate limit responses (429) with a Retry-After header, uses the value from the header.
+    Otherwise, fall bacsk to exponential backoff with jitter.
+    """
+    exception = retry_state.outcome.exception()
+
+    if isinstance(exception, httpx.HTTPStatusError):
+        if exception.response.status_code == 429:
+            retry_after = exception.response.headers.get("Retry-After")
+            if retry_after and retry_after.isdigit():
+                return float(retry_after)
+
+    return wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)(retry_state)
+
+
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
@@ -840,21 +876,17 @@ class Client(httpx.Client):
             **kwargs,
         )
 
-    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
-
     def _update_auth(self, response: httpx.Response):
         if new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
     @retry(
-        reraise=True,
-        max_attempt_number=API_RETRIES,
-        wait_server_errors=_default_wait,
-        wait_network_errors=_default_wait,
-        wait_timeouts=_default_wait,
-        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        retry=retry_if_exception(_should_retry_api_request),
+        stop=stop_after_attempt(7),
+        wait=_get_retry_wait_time,
         before_sleep=before_log(log, logging.WARNING),
+        reraise=True,
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
