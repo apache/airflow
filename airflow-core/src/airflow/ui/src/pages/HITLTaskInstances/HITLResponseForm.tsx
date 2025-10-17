@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
-import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { HITLDetail, HITLDetailHisotry,TaskInstanceResponse } from "openapi/requests/types.gen";
 import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
@@ -33,7 +33,7 @@ import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/
 type HITLResponseFormProps = {
   readonly hitlDetail: {
     task_instance: TaskInstanceResponse;
-  } & Omit<HITLDetail, "task_instance">;
+  } & Omit<HITLDetail|HITLDetailHisotry, "task_instance">;
 };
 
 const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITLOptions: Array<string>) => {

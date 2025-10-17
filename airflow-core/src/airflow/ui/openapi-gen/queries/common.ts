@@ -574,6 +574,16 @@ export const UseTaskInstanceServiceGetHitlDetailKeyFn = ({ dagId, dagRunId, mapI
   mapIndex: number;
   taskId: string;
 }, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetHitlDetailKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
+export type TaskInstanceServiceGetHitlDetailTryDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getHitlDetailTry>>;
+export type TaskInstanceServiceGetHitlDetailTryQueryResult<TData = TaskInstanceServiceGetHitlDetailTryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetHitlDetailTryKey = "TaskInstanceServiceGetHitlDetailTry";
+export const UseTaskInstanceServiceGetHitlDetailTryKeyFn = ({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+  tryNumber: number;
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetHitlDetailTryKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, tryNumber }])];
 export type TaskInstanceServiceGetHitlDetailsDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getHitlDetails>>;
 export type TaskInstanceServiceGetHitlDetailsQueryResult<TData = TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetHitlDetailsKey = "TaskInstanceServiceGetHitlDetails";

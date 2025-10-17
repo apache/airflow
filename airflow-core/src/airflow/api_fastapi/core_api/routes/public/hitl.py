@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
+from airflow.api_fastapi.core_api.datamodels.task_instance_history import HITLDetailHisotry
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
@@ -58,10 +59,12 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.base import Base
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 
 task_instances_hitl_router = AirflowRouter(
     tags=["Task Instance"],
@@ -78,21 +81,31 @@ def _get_task_instance_with_hitl_detail(
     task_id: str,
     session: SessionDep,
     map_index: int,
-) -> TI:
-    query = (
-        select(TI)
-        .where(
-            TI.dag_id == dag_id,
-            TI.run_id == dag_run_id,
-            TI.task_id == task_id,
+    try_number: int | None = None,
+) -> TI | TIH:
+    def _query(orm_object: Base) -> TI | TIH | None:
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.hitl_detail))
         )
-        .options(joinedload(TI.hitl_detail))
-    )
 
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
+        if try_number is not None:
+            query = query.where(orm_object.try_number == try_number)
 
-    task_instance = session.scalar(query)
+        task_instance = session.scalar(query)
+        return task_instance
+
+    if try_number is None:
+        task_instance = _query(TI)
+    else:
+        task_instance = _query(TIH) or _query(TI)
+
     if task_instance is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -198,8 +211,35 @@ def get_hitl_detail(
         task_id=task_id,
         session=session,
         map_index=map_index,
+        try_number=None,
     )
     return task_instance.hitl_detail
+
+
+@task_instances_hitl_router.get(
+    task_instance_hitl_path + "/tries/{try_number}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
+)
+def get_hitl_detail_try(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: SessionDep,
+    map_index: int = -1,
+    try_number: int = -1,
+) -> HITLDetailHisotry:
+    """Get a Human-in-the-loop detail of a specific task instance."""
+    task_instance_history = _get_task_instance_with_hitl_detail(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        map_index=map_index,
+        try_number=try_number if try_number != -1 else None,
+    )
+    return task_instance_history.hitl_detail
 
 
 @task_instances_hitl_router.get(
