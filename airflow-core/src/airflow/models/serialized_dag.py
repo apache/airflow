@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
@@ -286,8 +286,8 @@ class SerializedDagModel(Base):
         "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
     )
     _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
