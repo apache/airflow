@@ -157,7 +157,7 @@ export const HITLTaskInstances = () => {
     mapIndex: parseInt(mapIndex, 10),
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
-    respondedByUserName: respondedByUserName === null ? undefined : [respondedByUserName],
+    respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
     responseReceived:
       Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
         ? effectiveResponseReceived === "true"
