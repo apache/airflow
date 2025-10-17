@@ -207,9 +207,6 @@ async def _async_get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # TODO: check cache first
-    # enabled only if SecretCache.init() has been called first
-
     # Try secrets backends first using async wrapper
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
