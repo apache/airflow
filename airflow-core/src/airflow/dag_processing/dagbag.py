@@ -43,7 +43,6 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -118,6 +117,8 @@ def timeout(seconds=1, error_message="Timeout"):
     def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
         log.error("Process timed out, PID: %s", str(os.getpid()))
+        from airflow.sdk.exceptions import AirflowTaskTimeout
+
         raise AirflowTaskTimeout(error_message)
 
     try:

@@ -62,6 +62,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
