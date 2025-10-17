@@ -137,6 +137,7 @@ const taskInstanceColumns = ({
             </Link>
           ),
           header: translate("common:taskId"),
+          id: "ti_id",
         },
       ]),
   {
