@@ -161,8 +161,7 @@ def pytest_sessionfinish(session, exitstatus):
         copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     # If any test failures lets print the services logs
-    failed_count = len([r for r in test_results if r["status"] == "failed"])
-    if failed_count > 0:
+    if any(r["status"] == "failed" for r in test_results):
         _print_logs(compose_instance=compose_instance)
 
     if compose_instance:
