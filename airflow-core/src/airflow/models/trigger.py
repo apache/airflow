@@ -93,7 +93,7 @@ class Trigger(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
     encrypted_kwargs: Mapped[str] = mapped_column("kwargs", Text, nullable=False)
-    created_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     triggerer_job = relationship(
