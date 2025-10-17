@@ -446,7 +446,7 @@ def _create_ti_state_update_query_and_update_state(
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=updated_state)
+        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
 
         if updated_state == TerminalTIState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload
