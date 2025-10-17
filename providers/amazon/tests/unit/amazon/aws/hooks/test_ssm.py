@@ -87,3 +87,51 @@ class TestSsmHook:
         error = raised_exception.value.response["Error"]
         assert error["Code"] == "ParameterNotFound"
         assert BAD_PARAM_NAME in error["Message"]
+
+    def test_get_command_invocation(self):
+        command_id = "test-command-id"
+        instance_id = "i-1234567890abcdef0"
+        expected_response = {
+            "CommandId": command_id,
+            "InstanceId": instance_id,
+            "Status": "Success",
+            "ResponseCode": 0,
+            "StandardOutputContent": "Hello World",
+            "StandardErrorContent": "",
+        }
+
+        with mock.patch.object(self.hook.conn, "get_command_invocation") as mock_get_command:
+            mock_get_command.return_value = expected_response
+
+            result = self.hook.get_command_invocation(command_id, instance_id)
+
+            mock_get_command.assert_called_once_with(CommandId=command_id, InstanceId=instance_id)
+            assert result == expected_response
+
+    def test_list_command_invocations(self):
+        command_id = "test-command-id"
+        expected_invocations = [
+            {"InstanceId": "i-111", "Status": "Success"},
+            {"InstanceId": "i-222", "Status": "Failed"},
+        ]
+        expected_response = {"CommandInvocations": expected_invocations}
+
+        with mock.patch.object(self.hook.conn, "list_command_invocations") as mock_list_commands:
+            mock_list_commands.return_value = expected_response
+
+            result = self.hook.list_command_invocations(command_id)
+
+            mock_list_commands.assert_called_once_with(CommandId=command_id)
+            assert result == expected_invocations
+
+    def test_list_command_invocations_empty_response(self):
+        command_id = "test-command-id"
+        expected_response = {}  # No CommandInvocations key
+
+        with mock.patch.object(self.hook.conn, "list_command_invocations") as mock_list_commands:
+            mock_list_commands.return_value = expected_response
+
+            result = self.hook.list_command_invocations(command_id)
+
+            mock_list_commands.assert_called_once_with(CommandId=command_id)
+            assert result == []

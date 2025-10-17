@@ -200,31 +200,30 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
                 "document_name": invocation_details.get("DocumentName"),
                 "comment": invocation_details.get("Comment", ""),
             }
-        else:
-            # Get output for all instances
-            self.log.info("Retrieving output for command %s from all instances", self.command_id)
-            invocations = self.hook.list_command_invocations(self.command_id)
-            output_data = {"command_id": self.command_id, "invocations": []}
+        # Get output for all instances
+        self.log.info("Retrieving output for command %s from all instances", self.command_id)
+        invocations = self.hook.list_command_invocations(self.command_id)
+        output_data = {"command_id": self.command_id, "invocations": []}
 
-            for invocation in invocations:
-                instance_id = invocation["InstanceId"]
-                try:
-                    invocation_details = self.hook.get_command_invocation(self.command_id, instance_id)
-                    output_data["invocations"].append(
-                        {
-                            "instance_id": instance_id,
-                            "status": invocation_details.get("Status"),
-                            "response_code": invocation_details.get("ResponseCode"),
-                            "standard_output": invocation_details.get("StandardOutputContent", ""),
-                            "standard_error": invocation_details.get("StandardErrorContent", ""),
-                            "execution_start_time": invocation_details.get("ExecutionStartDateTime"),
-                            "execution_end_time": invocation_details.get("ExecutionEndDateTime"),
-                            "document_name": invocation_details.get("DocumentName"),
-                            "comment": invocation_details.get("Comment", ""),
-                        }
-                    )
-                except Exception as e:
-                    self.log.warning("Failed to get output for instance %s: %s", instance_id, e)
-                    output_data["invocations"].append({"instance_id": instance_id, "error": str(e)})
+        for invocation in invocations:
+            instance_id = invocation["InstanceId"]
+            try:
+                invocation_details = self.hook.get_command_invocation(self.command_id, instance_id)
+                output_data["invocations"].append(
+                    {
+                        "instance_id": instance_id,
+                        "status": invocation_details.get("Status"),
+                        "response_code": invocation_details.get("ResponseCode"),
+                        "standard_output": invocation_details.get("StandardOutputContent", ""),
+                        "standard_error": invocation_details.get("StandardErrorContent", ""),
+                        "execution_start_time": invocation_details.get("ExecutionStartDateTime"),
+                        "execution_end_time": invocation_details.get("ExecutionEndDateTime"),
+                        "document_name": invocation_details.get("DocumentName"),
+                        "comment": invocation_details.get("Comment", ""),
+                    }
+                )
+            except Exception as e:
+                self.log.warning("Failed to get output for instance %s: %s", instance_id, e)
+                output_data["invocations"].append({"instance_id": instance_id, "error": str(e)})
 
-            return output_data
+        return output_data

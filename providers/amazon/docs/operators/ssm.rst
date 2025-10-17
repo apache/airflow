@@ -83,13 +83,11 @@ To retrieve output from all instances that executed a command:
 
 To retrieve output from a specific instance:
 
-.. code-block:: python
-
-    get_specific_output = SsmGetCommandInvocationOperator(
-        task_id='get_specific_output',
-        command_id='39281998-3623-44f0-a7fc-79bbeef20b41',
-        instance_id='i-1234567890abcdef0',
-    )
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ssm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_get_command_invocation]
+    :end-before: [END howto_operator_get_command_invocation]
 
 The operator returns structured data including:
 
