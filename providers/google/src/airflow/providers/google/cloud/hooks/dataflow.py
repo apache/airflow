@@ -51,12 +51,12 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.common.compat.lazy_compat import timeout
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.providers.google.version_compat import timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

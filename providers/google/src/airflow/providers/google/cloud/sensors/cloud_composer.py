@@ -31,15 +31,10 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment, Exe
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerDAGRunTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
