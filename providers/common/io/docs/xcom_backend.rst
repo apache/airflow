@@ -56,3 +56,5 @@ The local filesystem scheme can also be used as it's the same as file show above
 .. note::
 
   Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip, gzip and bz2 work out of the box.
+  Large XComs stored in object storage will have a **database reference**, while the value itself is stored externally.
+  Upgrading from Airflow 2.x to 3.x may change XCom retrieval behavior: in 2.x, ``XCom.get_value()`` could return a file path for large XComs; in 3.x, it always returns the deserialized value directly.
