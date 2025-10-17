@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -25,6 +27,14 @@ from airflow.providers.amazon.aws.hooks.athena_sql import AthenaSQLHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+
+try:
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 REGION_NAME = "us-east-1"
 WORK_GROUP = "test-work-group"
@@ -153,3 +163,121 @@ class TestAthenaSQLHookConn:
         hook = AthenaSQLHook(athena_conn_id=AWS_ATHENA_CONN_ID, aws_conn_id=AWS_CONN_ID)
         assert hook.athena_conn_id == AWS_ATHENA_CONN_ID
         assert hook.aws_conn_id == AWS_CONN_ID
+
+    def test_hook_params_handling(self):
+        """Test that hook_params are properly handled and don't cause TypeError."""
+        hook = AthenaSQLHook(
+            athena_conn_id="test_conn",
+            s3_staging_dir="s3://test-bucket/staging/",
+            work_group="test-workgroup",
+            driver="rest",
+            aws_domain="amazonaws.com",
+            session_kwargs={"profile_name": "test"},
+            config_kwargs={"retries": {"max_attempts": 5}},
+            role_arn="arn:aws:iam::123456789012:role/test-role",
+            assume_role_method="assume_role",
+            assume_role_kwargs={"RoleSessionName": "airflow-test"},
+            aws_session_token="test-token",
+            endpoint_url="https://athena.us-east-1.amazonaws.com",
+        )
+
+        # Verify that the parameters were extracted correctly
+        assert hook.s3_staging_dir == "s3://test-bucket/staging/"
+        assert hook.work_group == "test-workgroup"
+        assert hook.driver == "rest"
+        assert hook.aws_domain == "amazonaws.com"
+        assert hook.session_kwargs == {"profile_name": "test"}
+        assert hook.config_kwargs == {"retries": {"max_attempts": 5}}
+        assert hook.role_arn == "arn:aws:iam::123456789012:role/test-role"
+        assert hook.assume_role_method == "assume_role"
+        assert hook.assume_role_kwargs == {"RoleSessionName": "airflow-test"}
+        assert hook.aws_session_token == "test-token"
+        assert hook.endpoint_url == "https://athena.us-east-1.amazonaws.com"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_session")
+    def test_get_conn_with_hook_params(self, mock_get_session, mock_connect):
+        """Test that get_conn uses hook_params when provided."""
+        # Create hook with hook_params
+        hook = AthenaSQLHook(
+            athena_conn_id="test_conn",
+            s3_staging_dir="s3://test-bucket/staging/",
+            work_group="test-workgroup",
+        )
+
+        # Mock the connection
+        conn = Connection(
+            conn_type="athena",
+            schema="test_schema",
+            extra={"region_name": "us-east-1"},
+        )
+        hook.get_connection = mock.Mock(return_value=conn)
+
+        hook.get_conn()
+
+        # Verify that pyathena.connect was called with hook_params
+        mock_connect.assert_called_once()
+        call_args = mock_connect.call_args[1]  # Get keyword arguments
+        assert call_args["s3_staging_dir"] == "s3://test-bucket/staging/"
+        assert call_args["work_group"] == "test-workgroup"
+
+    def test_sql_value_check_operator_compatibility(self):
+        """Test that AthenaSQLHook works with SQLValueCheckOperator."""
+        from airflow.providers.common.sql.operators.sql import SQLValueCheckOperator
+
+        # Mock Athena connection with s3_staging_dir in extra
+        athena_conn = Connection(
+            conn_id="athena_conn",
+            conn_type="athena",
+            description="Connection to a Athena API",
+            schema="athena_sql_schema1",
+            extra={"s3_staging_dir": "s3://mybucket/athena/", "region_name": "eu-west-1"},
+        )
+
+        with patch(f"{BASEHOOK_PATCH_PATH}.get_connection", return_value=athena_conn):
+            # This should NOT raise TypeError: AwsGenericHook.__init__() got an unexpected keyword argument 's3_staging_dir'
+            operator = SQLValueCheckOperator(
+                task_id="value_check", sql="SELECT TRUE", pass_value=True, conn_id="athena_conn"
+            )
+
+            # The operator should be created successfully
+            assert operator.task_id == "value_check"
+            assert operator.sql == "SELECT TRUE"
+            assert operator.pass_value == "True"
+            assert operator.conn_id == "athena_conn"
+
+    @patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
+    def test_hook_params_override_extras(self, connect_mock):
+        """
+        When both connection extras and hook_params provide values, hook_params should win.
+        """
+        # Arrange: simulate extras on the connection
+        extras = {
+            "s3_staging_dir": "s3://from-extra/",
+            "work_group": "wg-extra",
+            "aws_domain": "amazonaws.com",
+            "driver": "rest",
+        }
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="athena",
+            extra={**extras, "region_name": "us-east-1"},
+        )
+        hook = AthenaSQLHook(
+            aws_conn_id="test_conn",
+            s3_staging_dir="s3://from-params/",
+            work_group="wg-params",
+            aws_domain="amazonaws.com.cn",
+            driver="rest",
+        )
+        hook.get_connection = mock.Mock(return_value=conn)
+
+        # Act
+        hook.get_conn()
+
+        # Assert: pyathena.connect received values from hook_params (not extras)
+        sent = connect_mock.call_args.kwargs
+        assert sent["s3_staging_dir"] == "s3://from-params/"
+        assert sent["work_group"] == "wg-params"
+        assert sent["aws_domain"] == "amazonaws.com.cn"
+        assert sent["driver"] == "rest"
