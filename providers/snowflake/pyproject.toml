@@ -75,6 +75,9 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure"
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]
@@ -86,6 +89,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "responses>=0.25.0",
