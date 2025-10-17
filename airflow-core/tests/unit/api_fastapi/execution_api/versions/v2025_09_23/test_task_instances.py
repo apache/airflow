@@ -97,3 +97,60 @@ class TestTIRunStateV20250923:
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
         assert dag_run["conf"] == {}
+
+
+class TestTIRunConfV20250923:
+    """Test that API version 2025-09-23 converts NULL conf to empty dict."""
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_run_null_conf_converted_to_dict(
+        self,
+        ver_client,
+        session,
+        create_task_instance,
+    ):
+        """
+        Test that NULL conf is converted to empty dict in API version 2025-09-23.
+
+        In version 2025-10-10, the conf field became nullable to match database schema.
+        Older API clients (2025-09-23 and earlier) should receive an empty dict instead
+        of None for backward compatibility.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_run_null_conf_v2",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        # Set conf to NULL to simulate Airflow 2.x upgrade or offline migration
+        ti.dag_run.conf = None
+        session.commit()
+
+        response = ver_client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "pid": 100,
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "start_date": timezone.utcnow().isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        json_response = response.json()
+
+        assert "dag_run" in json_response
+        dag_run = json_response["dag_run"]
+
+        # In older API versions, None should be converted to empty dict
+        assert dag_run["conf"] == {}, "NULL conf should be converted to empty dict in API version 2025-09-23"
+
+        # Verify other expected fields
+        assert dag_run["dag_id"] == ti.dag_id
+        assert dag_run["run_id"] == "test"
