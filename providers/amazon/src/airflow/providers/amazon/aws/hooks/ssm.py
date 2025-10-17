@@ -71,3 +71,29 @@ class SsmHook(AwsBaseHook):
             if isinstance(default, ArgNotSet):
                 raise
             return default
+
+    def get_command_invocation(self, command_id: str, instance_id: str) -> dict:
+        """
+        Get the output of a command invocation for a specific instance.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SSM.Client.get_command_invocation`
+
+        :param command_id: The ID of the command.
+        :param instance_id: The ID of the instance.
+        :return: The command invocation details including output.
+        """
+        return self.conn.get_command_invocation(CommandId=command_id, InstanceId=instance_id)
+
+    def list_command_invocations(self, command_id: str) -> list[dict]:
+        """
+        List all command invocations for a given command ID.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SSM.Client.list_command_invocations`
+
+        :param command_id: The ID of the command.
+        :return: List of command invocations.
+        """
+        response = self.conn.list_command_invocations(CommandId=command_id)
+        return response.get("CommandInvocations", [])
