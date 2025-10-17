@@ -224,3 +224,23 @@ class TestAirbyteHook:
         # Check if the session is created correctly
         assert hook.airbyte_api is not None
         assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]
+
+    def test_get_ui_field_behaviour(self):
+        """
+        Test the UI field behavior configuration for Airbyte connections.
+        """
+        field_behaviour = AirbyteHook.get_ui_field_behaviour()
+        
+        # Check that the correct fields are hidden
+        assert "extra" in field_behaviour["hidden_fields"]
+        assert "port" in field_behaviour["hidden_fields"]
+        
+        # Check that the correct relabeling is applied
+        relabeling = field_behaviour["relabeling"]
+        assert relabeling["host"] == "Server URL"
+        assert relabeling["login"] == "Client ID"
+        assert relabeling["password"] == "Client Secret"
+        assert relabeling["schema"] == "Token URL"
+        
+        # Check that placeholders is empty
+        assert field_behaviour["placeholders"] == {}
