@@ -18,26 +18,40 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetHitlDetail } from "openapi/queries";
+import {
+  useTaskInstanceServiceGetHitlDetailTry,
+  useTaskInstanceServiceGetMappedTaskInstance,
+} from "openapi/queries";
+import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { ProgressBar } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
-  const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetail(
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+
+  const parsedMapIndex = Number(mapIndex ?? -1);
+
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
-      mapIndex: Number(mapIndex ?? -1),
+      mapIndex: parsedMapIndex,
       taskId: taskId ?? "",
     },
     undefined,
+    {
+      enabled: !isNaN(parsedMapIndex),
+    },
   );
 
-  if (!hitlDetail?.task_instance) {
+  if (!taskInstance) {
     return (
       <Box flexGrow={1}>
         <ProgressBar />
@@ -45,8 +59,46 @@ export const HITLResponse = () => {
     );
   }
 
+  const onSelectTryNumber = (newTryNumber: number) => {
+    if (newTryNumber === taskInstance.try_number) {
+      searchParams.delete(SearchParamsKeys.TRY_NUMBER);
+    } else {
+      searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
+    }
+    setSearchParams(searchParams);
+  };
+
+  const tryNumber = tryNumberParam === null ? -1 : parseInt(tryNumberParam, 10);
+
+  const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTry(
+    {
+      dagId: dagId ?? "",
+      dagRunId: runId ?? "",
+      mapIndex: parsedMapIndex,
+      taskId: taskId ?? "",
+      tryNumber
+    },
+    undefined,
+  );
+
+  if (!hitlDetail) {
+    return (
+      <Box flexGrow={1}>
+        <ProgressBar />
+      </Box>
+    );
+  }
+
+
   return (
     <Box px={4}>
+      {taskInstance.try_number <= 1 ? undefined : (
+        <TaskTrySelect
+          onSelectTryNumber={onSelectTryNumber}
+          selectedTryNumber={tryNumber}
+          taskInstance={taskInstance}
+        />
+      )}
       <HITLResponseForm hitlDetail={hitlDetail} />
     </Box>
   );
