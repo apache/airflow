@@ -80,6 +80,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -178,6 +179,29 @@ class TestDag:
         clear_db_runs()
         clear_db_dags()
         clear_db_assets()
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_auto_parses_when_not_serialized(self, testing_dag_bundle, session):
+        """
+        DAG.test() should auto-parse and sync the DAG if it's not serialized yet.
+        """
+        from airflow.models.dagbag import DBDagBag
+
+        dag_id = "test_example_bash_operator"
+
+        # Ensure not serialized yet
+        assert DBDagBag().get_latest_version_of_dag(dag_id, session=session) is None
+        assert session.query(DagRun).filter(DagRun.dag_id == dag_id).scalar() is None
+
+        dag = DAG(dag_id=dag_id, schedule=None)
+
+        dr = dag.test()
+        assert dr is not None
+
+        # Serialized DAG should now exist and DagRun would be created
+        ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
+        assert ser is not None
+        assert session.query(DagRun).filter(DagRun.dag_id == dag_id).scalar() is not None
 
     def teardown_method(self) -> None:
         clear_db_runs()
