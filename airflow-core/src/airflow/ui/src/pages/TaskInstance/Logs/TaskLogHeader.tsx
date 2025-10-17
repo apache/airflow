@@ -237,10 +237,6 @@ export const TaskLogHeader = ({
                 <MdCode /> {showSource ? translate("source.hide") : translate("source.show")}
                 <Menu.ItemCommand>{translate("source.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
-              <Menu.Item onClick={downloadLogs} value="download">
-                <MdOutlineFileDownload /> {translate("download.download")}
-                <Menu.ItemCommand>{translate("download.hotkey")}</Menu.ItemCommand>
-              </Menu.Item>
             </Menu.Content>
           </Menu.Root>
           {!isFullscreen && (
@@ -262,6 +258,20 @@ export const TaskLogHeader = ({
               </IconButton>
             </Tooltip>
           )}
+
+          <Tooltip closeDelay={100} content={translate("download.tooltip", { hotkey: "d" })} openDelay={100}>
+            <IconButton
+              aria-label={translate("download.download")}
+              bg="bg.panel"
+              m={0}
+              onClick={downloadLogs}
+              px={4}
+              py={2}
+              variant="outline"
+            >
+              <MdOutlineFileDownload />
+            </IconButton>
+          </Tooltip>
         </HStack>
       </HStack>
     </Box>
