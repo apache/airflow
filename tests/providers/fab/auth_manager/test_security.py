@@ -354,7 +354,7 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
         app.config["AUTH_ROLE_PUBLIC"] = "Public"
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert set(security_manager.get_user_roles(user)) == {security_manager.get_public_role()}
 
         with _create_dag_model_context("test_dag_id", session, security_manager):
             security_manager.sync_roles()
@@ -366,7 +366,7 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
     with app.app_context():
         user = AnonymousUser()
         app.config["AUTH_ROLE_PUBLIC"] = "Public"
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert set(security_manager.get_user_roles(user)) == {security_manager.get_public_role()}
 
         dag_id = "test_dag_id"
         with _create_dag_model_context(dag_id, session, security_manager):
@@ -393,7 +393,7 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
         mock_is_logged_in.return_value = False
         user = AnonymousUser()
 
-        assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
+        assert set(security_manager.get_user_roles(user)) == {security_manager.get_public_role()}
 
         security_manager.sync_roles()
 
@@ -409,7 +409,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
         # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
         user.roles = security_manager.get_user_roles(user)
-        assert user.roles == {security_manager.get_public_role()}
+        assert set(user.roles) == {security_manager.get_public_role()}
 
         test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3", "test_dag_id_4.with_dot"]
 
@@ -915,11 +915,9 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-    access_control = (
-        {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
-        if hasattr(permissions, "resource_name")
-        else {"Public": {permissions.ACTION_CAN_READ}}
-    )
+    # The DAG object has old-style access control which gets passed as-is to _sync_dag_view_permissions
+    # The conversion happens inside _sync_dag_view_permissions, not before the call
+    access_control = {"Public": {permissions.ACTION_CAN_READ}}
 
     collect_dags_from_db_mock = mock.Mock()
     dagbag_mock = mock.Mock()
