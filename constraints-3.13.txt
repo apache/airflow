@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-16T09:27:29.146740
+# This constraints file was automatically generated on 2025-10-17T12:07:09.395689
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -217,6 +217,7 @@ azure-storage-file-datalake==12.22.0
 azure-storage-file-share==12.23.0
 azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
+babel==2.17.0
 backoff==2.2.1
 bcrypt==5.0.0
 beautifulsoup4==4.14.2
@@ -244,7 +245,7 @@ click-repl==0.3.0
 click==8.2.1
 cloudpickle==3.1.1
 cohere==5.19.0
-colorlog==6.9.0
+colorlog==6.10.1
 comm==0.2.3
 crcmod==1.7
 cron_descriptor==2.0.6
@@ -293,35 +294,35 @@ gcsfs==2025.9.0
 geomet==0.2.1.post1
 gevent==25.9.1
 gitdb==4.0.12
-google-ads==28.1.0
-google-analytics-admin==0.25.0
+google-ads==28.2.0
+google-analytics-admin==0.26.0
 google-api-core==2.26.0
 google-api-python-client==2.184.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.41.1
 google-cloud-aiplatform==1.121.0
-google-cloud-alloydb==0.5.0
-google-cloud-appengine-logging==1.6.2
-google-cloud-audit-log==0.3.3
-google-cloud-automl==2.16.4
-google-cloud-batch==0.17.37
-google-cloud-bigquery-datatransfer==3.19.2
+google-cloud-alloydb==0.6.0
+google-cloud-appengine-logging==1.7.0
+google-cloud-audit-log==0.4.0
+google-cloud-automl==2.17.0
+google-cloud-batch==0.18.0
+google-cloud-bigquery-datatransfer==3.20.0
 google-cloud-bigquery==3.38.0
 google-cloud-bigtable==2.33.0
-google-cloud-build==3.32.0
-google-cloud-compute==1.39.0
-google-cloud-container==2.59.0
+google-cloud-build==3.33.0
+google-cloud-compute==1.40.0
+google-cloud-container==2.60.0
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.27.1
-google-cloud-dataflow-client==0.9.0
-google-cloud-dataform==0.6.2
-google-cloud-dataplex==2.12.0
-google-cloud-dataproc-metastore==1.19.0
-google-cloud-dataproc==5.22.0
-google-cloud-dlp==3.32.0
-google-cloud-kms==3.6.0
-google-cloud-language==2.17.2
+google-cloud-datacatalog==3.28.0
+google-cloud-dataflow-client==0.10.0
+google-cloud-dataform==0.7.0
+google-cloud-dataplex==2.13.0
+google-cloud-dataproc-metastore==1.20.0
+google-cloud-dataproc==5.23.0
+google-cloud-dlp==3.33.0
+google-cloud-kms==3.7.0
+google-cloud-language==2.18.0
 google-cloud-logging==3.12.1
 google-cloud-managedkafka==0.1.12
 google-cloud-memcache==1.12.2
@@ -391,7 +392,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.3.0
 jedi==0.19.2
 jeepney==0.9.0
-jiter==0.11.0
+jiter==0.11.1
 jmespath==0.10.0
 joblib==1.5.2
 jpype1==1.6.0
@@ -400,7 +401,7 @@ jsonpath-python==1.0.6
 jsonschema-specifications==2025.9.1
 jsonschema==4.25.1
 jupyter_client==8.6.3
-jupyter_core==5.8.1
+jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.6
 keyring==25.6.0
@@ -450,7 +451,7 @@ neo4j==6.0.2
 nest-asyncio==1.6.0
 numpy==2.3.4
 oauthlib==3.3.1
-openai==2.3.0
+openai==2.4.0
 openlineage-integration-common==1.39.0
 openlineage-python==1.39.0
 openlineage_sql==1.39.0
@@ -550,7 +551,7 @@ redis==5.2.1
 redshift-connector==2.1.9
 referencing==0.37.0
 regex==2025.9.18
-requests-file==2.1.0
+requests-file==3.0.0
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
@@ -597,7 +598,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starlette==0.48.0
 statsd==4.0.1
-std-uritemplate==2.0.6
+std-uritemplate==2.0.8
 structlog==25.4.0
 svcs==25.1.0
 tableauserverclient==0.38
@@ -634,7 +635,7 @@ urllib3==2.5.0
 uuid6==2025.0.1
 uv==0.9.3
 uvicorn==0.37.0
-uvloop==0.21.0
+uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
