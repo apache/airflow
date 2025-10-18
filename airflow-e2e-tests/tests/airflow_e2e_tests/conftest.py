@@ -98,15 +98,32 @@ def spin_up_airflow_environment(tmp_path_factory):
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
 
-    console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-    compose_instance = DockerCompose(tmp_dir, compose_file_name=compose_file_names, pull=pull)
+    try:
+        console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
+        compose_instance = DockerCompose(tmp_dir, compose_file_name=compose_file_names, pull=pull)
 
-    compose_instance.start()
+        compose_instance.start()
 
-    compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/version")
-    compose_instance.exec_in_container(
-        command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-    )
+        compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/version")
+        compose_instance.exec_in_container(
+            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
+        )
+
+    except Exception:
+        console.print("[red]Failed to start docker compose")
+        _print_logs(compose_instance)
+        compose_instance.stop()
+        raise
+
+
+def _print_logs(compose_instance):
+    containers = compose_instance.get_containers()
+    for container in containers:
+        service = container.Service
+        stdout, _ = compose_instance.get_logs(service)
+        console.print(f"::group:: {service} Logs")
+        console.print(f"[red]{stdout}")
+        console.print("::endgroup::")
 
 
 def pytest_sessionstart(session):
@@ -142,6 +159,10 @@ def pytest_sessionfinish(session, exitstatus):
     generate_test_report(test_results)
     if airflow_logs_path is not None:
         copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
+
+    # If any test failures lets print the services logs
+    if any(r["status"] == "failed" for r in test_results):
+        _print_logs(compose_instance=compose_instance)
 
     if compose_instance:
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
