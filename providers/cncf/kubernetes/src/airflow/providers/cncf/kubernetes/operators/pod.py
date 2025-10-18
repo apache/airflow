@@ -69,16 +69,17 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_succeeded,
+    get_container_termination_message,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
     PodNotFoundException,
-    PodOperatorHookProtocol,
     PodPhase,
-    container_is_succeeded,
-    get_container_termination_message,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
 
@@ -95,6 +96,7 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
+    from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
 
     try:
