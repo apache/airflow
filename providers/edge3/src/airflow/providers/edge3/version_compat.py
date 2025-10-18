@@ -35,9 +35,9 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
 
-try:
+if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
-except ImportError:
+else:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 __all__ = [
