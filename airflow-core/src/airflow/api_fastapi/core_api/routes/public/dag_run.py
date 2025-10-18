@@ -173,7 +173,6 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
     
-    # 確保 dag_run 不為 None，這樣後續的代碼就可以安全地訪問其屬性
     assert dag_run is not None
 
     dag = get_dag_for_run(dag_bag, dag_run, session=session)

@@ -611,7 +611,7 @@ def delete_asset_queued_events(
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     result = session.execute(delete_stmt)
-    if result.rowcount == 0:  # type: ignore[attr-defined]
+    if getattr(result, 'rowcount', 0) == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queue event with asset_id: `{asset_id}` was not found",
@@ -646,7 +646,7 @@ def delete_dag_asset_queued_events(
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
     result = session.execute(delete_statement)
 
-    if result.rowcount == 0:  # type: ignore[attr-defined]
+    if getattr(result, 'rowcount', 0) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
 
@@ -680,7 +680,7 @@ def delete_dag_asset_queued_event(
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
     result = session.execute(delete_statement)
-    if result.rowcount == 0:  # type: ignore[attr-defined]
+    if getattr(result, 'rowcount', 0) == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
