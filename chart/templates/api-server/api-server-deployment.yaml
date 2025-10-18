@@ -22,7 +22,6 @@
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
 {{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
-{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.apiServer.topologySpreadConstraints .Values.topologySpreadConstraints }}

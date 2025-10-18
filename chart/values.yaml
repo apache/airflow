@@ -503,7 +503,7 @@ extraEnvFrom: ~
 # (PostgreSQL, MySQL, etc.)
 #
 # To configure an external database, update the data.metadataConnection
-# section with your database credentials.
+# section with your database credentials and deploy it.
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
@@ -569,21 +569,12 @@ sqliteShared:
     enabled: true
     # Storage class name for the PVC (empty means use default storage class)
     storageClassName: ""
-    # Access mode for the persistent volume
-    # Note: Local Path Provisioner (used in KinD) only supports ReadWriteOnce
-    # For production with multiple nodes, use ReadWriteMany with NFS or cloud RWX storage
-    accessMode: ReadWriteMany
     # Size of the persistent volume
-    size: 1Gi
+    size: 10Gi
     # Annotations for the PVC
     annotations: {}
     # Existing PVC name (optional, if you want to use an existing PVC)
     existingClaim: ""
-
-  # Node selector for pod scheduling (used when access mode is ReadWriteOnce)
-  # Ensures all pods are scheduled on the same node to share the volume
-  nodeSelector: {}
-
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade

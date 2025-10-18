@@ -1165,23 +1165,3 @@ capabilities:
   mountPath: /opt/airflow/shared-db
 {{- end -}}
 {{- end -}}
-
-{{/* Apply SQLite shared nodeSelector if needed */}}
-{{- define "airflow.sqliteShared.applyNodeSelector" -}}
-  {{- $currentNodeSelector := .currentNodeSelector | default dict -}}
-  {{- $context := .context -}}
-  {{- if and (include "airflow.sqliteShared.enabled" $context) $context.Values.sqliteShared.persistence.enabled -}}
-    {{- $accessMode := $context.Values.sqliteShared.persistence.accessMode | default "ReadWriteMany" -}}
-    {{- if eq $accessMode "ReadWriteOnce" -}}
-      {{- if $context.Values.sqliteShared.nodeSelector -}}
-        {{- mergeOverwrite ($currentNodeSelector | default dict) $context.Values.sqliteShared.nodeSelector | toYaml -}}
-      {{- else -}}
-        {{- $currentNodeSelector | toYaml -}}
-      {{- end -}}
-    {{- else -}}
-      {{- $currentNodeSelector | toYaml -}}
-    {{- end -}}
-  {{- else -}}
-    {{- $currentNodeSelector | toYaml -}}
-  {{- end -}}
-{{- end -}}

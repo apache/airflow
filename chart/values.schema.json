@@ -1474,19 +1474,10 @@
                             "type": "string",
                             "default": ""
                         },
-                        "accessMode": {
-                            "description": "Access mode for the persistent volume",
-                            "type": "string",
-                            "enum": [
-                                "ReadWriteMany",
-                                "ReadWriteOnce"
-                            ],
-                            "default": "ReadWriteMany"
-                        },
                         "size": {
                             "description": "Size of the persistent volume",
                             "type": "string",
-                            "default": "1Gi"
+                            "default": "10Gi"
                         },
                         "annotations": {
                             "description": "Annotations for the PVC",
@@ -1501,14 +1492,6 @@
                             "type": "string",
                             "default": ""
                         }
-                    }
-                },
-                "nodeSelector": {
-                    "description": "Node selector for pod scheduling (used when access mode is ReadWriteOnce). Ensures all pods are scheduled on the same node to share the volume",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
                     }
                 }
             }

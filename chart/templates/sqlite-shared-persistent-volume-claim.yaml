@@ -39,7 +39,7 @@ metadata:
   {{- end }}
 spec:
   accessModes:
-    - {{ .Values.sqliteShared.persistence.accessMode | default "ReadWriteMany" }}
+    - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.sqliteShared.persistence.size }}

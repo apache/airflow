@@ -22,7 +22,6 @@
 #################################
 {{- if .Values.migrateDatabaseJob.enabled }}
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
-{{- $nodeSelector = include "airflow.sqliteShared.applyNodeSelector" (dict "currentNodeSelector" $nodeSelector "context" .) | fromYaml }}
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
