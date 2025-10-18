@@ -68,8 +68,12 @@ from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
+    GetTaskStates,
+    GetTICount,
     GetXCom,
     GetXComSequenceSlice,
+    TaskStatesResult,
+    TICount,
     ToSupervisor,
     ToTask,
     XComResult,
@@ -1045,6 +1049,98 @@ class TestExecuteDagCallbacks:
         _execute_dag_callbacks(dagbag, request, structlog.get_logger())
 
         mock_supervisor_comms.send.assert_called_once_with(msg=expected_message)
+
+    @pytest.mark.parametrize(
+        "request_operation,operation_type,mock_response,operation_response",
+        [
+            (
+                lambda context: context["task_instance"].get_ti_count(dag_id="test_dag"),
+                GetTICount(dag_id="test_dag"),
+                TICount(count=2),
+                "Got response 2",
+            ),
+            (
+                lambda context: context["task_instance"].get_task_states(
+                    dag_id="test_dag", task_ids=["test_task"]
+                ),
+                GetTaskStates(
+                    dag_id="test_dag",
+                    task_ids=["test_task"],
+                ),
+                TaskStatesResult(task_states={"test_run": {"task1": "running"}}),
+                "Got response {'test_run': {'task1': 'running'}}",
+            ),
+        ],
+    )
+    def test_dagfileprocessorprocess_request_handler_operations(
+        self,
+        spy_agency,
+        mock_supervisor_comms,
+        request_operation,
+        operation_type,
+        mock_response,
+        operation_response,
+        caplog,
+    ):
+        """Test that DagFileProcessorProcess Request Handler Operations"""
+
+        mock_supervisor_comms.send.return_value = mock_response
+
+        def callback_fn(context):
+            log = structlog.get_logger()
+            log.info("Callback started..")
+            log.info("Got response %s", request_operation(context))
+
+        with DAG(dag_id="test_dag", on_success_callback=callback_fn) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        current_time = timezone.utcnow()
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date=current_time,
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="success",
+                    consumed_asset_events=[],
+                ),
+                last_ti=TIDataModel(
+                    id=uuid.uuid4(),
+                    dag_id="test_dag",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                    try_number=1,
+                    dag_version_id=uuid.uuid4(),
+                ),
+            ),
+            is_failure_callback=False,
+            msg="Test success message",
+        )
+
+        _execute_dag_callbacks(dagbag, request, structlog.get_logger())
+
+        mock_supervisor_comms.send.assert_called_once_with(msg=operation_type)
+        assert operation_response in caplog.text
 
 
 class TestExecuteTaskCallbacks:
