@@ -1365,6 +1365,8 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 200
         assert response.json() == {
             "bundle_version": None,
+            "consumed_assets": None,
+            "produced_assets": None,
             "dag_display_name": self.DAG_ASSET1_ID,
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,

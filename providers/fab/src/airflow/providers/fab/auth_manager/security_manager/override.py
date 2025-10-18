@@ -127,7 +127,7 @@ else:
     from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
+        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[misc, call-arg]
         dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
         return dagbag.dags.values()
 

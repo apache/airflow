@@ -25,8 +25,8 @@ from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -41,6 +41,8 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryDagRunConsumingAssetFilter,
+    QueryDagRunProducingAssetFilter,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryDagRunVersionFilter,
@@ -59,6 +61,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    AssetSummary,
     DAGRunClearBody,
     DAGRunCollectionResponse,
     DAGRunPatchBody,
@@ -83,6 +86,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
+from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -359,13 +363,18 @@ def get_dag_runs(
         Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
     ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
+    consuming_asset: QueryDagRunConsumingAssetFilter,
+    producing_asset: QueryDagRunProducingAssetFilter,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    query = select(DagRun)
+    query = select(DagRun).options(
+        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+        joinedload(DagRun.dag_model),
+    )
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
@@ -392,18 +401,46 @@ def get_dag_runs(
             run_id_pattern,
             triggering_user_name_pattern,
             dag_id_pattern,
+            consuming_asset,
+            producing_asset,
         ],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    dag_runs = session.scalars(dag_run_select)
+    dag_runs = list(session.scalars(dag_run_select))
 
-    return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
-        total_entries=total_entries,
-    )
+    source_keys = {(dr.dag_id, dr.run_id) for dr in dag_runs}
+    produced_map: dict[tuple[str, str], list[AssetSummary]] = {}
+    if source_keys:
+        produced_events = session.scalars(
+            select(AssetEvent)
+            .join(AssetEvent.asset)
+            .where(
+                or_(
+                    *[
+                        and_(AssetEvent.source_dag_id == dag_id, AssetEvent.source_run_id == run_id)
+                        for dag_id, run_id in source_keys
+                    ]
+                )
+            )
+        ).all()
+        for ev in produced_events:
+            key = (ev.source_dag_id, ev.source_run_id)
+            produced_map.setdefault(key, []).append(
+                AssetSummary(id=ev.asset_id, name=ev.name, uri=ev.uri, group=ev.group)
+            )
+
+    for dr in dag_runs:
+        consumed_list: list[AssetSummary] = []
+        for ev in getattr(dr, "consumed_asset_events", []) or []:
+            consumed_list.append(AssetSummary(id=ev.asset_id, name=ev.name, uri=ev.uri, group=ev.group))
+        dr.consumed_assets = consumed_list
+        produced_list = produced_map.get((dr.dag_id, dr.run_id)) or []
+        dr.produced_assets = produced_list
+
+    return DAGRunCollectionResponse(dag_runs=dag_runs, total_entries=total_entries)
 
 
 @dag_run_router.post(
@@ -626,9 +663,35 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = session.scalars(dag_runs_select)
+    dag_runs = list(session.scalars(dag_runs_select))
 
-    return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
-        total_entries=total_entries,
-    )
+    source_keys = {(dr.dag_id, dr.run_id) for dr in dag_runs}
+    produced_map: dict[tuple[str, str], list[AssetSummary]] = {}
+    if source_keys:
+        produced_events = session.scalars(
+            select(AssetEvent)
+            .join(AssetEvent.asset)
+            .where(
+                or_(
+                    *[
+                        and_(AssetEvent.source_dag_id == dag_id, AssetEvent.source_run_id == run_id)
+                        for dag_id, run_id in source_keys
+                    ]
+                )
+            )
+        ).all()
+        for ev in produced_events:
+            key = (ev.source_dag_id, ev.source_run_id)
+            produced_map.setdefault(key, []).append(
+                AssetSummary(id=ev.asset_id, name=ev.name, uri=ev.uri, group=ev.group)
+            )
+
+    for dr in dag_runs:
+        consumed_list: list[AssetSummary] = []
+        for ev in getattr(dr, "consumed_asset_events", []) or []:
+            consumed_list.append(AssetSummary(id=ev.asset_id, name=ev.name, uri=ev.uri, group=ev.group))
+        dr.consumed_assets = consumed_list
+        produced_list = produced_map.get((dr.dag_id, dr.run_id)) or []
+        dr.produced_assets = produced_list
+
+    return DAGRunCollectionResponse(dag_runs=dag_runs, total_entries=total_entries)
