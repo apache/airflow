@@ -29,7 +29,7 @@ class TestRemoteLogging:
     airflow_client = AirflowClient()
     dag_id = "example_xcom_test"
     task_count = 6
-    retry_delay_seconds = 1
+    retry_interval_in_seconds = 1
     max_retries = 5
 
     def test_dag_unpause(self):
@@ -84,7 +84,7 @@ class TestRemoteLogging:
                 break
 
             print(f"Expected at least {self.task_count} log files, found {len(contents)}. Retrying...")
-            time.sleep(self.retry_delay_seconds)
+            time.sleep(self.retry_interval_in_seconds)
 
         if "Contents" not in response:
             pytest.fail("No objects found in S3 bucket %s", bucket_name)
