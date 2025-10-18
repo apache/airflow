@@ -19,15 +19,16 @@ from __future__ import annotations
 import warnings
 
 from airflow.timetables.assets import AssetOrTimeSchedule
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 
 class DatasetOrTimeSchedule:
     """Deprecated alias for `AssetOrTimeSchedule`."""
 
-    def __new__(cls, *, timetable, datasets) -> AssetOrTimeSchedule:  # type: ignore[misc]
+    def __new__(cls, *, timetable, datasets) -> AssetOrTimeSchedule:  # type: ignore[misc,return]
         warnings.warn(
             "DatasetOrTimeSchedule is deprecated and will be removed in Airflow 3.2. Use `airflow.timetables.AssetOrTimeSchedule` instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return AssetOrTimeSchedule(timetable=timetable, assets=datasets)

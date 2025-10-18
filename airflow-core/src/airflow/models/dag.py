@@ -61,6 +61,7 @@ from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.context import Context
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import DagRunState
@@ -753,7 +754,7 @@ def __getattr__(name: str):
     warnings.warn(
         f"Import {name!r} directly from the airflow module is deprecated and "
         f"will be removed in the future. Please import it from 'airflow.sdk'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 

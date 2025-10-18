@@ -36,6 +36,7 @@ from pendulum.parsing import ParserError
 from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -340,7 +341,7 @@ class BaseDagBundle(ABC):
         warnings.warn(
             "The 'view_url' method is deprecated and will be removed in a future version. "
             "Use 'view_url_template' instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return None

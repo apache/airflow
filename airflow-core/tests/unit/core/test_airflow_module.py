@@ -20,10 +20,11 @@ import pytest
 
 import airflow
 from airflow.exceptions import AirflowException
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 
 def test_deprecated_exception():
     warning_pattern = "Import 'AirflowException' directly from the airflow module is deprecated"
-    with pytest.warns(DeprecationWarning, match=warning_pattern):
+    with pytest.warns(DeprecatedImportWarning, match=warning_pattern):
         # If there is no warning, then most possible it imported somewhere else.
         assert getattr(airflow, "AirflowException") is AirflowException

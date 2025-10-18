@@ -28,6 +28,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -345,7 +346,7 @@ class DagBundlesManager(LoggingMixin):
             "The 'view_url' method is deprecated and will be removed when providers "
             "have Airflow 3.1 as the minimum supported version. "
             "Use DagBundleModel.render_url() instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         bundle = self.get_bundle(name, version)

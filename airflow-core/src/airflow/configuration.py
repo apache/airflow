@@ -49,6 +49,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -59,7 +60,7 @@ log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
 if not sys.warnoptions:
-    warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
+    warnings.filterwarnings(action="default", category=DeprecatedImportWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
 _SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
@@ -1001,7 +1002,7 @@ class AirflowConfigParser(ConfigParser):
                 deprecation_reason = option_description.get("deprecation_reason", "")
                 warnings.warn(
                     f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
-                    DeprecationWarning,
+                    DeprecatedImportWarning,
                     stacklevel=2 + _extra_stacklevel,
                 )
             # For the cases in which we rename whole sections
@@ -1936,14 +1937,14 @@ class AirflowConfigParser(ConfigParser):
             warnings.warn(
                 f"The {deprecated_name} option in [{section}] has been renamed to {key} - "
                 f"the old setting has been used, but please update your config.",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=4 + extra_stacklevel,
             )
         else:
             warnings.warn(
                 f"The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option "
                 f"in [{section}] - the old setting has been used, but please update your config.",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=4 + extra_stacklevel,
             )
 
@@ -2107,19 +2108,19 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             "environment variable and remove the config file entry."
         )
         if "AIRFLOW_HOME" in os.environ:
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
+            warnings.warn(msg, category=DeprecatedImportWarning, stacklevel=1)
         elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
             warnings.warn(
                 "Specifying airflow_home in the config file is deprecated. As you "
                 "have left it at the default value you should remove the setting "
                 "from your airflow.cfg and suffer no change in behaviour.",
-                category=DeprecationWarning,
+                category=DeprecatedImportWarning,
                 stacklevel=1,
             )
         else:
             # there
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
+            warnings.warn(msg, category=DeprecatedImportWarning, stacklevel=1)
 
 
 def initialize_config() -> AirflowConfigParser:

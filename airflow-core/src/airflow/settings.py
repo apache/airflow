@@ -40,6 +40,7 @@ from airflow._shared.timezones.timezone import local_timezone, parse_timezone, u
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 
@@ -641,7 +642,7 @@ def __getattr__(name: str):
         warnings.warn(
             "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
             "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return False

@@ -80,12 +80,13 @@ class TestKiotaRequestAdapterHook:
         tenant_id = credentials._tenant_id
         assert tenant_id == expected_tenant_id
 
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
     def test_get_conn(self):
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
             with pytest.warns(
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 match="get_conn is deprecated, please use the async get_async_conn method!",
             ):
                 actual = hook.get_conn()

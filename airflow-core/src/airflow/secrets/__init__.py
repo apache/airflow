@@ -27,7 +27,7 @@ The following sources are available:
 
 from __future__ import annotations
 
-from airflow.utils.deprecation_tools import add_deprecated_classes
+from airflow.utils.deprecation_tools import DeprecatedImportWarning, add_deprecated_classes
 
 __all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH"]
 
@@ -54,7 +54,7 @@ def __getattr__(name):
         warnings.warn(
             "airflow.secrets.DEFAULT_SECRETS_SEARCH_PATH_WORKERS is moved to the Task SDK. "
             "Use airflow.sdk.execution_time.secrets.DEFAULT_SECRETS_SEARCH_PATH_WORKERS instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         try:
