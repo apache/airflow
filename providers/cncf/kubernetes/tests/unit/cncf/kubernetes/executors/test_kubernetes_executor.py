@@ -1262,6 +1262,10 @@ class TestKubernetesExecutor:
         fail the task.
 
         """
+        import warnings
+
+        from airflow.exceptions import AirflowProviderDeprecationWarning
+
         mock_kube_client = mock.MagicMock()
         mock_kube_dynamic_client.return_value = mock.MagicMock()
         mock_pod_resource = mock.MagicMock()
@@ -1302,8 +1306,11 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
-            executor.cleanup_stuck_queued_tasks(tis=tis)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
+                executor.cleanup_stuck_queued_tasks(tis=tis)
         executor.kube_scheduler.delete_pod.assert_called_once()
         assert executor.running == set()
 

@@ -135,12 +135,15 @@ class TestMSGraphTrigger:
                 "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
             }
 
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
     def test_get_conn(self):
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
+            from airflow.exceptions import AirflowProviderDeprecationWarning
+
             with pytest.warns(
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 match="get_conn is deprecated, please use the async get_async_conn method!",
             ):
                 actual = hook.get_conn()
