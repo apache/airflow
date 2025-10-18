@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pendulum
 import pytest
 
 from airflow import settings
-import pendulum
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
@@ -39,8 +39,9 @@ from tests_common.test_utils.db import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.team import Team
     from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
 
 pytestmark = pytest.mark.db_test
 
