@@ -157,10 +157,11 @@ export const HITLTaskInstances = () => {
     // and at least one TaskInstance is still deferred without a response.
     refetchInterval: (query) => {
       const hasDeferredWithoutResponse = Boolean(
-        query.state.data?.hitl_details?.some(
-          (detail: HITLDetail) => !detail.responded_at && detail.task_instance.state === "deferred",
+        query.state.data?.hitl_details.some(
+          (detail: HITLDetail) => detail.responded_at == undefined && detail.task_instance.state === "deferred",
         ),
       );
+
       return hasDeferredWithoutResponse ? baseRefetchInterval : false;
     },
   });
