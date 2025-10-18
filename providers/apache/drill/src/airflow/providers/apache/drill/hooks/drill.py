@@ -64,7 +64,7 @@ class DrillHook(DbApiHook):
         self.log.info(
             "Connected to the Drillbit at %s:%s as user %s", conn_md.host, conn_md.port, conn_md.login
         )
-        return engine.raw_connection()
+        return engine.connect()
 
     def get_uri(self) -> str:
         """
