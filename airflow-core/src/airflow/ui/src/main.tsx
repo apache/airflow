@@ -38,6 +38,9 @@ import i18n from "./i18n/config";
 import { client } from "./queryClient";
 import { system } from "./theme";
 
+// Import selection styles fix for issue #56449
+import "./assets/selection.css";
+
 // Set React, ReactDOM, and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
 // Only one instance of React should be used.
 // Reflect will avoid type checking.
@@ -55,13 +58,10 @@ axios.interceptors.response.use(
       (error.response?.status === 403 && error.response.data.detail === "Invalid JWT token")
     ) {
       const params = new URLSearchParams();
-
       params.set("next", globalThis.location.href);
       const loginPath = getRedirectPath("api/v2/auth/login");
-
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }
-
     return Promise.reject(error);
   },
 );

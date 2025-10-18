@@ -35,6 +35,107 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
 
 export const customConfig = defineConfig({
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
+
+  // Fix for text selection contrast issue #56449
+
+  globalCss: {
+
+    "::selection": {
+
+      backgroundColor: "blue.500",
+
+      color: "white",
+
+      textShadow: "none",
+
+    },
+
+    "::-moz-selection": {
+
+      backgroundColor: "blue.500",
+
+      color: "white",
+
+      textShadow: "none",
+
+    },
+
+    "::-webkit-selection": {
+
+      backgroundColor: "blue.500",
+
+      color: "white",
+
+      textShadow: "none",
+
+    },
+
+    // Apply blue selection highlight in log and code areas
+
+    "pre ::selection, code ::selection, .log-viewer ::selection, [data-testid*='log'] ::selection": {
+
+      backgroundColor: "blue.500",
+
+      color: "white",
+
+      textShadow: "none",
+
+    },
+
+    "pre ::-moz-selection, code ::-moz-selection, .log-viewer ::-moz-selection, [data-testid*='log'] ::-moz-selection": {
+
+      backgroundColor: "blue.500",
+
+      color: "white",
+
+      textShadow: "none",
+
+    },
+
+    // Dark mode selection uses a lighter blue
+
+    "[data-theme='dark'] ::selection": {
+
+      backgroundColor: "blue.300",
+
+      color: "gray.900",
+
+      textShadow: "none",
+
+    },
+
+    "[data-theme='dark'] ::-moz-selection": {
+
+      backgroundColor: "blue.300",
+
+      color: "gray.900",
+
+      textShadow: "none",
+
+    },
+
+    "[data-theme='dark'] pre ::selection, [data-theme='dark'] code ::selection, [data-theme='dark'] .log-viewer ::selection, [data-theme='dark'] [data-testid*='log'] ::selection": {
+
+      backgroundColor: "blue.300",
+
+      color: "gray.900",
+
+      textShadow: "none",
+
+    },
+
+    "[data-theme='dark'] pre ::-moz-selection, [data-theme='dark'] code ::-moz-selection, [data-theme='dark'] .log-viewer ::-moz-selection, [data-theme='dark'] [data-testid*='log'] ::-moz-selection": {
+
+      backgroundColor: "blue.300",
+
+      color: "gray.900",
+
+      textShadow: "none",
+
+    },
+
+  },
+
   theme: {
     tokens: {
       colors: {
@@ -392,6 +493,16 @@ export const customConfig = defineConfig({
         zinc: generateSemanticTokens("zinc"),
         neutral: generateSemanticTokens("neutral"),
         stone: generateSemanticTokens("stone"),
+      selection: {
+      bg: {
+        _light: { value: "blue.500" },
+        _dark: { value: "blue.300" },
+      },
+      color: {
+        _light: { value: "white" },
+        _dark: { value: "gray.900" },
+         },
+        },
       },
     },
   },
