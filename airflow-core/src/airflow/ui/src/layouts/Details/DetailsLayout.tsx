@@ -75,6 +75,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
+  const [versionDisplayMode, setVersionDisplayMode] = useLocalStorage<string>(
+    `version_display_mode-${dagId}`,
+    "dag",
+  );
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -146,8 +150,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setTriggeringUserFilter={setTriggeringUserFilter}
+                  setVersionDisplayMode={setVersionDisplayMode}
                   showGantt={showGantt}
                   triggeringUserFilter={triggeringUserFilter}
+                  versionDisplayMode={versionDisplayMode}
                 />
                 {dagView === "graph" ? (
                   <Graph />
@@ -159,6 +165,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}
+                      versionDisplayMode={versionDisplayMode}
                     />
                     {showGantt ? (
                       <Gantt

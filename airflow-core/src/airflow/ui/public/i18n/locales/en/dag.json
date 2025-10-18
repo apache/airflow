@@ -114,6 +114,15 @@
     },
     "graphDirection": {
       "label": "Graph Direction"
+    },
+    "versionDisplay": {
+      "label": "Version Display",
+      "options": {
+        "hideAll": "Hide All",
+        "showAll": "Show All",
+        "showBundleVersion": "Show Bundle Version",
+        "showDagVersion": "Show Dag Version"
+      }
     }
   },
   "paramsFailed": "Failed to load params",

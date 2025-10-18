@@ -21,6 +21,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { BundleVersionIndicator, DagVersionIndicator } from "src/components/ui/VersionIndicator";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
@@ -34,17 +35,25 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
-  readonly run: GridRunsResponse;
+  readonly run: {
+    has_mixed_versions?: boolean;
+    isBundleVersionChange?: boolean;
+    isDagVersionChange?: boolean;
+  } & GridRunsResponse;
+  readonly versionDisplayMode?: string;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDisplayMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-
   const search = searchParams.toString();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
+  const { data: gridTISummaries } = useGridTiSummaries({
+    dagId,
+    runId: run.run_id,
+    state: run.state,
+  });
 
   return (
     <Box
@@ -53,6 +62,13 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {Boolean(
+        run.isBundleVersionChange && (versionDisplayMode === "bundle" || versionDisplayMode === "all"),
+      ) && <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />}
+      {Boolean(run.isDagVersionChange && (versionDisplayMode === "dag" || versionDisplayMode === "all")) && (
+        <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />
+      )}
+
       <Flex
         alignItems="flex-end"
         height={BAR_HEIGHT}
@@ -80,11 +96,14 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
           {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
+
       <TaskInstancesColumn
+        hasMixedVersions={run.has_mixed_versions}
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
         taskInstances={gridTISummaries?.task_instances ?? []}
+        versionDisplayMode={versionDisplayMode}
       />
     </Box>
   );
