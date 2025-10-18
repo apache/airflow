@@ -7337,6 +7337,50 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "serviceMonitor": {
+                    "description": "ServiceMonitor configuration for Prometheus scraping of StatsD metrics.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "enabled": {
+                            "description": "Enables creation of a ServiceMonitor for StatsD metrics scraping.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "honorLabels": {
+                            "description": "If true, keeps original metric labels as exported by the app. If false, Prometheus may override them.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "interval": {
+                            "description": "Scrape interval for Prometheus (e.g., 30s, 1m, etc.).",
+                            "type": "string",
+                            "default": "10s"
+                        },
+                        "scrapeTimeout": {
+                            "description": "Timeout for the metrics scrape request.",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "labels": {
+                            "description": "Additional labels to attach to the ServiceMonitor object.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "namespace": {
+                            "description": "Namespace where the ServiceMonitor will be created. If not set, defaults to .Release.Namespace.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    },
+                    "additionalProperties": false
                 }
             }
         },
