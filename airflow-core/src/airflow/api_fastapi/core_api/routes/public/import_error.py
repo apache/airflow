@@ -145,7 +145,7 @@ def get_import_errors(
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
         # Early return if the user has access to all DAGs
-        import_errors = session.scalars(import_errors_select).all()
+        import_errors = list(session.scalars(import_errors_select).all())
         return ImportErrorCollectionResponse(
             import_errors=import_errors,
             total_entries=total_entries,

@@ -42,6 +42,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
     XComCreateBody,
+    XComResponse,
     XComResponseNative,
     XComResponseString,
     XComUpdateBody,
@@ -193,8 +194,8 @@ def get_xcom_entries(
     query = query.order_by(
         XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
     )
-    xcoms = session.scalars(query)
-    return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)
+    xcoms = list(session.scalars(query))
+    return XComCollectionResponse(xcom_entries=[XComResponse.from_orm(xcom) for xcom in xcoms], total_entries=total_entries)
 
 
 @xcom_router.post(

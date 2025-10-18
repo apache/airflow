@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -85,7 +86,7 @@ def list_backfills(
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
+    backfills = list(session.scalars(select_stmt))
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
@@ -214,7 +215,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
-    b.completed_at = timezone.utcnow()
+    b.completed_at = cast(UtcDateTime, timezone.utcnow())
     return b
 
 

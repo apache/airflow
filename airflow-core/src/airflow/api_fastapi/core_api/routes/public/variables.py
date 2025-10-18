@@ -118,7 +118,7 @@ def get_variables(
         session=session,
     )
 
-    variables = session.scalars(variable_select)
+    variables = list(session.scalars(variable_select))
 
     return VariableCollectionResponse(
         variables=variables,
@@ -169,6 +169,7 @@ def post_variable(
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    assert variable is not None
 
     return variable
 

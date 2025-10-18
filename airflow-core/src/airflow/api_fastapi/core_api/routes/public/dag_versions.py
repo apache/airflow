@@ -122,7 +122,7 @@ def get_dag_versions(
         limit=limit,
         session=session,
     )
-    dag_versions = session.scalars(dag_versions_select)
+    dag_versions = list(session.scalars(dag_versions_select))
 
     return DAGVersionCollectionResponse(
         dag_versions=dag_versions,

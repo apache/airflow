@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal, cast
+from datetime import datetime
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -233,7 +235,7 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = session.scalars(task_instance_select)
+    task_instances = list(session.scalars(task_instance_select))
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
@@ -278,6 +280,7 @@ def get_task_instance_dependencies(
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
+        assert dag_run is not None
         dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
         if dag:
@@ -328,10 +331,10 @@ def get_task_instance_tries(
         return query
 
     # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(
+    tis = list(session.scalars(
         _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
-    ).all()
-    task_instances = session.scalars(_query(TIH)).all() + tis
+    ))
+    task_instances = list(session.scalars(_query(TIH))) + tis
 
     if not task_instances:
         raise HTTPException(
@@ -510,7 +513,7 @@ def get_task_instances(
         session=session,
     )
 
-    task_instances = session.scalars(task_instance_select)
+    task_instances = list(session.scalars(task_instance_select))
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
@@ -533,9 +536,9 @@ def get_task_instances_batch(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
-    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
-    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
+    dag_ids = FilterParam(cast(ColumnElement, TI.dag_id), body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(cast(ColumnElement, TI.run_id), body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(cast(ColumnElement, TI.task_id), body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -543,7 +546,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=TI.run_after,
+        attribute=cast(ColumnElement, TI.run_after),
     )
     logical_date = RangeFilter(
         Range(
@@ -552,7 +555,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=TI.logical_date,
+        attribute=cast(ColumnElement, TI.logical_date),
     )
     start_date = RangeFilter(
         Range(
@@ -561,7 +564,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=TI.start_date,
+        attribute=cast(ColumnElement, TI.start_date),
     )
     end_date = RangeFilter(
         Range(
@@ -570,7 +573,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=TI.end_date,
+        attribute=cast(ColumnElement, TI.end_date),
     )
     duration = RangeFilter(
         Range(
@@ -579,12 +582,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=TI.duration,
+        attribute=cast(ColumnElement, TI.duration),
     )
-    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
-    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
-    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
-    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
+    state = FilterParam(cast(ColumnElement, TI.state), body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(cast(ColumnElement, TI.pool), body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(cast(ColumnElement, TI.queue), body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(cast(ColumnElement, TI.executor), body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -623,7 +626,7 @@ def get_task_instances_batch(
         joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
-    task_instances = session.scalars(task_instance_select)
+    task_instances = list(session.scalars(task_instance_select))
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
@@ -734,8 +737,8 @@ def post_clear_task_instances(
                 status.HTTP_400_BAD_REQUEST,
                 "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
             )
-        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
-        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.start_date = cast(datetime | None, dag_run.logical_date) if dag_run.logical_date is not None else None
+        body.end_date = cast(datetime | None, dag_run.logical_date) if dag_run.logical_date is not None else None
 
     if past:
         body.start_date = None
@@ -767,7 +770,7 @@ def post_clear_task_instances(
 
     # Prepare common parameters
     common_params = {
-        "dry_run": True,
+        "dry_run": dry_run,
         "task_ids": task_ids,
         "session": session,
         "run_on_latest_version": body.run_on_latest_version,
@@ -777,17 +780,52 @@ def post_clear_task_instances(
 
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
-        task_instances = dag.clear(
-            **common_params,
-            run_id=dag_run_id,
-        )
+        if dry_run:
+            task_instances = dag.clear(
+                dry_run=True,
+                task_ids=task_ids,
+                run_id=dag_run_id,
+                session=session,
+                run_on_latest_version=body.run_on_latest_version,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+            )
+        else:
+            dag.clear(
+                dry_run=False,
+                task_ids=task_ids,
+                run_id=dag_run_id,
+                session=session,
+                run_on_latest_version=body.run_on_latest_version,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+            )
+            task_instances = []
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
-        task_instances = dag.clear(
-            **common_params,
-            start_date=body.start_date,
-            end_date=body.end_date,
-        )
+        if dry_run:
+            task_instances = dag.clear(
+                dry_run=True,
+                task_ids=task_ids,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                session=session,
+                run_on_latest_version=body.run_on_latest_version,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+            )
+        else:
+            dag.clear(
+                dry_run=False,
+                task_ids=task_ids,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                session=session,
+                run_on_latest_version=body.run_on_latest_version,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+            )
+            task_instances = []
 
     if not dry_run:
         clear_task_instances(
@@ -798,7 +836,7 @@ def post_clear_task_instances(
         )
 
     return TaskInstanceCollectionResponse(
-        task_instances=task_instances,
+        task_instances=[TaskInstanceResponse.from_orm(ti) for ti in task_instances],
         total_entries=len(task_instances),
     )
 
