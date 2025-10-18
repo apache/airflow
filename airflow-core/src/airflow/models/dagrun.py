@@ -149,10 +149,10 @@ class DagRun(Base, LoggingMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    queued_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    logical_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    queued_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     creating_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -168,12 +168,12 @@ class DagRun(Base, LoggingMixin):
         JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True
     )
     # These two must be either both NULL or both datetime.
-    data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Earliest time when this DagRun can start running.
-    run_after: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
+    run_after: Mapped[datetime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_scheduling_decision: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -182,7 +182,7 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     # Keeps track of the number of times the dagrun had been cleared.
@@ -2125,8 +2125,8 @@ class DagRunNote(Base):
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dag_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     content: Mapped[str | None] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 

@@ -105,7 +105,7 @@ class Deadline(Base):
     )
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline_time: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    deadline_time: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     # The (serialized) callback to be called when the Deadline has passed.
     _callback: Mapped[dict] = mapped_column(
         "callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False
