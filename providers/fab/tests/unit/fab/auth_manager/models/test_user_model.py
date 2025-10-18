@@ -35,7 +35,7 @@ def test_get_id_returns_str(user_id: int | str, expected_id: str) -> None:
     Ensure get_id() always returns a string representation of the id.
     """
     user = User()
-    user.id = user_id
+    user.id = user_id  # type: ignore[assignment] # id can be int or str for this test
     result = user.get_id()
     assert isinstance(result, str), f"Expected str, got {type(result)}"
     assert result == expected_id
