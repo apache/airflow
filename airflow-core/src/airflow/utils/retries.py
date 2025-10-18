@@ -34,13 +34,14 @@ F = TypeVar("F", bound=Callable)
 MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
 
-def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Logger | None = None, **kwargs):
+def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Logger | None = None,
+                        exception_types=(DBAPIError), **kwargs):
     """Return Tenacity Retrying object with project specific default."""
     import tenacity
 
     # Default kwargs
     retry_kwargs = dict(
-        retry=tenacity.retry_if_exception_type(exception_types=(DBAPIError)),
+        retry=tenacity.retry_if_exception_type(exception_types=exception_types),
         wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
         stop=tenacity.stop_after_attempt(max_retries),
         reraise=True,
