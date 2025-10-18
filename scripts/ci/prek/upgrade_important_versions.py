@@ -59,6 +59,8 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
         AIRFLOW_ROOT_PATH
@@ -411,6 +413,16 @@ if __name__ == "__main__":
             new_content = re.sub(
                 r"(HATCH_VERSION=)(\"[0-9.abrc]+\")",
                 f'HATCH_VERSION="{hatch_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(hatch==)([0-9.abrc]+)",
+                f"hatch=={hatch_version}",
+                new_content,
+            )
+            new_content = re.sub(
+                r"(hatch>=)([0-9.abrc]+)",
+                f"hatch>={hatch_version}",
                 new_content,
             )
         if UPGRADE_PYYAML:
