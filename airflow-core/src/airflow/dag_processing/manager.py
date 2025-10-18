@@ -801,8 +801,9 @@ class DagFileProcessorManager(LoggingMixin):
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue
-                self.log.warning("Stopping processor for %s", file)
-                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "stop"})
+                file_name = str(file.rel_path)
+                self.log.warning("Stopping processor for %s", file_name)
+                Stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "stop"})
                 processor.kill(signal.SIGKILL)
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
@@ -922,7 +923,7 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             processor = self._create_process(file)
-            Stats.incr("dag_processing.processes", tags={"file_path": file, "action": "start"})
+            Stats.incr("dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "start"})
 
             self._processors[file] = processor
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
@@ -1033,8 +1034,9 @@ class DagFileProcessorManager(LoggingMixin):
                     processor.pid,
                     duration,
                 )
-                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "timeout"})
-                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file})
+                file_name = str(file.rel_path)
+                Stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "timeout"})
+                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_name})
                 processor.kill(signal.SIGKILL)
 
                 processors_to_remove.append(file)
@@ -1075,7 +1077,9 @@ class DagFileProcessorManager(LoggingMixin):
         """Stop all running processors."""
         for file, processor in self._processors.items():
             # todo: AIP-66 what to do about file_path tag? replace with bundle name and rel path?
-            Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "terminate"})
+            Stats.decr(
+                "dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "terminate"}
+            )
             # SIGTERM, wait 5s, SIGKILL if still alive
             processor.kill(signal.SIGTERM, escalation_delay=5.0)
 

@@ -26,11 +26,14 @@ from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
     AddIncludePriorDatesToGetXComSlice,
 )
 from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersionIdField
-from airflow.api_fastapi.execution_api.versions.v2025_10_10 import AddTriggeringUserNameField
+from airflow.api_fastapi.execution_api.versions.v2025_10_10 import (
+    AddTriggeringUserNameField,
+    MakeDagRunConfNullable,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2025-10-10", AddTriggeringUserNameField),
+    Version("2025-10-10", AddTriggeringUserNameField, MakeDagRunConfNullable),
     Version("2025-09-23", AddDagVersionIdField),
     Version(
         "2025-08-10",

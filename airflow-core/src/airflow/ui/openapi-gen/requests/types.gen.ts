@@ -3284,12 +3284,6 @@ export type LogoutData = {
 
 export type LogoutResponse = unknown;
 
-export type RefreshData = {
-    next?: string | null;
-};
-
-export type RefreshResponse = unknown;
-
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type GetDependenciesData = {
@@ -6351,25 +6345,6 @@ export type $OpenApiTs = {
     '/api/v2/auth/logout': {
         get: {
             req: LogoutData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Temporary Redirect
-                 */
-                307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/auth/refresh': {
-        get: {
-            req: RefreshData;
             res: {
                 /**
                  * Successful Response

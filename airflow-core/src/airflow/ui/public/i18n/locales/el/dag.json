@@ -1,0 +1,154 @@
+{
+  "allRuns": "Όλες οι Εκτελέσεις",
+  "blockingDeps": {
+    "dependency": "Εξάρτηση",
+    "reason": "Αιτία",
+    "title": "Εξαρτήσεις που εμποδίζουν τον προγραμματισμό της εργασίας"
+  },
+  "calendar": {
+    "daily": "Καθημερινά",
+    "hourly": "Ωριαία",
+    "legend": {
+      "less": "Λιγότερο",
+      "mixed": "Μικτό",
+      "more": "Περισσότερο"
+    },
+    "navigation": {
+      "nextMonth": "Επόμενος μήνας",
+      "nextYear": "Επόμενο έτος",
+      "previousMonth": "Προηγούμενος μήνας",
+      "previousYear": "Προηγούμενο έτος"
+    },
+    "noData": "Δεν υπάρχουν διαθέσιμα δεδομένα",
+    "noFailedRuns": "No failed runs",
+    "noRuns": "Δεν υπάρχουν εκτελέσεις",
+    "totalRuns": "Σύνολο Εκτελέσεων",
+    "week": "Εβδομάδα {{weekNumber}}",
+    "weekdays": {
+      "friday": "Παρ",
+      "monday": "Δευ",
+      "saturday": "Σαβ",
+      "sunday": "Κυρ",
+      "thursday": "Πεμ",
+      "tuesday": "Τρι",
+      "wednesday": "Τετ"
+    }
+  },
+  "code": {
+    "bundleUrl": "Σύνδεσμος Πακέτου",
+    "noCode": "Δεν βρέθηκε Κώδικας",
+    "parseDuration": "Διάρκεια Ανάλυσης:",
+    "parsedAt": "Αναλύθηκε στις:"
+  },
+  "extraLinks": "Επιπλέον Σύνδεσμοι",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Επαναφορά στα πιο πρόσφατα",
+      "toggleGroup": "Εναλλαγή ομάδας"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Για προχωρημένους",
+      "dagDocs": "Τεκμήρια Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "Όλα τα Επίπεδα Καταγραφής",
+    "allSources": "Όλες οι Πηγές",
+    "critical": "ΚΡΙΣΙΜΟ",
+    "debug": "DEBUG",
+    "error": "ΣΦΑΛΜΑ",
+    "fullscreen": {
+      "button": "Πλήρης οθόνη",
+      "tooltip": "Πατήστε {{hotkey}} για πλήρη οθόνη"
+    },
+    "info": "INFO",
+    "noTryNumber": "Χωρίς αριθμό προσπάθειας",
+    "settings": "Ρυθμίσεις Καταγραφής",
+    "viewInExternal": "Προβολή καταγραφών στο {{name}} (προσπάθεια {{attempt}})",
+    "warning": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ"
+  },
+  "navigation": {
+    "navigation": "Πλοήγηση: Shift+{{arrow}}",
+    "toggleGroup": "Εναλλαγή ομάδας: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Αποτυχημένη Εκτέλεση",
+      "failedRun_other": "Αποτυχημένες Εκτελέσεις",
+      "failedTask_one": "Αποτυχημένη Εργασία",
+      "failedTask_other": "Αποτυχημένες Εργασίες",
+      "failedTaskInstance_one": "Αποτυχημένη Στιγμιαία Κατάσταση Εργασίας",
+      "failedTaskInstance_other": "Αποτυχημένες Στιγμιαίες Καταστάσεις Εργασίας"
+    },
+    "charts": {
+      "assetEvent_one": "Δημιουργήθηκε Συμβάν Οντότητας",
+      "assetEvent_other": "Δημιουργήθηκαν Συμβάντα Οντοτήτων"
+    },
+    "failedLogs": {
+      "hideLogs": "Απόκρυψη Καταγραφών",
+      "showLogs": "Εμφάνιση Καταγραφών",
+      "title": "Πρόσφατες Καταγραφές Αποτυχημένων Εργασιών",
+      "viewFullLogs": "Προβολή πλήρων καταγραφών"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Επιλογές",
+      "showGantt": "Εμφάνιση Gantt",
+      "showGraphShortcut": "Εμφάνιση Γραφήματος (Πατήστε g)",
+      "showGridShortcut": "Εμφάνιση Πλέγματος (Πατήστε g)"
+    },
+    "dagRuns": {
+      "label": "Αριθμός Εκτελέσεων Dag"
+    },
+    "dependencies": {
+      "label": "Εξαρτήσεις",
+      "options": {
+        "allDagDependencies": "Όλες οι Εξαρτήσεις Dag",
+        "externalConditions": "Εξωτερικές συνθήκες",
+        "onlyTasks": "Μόνο εργασίες"
+      },
+      "placeholder": "Εξαρτήσεις"
+    },
+    "graphDirection": {
+      "label": "Κατεύθυνση Γραφήματος"
+    }
+  },
+  "paramsFailed": "Αποτυχία φόρτωσης παραμέτρων",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Το αίτημα ανάλυσης Dag απέτυχε. Ενδέχεται να υπάρχουν εκκρεμή αιτήματα ανάλυσης προς επεξεργασία.",
+        "title": "Αποτυχία Επανανάλυσης Dag"
+      },
+      "success": {
+        "description": "Το Dag θα επαναναλυθεί σύντομα.",
+        "title": "Το αίτημα επανανάλυσης υποβλήθηκε επιτυχώς"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Συμβάντα Οντοτήτων",
+    "auditLog": "Καταγραφή Ελέγχου",
+    "backfills": "Backfills",
+    "calendar": "Ημερολόγιο",
+    "code": "Κώδικας",
+    "details": "Λεπτομέρειες",
+    "logs": "Καταγραφές",
+    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count}}]",
+    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count}}]",
+    "overview": "Επισκόπηση",
+    "renderedTemplates": "Αποδοθέντα Πρότυπα",
+    "requiredActions": "Απαιτούμενες Ενέργειες",
+    "runs": "Εκτελέσεις",
+    "taskInstances": "Στιγμιαίες Καταστάσεις Εργασίας",
+    "tasks": "Εργασίες",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Σύμπτυξη όλων των ομάδων εργασιών",
+    "expandAll": "Ανάπτυξη όλων των ομάδων εργασιών"
+  }
+}

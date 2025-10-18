@@ -62,6 +62,105 @@ PY313 = sys.version_info >= (3, 13)
 INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
 
 
+@pytest.fixture
+def mock_dag_bundle_manager():
+    """Fixture to create a mock DAG bundle manager with team configuration."""
+    from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.manager import _InternalBundleConfig
+
+    class MockDagBundle(BaseDagBundle):
+        @property
+        def path(self):
+            return None
+
+        def get_current_version(self):
+            return "1.0.0"
+
+        def refresh(self):
+            pass
+
+    @contextlib.contextmanager
+    def _create_bundle_manager(bundle_name="test_bundle", team_name="test_team"):
+        mock_bundle_config = _InternalBundleConfig(bundle_class=MockDagBundle, kwargs={}, team_name=team_name)
+
+        bundle_config = {bundle_name: mock_bundle_config}
+
+        with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_class:
+            mock_manager = mock_manager_class.return_value
+            mock_manager._bundle_config = bundle_config
+            yield mock_manager
+
+    return _create_bundle_manager
+
+
+@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+def test_validate_executor_field_with_team_restriction(mock_executor_lookup, mock_dag_bundle_manager):
+    """Test executor validation with team-based restrictions using bundle configuration."""
+    with mock_dag_bundle_manager():
+        mock_executor_lookup.side_effect = UnknownExecutorException("Executor not available for team")
+
+        with DAG("test-dag", schedule=None) as dag:
+            # Simulate DAG having bundle_name set during parsing
+            dag.bundle_name = "test_bundle"
+            BaseOperator(task_id="t1", executor="team.restricted.executor")
+
+        with pytest.raises(
+            UnknownExecutorException,
+            match=re.escape(
+                "Task 't1' specifies executor 'team.restricted.executor', which is not available "
+                "for team 'test_team' (the team associated with DAG 'test-dag'). "
+                "Make sure 'team.restricted.executor' is configured for team 'test_team' in your "
+                "[core] executors configuration, or update the task's executor to use one of the "
+                "configured executors for team 'test_team'."
+            ),
+        ):
+            with conf_vars({("core", "multi_team"): "True"}):
+                _validate_executor_fields(dag)
+
+        # Verify the executor lookup was called with the team name from config
+        mock_executor_lookup.assert_called_with("team.restricted.executor", team_name="test_team")
+
+
+@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+def test_validate_executor_field_no_team_associated(mock_executor_lookup):
+    """Test executor validation when no team is associated with DAG (no bundle_name)."""
+    mock_executor_lookup.side_effect = UnknownExecutorException("Unknown executor")
+
+    with DAG("test-dag", schedule=None) as dag:
+        # No bundle_name attribute, so no team will be found, see final assertion below
+        BaseOperator(task_id="t1", executor="unknown.executor")
+
+    with pytest.raises(
+        UnknownExecutorException,
+        match=re.escape(
+            "Task 't1' specifies executor 'unknown.executor', which is not available. "
+            "Make sure it is listed in your [core] executors configuration, or update the task's "
+            "executor to use one of the configured executors."
+        ),
+    ):
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag)
+
+    mock_executor_lookup.assert_called_with("unknown.executor", team_name=None)
+
+
+@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+def test_validate_executor_field_valid_team_executor(mock_executor_lookup, mock_dag_bundle_manager):
+    """Test executor validation when executor is valid for the DAG's team (happy path)."""
+    with mock_dag_bundle_manager():
+        mock_executor_lookup.return_value = None
+
+        with DAG("test-dag", schedule=None) as dag:
+            dag.bundle_name = "test_bundle"
+            BaseOperator(task_id="t1", executor="team.valid.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag)
+
+        # Verify the executor lookup was called with the team name which is fetched from bundle config
+        mock_executor_lookup.assert_called_with("team.valid.executor", team_name="test_team")
+
+
 def db_clean_up():
     db.clear_db_dags()
     db.clear_db_runs()

@@ -17,17 +17,14 @@
 from __future__ import annotations
 
 from task_sdk_tests import console
-from task_sdk_tests.constants import (
-    TASK_SDK_API_VERSION,
-)
 
 
-def test_task_sdk_health(sdk_client):
+def test_task_sdk_health(sdk_client, task_sdk_api_version):
     """Test Task SDK health check using session setup."""
     client = sdk_client
 
     console.print("[yellow]Making health check request...")
-    response = client.get("health/ping", headers={"Airflow-API-Version": TASK_SDK_API_VERSION})
+    response = client.get("health/ping", headers={"Airflow-API-Version": task_sdk_api_version})
 
     console.print(" Health Check Response ".center(72, "="))
     console.print(f"[bright_blue]Status Code:[/] {response.status_code}")

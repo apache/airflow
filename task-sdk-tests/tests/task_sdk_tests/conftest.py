@@ -283,6 +283,14 @@ def airflow_test_setup(docker_compose_setup):
 
 
 @pytest.fixture(scope="session")
+def task_sdk_api_version():
+    """Get the API version from the installed Task SDK."""
+    from airflow.sdk.api.datamodels._generated import API_VERSION
+
+    return API_VERSION
+
+
+@pytest.fixture(scope="session")
 def auth_token(airflow_test_setup):
     """Get the auth token from setup."""
     return airflow_test_setup["auth_token"]

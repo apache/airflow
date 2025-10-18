@@ -211,7 +211,15 @@ class ExecutorLoader:
                 executor_names = team_executor_config.strip("=")
             else:
                 cls.block_use_of_multi_team()
-                team_name, executor_names = team_executor_config.split("=")
+                if conf.getboolean("core", "multi_team", fallback=False):
+                    team_name, executor_names = team_executor_config.split("=")
+                else:
+                    log.warning(
+                        "The 'multi_team' config is not enabled, but team executors were configured. "
+                        "The following team executor config will be ignored: %s",
+                        team_executor_config,
+                    )
+                    continue
 
             # Check for duplicate team names
             if team_name in seen_teams:
