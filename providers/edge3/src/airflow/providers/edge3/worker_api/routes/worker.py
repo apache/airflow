@@ -24,7 +24,6 @@ from sqlalchemy import select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     WorkerQueueUpdateBody,
@@ -205,7 +204,7 @@ def set_state(
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
     session.commit()
-    if AIRFLOW_V_3_1_PLUS:
+    try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
         # If enabled on the config, publish metrics twice,
@@ -218,7 +217,9 @@ def set_state(
             tags={},
             extra_tags={"worker_name": worker_name},
         )
-    else:
+    except ImportError:
+        from airflow.stats import Stats
+
         Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
         Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
     set_metrics(
