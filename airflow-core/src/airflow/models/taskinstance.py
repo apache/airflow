@@ -120,6 +120,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -1439,6 +1440,79 @@ class TaskInstance(Base, LoggingMixin):
                 .where(TaskInstance.id == self.id)
                 .values(last_heartbeat_at=timezone.utcnow())
             )
+
+    def start_trigger_args(self) -> StartTriggerArgs | None:
+        if self.task:
+            if self.task.is_mapped:
+                context = self.get_template_context()
+                if self.task.expand_start_from_trigger(context=context):
+                    return self.task.expand_start_trigger_args(context=context)
+            elif self.task.start_from_trigger:
+                return self.task.start_trigger_args
+        return None
+
+    # TODO: We have some code duplication here and in the _create_ti_state_update_query_and_update_state
+    #       method of the task_instances module in the execution api when a TIDeferredStatePayload is being
+    #       processed.  This is because of a TaskInstance being updated differently using SQLAlchemy.
+    #       If we use the approach from the execution api as common code in the DagRun schedule_tis method,
+    #       the side effect is the changes done to the task instance aren't picked up by the scheduler and
+    #       thus the task instance isn't processed until the scheduler is restarted.
+    @provide_session
+    def defer_task(self, session: Session = NEW_SESSION) -> bool:
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+
+        :meta: private
+        """
+        from airflow.models.trigger import Trigger
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, Operator)
+
+        if start_trigger_args := self.start_trigger_args():
+            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+            timeout = start_trigger_args.timeout
+
+            # Calculate timeout too if it was passed
+            if timeout is not None:
+                self.trigger_timeout = timezone.utcnow() + timeout
+            else:
+                self.trigger_timeout = None
+
+            trigger_row = Trigger(
+                classpath=start_trigger_args.trigger_cls,
+                kwargs=trigger_kwargs,
+            )
+
+            # First, make the trigger entry
+            session.add(trigger_row)
+            session.flush()
+
+            # Then, update ourselves so it matches the deferral request
+            # Keep an eye on the logic in `check_and_change_state_before_execution()`
+            # depending on self.next_method semantics
+            self.state = TaskInstanceState.DEFERRED
+            self.trigger_id = trigger_row.id
+            self.next_method = start_trigger_args.next_method
+            self.next_kwargs = start_trigger_args.next_kwargs or {}
+
+            # If an execution_timeout is set, set the timeout to the minimum of
+            # it and the trigger timeout
+            execution_timeout = self.task.execution_timeout
+            if execution_timeout:
+                if TYPE_CHECKING:
+                    assert self.start_date
+                if self.trigger_timeout:
+                    self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+                else:
+                    self.trigger_timeout = self.start_date + execution_timeout
+            self.start_date = timezone.utcnow()
+            if self.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                self.try_number += 1
+            if self.test_mode:
+                _add_log(event=self.state, task_instance=self, session=session)
+            return True
+        return False
 
     @provide_session
     def run(
