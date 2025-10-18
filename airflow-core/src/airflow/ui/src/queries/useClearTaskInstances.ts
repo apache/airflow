@@ -18,6 +18,8 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Dialog } from "src/components/ui";
+
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
@@ -33,6 +35,7 @@ import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+import { ApiError } from "openapi/requests";
 
 export const useClearTaskInstances = ({
   dagId,
@@ -46,13 +49,48 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    // Narrow the type safely
+    if (error && typeof error === "object" && "detail" in error) {
+      const apiError = error as ApiError;
+
+      const detail = typeof apiError.detail === "string" ? apiError.detail : "";
+      const ifDetailIsIncluded =
+        typeof detail === "string" && detail.includes("AirflowClearRunningTaskException");
+
+      if (detail && ifDetailIsIncluded) {
+        toaster.create({
+          description: detail,
+          title: translate("dags:runAndTaskActions.clear.error", {
+            type: translate("common:taskInstance_one"),
+          }),
+          type: "error",
+        });
+      } else {
+        const message =
+          typeof apiError.message === "string"
+            ? apiError.message : translate("common:error.defaultMessage");
+
+        toaster.create({
+          description: message,
+          title: translate("dags:runAndTaskActions.clear.error", {
+            type: translate("common:taskInstance_one"),
+          }),
+          type: "error",
+        });
+      }
+    } else {
+      // Fallback for completely unknown errors
+      toaster.create({
+        description: translate("common:error.defaultMessage"),
+        title: translate("dags:runAndTaskActions.clear.error", {
+          type: translate("common:taskInstance_one"),
+        }),
+        type: "error",
+      });
+    }
   };
+
 
   const onSuccess = async (
     _: TaskInstanceCollectionResponse,
@@ -103,5 +141,8 @@ export const useClearTaskInstances = ({
   return useTaskInstanceServicePostClearTaskInstances({
     onError,
     onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    retry: 0
   });
 };
