@@ -2531,7 +2531,7 @@ class TestStringifiedDAGs:
 
 
 def test_kubernetes_optional():
-    """Serialisation / deserialisation continues to work without kubernetes installed"""
+    """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
 
     def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
         if level == 0 and name.partition(".")[0] == "kubernetes":
@@ -2558,7 +2558,8 @@ def test_kubernetes_optional():
             "__var": PodGenerator.serialize_pod(executor_config_pod),
         }
 
-        with pytest.raises(RuntimeError):
+        # we should error if attempting to deserialize POD without kubernetes installed
+        with pytest.raises(RuntimeError, match="Cannot deserialize POD objects without kubernetes"):
             module.BaseSerialization.from_dict(pod_override)
 
         # basic serialization should succeed

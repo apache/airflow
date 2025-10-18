@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAtFrom": "Created at from",
+    "createdAtTo": "Created at to",
     "response": {
       "all": "All",
       "pending": "Pending",
