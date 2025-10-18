@@ -33,8 +33,9 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
-    from airflow.models.team import Team
     from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
 
 pytestmark = pytest.mark.db_test
 
