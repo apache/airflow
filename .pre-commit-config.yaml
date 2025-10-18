@@ -465,6 +465,12 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_imports.py
           --pattern '^openlineage\.client\.(facet|run)'
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
+      - id: check-common-compat-lazy-imports-in-sync
+        name: Check common.compat lazy_compat.pyi is in sync
+        language: python
+        files: ^providers/common/compat/src/airflow/providers/common/compat/lazy_compat\.(py|pyi)$
+        pass_filenames: false
+        entry: ./scripts/ci/prek/check_common_compat_lazy_imports.py
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
