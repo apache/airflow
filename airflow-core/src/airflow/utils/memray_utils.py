@@ -55,6 +55,9 @@ def enable_memray_trace(airflow_component_name: str) -> Callable[[Callable[PS, R
                 with memray.Tracker(
                     profile_path,
                 ):
+                    log.info(
+                        "Memray tracing enabled for %s. Output: %s", airflow_component_name, profile_path
+                    )
                     return func(*args, **kwargs)
             except ImportError as error:
                 # Silently fall back to running without tracking
