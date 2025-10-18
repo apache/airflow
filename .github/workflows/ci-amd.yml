@@ -935,7 +935,20 @@ jobs:
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
-    needs: [build-info]
+    needs:
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-airflow-ctl
+      - tests-special
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
