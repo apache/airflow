@@ -1428,7 +1428,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rtif = RenderedTaskInstanceFields(ti=self, render_templates=False, rendered_fields=rendered_fields)
-        RenderedTaskInstanceFields.write(rtif, session=session)
+        rtif.write(session=session)
         session.flush()
         RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id, session=session)
 
