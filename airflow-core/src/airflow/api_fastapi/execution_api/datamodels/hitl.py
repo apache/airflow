@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.hitl import HITLDetail
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class HITLUser(BaseModel):
@@ -59,7 +60,7 @@ class HITLDetailResponse(BaseModel):
 
     response_received: bool
     responded_by_user: HITLUser | None = None
-    responded_at: datetime | None
+    responded_at: UtcDateTime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
@@ -79,6 +80,6 @@ class HITLDetailResponse(BaseModel):
             response_received=hitl_detail.response_received,
             responded_at=hitl_detail.responded_at,
             responded_by_user=hitl_user,
-            chosen_options=hitl_detail.chosen_options,
+            chosen_options=hitl_detail.chosen_options.get("options", []) if hitl_detail.chosen_options else None,
             params_input=hitl_detail.params_input or {},
         )
