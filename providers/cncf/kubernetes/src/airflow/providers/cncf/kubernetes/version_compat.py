@@ -39,6 +39,7 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XCOM_RETURN_KEY
     from airflow.sdk import BaseHook
     from airflow.sdk.definitions.context import context_merge
+
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.utils.context import context_merge  # type: ignore[attr-defined, no-redef]
@@ -53,6 +54,10 @@ else:
         task_decorator_factory,
     )
 
+try:
+    from airflow.sdk.exceptions import AirflowSkipException, TaskDeferred
+except ImportError:
+    from airflow.exceptions import AirflowSkipException, TaskDeferred  # type: ignore[no-redef, attr-defined]
 # BaseOperator and BaseSensorOperator removed from version_compat to avoid circular imports
 # Import them directly in files that need them instead
 
@@ -65,4 +70,6 @@ __all__ = [
     "task_decorator_factory",
     "XCOM_RETURN_KEY",
     "context_merge",
+    "AirflowSkipException",
+    "TaskDeferred",
 ]

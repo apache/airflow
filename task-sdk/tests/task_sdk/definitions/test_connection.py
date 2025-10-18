@@ -24,7 +24,6 @@ from urllib.parse import urlparse
 import pytest
 
 from airflow.configuration import initialize_secrets_backends
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
@@ -76,7 +75,7 @@ class TestConnections:
             conn_type="unknown_type",
         )
 
-        with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
+        with pytest.raises(RuntimeError, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
     def test_get_uri(self):
@@ -127,7 +126,7 @@ class TestConnections:
         error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_supervisor_comms.send.return_value = error_response
 
-        with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
+        with pytest.raises(RuntimeError, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
 
     def test_to_dict(self):
@@ -367,13 +366,13 @@ class TestConnectionFromUri:
     def test_from_uri_too_many_schemes_error(self):
         """Test that too many schemes in URI raises an error."""
         uri = "http://https://ftp://example.com"
-        with pytest.raises(AirflowException, match="Invalid connection string"):
+        with pytest.raises(RuntimeError, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
 
     def test_from_uri_invalid_protocol_host_error(self):
         """Test that invalid protocol host raises an error."""
         uri = "http://user@host://example.com"
-        with pytest.raises(AirflowException, match="Invalid connection string"):
+        with pytest.raises(RuntimeError, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
 
     def test_from_uri_roundtrip(self):
