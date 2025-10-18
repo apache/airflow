@@ -1502,7 +1502,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Unprocessable Entity'
+                422: 'Validation Error'
             }
         });
     }
@@ -1559,7 +1559,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Unprocessable Entity'
+                422: 'Validation Error'
             }
         });
     }
