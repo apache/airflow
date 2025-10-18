@@ -1615,6 +1615,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
