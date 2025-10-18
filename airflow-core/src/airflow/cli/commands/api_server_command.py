@@ -156,6 +156,7 @@ def api_server(args: Namespace):
         server = Server(config)
         server.run()
         return
+
     run_command_with_daemon_option(
         args=args,
         process_name="api_server",
