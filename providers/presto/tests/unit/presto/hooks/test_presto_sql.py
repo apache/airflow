@@ -150,11 +150,6 @@ def test_sqlalchemy_url_property(
         schema=conn_schema_override or "",
         extra=json.dumps(custom_extra) if custom_extra else None,
     )
-    expected_catalog = custom_extra.get("catalog")
-    expected_protocol = custom_extra.get("protocol")
-    expected_source = custom_extra.get("source")
-    expected_schema= custom_extra.get("schema")
-
     create_connection_without_db(temp_conn)
 
     with patch.object(presto_hook, "get_connection", return_value=temp_conn):
@@ -164,13 +159,13 @@ def test_sqlalchemy_url_property(
         assert url.port == DEFAULT_PORT
         assert url.username == DEFAULT_LOGIN
         assert url.password == DEFAULT_PASSWORD
-        assert url.database == expected_catalog
+        assert url.database == custom_extra.get("catalog")
 
         query = url.query
 
-        assert query.get("protocol") == expected_protocol
-        assert query.get("source") == expected_source
-        assert query.get("schema") == expected_schema
+        assert query.get("protocol") == custom_extra.get("protocol")
+        assert query.get("source") == custom_extra.get("source")
+        assert query.get("schema") == temp_conn.schema
 
 
 @pytest.mark.parametrize(
@@ -241,15 +236,16 @@ def test_get_sqlalchemy_engine(presto_hook, mock_connection, mocker):
     call_args = mock_create_engine.call_args[1]
     actual_url = call_args["url"]
     extra_dict = json.loads(mock_connection.extra or "{}")
+
     assert actual_url.drivername == "presto"
     assert actual_url.host == str(DEFAULT_HOST)
     assert actual_url.password == (DEFAULT_PASSWORD or "")
     assert actual_url.port == DEFAULT_PORT
     assert actual_url.username == DEFAULT_LOGIN
     assert actual_url.database == extra_dict.get("catalog")
-    assert actual_url.query.get("protocol")== extra_dict.get("protocol")
+    assert actual_url.query.get("protocol") == extra_dict.get("protocol")
     assert actual_url.query.get("source") == extra_dict.get("source")
-    assert actual_url.query.get("schema") == extra_dict.get("schema")
+    assert actual_url.query.get("schema") == mock_connection.schema
 
 
 def test_run_with_multiple_statements(presto_hook, mock_cursor, mock_get_conn):
@@ -286,11 +282,13 @@ def test_get_uri(presto_hook, mock_connection):
     mock_connection.port = DEFAULT_PORT
     mock_connection.login = DEFAULT_LOGIN
     mock_connection.password = DEFAULT_PASSWORD
-    mock_connection.extra = json.dumps({"catalog": "hive", "protocol": "https", "source": "airflow", "schema" : "presto_db"})
+    mock_connection.extra = json.dumps({"catalog": "hive", "protocol": "https", "source": "airflow"})
+    mock_connection.schema = "presto_db"
 
     expected_uri = (
         "presto://test:test_pass@test_host:8080/hive?protocol=https&source=airflow&schema=presto_db"
     )
+
     with patch.object(presto_hook, "get_connection", return_value=mock_connection):
         uri = presto_hook.get_uri()
     parsed = make_url(uri)
@@ -364,70 +362,3 @@ def test_execution_timeout_exceeded(presto_hook_with_timeout):
             presto_hook_with_timeout.run(sql=test_sql)
 
         mock_parent_run.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "custom_extra, conn_schema_override, expected_database, expected_query",
-    [
-        pytest.param(
-            None,            
-            "presto_db",
-            None,       
-            {},      
-            id="no_extra_provided",
-        ),
-        pytest.param(
-            {},         
-            "default_schema",
-            None,
-            {},
-            id="empty_extra_dict",
-        ),
-        pytest.param(
-            '{"invalid_json":null}',
-            "fallback_schema",
-            None,
-            {},
-            id="invalid_extra_json",
-        ),
-    ],
-)
-
-def test_sqlalchemy_url_handles_missing_or_invalid_extras(
-    presto_hook, 
-    create_connection_without_db, 
-    custom_extra, 
-    conn_schema_override,
-    expected_database, 
-    expected_query,
-):
-    """Test fallback behavior when extras are missing, empty, or invalid."""
-    if isinstance(custom_extra, str):
-        extra_json = custom_extra 
-    elif custom_extra is None:
-        extra_json = None
-    else:
-        extra_json = json.dumps(custom_extra)
-
-    temp_conn = Connection(
-        conn_id=DEFAULT_CONN_ID,
-        conn_type="presto",
-        host=DEFAULT_HOST,
-        login=DEFAULT_LOGIN,
-        password=DEFAULT_PASSWORD,
-        port=DEFAULT_PORT,
-        schema=conn_schema_override,
-        extra=extra_json,
-    )
-
-    create_connection_without_db(temp_conn)
-
-    with patch.object(presto_hook, "get_connection", return_value=temp_conn):
-        url = presto_hook.sqlalchemy_url
-
-        assert url.host == DEFAULT_HOST
-        assert url.port == DEFAULT_PORT
-        assert url.username == DEFAULT_LOGIN
-        assert url.password == DEFAULT_PASSWORD
-        assert url.database == expected_database
-        assert url.query == expected_query

@@ -155,7 +155,6 @@ class PrestoHook(DbApiHook):
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
-        schema = conn.schema
 
         if not conn.host:
             raise ValueError("Presto connection error: 'host' is missing in the connection.")
@@ -168,14 +167,14 @@ class PrestoHook(DbApiHook):
         query = {
             k: v
             for k, v in {
-                "schema": extra.get("schema"),
+                "schema": conn.schema,
                 "protocol": extra.get("protocol"),
                 "source": extra.get("source"),
                 "catalog": extra.get("catalog"),
             }.items()
             if v is not None
         }
-        
+
         url_query_params = {k: v for k, v in query.items() if v is not None}
 
         return URL.create(
