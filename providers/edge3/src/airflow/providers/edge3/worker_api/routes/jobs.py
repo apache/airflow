@@ -23,7 +23,6 @@ from sqlalchemy import select, update
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -42,11 +41,6 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
 from airflow.stats import Stats
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
@@ -94,7 +88,7 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    if AIRFLOW_V_3_1_PLUS:
+    try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
         # If enabled on the config, publish metrics twice,
@@ -102,7 +96,7 @@ def fetch(
         DualStatsManager.incr(
             f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
         )
-    else:
+    except ImportError:
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
         Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
@@ -157,11 +151,22 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            Stats.incr(
-                f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
-                tags=tags,
-            )
-            Stats.incr("edge_worker.ti.finish", tags=tags)
+            try:
+                from airflow.metrics.dual_stats_manager import DualStatsManager
+
+                # If enabled on the config, publish metrics twice,
+                # once with backward compatible name, and then with tags.
+                DualStatsManager.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                    "edge_worker.ti.finish",
+                    tags=tags,
+                )
+            except ImportError:
+                Stats.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                    tags=tags,
+                )
+                Stats.incr("edge_worker.ti.finish", tags=tags)
 
     query = (
         update(EdgeJobModel)
