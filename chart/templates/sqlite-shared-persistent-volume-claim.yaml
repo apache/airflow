@@ -33,11 +33,10 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- with .Values.sqliteShared.persistence.annotations }}
   annotations:
-    "helm.sh/resource-policy": keep
-    {{- with .Values.sqliteShared.persistence.annotations }}
     {{- toYaml . | nindent 4 }}
-    {{- end }}
+  {{- end }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -46,5 +45,7 @@ spec:
       storage: {{ .Values.sqliteShared.persistence.size }}
   {{- if .Values.sqliteShared.persistence.storageClassName }}
   storageClassName: {{ .Values.sqliteShared.persistence.storageClassName }}
+  {{- else }}
+  storageClassName: ""
   {{- end }}
 {{- end }}
