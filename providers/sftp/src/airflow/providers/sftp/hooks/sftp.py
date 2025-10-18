@@ -40,7 +40,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
-from airflow.providers.sftp.version_compat import BaseHook
+from airflow.providers.sftp.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
@@ -760,7 +760,10 @@ class SFTPHookAsync(BaseHook):
         - known_hosts
         - passphrase
         """
-        conn = await sync_to_async(self.get_connection)(self.sftp_conn_id)
+        if AIRFLOW_V_3_1_PLUS:
+            conn = await self.aget_connection(self.sftp_conn_id)
+        else:
+            conn = await sync_to_async(self.get_connection)(conn_id=self.sftp_conn_id)
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
