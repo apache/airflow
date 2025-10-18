@@ -94,6 +94,7 @@ dependencies = [
     'libcst >=1.8.2',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
+    "memray>=1.19.0",
     "methodtools>=0.4.7",
     "natsort>=8.4.0",
     "opentelemetry-api>=1.27.0",

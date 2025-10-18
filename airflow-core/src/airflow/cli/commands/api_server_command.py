@@ -33,6 +33,7 @@ from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.exceptions import AirflowConfigException
 from airflow.typing_compat import ParamSpec
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 PS = ParamSpec("PS")
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
 # more info here: https://github.com/benoitc/gunicorn/issues/1877#issuecomment-1911136399
 
 
+@enable_memray_trace(airflow_component_name="api")
 def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
     """Run the API server."""
     log.info(

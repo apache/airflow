@@ -30,12 +30,14 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
 log = logging.getLogger(__name__)
 
 
+@enable_memray_trace(airflow_component_name="scheduler")
 def _run_scheduler_job(args) -> None:
     job_runner = SchedulerJobRunner(job=Job(), num_runs=args.num_runs)
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
