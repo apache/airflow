@@ -139,23 +139,16 @@ def api_server(args: Namespace):
     if args.dev:
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
-        from uvicorn import Config, Server
+        from fastapi_cli.cli import _run
 
-        from airflow.api_fastapi.main import app
-
-        log_config = args.log_config if args.log_config and args.log_config != "-" else None
-
-        config = Config(
-            app,
+        _run(
+            entrypoint="airflow.api_fastapi.main:app",
             port=args.port,
             host=args.host,
             reload=True,
             proxy_headers=args.proxy_headers,
-            log_config=log_config,
+            command="dev",
         )
-        server = Server(config)
-        server.run()
-        return
 
     run_command_with_daemon_option(
         args=args,
