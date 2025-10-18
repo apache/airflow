@@ -35,11 +35,6 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -179,7 +174,7 @@ def set_metrics(
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
 
-    if AIRFLOW_V_3_1_PLUS:
+    try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
         # If enabled on the config, publish metrics twice,
@@ -231,7 +226,7 @@ def set_metrics(
             tags={},
             extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
-    else:
+    except ImportError:
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
         Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
 
