@@ -198,7 +198,7 @@ class TestStatsd:
             },
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].rezzsources.limits.memory", docs[0]) == "128Mi"
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
         assert (
             jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
         )
