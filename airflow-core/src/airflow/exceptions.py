@@ -26,6 +26,8 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -472,14 +474,14 @@ except ImportError:
         """Raised when an error is encountered while trying to merge pod configs."""
 
 
-class RemovedInAirflow4Warning(DeprecationWarning):
+class RemovedInAirflow4Warning(DeprecatedImportWarning):
     """Issued for usage of deprecated features that will be removed in Airflow4."""
 
     deprecated_since: str | None = None
     "Indicates the airflow version that started raising this deprecation warning"
 
 
-class AirflowProviderDeprecationWarning(DeprecationWarning):
+class AirflowProviderDeprecationWarning(DeprecatedImportWarning):
     """Issued for usage of deprecated features of Airflow provider."""
 
     deprecated_provider_since: str | None = None
@@ -529,7 +531,7 @@ def __getattr__(name: str):
         warnings.warn(
             "airflow.exceptions.AirflowDagCycleException is deprecated. "
             "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return AirflowDagCycleException
