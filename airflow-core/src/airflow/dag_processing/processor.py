@@ -160,7 +160,7 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
     for module in iter_airflow_imports(file_path):
         try:
             importlib.import_module(module)
-        except ModuleNotFoundError as e:
+        except Exception as e:
             log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 

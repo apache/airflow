@@ -36,11 +36,17 @@ from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
+
+try:
+    from airflow.sdk import Connection
+except ImportError:
+    from airflow.models.connection import Connection  # type: ignore[assignment]
 
 T = TypeVar("T")
 if TYPE_CHECKING:
@@ -94,6 +100,7 @@ class SnowflakeHook(DbApiHook):
     hook_name = "Snowflake"
     supports_autocommit = True
     _test_connection_sql = "select 1"
+    default_azure_oauth_scope = "api://snowflake_oauth_server/.default"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -246,6 +253,40 @@ class SnowflakeHook(DbApiHook):
         token = response.json()["access_token"]
         return token
 
+    def get_azure_oauth_token(self, azure_conn_id: str) -> str:
+        """
+        Generate OAuth access token using Azure connection id.
+
+        This uses AzureBaseHook on the connection id to retrieve the token. Scope for the OAuth token can be
+        set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``.
+
+        :param azure_conn_id: The connection id for the Azure connection that will be used to fetch the token.
+        :raises AttributeError: If AzureBaseHook does not have a get_token method which happens when
+            package apache-airflow-providers-microsoft-azure<12.8.0.
+        :returns: The OAuth access token string.
+        """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.azure_base import AzureBaseHook
+
+        try:
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
+        azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        try:
+            token = azure_base_hook.get_token(scope).token
+        except AttributeError as e:
+            if e.name == "get_token" and e.obj == azure_base_hook:
+                raise AttributeError(
+                    "'AzureBaseHook' object has no attribute 'get_token'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0",
+                    name=e.name,
+                    obj=e.obj,
+                ) from e
+            raise
+        return token
+
     @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """
@@ -349,14 +390,17 @@ class SnowflakeHook(DbApiHook):
             conn_config["authenticator"] = "oauth"
 
         if conn_config.get("authenticator") == "oauth":
-            token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
-            conn_config["client_id"] = conn.login
-            conn_config["client_secret"] = conn.password
-            conn_config["token"] = self.get_oauth_token(
-                conn_config=conn_config,
-                token_endpoint=token_endpoint,
-                grant_type=extra_dict.get("grant_type", "refresh_token"),
-            )
+            if extra_dict.get("azure_conn_id"):
+                conn_config["token"] = self.get_azure_oauth_token(extra_dict["azure_conn_id"])
+            else:
+                token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
+                conn_config["client_id"] = conn.login
+                conn_config["client_secret"] = conn.password
+                conn_config["token"] = self.get_oauth_token(
+                    conn_config=conn_config,
+                    token_endpoint=token_endpoint,
+                    grant_type=extra_dict.get("grant_type", "refresh_token"),
+                )
 
             conn_config.pop("login", None)
             conn_config.pop("user", None)

@@ -402,23 +402,28 @@ class TestDagFileProcessor:
         mock_import.assert_called_once_with("airflow.models")
         logger.warning.assert_not_called()
 
-    def test__pre_import_airflow_modules_warns_on_missing_module(self):
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            ModuleNotFoundError("module not found"),
+            RuntimeError("import failed"),
+            ImportError("import error"),
+        ],
+    )
+    def test__pre_import_airflow_modules_warns_on_import_errors(self, exception):
+        """Test that pre-import logs warnings for any import exception type."""
         logger = MagicMock(spec=FilteringBoundLogger)
         with (
             env_vars({"AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES": "true"}),
-            patch(
-                "airflow.dag_processing.processor.iter_airflow_imports", return_value=["non_existent_module"]
-            ),
-            patch(
-                "airflow.dag_processing.processor.importlib.import_module", side_effect=ModuleNotFoundError()
-            ),
+            patch("airflow.dag_processing.processor.iter_airflow_imports", return_value=["some_module"]),
+            patch("airflow.dag_processing.processor.importlib.import_module", side_effect=exception),
         ):
             _pre_import_airflow_modules("test.py", logger)
 
         logger.warning.assert_called_once()
         warning_args = logger.warning.call_args[0]
         assert "Error when trying to pre-import module" in warning_args[0]
-        assert "non_existent_module" in warning_args[1]
+        assert "some_module" in warning_args[1]
         assert "test.py" in warning_args[2]
 
     def test__pre_import_airflow_modules_partial_success_and_warning(self):

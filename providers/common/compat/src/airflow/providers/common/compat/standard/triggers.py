@@ -17,15 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-else:
-    try:
-        from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-    except ModuleNotFoundError:
-        from airflow.triggers.temporal import TimeDeltaTrigger
-
+# Re-export from lazy_compat for backward compatibility
+from airflow.providers.common.compat.lazy_compat import TimeDeltaTrigger
 
 __all__ = ["TimeDeltaTrigger"]
