@@ -88,6 +88,10 @@ class SerializedParam:
         self.value = final_val
         return final_val
 
+    def serialize(self) -> dict[str, Any]:
+        """Serialize the Param as a dictionary with value, description, and schema."""
+        return {"value": self.value, "description": self.description, "schema": self.schema}
+
 
 def _coerce_param(v: Any) -> SerializedParam:
     if isinstance(v, SerializedParam):
