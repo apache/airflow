@@ -170,7 +170,6 @@ jobs:
         id: prek
         with:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
-          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
           platform: "linux/amd64"
           save-cache: true
   run-pin-versions-hook:
@@ -190,7 +189,6 @@ jobs:
           python-version: "3.11"
           platform: "linux/amd64"
           save-cache: true
-          skip-prek-hooks: ""
       - name: "Run pin-versions"
         run: >
           prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
