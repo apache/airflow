@@ -579,11 +579,11 @@ class TestPodGenerator:
     def test_extend_object_field_not_list(self):
         base_obj = k8s.V1Container(name="base_container", image="image")
         client_obj = k8s.V1Container(name="client_container")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="The chosen field must be a list."):
             extend_object_field(base_obj, client_obj, "image")
         base_obj = k8s.V1Container(name="base_container")
         client_obj = k8s.V1Container(name="client_container", image="image")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="The chosen field must be a list."):
             extend_object_field(base_obj, client_obj, "image")
 
     def test_extend_object_field(self):
