@@ -165,6 +165,9 @@ class TestBaseAuthManager:
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
 
+    def test_refresh_user_default_returns_none(self, auth_manager):
+        assert auth_manager.refresh_user(user=BaseAuthManagerUserTest(name="test")) is None
+
     def test_get_url_logout_return_none(self, auth_manager):
         assert auth_manager.get_url_logout() is None
 

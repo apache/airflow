@@ -43,7 +43,7 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -923,8 +923,10 @@ key7 =
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
-        assert len(backends) == 2
+        assert len(backends) == 3
         assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "EnvironmentVariablesBackend" in backend_classes
+        assert "ExecutionAPISecretsBackend" in backend_classes
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
