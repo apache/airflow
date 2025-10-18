@@ -92,7 +92,7 @@ class TestRemoteLogging:
         if len(response["Contents"]) < self.task_count:
             pytest.fail(
                 f"Expected at least {self.task_count} log files in S3 bucket {bucket_name}, "
-                f"but found {len(response['Contents'])}."
+                f"but found {len(response['Contents'])} objects: {[obj.get('Key') for obj in response.get('Contents', [])]}"
             )
 
         # s3 key format: dag_id=example_xcom/run_id=manual__2025-09-29T23:32:09.457215+00:00/task_id=bash_pull/attempt=1.log
