@@ -560,21 +560,16 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
                 full_key = f"{prefix}.{k}" if prefix else k
                 base = get_plural_base(full_key, suffixes)
                 if base and any(full_key == base + s for s in suffixes):
-                    # Add all plural forms at the current level (not nested)
                     for suffix in suffixes:
                         plural_key = base + suffix
+                        key_name = plural_key.split(".")[-1]
                         if plural_key in missing_keys:
-                            key_name = k  # This preserves the original structure
-                            if isinstance(v, dict):
-                                dst[key_name] = {}
-                                add_keys(v, dst[key_name], plural_key)
-                            else:
-                                dst[key_name] = f"TODO: translate: {v}"
+                            dst[key_name] = f"TODO: translate: {v}"
                     continue
                 if full_key in missing_keys:
                     if isinstance(v, dict):
                         dst[k] = {}
-                        add_keys(v, dst[k], k)
+                        add_keys(v, dst[k], full_key)
                     else:
                         dst[k] = f"TODO: translate: {v}"
                 else:
