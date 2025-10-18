@@ -974,10 +974,10 @@ class TriggerRunner:
                 kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
                 deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
 
-                if workload.ti:
+                if (ti := workload.ti):
                     runtime_ti = create_runtime_ti(workload.dag)
                     context = runtime_ti.get_template_context()
-                    trigger_name = f"{workload.ti.dag_id}/{workload.ti.run_id}/{workload.ti.task_id}/{workload.ti.map_index}/{workload.ti.try_number} (ID {trigger_id})"
+                    trigger_name = f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} (ID {trigger_id})"
                     trigger_instance = trigger_class(**deserialised_kwargs)
                     trigger_instance.task_instance = runtime_ti
                 else:
