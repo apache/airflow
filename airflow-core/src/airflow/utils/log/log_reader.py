@@ -21,6 +21,7 @@ import os
 import time
 from collections.abc import Generator, Iterator
 from datetime import datetime, timezone
+from typing import Iterator, cast
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -57,10 +58,12 @@ class TaskLogReader:
     @staticmethod
     def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
         """Yield standardized no-log messages for a given TI state."""
-        msg = {
-            TaskInstanceState.SKIPPED: "Task was skipped — no logs available.",
-            TaskInstanceState.UPSTREAM_FAILED: "Task did not run because upstream task(s) failed.",
-        }.get(ti.state, "No logs available for this task.")
+        if ti.state == TaskInstanceState.SKIPPED:
+            msg = "Task was skipped — no logs available."
+        elif ti.state == TaskInstanceState.UPSTREAM_FAILED:
+            msg = "Task did not run because upstream task(s) failed."
+        else:
+            msg = "No logs available for this task."
 
         yield StructuredLogMessage(
             timestamp=None,
@@ -68,7 +71,7 @@ class TaskLogReader:
         )
         yield StructuredLogMessage(timestamp=None, event="::endgroup::")
         yield StructuredLogMessage(
-            timestamp=ti.updated_at or datetime.now(timezone.utc),
+            timestamp=cast(datetime | None, ti.updated_at) or datetime.now(timezone.utc),
             event=msg,
         )
 
