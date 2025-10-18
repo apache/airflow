@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "內文",
+    "createdAtFrom": "從建立時間",
+    "createdAtTo": "到建立時間",
     "response": {
       "all": "全部",
       "pending": "待回應",

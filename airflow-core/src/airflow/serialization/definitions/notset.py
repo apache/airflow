@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,16 +18,7 @@
 
 from __future__ import annotations
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
-from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
-
-
-class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
-    """Middleware that automatically generates and includes auth header for simple auth manager."""
-
-    async def dispatch(self, request: Request, call_next):
-        token = SimpleAuthManagerLogin.create_token_all_admins()
-        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
-        return await call_next(request)
+# TODO (GH-52141): Have different NOTSET and ArgNotSet in the scheduler.
+__all__ = ["NOTSET", "ArgNotSet"]

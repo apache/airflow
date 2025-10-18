@@ -1267,6 +1267,16 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
+option_e2e_test_mode = click.option(
+    "--e2e-test-mode",
+    help="Specify the mode to use for E2E tests.",
+    default="basic",
+    show_default=True,
+    envvar="E2E_TEST_MODE",
+    type=click.Choice(["basic", "remote_log"], case_sensitive=False),
+)
+
+
 @group_for_testing.command(
     name="airflow-e2e-tests",
     context_settings=dict(
@@ -1281,6 +1291,7 @@ def python_api_client_tests(
 @option_include_success_outputs
 @option_verbose
 @option_dry_run
+@option_e2e_test_mode
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflow_e2e_tests(
     python: str,
@@ -1288,6 +1299,7 @@ def airflow_e2e_tests(
     skip_docker_compose_deletion: bool,
     github_repository: str,
     include_success_outputs: bool,
+    e2e_test_mode: str,
     extra_pytest_args: tuple,
 ):
     """Run Airflow E2E tests."""
@@ -1308,6 +1320,7 @@ def airflow_e2e_tests(
         skip_docker_compose_deletion=skip_docker_compose_deletion,
         test_type="airflow-e2e-tests",
         skip_image_check=skip_image_check,
+        test_mode=e2e_test_mode,
     )
     sys.exit(return_code)
 
