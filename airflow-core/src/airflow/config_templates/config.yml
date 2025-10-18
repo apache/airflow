@@ -1559,6 +1559,20 @@ api:
       type: boolean
       example: ~
       default: "False"
+    enable_memray_trace:
+      description: |
+        Whether to enable memory allocation tracing by memray in the api-server. If enabled, Airflow will
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/api_memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/api_memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.1.1
+      type: boolean
+      example: ~
+      default: "False"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -2281,6 +2295,20 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    enable_memray_trace:
+      description: |
+        Whether to enable memory allocation tracing by memray in the scheduler. If enabled, Airflow will
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/scheduler-memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/scheduler-memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.1.1
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:
@@ -2552,3 +2580,17 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+    enable_memray_trace:
+      description: |
+        Whether to enable memory allocation tracing by memray in the scheduler. If enabled, Airflow will
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/dag_processor_memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/dag_processor_memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.1.1
+      type: boolean
+      example: ~
+      default: "False"

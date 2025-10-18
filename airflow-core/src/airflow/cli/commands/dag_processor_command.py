@@ -26,6 +26,7 @@ from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     )
 
 
+@enable_memray_trace(airflow_component_name="dag_processor")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_processor(args):
