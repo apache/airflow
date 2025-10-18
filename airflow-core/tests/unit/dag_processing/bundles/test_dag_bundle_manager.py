@@ -29,6 +29,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles
@@ -203,7 +204,7 @@ def test_view_url(version):
     bundle_manager = DagBundlesManager()
     with patch.object(BaseDagBundle, "view_url") as view_url_mock:
         # Test that deprecation warning is raised
-        with pytest.warns(DeprecationWarning, match="'view_url' method is deprecated"):
+        with pytest.warns(DeprecatedImportWarning, match="'view_url' method is deprecated"):
             bundle_manager.view_url("my-test-bundle", version=version)
     view_url_mock.assert_called_once_with(version=version)
 

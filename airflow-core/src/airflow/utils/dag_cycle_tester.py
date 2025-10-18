@@ -20,13 +20,15 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
 
 warnings.warn(
     "`airflow.utils.dag_cycle_tester` module is deprecated and and will be removed in a future release."
     "Please use `dag.check_cycle()` method instead.",
-    DeprecationWarning,
+    DeprecatedImportWarning,
     stacklevel=2,
 )
 
