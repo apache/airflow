@@ -38,6 +38,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.observability.traces.base_tracer import Trace
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
@@ -72,7 +73,6 @@ from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.deadline import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
-from airflow.traces.tracer import Trace
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState

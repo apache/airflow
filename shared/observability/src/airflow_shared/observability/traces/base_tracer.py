@@ -17,30 +17,31 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import socket
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Protocol
+
+import structlog
 
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 
 def gen_context(trace_id, span_id):
     """Generate span context from trace_id and span_id."""
-    from airflow.traces.otel_tracer import gen_context as otel_gen_context
+    from airflow._shared.observability.traces.otel_tracer import gen_context as otel_gen_context
 
     return otel_gen_context(trace_id, span_id)
 
 
 def gen_links_from_kv_list(list):
     """Generate links from kv list of {trace_id:int, span_id:int}."""
-    from airflow.traces.otel_tracer import gen_links_from_kv_list
+    from airflow._shared.observability.traces.otel_tracer import gen_links_from_kv_list
 
     return gen_links_from_kv_list(list)
 
@@ -297,7 +298,7 @@ class _TraceMeta(type):
             debug_traces_on = True
 
         if otel_on and debug_traces_on:
-            from airflow.traces import otel_tracer
+            from airflow._shared.observability.traces import otel_tracer
 
             cls.factory = staticmethod(
                 lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)

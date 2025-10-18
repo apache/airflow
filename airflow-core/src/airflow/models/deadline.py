@@ -31,12 +31,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.observability.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models import Trigger
 from airflow.models.base import Base
 from airflow.serialization.serde import deserialize, serialize
 from airflow.settings import json
-from airflow.stats import Stats
 from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session

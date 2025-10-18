@@ -44,8 +44,12 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_state_run_facet,
     get_processing_engine_facet,
 )
-from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.sdk._shared.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime

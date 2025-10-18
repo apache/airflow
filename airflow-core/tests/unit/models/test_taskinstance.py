@@ -34,6 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.observability.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -74,7 +75,6 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
