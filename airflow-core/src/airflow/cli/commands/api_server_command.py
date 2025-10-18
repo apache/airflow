@@ -149,6 +149,7 @@ def api_server(args: Namespace):
             proxy_headers=args.proxy_headers,
             command="dev",
         )
+        return
 
     run_command_with_daemon_option(
         args=args,
