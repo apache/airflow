@@ -88,8 +88,17 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
-    Stats.incr("edge_worker.ti.start", tags=tags)
+    try:
+        from airflow.metrics.dual_stats_manager import DualStatsManager
+
+        # If enabled on the config, publish metrics twice,
+        # once with backward compatible name, and then with tags.
+        DualStatsManager.incr(
+            f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
+        )
+    except ImportError:
+        Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
+        Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
@@ -142,11 +151,22 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            Stats.incr(
-                f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
-                tags=tags,
-            )
-            Stats.incr("edge_worker.ti.finish", tags=tags)
+            try:
+                from airflow.metrics.dual_stats_manager import DualStatsManager
+
+                # If enabled on the config, publish metrics twice,
+                # once with backward compatible name, and then with tags.
+                DualStatsManager.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                    "edge_worker.ti.finish",
+                    tags=tags,
+                )
+            except ImportError:
+                Stats.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                    tags=tags,
+                )
+                Stats.incr("edge_worker.ti.finish", tags=tags)
 
     query = (
         update(EdgeJobModel)
