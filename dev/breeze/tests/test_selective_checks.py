@@ -687,7 +687,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy common.compat dbt.cloud dingding discord google http pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -708,7 +708,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -719,14 +719,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
-                                "description": "dbt.cloud...dingding",
-                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
+                                "description": "common.compat...dbt.cloud",
+                                "test_types": "Providers[common.compat] Providers[dbt.cloud]",
                             },
                             {
-                                "description": "discord...google",
-                                "test_types": "Providers[discord] Providers[google]",
+                                "description": "dingding...discord",
+                                "test_types": "Providers[dingding] Providers[discord]",
                             },
-                            {"description": "http", "test_types": "Providers[http]"},
+                            {
+                                "description": "google...http",
+                                "test_types": "Providers[google] Providers[http]",
+                            },
                             {"description": "pagerduty", "test_types": "Providers[pagerduty]"},
                         ]
                     ),
