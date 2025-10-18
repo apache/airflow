@@ -27,7 +27,7 @@ from starlette.routing import Mount
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.core_api.app import (
     init_config,
-    init_error_handlers,
+    init_exception_handlers,
     init_flask_plugins,
     init_middlewares,
     init_ui_plugins,
@@ -89,7 +89,7 @@ def create_app(apps: str = "all") -> FastAPI:
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
-        init_error_handlers(task_exec_api_app)
+        init_exception_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "core" in apps_list or "all" in apps_list:
@@ -99,7 +99,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_flask_plugins(app)
         init_ui_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
-        init_error_handlers(app)
+        init_exception_handlers(app)
         init_middlewares(app)
 
     init_config(app)
