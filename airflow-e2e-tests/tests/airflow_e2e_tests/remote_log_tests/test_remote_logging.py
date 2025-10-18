@@ -97,7 +97,11 @@ class TestRemoteLogging:
 
         # s3 key format: dag_id=example_xcom/run_id=manual__2025-09-29T23:32:09.457215+00:00/task_id=bash_pull/attempt=1.log
 
-        log_files = [f"s3://{bucket_name}/{obj['Key']}" for obj in response["Contents"]]
-        assert any(source in log_files for source in task_log_sources), (
-            f"None of the log sources {task_log_sources} were found in S3 bucket logs {log_files}"
+        s3_keys = [obj["Key"] for obj in response["Contents"]]
+
+        # Extract relative paths from task log sources (remove /opt/airflow/logs/ prefix)
+        relative_sources = [source.replace("/opt/airflow/logs/", "") for source in task_log_sources]
+
+        assert any(rel_source in s3_keys for rel_source in relative_sources), (
+            f"None of the log sources {relative_sources} were found in S3 bucket keys {s3_keys}"
         )
