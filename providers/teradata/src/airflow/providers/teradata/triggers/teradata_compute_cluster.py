@@ -73,8 +73,7 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
             while True:
                 status = await self.get_status()
                 if status is None or len(status) == 0:
-                    self.log.info(Constants.CC_GRP_PRP_NON_EXISTS_MSG)
-                    raise AirflowException(Constants.CC_GRP_PRP_NON_EXISTS_MSG)
+                    raise AirflowException(Constants.CC_GRP_PRP_NON_EXISTS_MSG % "manage")
                 if (
                     self.operation_type == Constants.CC_SUSPEND_OPR
                     or self.operation_type == Constants.CC_CREATE_SUSPEND_OPR
@@ -108,8 +107,8 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": Constants.CC_OPR_FAILURE_STATUS_MSG
-                            % (self.compute_profile_name, self.operation_type),
+                            "message": Constants.CC_OPR_TIMEOUT_ERROR
+                            % (self.operation_type, self.compute_profile_name),
                         }
                     )
             elif (
@@ -128,8 +127,8 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": Constants.CC_OPR_FAILURE_STATUS_MSG
-                            % (self.compute_profile_name, self.operation_type),
+                            "message": Constants.CC_OPR_TIMEOUT_ERROR
+                            % (self.operation_type, self.compute_profile_name),
                         }
                     )
             else:
@@ -137,7 +136,7 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
         except asyncio.CancelledError:
-            self.log.error(Constants.CC_OPR_TIMEOUT_ERROR, self.operation_type)
+            self.log.error(Constants.CC_OPR_TIMEOUT_ERROR, self.operation_type, self.compute_profile_name)
 
     async def get_status(self) -> str:
         """Return compute cluster SUSPEND/RESUME operation status."""

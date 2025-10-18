@@ -16,18 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDagsUiKey, useDagServiceUnfavoriteDag } from "openapi/queries";
+type Size = { height: number; width: number };
 
-export const useUnfavoriteDag = () => {
-  const queryClient = useQueryClient();
+export const usePersistentResizableState = (storageKey: string, defaultSize: Size) => {
+  const [storedSize, setStoredSize] = useLocalStorage(storageKey, defaultSize);
+  const [size, setSize] = useState(storedSize);
 
-  const onSuccess = async () => {
-    await queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] });
-  };
+  const handleResize = useCallback((_event: React.SyntheticEvent, { size: newSize }: { size: Size }) => {
+    setSize(newSize);
+  }, []);
 
-  return useDagServiceUnfavoriteDag({
-    onSuccess,
-  });
+  const handleResizeStop = useCallback(
+    (_event: React.SyntheticEvent, { size: finalSize }: { size: Size }) => {
+      setSize(finalSize);
+      setStoredSize(finalSize);
+    },
+    [setStoredSize],
+  );
+
+  return { handleResize, handleResizeStop, size };
 };
