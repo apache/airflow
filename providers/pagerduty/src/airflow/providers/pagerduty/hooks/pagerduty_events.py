@@ -27,7 +27,7 @@ from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
-from airflow.providers.pagerduty.version_compat import BaseHook
+from airflow.providers.pagerduty.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -286,7 +286,11 @@ class PagerdutyEventsAsyncHook(HttpAsyncHook):
             return self.integration_key
 
         if self.pagerduty_events_conn_id is not None:
-            conn = await sync_to_async(self.get_connection)(self.pagerduty_events_conn_id)
+            if AIRFLOW_V_3_1_PLUS:
+                conn = await self.aget_connection(self.pagerduty_events_conn_id)
+            else:
+                conn = await sync_to_async(self.get_connection)(self.pagerduty_events_conn_id)
+
             self.integration_key = conn.password
             if self.integration_key:
                 return self.integration_key
