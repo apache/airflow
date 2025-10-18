@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-17T07:48:44.961629
+# This constraints file was automatically generated on 2025-10-18T02:15:42.296012
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -83,7 +83,7 @@ pluggy==1.6.0
 protobuf==5.29.5
 psutil==7.1.0
 pycparser==2.23
-pydantic==2.12.2
+pydantic==2.12.3
 pydantic_core==2.41.4
 pygtrie==2.5.0
 python-daemon==3.1.2
