@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import itertools
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -40,6 +40,8 @@ from airflow.utils.types import NOTSET
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
+    from sqlalchemy import Column
+
     from airflow.jobs.job import Job
 
 
@@ -256,7 +258,7 @@ class MockJobRunner(BaseJobRunner):
     def __init__(self, job: Job, func=None):
         super().__init__(job)
         self.job = job
-        self.job.job_type = self.job_type
+        self.job.job_type = cast("Column", self.job_type)
         self.func = func
 
     def _execute(self):
