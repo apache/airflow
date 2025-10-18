@@ -90,7 +90,8 @@ if TYPE_CHECKING:
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ScalarResult
     from sqlalchemy.sql.elements import Case
 
     from airflow.models.dag_version import DagVersion
@@ -557,7 +558,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> Query:
+    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -595,7 +596,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_queued_dag_runs_to_set_running(cls, session: Session) -> Query:
+    def get_queued_dag_runs_to_set_running(cls, session: Session) -> ScalarResult:
         """
         Return the next queued DagRuns that the scheduler should attempt to schedule.
 
