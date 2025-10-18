@@ -20,8 +20,7 @@
       "all": "모두",
       "paused": "일시 중지됨"
     },
-    "runIdPatternFilter": "Dag 실행 검색",
-    "triggeringUserNameFilter": "트리거한 사용자로 검색"
+    "runIdPatternFilter": "Dag 실행 검색"
   },
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
