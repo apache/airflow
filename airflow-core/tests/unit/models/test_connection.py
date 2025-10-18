@@ -33,7 +33,7 @@ from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
     from airflow.models.team import Team
-    from airflow.settings import Session
+    from sqlalchemy.orm import Session
 
 
 class TestConnection:
