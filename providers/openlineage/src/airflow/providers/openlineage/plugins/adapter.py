@@ -46,7 +46,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_state_run_facet,
     get_processing_engine_facet,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -163,7 +162,7 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                if AIRFLOW_V_3_1_PLUS:
+                try:
                     from airflow.metrics.dual_stats_manager import DualStatsManager
 
                     # If enabled on the config, publish metrics twice,
@@ -173,7 +172,7 @@ class OpenLineageAdapter(LoggingMixin):
                             f"ol.emit.attempts.{event_type}.{transport_type}", "ol.emit.attempts"
                         )
                     )
-                else:
+                except ImportError:
                     stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                     stack.enter_context(Stats.timer("ol.emit.attempts"))
 
