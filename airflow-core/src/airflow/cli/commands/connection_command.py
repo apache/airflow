@@ -39,6 +39,7 @@ from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.db import create_default_connections as db_create_default_connections
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
@@ -162,7 +163,9 @@ def connections_export(args):
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn(
-            "Option `--format` is deprecated. Use `--file-format` instead.", DeprecationWarning, stacklevel=3
+            "Option `--format` is deprecated. Use `--file-format` instead.",
+            DeprecatedImportWarning,
+            stacklevel=3,
         )
     if args.format and args.file_format:
         raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
@@ -215,7 +218,7 @@ def connections_add(args):
     try:
         helpers.validate_key(args.conn_id, max_length=200)
     except Exception as e:
-        raise SystemExit(f"Could not create connection. {e}")
+        raise SystemExit(f"Could not create connection. {e}") from e
 
     if not has_type and not (has_json or has_uri):
         raise SystemExit("Must supply either conn-uri or conn-json if not supplying conn-type")
