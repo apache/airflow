@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow import settings
-from airflow._shared.timezones import timezone
+import pendulum
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
@@ -40,11 +40,11 @@ from tests_common.test_utils.db import (
 
 if TYPE_CHECKING:
     from airflow.models.team import Team
-    from airflow.settings import Session
+    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+DEFAULT_DATE = pendulum.datetime(2016, 1, 1, tz="UTC")
 
 
 class TestPool:
