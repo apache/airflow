@@ -2174,6 +2174,10 @@ dagProcessor:
     securityContexts:
       container: {}
 
+  # Labels specific to dag processor objects
+  labels: {}
+
+  # Environment variables to add to dag processor container
   env: []
 
 # Flower settings
@@ -2404,6 +2408,10 @@ statsd:
   overrideMappings: []
 
   podAnnotations: {}
+
+  # Labels specific to statsd objects and pods
+  labels: {}
+  # Environment variables to add to statsd container
   env: []
 
 # PgBouncer settings
@@ -2716,6 +2724,9 @@ redis:
 
   # container level lifecycle hooks
   containerLifecycleHooks: {}
+
+  # Labels specific to redis objects and pods
+  labels: {}
 
   podAnnotations: {}
 # Auth secret for a private registry
