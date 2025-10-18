@@ -34,7 +34,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
-from airflow.providers.http.version_compat import BaseHook
+from airflow.providers.http.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -462,7 +462,10 @@ class HttpAsyncHook(BaseHook):
         auth = None
 
         if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
+            if AIRFLOW_V_3_1_PLUS:
+                conn = await self.aget_connection(self.http_conn_id)
+            else:
+                conn = await sync_to_async(self.get_connection)(self.http_conn_id)
 
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host

@@ -51,7 +51,7 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
@@ -621,7 +621,10 @@ class WasbAsyncHook(WasbHook):
             self._blob_service_client = cast("AsyncBlobServiceClient", self._blob_service_client)
             return self._blob_service_client
 
-        conn = await sync_to_async(self.get_connection)(self.conn_id)
+        if AIRFLOW_V_3_1_PLUS:
+            conn = await self.aget_connection(self.conn_id)
+        else:
+            conn = await sync_to_async(self.get_connection)(conn_id=self.conn_id)
         extra = conn.extra_dejson or {}
         client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 

@@ -20,9 +20,7 @@ import warnings
 from collections.abc import Sequence
 from typing import Any
 
-from asgiref.sync import sync_to_async
-
-from airflow.providers.slack.version_compat import BaseHook, Connection
+from airflow.providers.slack.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook, Connection
 from airflow.utils.types import NOTSET
 
 
@@ -132,6 +130,9 @@ async def get_async_connection(conn_id: str) -> Connection:
     :param conn_id: The provided connection ID.
     :returns: Connection
     """
-    if hasattr(BaseHook, "aget_connection"):
+    if AIRFLOW_V_3_1_PLUS:
         return await BaseHook.aget_connection(conn_id=conn_id)
+
+    from asgiref.sync import sync_to_async
+
     return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
