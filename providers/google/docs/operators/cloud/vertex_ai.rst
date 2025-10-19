@@ -265,35 +265,21 @@ put dataset id to ``dataset_id`` parameter in operator.
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
 
+.. warning::
+    This operator is deprecated and will be removed after March 24, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
+
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
 
 Before start running this Job you must prepare and create ``Video`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
-
 Additionally, you can create new version of existing AutoML Video Training Job. In this case, the result will be new
 version of existing Model instead of new Model created in Model Registry. This can be done by specifying
 ``parent_model`` parameter when running  AutoML Video Training Job.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
-
 Also you can use vertex_ai AutoML model for video tracking.
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
 
 
 You can get a list of AutoML Training Jobs using
@@ -620,6 +606,13 @@ The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xco
     :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
     :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
 
+You can also use supervised fine tuning job for video tasks: training and tracking
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
+    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
 
 To calculates the number of input tokens before sending a request to the Gemini API you can use:
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.

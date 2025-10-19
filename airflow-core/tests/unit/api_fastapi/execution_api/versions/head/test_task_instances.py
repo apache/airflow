@@ -189,6 +189,7 @@ class TestTIRunState:
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
+                "triggering_user_name": None,
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
@@ -636,6 +637,62 @@ class TestTIRunState:
 
         assert response.status_code == 200
         assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
+
+    def test_ti_run_with_triggering_user_name(
+        self,
+        client,
+        session,
+        dag_maker,
+        time_machine,
+    ):
+        """
+        Test that the triggering_user_name field is correctly returned when it has a non-None value.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        with dag_maker(dag_id=str(uuid4()), session=session):
+            EmptyOperator(task_id="test_ti_run_with_triggering_user_name")
+
+        # Create DagRun with triggering_user_name set to a specific value
+        dr = dag_maker.create_dagrun(
+            run_id="test",
+            logical_date=instant,
+            state=DagRunState.RUNNING,
+            start_date=instant,
+            triggering_user_name="test_user",
+        )
+
+        ti = dr.get_task_instance(task_id="test_ti_run_with_triggering_user_name")
+        ti.set_state(State.QUEUED)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-unixname",
+                "pid": 12345,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        json_response = response.json()
+
+        # Verify the dag_run is present
+        assert "dag_run" in json_response
+        dag_run = json_response["dag_run"]
+
+        # The triggering_user_name field should be present with the correct value
+        assert dag_run["triggering_user_name"] == "test_user"
+
+        # Verify other expected fields are still present
+        assert dag_run["dag_id"] == ti.dag_id
+        assert dag_run["run_id"] == "test"
+        assert dag_run["state"] == "running"
 
 
 class TestTIUpdateState:
@@ -1095,6 +1152,50 @@ class TestTIUpdateState:
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
 
+    @pytest.mark.parametrize(
+        "target_state",
+        [
+            State.UP_FOR_RETRY,
+            TerminalTIState.FAILED,
+            TerminalTIState.SUCCESS,
+        ],
+    )
+    def test_ti_update_state_clears_deferred_fields(
+        self, client, session, create_task_instance, target_state
+    ):
+        """Test that next_method and next_kwargs are cleared when transitioning to terminal/retry states."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_clears_deferred_fields",
+            state=State.RUNNING,
+        )
+        # Simulate a task that resumed from deferred state with next_method/next_kwargs set
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"event": "test_event", "data": "test_data"}
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": target_state,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        if target_state == State.UP_FOR_RETRY:
+            # Retry creates a new TI ID, so we need to fetch by unique key
+            ti = session.scalar(
+                select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            )
+        else:
+            session.expire_all()
+            ti = session.get(TaskInstance, ti.id)
+
+        assert ti.state == target_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
         ti = create_task_instance(
@@ -1149,6 +1250,71 @@ class TestTIUpdateState:
         # Verify the task instance state hasn't changed
         session.refresh(ti)
         assert ti.state == State.SUCCESS
+
+    def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
+        """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
+        with dag_maker(dag_id="test_dag_no_fail_fast", serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="task1", session=session)
+        ti.state = State.RUNNING
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+        session.refresh(ti)
+
+        with mock.patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True) as mock_get_dag:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+            assert response.status_code == 204
+            # Verify SerializedDAG was NOT loaded (memory optimization)
+            mock_get_dag.assert_not_called()
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+
+    def test_ti_update_state_to_failed_with_fail_fast(self, client, session, dag_maker):
+        """Test that SerializedDAG IS loaded and other tasks stopped when fail_fast=True."""
+        with dag_maker(dag_id="test_dag_with_fail_fast", fail_fast=True, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+        ti1.state = State.RUNNING
+        ti1.start_date = DEFAULT_START_DATE
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+        ti2.state = State.QUEUED
+        session.commit()
+        session.refresh(ti1)
+        session.refresh(ti2)
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances._stop_remaining_tasks", autospec=True
+        ) as mock_stop:
+            response = client.patch(
+                f"/execution/task-instances/{ti1.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+            assert response.status_code == 204
+            mock_stop.assert_called_once()
+
+        session.expire_all()
+        ti1 = session.get(TaskInstance, ti1.id)
+        assert ti1.state == State.FAILED
 
 
 class TestTISkipDownstream:
@@ -2286,3 +2452,30 @@ class TestInvactiveInletsAndOutlets:
         response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
         assert response.status_code == 200
         assert response.json() == {"inactive_assets": []}
+
+    def test_ti_run_with_null_conf(self, client, session, create_task_instance):
+        """Test that task instances can start when dag_run.conf is NULL."""
+        ti = create_task_instance(
+            task_id="test_ti_run_with_null_conf",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        # Set conf to NULL to simulate Airflow 2.x upgrade or offline migration
+        ti.dag_run.conf = None
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "pid": 100,
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "start_date": timezone.utcnow().isoformat(),
+            },
+        )
+
+        assert response.status_code == 200, f"Response: {response.text}"
+        context = response.json()
+        assert context["dag_run"]["conf"] is None
