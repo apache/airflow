@@ -88,14 +88,6 @@ runs:
         echo
       shell: bash
       if: steps.restore-prek-cache.outputs.stash-hit == 'true'
-    - name: "Prepare local venv for pygrep"
-      # Prek cache restore seems to have a bug where removed temporary python is
-      # used in cached pygrep installation. It seems prek can fallback to uv sync installed python
-      # So let's install it. See https://github.com/j178/prek/issues/918:
-      run: |
-        uv sync --no-dev --no-install-workspace
-      shell: bash
-      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
     - name: "Make sure cache is cleared on cache miss"
       run: |
         echo "Cleaning up prek cache in case of cache miss (in case of pre-installed-cache from the system)"
