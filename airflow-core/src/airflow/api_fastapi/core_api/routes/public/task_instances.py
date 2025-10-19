@@ -776,7 +776,6 @@ def post_clear_task_instances(
         ]
         task_ids = mapped_tasks_list + list(unmapped_task_ids)
 
-    # Always get the task instances first (dry run)
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = list(
@@ -790,17 +789,6 @@ def post_clear_task_instances(
                 only_running=body.only_running,
             )
         )
-        if not dry_run:
-            # Actually clear them
-            dag.clear(
-                dry_run=False,
-                task_ids=task_ids,
-                run_id=dag_run_id,
-                session=session,
-                run_on_latest_version=body.run_on_latest_version,
-                only_failed=body.only_failed,
-                only_running=body.only_running,
-            )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
         task_instances = list(
@@ -815,18 +803,6 @@ def post_clear_task_instances(
                 only_running=body.only_running,
             )
         )
-        if not dry_run:
-            # Actually clear them
-            dag.clear(
-                dry_run=False,
-                task_ids=task_ids,
-                start_date=body.start_date,
-                end_date=body.end_date,
-                session=session,
-                run_on_latest_version=body.run_on_latest_version,
-                only_failed=body.only_failed,
-                only_running=body.only_running,
-            )
 
     if not dry_run:
         clear_task_instances(
@@ -835,9 +811,12 @@ def post_clear_task_instances(
             DagRunState.QUEUED if reset_dag_runs else False,
             run_on_latest_version=body.run_on_latest_version,
         )
+        # Refresh task instances to get updated state after clearing
+        for ti in task_instances:
+            session.refresh(ti)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.from_orm(ti) for ti in task_instances],
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
     )
 

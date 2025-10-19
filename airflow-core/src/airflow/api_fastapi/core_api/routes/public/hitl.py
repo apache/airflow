@@ -286,7 +286,10 @@ def get_hitl_details(
         session=session,
     )
 
-    hitl_details = list(session.scalars(hitl_detail_select))
+    hitl_details_raw = list(session.scalars(hitl_detail_select))
+
+    # Convert SQLAlchemy models to Pydantic models
+    hitl_details = [HITLDetail.model_validate(hitl_detail) for hitl_detail in hitl_details_raw]
 
     return HITLDetailCollection(
         hitl_details=hitl_details,
