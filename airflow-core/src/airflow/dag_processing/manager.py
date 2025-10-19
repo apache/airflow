@@ -31,7 +31,6 @@ import sys
 import time
 import zipfile
 from collections import defaultdict, deque
-from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -71,9 +70,10 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
+from airflow.utils.sqlalchemy import prohibit_commit
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+    from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagParsingStat(NamedTuple):
@@ -320,7 +321,7 @@ class DagFileProcessorManager(LoggingMixin):
                 .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
-            deactivated = deactivated_dagmodel.rowcount
+            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
             if deactivated:
                 self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
@@ -454,7 +455,12 @@ class DagFileProcessorManager(LoggingMixin):
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
+            # Apply row locking if enabled
+            if conf.getboolean("scheduler", "use_row_level_locking", fallback=True):
+                if session.bind is not None:
+                    dialect = session.bind.dialect
+                    if dialect.name != "mysql" or getattr(dialect, "supports_for_update_of", False):
+                        query = query.with_for_update(of=DbCallbackRequest, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
@@ -511,9 +517,12 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
-                bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
+                bundle_model = session.get(DagBundleModel, bundle.name)
+                if bundle_model is None:
+                    self.log.warning("Bundle model not found for %s", bundle.name)
+                    continue
                 elapsed_time_since_refresh = (
-                    now - (bundle_model.last_refreshed or utc_epoch())
+                    now - cast("datetime", bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()
                 if bundle.supports_versioning:
                     # we will also check the version of the bundle to see if another DAG processor has seen
@@ -544,7 +553,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.exception("Error refreshing bundle %s", bundle.name)
                     continue
 
-                bundle_model.last_refreshed = now
+                bundle_model.last_refreshed = cast("UtcDateTime", now)
                 self._force_refresh_bundles.discard(bundle.name)
 
                 if bundle.supports_versioning:
