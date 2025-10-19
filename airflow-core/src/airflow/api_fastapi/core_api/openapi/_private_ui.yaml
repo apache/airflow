@@ -947,6 +947,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/ti_summaries_batch/{dag_id}:
+    post:
+      tags:
+      - Grid
+      summary: Get Grid Ti Summaries Batch
+      description: 'Get task instance summaries for multiple DAG runs in a single
+        request.
+
+
+        This endpoint is much more efficient than calling /ti_summaries/{dag_id}/{run_id}
+
+        multiple times, as it fetches all task instances in a single database query.'
+      operationId: get_grid_ti_summaries_batch
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+              title: Run Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridTISummariesBatch'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/calendar/{dag_id}:
     get:
       tags:
@@ -2003,6 +2060,22 @@ components:
       - task_instances
       title: GridTISummaries
       description: DAG Run model for the Grid UI.
+    GridTISummariesBatch:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        summaries:
+          items:
+            $ref: '#/components/schemas/GridTISummaries'
+          type: array
+          title: Summaries
+      type: object
+      required:
+      - dag_id
+      - summaries
+      title: GridTISummariesBatch
+      description: Batch of Task Instance Summaries for multiple DAG runs.
     HITLDetail:
       properties:
         options:

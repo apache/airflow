@@ -44,6 +44,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTISummaries,
+    GridTISummariesBatch,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
@@ -51,6 +52,7 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
+    get_batch_ti_summaries,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
@@ -425,3 +427,52 @@ def get_grid_ti_summaries(
         "dag_id": dag_id,
         "task_instances": filtered,
     }
+
+
+@grid_router.post(
+    "/ti_summaries_batch/{dag_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[
+        Depends(
+            requires_access_dag(
+                method="GET",
+                access_entity=DagAccessEntity.TASK_INSTANCE,
+            )
+        ),
+        Depends(
+            requires_access_dag(
+                method="GET",
+                access_entity=DagAccessEntity.RUN,
+            )
+        ),
+    ],
+)
+def get_grid_ti_summaries_batch(
+    dag_id: str,
+    run_ids: list[str],
+    session: SessionDep,
+) -> GridTISummariesBatch:
+    """
+    Get task instance summaries for multiple DAG runs in a single request.
+
+    This endpoint is much more efficient than calling /ti_summaries/{dag_id}/{run_id}
+    multiple times, as it fetches all task instances in a single database query.
+    """
+    if not run_ids:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "run_ids must not be empty",
+        )
+
+    if len(run_ids) > 100:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot fetch more than 100 runs at once",
+        )
+
+    return get_batch_ti_summaries(dag_id, run_ids, session)  # type: ignore[return-value]

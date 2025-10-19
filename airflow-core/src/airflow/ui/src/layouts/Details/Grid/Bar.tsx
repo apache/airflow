@@ -19,9 +19,8 @@
 import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
@@ -35,16 +34,18 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
+  readonly tiSummaries?: GridTISummaries;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, tiSummaries }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
 
   const search = searchParams.toString();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
+  // Use the passed-in summaries from batch fetch instead of individual fetch
+  const gridTISummaries = tiSummaries;
 
   return (
     <Box

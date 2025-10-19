@@ -40,3 +40,10 @@ class GridTISummaries(BaseModel):
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
+
+
+class GridTISummariesBatch(BaseModel):
+    """Batch of Task Instance Summaries for multiple DAG runs."""
+
+    dag_id: str
+    summaries: list[GridTISummaries]

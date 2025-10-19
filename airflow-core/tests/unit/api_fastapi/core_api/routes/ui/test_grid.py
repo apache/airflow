@@ -752,3 +752,98 @@ class TestGetGridDataEndpoint:
         # Optional None fields are excluded from response due to response_model_exclude_none=True
         assert "is_mapped" not in t4
         assert "children" not in t4
+
+
+class TestGridTISummariesBatch:
+    """Tests for the batch TI summaries endpoint."""
+
+    @provide_session
+    def setup_method(self, session=None):
+        clear_db_runs()
+        clear_db_assets()
+        clear_db_dags()
+        clear_db_serialized_dags()
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_db_assets()
+        clear_db_dags()
+        clear_db_serialized_dags()
+
+    def test_batch_ti_summaries_multiple_runs(self, test_client, session, dag_maker):
+        """Test batch endpoint returns summaries for multiple runs."""
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
+            EmptyOperator(task_id=TASK_ID, task_display_name="A Beautiful Task Name 🚀")
+
+        # Create two runs
+        logical_date = timezone.datetime(2024, 11, 30)
+        run1 = dag_maker.create_dagrun(
+            run_id="run_1",
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.SUCCESS,
+            logical_date=logical_date,
+        )
+        run2 = dag_maker.create_dagrun(
+            run_id="run_2",
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.FAILED,
+            logical_date=logical_date + timedelta(days=1),
+        )
+
+        # Set task instance states
+        for ti in run1.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+
+        for ti in run2.task_instances:
+            ti.state = TaskInstanceState.FAILED
+
+        session.commit()
+
+        # Call batch endpoint
+        response = test_client.post(
+            f"/grid/ti_summaries_batch/{DAG_ID}",
+            json=["run_1", "run_2"],
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_id"] == DAG_ID
+        assert len(data["summaries"]) == 2
+
+        # Check first run summary
+        summary1 = next((s for s in data["summaries"] if s["run_id"] == "run_1"), None)
+        assert summary1 is not None
+        assert summary1["dag_id"] == DAG_ID
+        assert len(summary1["task_instances"]) == 1
+        assert summary1["task_instances"][0]["task_id"] == TASK_ID
+        assert summary1["task_instances"][0]["state"] == "success"
+
+        # Check second run summary
+        summary2 = next((s for s in data["summaries"] if s["run_id"] == "run_2"), None)
+        assert summary2 is not None
+        assert summary2["dag_id"] == DAG_ID
+        assert len(summary2["task_instances"]) == 1
+        assert summary2["task_instances"][0]["task_id"] == TASK_ID
+        assert summary2["task_instances"][0]["state"] == "failed"
+
+    def test_batch_ti_summaries_empty_run_ids(self, test_client, session):
+        """Test batch endpoint rejects empty run_ids."""
+        response = test_client.post(
+            f"/grid/ti_summaries_batch/{DAG_ID}",
+            json=[],
+        )
+
+        assert response.status_code == 400
+        assert "run_ids must not be empty" in response.text
+
+    def test_batch_ti_summaries_too_many_runs(self, test_client, session):
+        """Test batch endpoint rejects more than 100 run_ids."""
+        run_ids = [f"run_{i}" for i in range(101)]
+
+        response = test_client.post(
+            f"/grid/ti_summaries_batch/{DAG_ID}",
+            json=run_ids,
+        )
+
+        assert response.status_code == 400
+        assert "Cannot fetch more than 100 runs at once" in response.text
