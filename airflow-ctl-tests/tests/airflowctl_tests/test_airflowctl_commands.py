@@ -19,8 +19,10 @@ from __future__ import annotations
 import os
 from subprocess import PIPE, STDOUT, Popen
 
+from airflowctl_tests import console
 
-def test_airflowctl_commands(console, login_command, login_output, test_commands):
+
+def test_airflowctl_commands(login_command, login_output, test_commands):
     """Test airflowctl commands using docker-compose environment."""
     host_envs = os.environ.copy()
     host_envs["AIRFLOW_CLI_DEBUG_MODE"] = "true"

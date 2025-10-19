@@ -20,7 +20,6 @@ import os
 from pathlib import Path
 
 AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
-AIRFLOW_CTL_TESTS_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"

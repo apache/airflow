@@ -22,8 +22,8 @@ import sys
 
 import pytest
 from python_on_whales import DockerClient, docker
-from rich.console import Console
 
+from airflowctl_tests import console
 from airflowctl_tests.constants import (
     AIRFLOW_ROOT_PATH,
     DOCKER_COMPOSE_FILE_PATH,
@@ -36,10 +36,6 @@ docker_client = None
 # Pytest hook to run at the start of the session
 def pytest_sessionstart(session):
     """Install airflowctl at the very start of the pytest session."""
-    from rich.console import Console
-
-    console = Console(width=400, color_system="standard")
-
     airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
     console.print(f"[yellow]Installing apache-airflow-ctl=={airflow_ctl_version} via pytest_sessionstart...")
 
@@ -79,13 +75,10 @@ def pytest_sessionstart(session):
         console.print(f"[red]Stderr: {e.stderr}")
         raise
 
-    docker_compose_up(
-        session.config._tmp_path_factory,
-        console,
-    )
+    docker_compose_up(session.config._tmp_path_factory)
 
 
-def print_diagnostics(compose, compose_version, docker_version, console):
+def print_diagnostics(compose, compose_version, docker_version):
     """Print diagnostic information when test fails."""
     console.print("[red]=== DIAGNOSTIC INFORMATION ===[/]")
     console.print(f"Docker version: {docker_version}")
@@ -106,7 +99,7 @@ def print_diagnostics(compose, compose_version, docker_version, console):
         console.print(f"  Error getting logs: {e}")
 
 
-def debug_environment(console):
+def debug_environment():
     """Debug the Python environment setup in CI."""
     import os
     import subprocess
@@ -146,7 +139,7 @@ def debug_environment(console):
     console.print("[yellow]================================")
 
 
-def docker_compose_up(tmp_path_factory, console):
+def docker_compose_up(tmp_path_factory):
     """Fixture to spin up Docker Compose environment for the test session."""
     from shutil import copyfile
 
@@ -181,8 +174,8 @@ def docker_compose_up(tmp_path_factory, console):
         docker_client.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for airflowctl test\n")
     except Exception:
-        print_diagnostics(docker_client.compose, docker_client.compose.version(), docker.version(), console)
-        debug_environment(console)
+        print_diagnostics(docker_client.compose, docker_client.compose.version(), docker.version())
+        debug_environment()
         docker_compose_down()
         raise
 
@@ -201,11 +194,6 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 # Fixtures for tests
-@pytest.fixture
-def console():
-    return Console(width=400, color_system="standard")
-
-
 @pytest.fixture
 def login_command():
     # Passing password via command line is insecure but acceptable for testing purposes

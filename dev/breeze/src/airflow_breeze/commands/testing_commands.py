@@ -863,15 +863,17 @@ def airflowctl_integration_tests(
     extra_pytest_args: tuple,
 ):
     """Run airflowctl integration tests."""
-    perform_environment_checks()
-    if image_name is None:
-        build_params = BuildProdParams(python=python, github_repository=github_repository)
-        image_name = build_params.airflow_image_name
-
     # Export the AIRFLOW_CTL_VERSION environment variable for the test
     import os
 
+    perform_environment_checks()
+
     os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
+    image_name = image_name or os.environ.get("DOCKER_IMAGE")
+
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
 
     get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
     get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
