@@ -82,6 +82,7 @@ def test_set_dag_run_state_to_success_unfinished_teardown(
         dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session
     )
     run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
+    assert run is not None
     assert run.state != DagRunState.SUCCESS
     assert len(updated_tis) == 2
     task_dict = {ti.task_id: ti for ti in updated_tis}
@@ -108,6 +109,7 @@ def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker[Seri
         dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session
     )
     run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
+    assert run is not None
     assert run.state == DagRunState.SUCCESS
     if finished_state == TaskInstanceState.SUCCESS:
         assert len(updated_tis) == 1

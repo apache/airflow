@@ -328,6 +328,7 @@ class TestUpdateHITLDetailEndpoint:
         }
 
         audit_log = session.scalar(select(Log))
+        assert audit_log is not None
         _assert_sample_audit_log(audit_log)
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
@@ -354,6 +355,7 @@ class TestUpdateHITLDetailEndpoint:
         }
 
         audit_log = session.scalar(select(Log))
+        assert audit_log is not None
         _assert_sample_audit_log(audit_log)
 
     def test_should_respond_401(

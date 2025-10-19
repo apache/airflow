@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Any
 
 from dateutil import parser
+from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 from airflow.exceptions import AirflowException
@@ -188,6 +189,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
         composer_airflow_version: int = 2,
+        use_rest_api: bool = False,
     ):
         super().__init__()
         self.project_id = project_id
@@ -202,6 +204,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
         self.composer_airflow_version = composer_airflow_version
+        self.use_rest_api = use_rest_api
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -219,31 +222,55 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
                 "composer_airflow_version": self.composer_airflow_version,
+                "use_rest_api": self.use_rest_api,
             },
         )
 
     async def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
-        cmd_parameters = (
-            ["-d", self.composer_dag_id, "-o", "json"]
-            if self.composer_airflow_version < 3
-            else [self.composer_dag_id, "-o", "json"]
-        )
-        dag_runs_cmd = await self.gcp_hook.execute_airflow_command(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            command="dags",
-            subcommand="list-runs",
-            parameters=cmd_parameters,
-        )
-        cmd_result = await self.gcp_hook.wait_command_execution_result(
-            project_id=self.project_id,
-            region=self.region,
-            environment_id=self.environment_id,
-            execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
-        )
-        dag_runs = json.loads(cmd_result["output"][0]["content"])
+        if self.use_rest_api:
+            try:
+                environment = await self.gcp_hook.get_environment(
+                    project_id=self.project_id,
+                    region=self.region,
+                    environment_id=self.environment_id,
+                )
+            except NotFound as not_found_err:
+                self.log.info("The Composer environment %s does not exist.", self.environment_id)
+                raise AirflowException(not_found_err)
+            composer_airflow_uri = environment.config.airflow_uri
+
+            self.log.info(
+                "Pulling the DAG %s runs from the %s environment...",
+                self.composer_dag_id,
+                self.environment_id,
+            )
+            dag_runs_response = await self.gcp_hook.get_dag_runs(
+                composer_airflow_uri=composer_airflow_uri,
+                composer_dag_id=self.composer_dag_id,
+            )
+            dag_runs = dag_runs_response["dag_runs"]
+        else:
+            cmd_parameters = (
+                ["-d", self.composer_dag_id, "-o", "json"]
+                if self.composer_airflow_version < 3
+                else [self.composer_dag_id, "-o", "json"]
+            )
+            dag_runs_cmd = await self.gcp_hook.execute_airflow_command(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                command="dags",
+                subcommand="list-runs",
+                parameters=cmd_parameters,
+            )
+            cmd_result = await self.gcp_hook.wait_command_execution_result(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
+                execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
+            )
+            dag_runs = json.loads(cmd_result["output"][0]["content"])
         return dag_runs
 
     def _check_dag_runs_states(
@@ -271,7 +298,10 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
 
     def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
         for dag_run in dag_runs:
-            if dag_run["run_id"] == self.composer_dag_run_id and dag_run["state"] in self.allowed_states:
+            if (
+                dag_run["dag_run_id" if self.use_rest_api else "run_id"] == self.composer_dag_run_id
+                and dag_run["state"] in self.allowed_states
+            ):
                 return True
         return False
 

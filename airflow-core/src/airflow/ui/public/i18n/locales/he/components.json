@@ -95,6 +95,11 @@
     "taskGroup": "קבוצת משימות"
   },
   "limitedList": "+ {{count}} נוספים",
+  "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
+  "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
+  "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
+  "limitedList.showingItems": "מציג {{count}} פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"

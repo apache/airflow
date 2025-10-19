@@ -43,6 +43,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/snowflake/index>
 
 .. toctree::
@@ -127,13 +128,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-snowflake[common.compat]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+======================================================================================================================  =================
+Dependent package                                                                                                       Extra
+======================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+======================================================================================================================  =================
 
 Downloading official packages
 -----------------------------

@@ -32,6 +32,9 @@ from airflow.providers.amazon.aws.hooks.redshift_data import (
 SQL = "sql"
 DATABASE = "database"
 STATEMENT_ID = "statement_id"
+EXACTLY_ONE_REQUIRED_ERROR_MSG = (
+    "Exactly one of cluster_identifier, workgroup_name, or session_id must be provided"
+)
 
 
 class TestRedshiftDataHook:
@@ -81,7 +84,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,
@@ -109,7 +112,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,
@@ -125,7 +128,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,

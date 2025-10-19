@@ -667,6 +667,7 @@ class TestWatchedSubprocess:
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
+            "task_instance_id": str(ti.id),
         } in captured_logs
 
     def test_supervisor_handles_already_running_task(self):
@@ -1846,6 +1847,7 @@ REQUEST_TEST_CASES = [
                 "end_date": None,
                 "clear_number": 0,
                 "conf": None,
+                "triggering_user_name": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -1866,6 +1868,7 @@ REQUEST_TEST_CASES = [
                     run_after=timezone.parse("2024-01-15T12:00:00Z"),
                     consumed_asset_events=[],
                     state=DagRunState.SUCCESS,
+                    triggering_user_name=None,
                 )
             ),
         ),
@@ -2427,6 +2430,47 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 f"Connection {expected_env} was not available during upload_to_remote call"
             )
             assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
+    """Test that connection caching doesn't retain API client references."""
+    import gc
+    import weakref
+
+    from airflow.sdk import log as sdk_log
+    from airflow.sdk.execution_time import supervisor
+
+    class ExampleBackend:
+        def __init__(self):
+            self.calls = 0
+
+        def get_connection(self, conn_id: str):
+            self.calls += 1
+            from airflow.sdk.definitions.connection import Connection
+
+            return Connection(conn_id=conn_id, conn_type="example")
+
+    backend = ExampleBackend()
+    monkeypatch.setattr(supervisor, "ensure_secrets_backend_loaded", lambda: [backend])
+    monkeypatch.setattr(sdk_log, "load_remote_log_handler", lambda: object())
+    monkeypatch.setattr(sdk_log, "load_remote_conn_id", lambda: "test_conn")
+    monkeypatch.delenv("AIRFLOW_CONN_TEST_CONN", raising=False)
+
+    def noop_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200)
+
+    clients = []
+    for _ in range(3):
+        client = make_client(transport=httpx.MockTransport(noop_request))
+        clients.append(weakref.ref(client))
+        with _remote_logging_conn(client):
+            pass
+        client.close()
+        del client
+
+    gc.collect()
+    assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
+    assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
