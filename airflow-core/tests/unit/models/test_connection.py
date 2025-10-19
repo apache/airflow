@@ -32,8 +32,9 @@ from airflow.sdk.execution_time.comms import ErrorResponse
 from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
-    from airflow.models.team import Team
     from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
 
 
 class TestConnection:
