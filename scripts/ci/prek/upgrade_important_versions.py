@@ -498,7 +498,7 @@ if __name__ == "__main__":
         copy_env = os.environ.copy()
         del copy_env["VIRTUAL_ENV"]
         subprocess.run(
-            ["uv", "sync", "--resolution", "highest"],
+            ["uv", "sync", "--resolution", "highest", "--upgrade"],
             check=True,
             cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
             env=copy_env,
