@@ -162,7 +162,6 @@ jobs:
         id: prek
         with:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
-          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
           platform: "linux/arm64"
           save-cache: true
   basic-tests:

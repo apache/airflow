@@ -30,11 +30,11 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.amazon.aws.notifications.chime import send_chime_notification
 
-    with Dag(
+    with DAG(
         dag_id="mydag",
         schedule="@once",
         start_date=datetime(2023, 6, 27),

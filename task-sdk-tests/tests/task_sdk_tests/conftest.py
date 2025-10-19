@@ -97,7 +97,7 @@ def debug_environment():
 def docker_compose_setup(tmp_path_factory):
     """Start docker-compose once per session."""
     import os
-    from shutil import copyfile
+    from shutil import copyfile, copytree
 
     from python_on_whales import DockerClient, docker
 
@@ -105,6 +105,12 @@ def docker_compose_setup(tmp_path_factory):
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
     tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
     copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
+
+    # Copy the DAGs folder to the temp directory so docker-compose can find it
+    from task_sdk_tests.constants import TASK_SDK_TESTS_ROOT
+
+    TASK_SDK_DAGS_FOLDER = TASK_SDK_TESTS_ROOT / "dags"
+    copytree(TASK_SDK_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     # Set environment variables
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
@@ -274,6 +280,14 @@ def airflow_test_setup(docker_compose_setup):
         "sdk_client": sdk_client,
         "core_api_headers": headers,
     }
+
+
+@pytest.fixture(scope="session")
+def task_sdk_api_version():
+    """Get the API version from the installed Task SDK."""
+    from airflow.sdk.api.datamodels._generated import API_VERSION
+
+    return API_VERSION
 
 
 @pytest.fixture(scope="session")
