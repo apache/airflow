@@ -21,6 +21,7 @@ import subprocess
 import sys
 
 import pytest
+from python_on_whales import DockerClient, docker
 from rich.console import Console
 
 from airflowctl_tests.constants import (
@@ -148,8 +149,6 @@ def debug_environment(console):
 def docker_compose_up(tmp_path_factory, console):
     """Fixture to spin up Docker Compose environment for the test session."""
     from shutil import copyfile
-
-    from python_on_whales import DockerClient, docker
 
     global docker_client
 
