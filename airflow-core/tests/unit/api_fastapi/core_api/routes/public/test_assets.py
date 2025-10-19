@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import pendulum
 from collections.abc import Generator
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 
 import pytest
