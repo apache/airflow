@@ -102,6 +102,7 @@ runs:
     - name: "Show prek log"
       shell: bash
       run: cat ~/.cache/prek/prek.log || true
+      if: always()
     - name: "Prepare .tar file from prek cache"
       run: |
         tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
