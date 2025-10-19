@@ -813,13 +813,13 @@ class TestOtelIntegration:
             # which is after the dag_run state has been updated.
             time.sleep(10)
 
-            with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
+            task_dict = dag.task_dict
+            task_dict_ids = task_dict.keys()
 
-            for ti in tis:
+            for task_id in task_dict_ids:
                 # Skip the span_status check.
                 check_ti_state_and_span_status(
-                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=None
+                    task_id=task_id, run_id=run_id, state=State.SUCCESS, span_status=None
                 )
 
         finally:
