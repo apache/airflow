@@ -22,11 +22,27 @@ from unittest import mock
 import pytest
 
 from airflow.models.deadline import DeadlineCallbackState
+from airflow.sdk import BaseNotifier
 from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 
+TEST_MESSAGE = "test_message"
 TEST_CALLBACK_PATH = "classpath.test_callback_for_deadline"
-TEST_CALLBACK_KWARGS = {"arg1": "value1"}
+TEST_CALLBACK_KWARGS = {"message": TEST_MESSAGE, "context": {"dag_run": "test"}}
 TEST_TRIGGER = DeadlineCallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
+
+
+class ExampleAsyncNotifier(BaseNotifier):
+    """Example of a properly implemented async notifier."""
+
+    def __init__(self, message, **kwargs):
+        super().__init__(**kwargs)
+        self.message = message
+
+    async def async_notify(self, context):
+        return f"Async notification: {self.message}, context: {context}"
+
+    def notify(self, context):
+        return f"Sync notification: {self.message}, context: {context}"
 
 
 class TestDeadlineCallbackTrigger:
@@ -56,7 +72,8 @@ class TestDeadlineCallbackTrigger:
         }
 
     @pytest.mark.asyncio
-    async def test_run_success(self, mock_import_string):
+    async def test_run_success_with_async_function(self, mock_import_string):
+        """Test trigger handles async functions correctly."""
         callback_return_value = "some value"
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
@@ -71,6 +88,24 @@ class TestDeadlineCallbackTrigger:
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
         assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
+
+    @pytest.mark.asyncio
+    async def test_run_success_with_notifier(self, mock_import_string):
+        """Test trigger handles async notifier classes correctly."""
+        mock_import_string.return_value = ExampleAsyncNotifier
+
+        trigger_gen = TEST_TRIGGER.run()
+
+        running_event = await anext(trigger_gen)
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+
+        success_event = await anext(trigger_gen)
+        mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert (
+            success_event.payload[PAYLOAD_BODY_KEY]
+            == f"Async notification: {TEST_MESSAGE}, context: {{'dag_run': 'test'}}"
+        )
 
     @pytest.mark.asyncio
     async def test_run_failure(self, mock_import_string):

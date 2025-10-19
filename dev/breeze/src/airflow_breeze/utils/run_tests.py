@@ -47,6 +47,8 @@ TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-tests"
 TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
 TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
 
+AIRFLOW_E2E_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests"
+
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
     GroupOfTests.PYTHON_API_CLIENT,
@@ -101,26 +103,34 @@ def run_docker_compose_tests(
     skip_docker_compose_deletion: bool,
     include_success_outputs: bool,
     test_type: str = "docker-compose",
+    skip_image_check: bool = False,
+    test_mode: str = "basic",
 ) -> tuple[int, str]:
-    command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
-    if command_result.returncode != 0:
-        get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-        return command_result.returncode, f"Testing {test_type} python with {image_name}"
+    if not skip_image_check:
+        command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
+        if command_result.returncode != 0:
+            get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
+            return command_result.returncode, f"Testing {test_type} python with {image_name}"
     pytest_args = ("--color=yes",)
 
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+    elif test_type == "airflow-e2e-tests":
+        test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
+        cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
     else:
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
 
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
+    env["E2E_TEST_MODE"] = test_mode
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
     if include_success_outputs:
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
+    env["AIRFLOW_UID"] = str(os.getuid())
     # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
         ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],

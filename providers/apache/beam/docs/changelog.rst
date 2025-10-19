@@ -26,6 +26,48 @@
 Changelog
 ---------
 
+6.1.5
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``disable links for beam provider operators using runner (#55248)``
+* ``Fix dataflow java streaming infinite run (#55209)``
+* ``remove the 'provide_authorized_glcoud' from BeamPipeline operators (#55453)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.1.4
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix apache beam provider with missing google provider (#54982)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``switch to DataflowJobStateCompleteTrigger to work with modern google-provider (#55156)``
+
 6.1.3
 .....
 

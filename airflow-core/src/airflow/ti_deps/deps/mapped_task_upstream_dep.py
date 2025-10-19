@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import select
 
@@ -63,9 +63,7 @@ class MappedTaskUpstreamDep(BaseTIDep):
         elif is_mapped(ti.task):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
         elif (task_group := ti.task.get_closest_mapped_task_group()) is not None:
-            # TODO (GH-52141): Task group in scheduler needs to return scheduler
-            # types instead, but currently the scheduler uses SDK's TaskGroup.
-            mapped_dependencies = cast("Iterator[Operator]", task_group.iter_mapped_dependencies())
+            mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return
 

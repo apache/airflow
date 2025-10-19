@@ -39,12 +39,14 @@ TEST_EXEC_CMD_INFO = {
     "error": "test_error",
 }
 TEST_COMPOSER_DAG_ID = "test_dag_id"
+TEST_COMPOSER_DAG_RUN_ID = "scheduled__2024-05-22T11:10:00+00:00"
 TEST_START_DATE = datetime(2024, 3, 22, 11, 0, 0)
 TEST_END_DATE = datetime(2024, 3, 22, 12, 0, 0)
 TEST_STATES = ["success"]
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_POLL_INTERVAL = 10
 TEST_COMPOSER_AIRFLOW_VERSION = 3
+TEST_USE_REST_API = True
 TEST_IMPERSONATION_CHAIN = "test_impersonation_chain"
 TEST_EXEC_RESULT = {
     "output": [{"line_number": 1, "content": "test_content"}],
@@ -81,6 +83,7 @@ def dag_run_trigger(mock_conn):
         region=TEST_LOCATION,
         environment_id=TEST_ENVIRONMENT_ID,
         composer_dag_id=TEST_COMPOSER_DAG_ID,
+        composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
         start_date=TEST_START_DATE,
         end_date=TEST_END_DATE,
         allowed_states=TEST_STATES,
@@ -88,6 +91,7 @@ def dag_run_trigger(mock_conn):
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
         poll_interval=TEST_POLL_INTERVAL,
         composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
+        use_rest_api=TEST_USE_REST_API,
     )
 
 
@@ -136,6 +140,7 @@ class TestCloudComposerDAGRunTrigger:
                 "region": TEST_LOCATION,
                 "environment_id": TEST_ENVIRONMENT_ID,
                 "composer_dag_id": TEST_COMPOSER_DAG_ID,
+                "composer_dag_run_id": TEST_COMPOSER_DAG_RUN_ID,
                 "start_date": TEST_START_DATE,
                 "end_date": TEST_END_DATE,
                 "allowed_states": TEST_STATES,
@@ -143,6 +148,7 @@ class TestCloudComposerDAGRunTrigger:
                 "impersonation_chain": TEST_IMPERSONATION_CHAIN,
                 "poll_interval": TEST_POLL_INTERVAL,
                 "composer_airflow_version": TEST_COMPOSER_AIRFLOW_VERSION,
+                "use_rest_api": TEST_USE_REST_API,
             },
         )
         assert actual_data == expected_data

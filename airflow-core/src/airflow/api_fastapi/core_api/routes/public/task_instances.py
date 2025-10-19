@@ -42,6 +42,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     QueryTIDagVersionFilter,
     QueryTIExecutorFilter,
+    QueryTIMapIndexFilter,
     QueryTIOperatorFilter,
     QueryTIPoolFilter,
     QueryTIQueueFilter,
@@ -51,20 +52,24 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
     float_range_filter_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
+from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
+    TaskInstanceHistoryCollectionResponse,
+    TaskInstanceHistoryResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
-    TaskInstanceHistoryCollectionResponse,
-    TaskInstanceHistoryResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -149,6 +154,7 @@ def get_mapped_task_instances(
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
+    map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -220,6 +226,7 @@ def get_mapped_task_instances(
             version_number,
             try_number,
             operator,
+            map_index,
         ],
         order_by=order_by,
         offset=offset,
@@ -316,6 +323,7 @@ def get_task_instance_tries(
             )
             .options(joinedload(orm_object.dag_version))
             .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
+            .options(joinedload(orm_object.hitl_detail))
         )
         return query
 
@@ -405,6 +413,7 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
@@ -412,6 +421,7 @@ def get_task_instances(
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
+    map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -487,10 +497,12 @@ def get_task_instances(
             executor,
             task_id,
             task_display_name_pattern,
+            dag_id_pattern,
             version_number,
             readable_ti_filter,
             try_number,
             operator,
+            map_index,
         ],
         order_by=order_by,
         offset=offset,
@@ -635,12 +647,16 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.try_number == task_try_number,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.try_number == task_try_number,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.hitl_detail))
         )
 
         task_instance = session.scalar(query)
@@ -713,10 +729,10 @@ def post_clear_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         # Get the specific dag version:
         dag = get_dag_for_run(dag_bag, dag_run, session)
-        if past or future:
+        if (past or future) and dag_run.logical_date is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+                "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
             )
         body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
         body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
@@ -744,7 +760,6 @@ def post_clear_task_instances(
     common_params = {
         "dry_run": True,
         "task_ids": task_ids,
-        "dag_bag": dag_bag,
         "session": session,
         "run_on_latest_version": body.run_on_latest_version,
         "only_failed": body.only_failed,

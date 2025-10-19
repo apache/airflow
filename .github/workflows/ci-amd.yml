@@ -139,8 +139,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -167,7 +165,14 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-
+      - name: "Install and cache prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{ steps.breeze.outputs.host-python-version }}
+          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
+          platform: "linux/amd64"
+          save-cache: true
   run-pin-versions-hook:
     name: "Run pin-versions hook"
     needs: [build-info]
@@ -184,9 +189,11 @@ jobs:
           # octopin needs python 3.11
           python-version: "3.11"
           platform: "linux/amd64"
+          save-cache: true
+          skip-prek-hooks: ""
       - name: "Run pin-versions"
         run: >
-          prek -c .github/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
+          prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
           pin-versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,8 +208,8 @@ jobs:
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-prek-hooks: ${{needs.build-info.outputs.skip-prek-hooks}}
+      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
+      skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
@@ -822,13 +829,13 @@ jobs:
       - name: Setup Gotestsum
         shell: bash
         run: |
-          go install gotest.tools/gotestsum@ddd0b05a6878e2e8257a2abe6e7df66cebc53d0e  # v1.12.3
+          go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f  # v1.13.0
           gotestsum --version
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: Run Go tests
         working-directory: ./go-sdk
-        run: gotestsum --format testname ./...
+        run: gotestsum --format github-actions ./...
 
   tests-airflow-ctl:
     name: "Airflow CTL tests"
@@ -928,6 +935,7 @@ jobs:
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
+    needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
@@ -938,8 +946,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh

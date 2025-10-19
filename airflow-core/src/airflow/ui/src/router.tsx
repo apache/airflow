@@ -65,11 +65,11 @@ import { client } from "./queryClient";
 
 const pluginRoute = {
   element: <ExternalView />,
-  path: "plugin/:page",
+  path: "plugin/:page/*",
 };
 
-const taskInstanceRoutes = [
-  { element: <Logs />, index: true },
+export const taskInstanceRoutes = [
+  { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
   { element: <XCom />, path: "xcom" },
   { element: <Code />, path: "code" },

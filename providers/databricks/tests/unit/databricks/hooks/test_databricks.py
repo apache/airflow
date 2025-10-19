@@ -358,7 +358,7 @@ class TestDatabricksHook:
         assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -1449,7 +1449,6 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
-        self.hook.log.setLevel("DEBUG")
         response = mock_get.return_value.__aenter__.return_value
         response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
         response.json = AsyncMock(return_value={"bar": "baz"})

@@ -70,6 +70,7 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     TaskOutletAssetReference,
 )
 from airflow.utils.state import DagRunState
@@ -182,16 +183,27 @@ def get_assets(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
             subqueryload(AssetModel.consuming_tasks),
+            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
     assets = []
 
     for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
+        watchers_data = [
+            {
+                "name": watcher.name,
+                "trigger_id": watcher.trigger_id,
+                "created_date": watcher.trigger.created_date,
+            }
+            for watcher in asset.watchers
+        ]
+
         asset_response = AssetResponse.model_validate(
             {
                 **asset.__dict__,
                 "aliases": asset.aliases,
+                "watchers": watchers_data,
                 "last_asset_event": {
                     "id": last_asset_event_id,
                     "timestamp": last_asset_event_timestamp,
@@ -291,13 +303,26 @@ def get_asset_events(
     source_map_index: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
+    name_pattern: QueryAssetNamePatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
+    base_statement = select(AssetEvent)
+    if name_pattern.value:
+        base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
+
     assets_event_select, total_entries = paginated_select(
-        statement=select(AssetEvent),
-        filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index, timestamp_range],
+        statement=base_statement,
+        filters=[
+            asset_id,
+            source_dag_id,
+            source_task_id,
+            source_run_id,
+            source_map_index,
+            name_pattern,
+            timestamp_range,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -460,6 +485,7 @@ def get_asset(
             joinedload(AssetModel.scheduled_dags),
             joinedload(AssetModel.producing_tasks),
             joinedload(AssetModel.consuming_tasks),
+            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
@@ -469,10 +495,20 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
+    watchers_data = [
+        {
+            "name": watcher.name,
+            "trigger_id": watcher.trigger_id,
+            "created_date": watcher.trigger.created_date,
+        }
+        for watcher in asset.watchers
+    ]
+
     return AssetResponse.model_validate(
         {
             **asset.__dict__,
             "aliases": asset.aliases,
+            "watchers": watchers_data,
             "last_asset_event": {
                 "id": last_asset_event_id,
                 "timestamp": last_asset_event_timestamp,

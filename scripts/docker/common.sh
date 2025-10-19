@@ -159,12 +159,6 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
-        echo
-        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
-    fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"

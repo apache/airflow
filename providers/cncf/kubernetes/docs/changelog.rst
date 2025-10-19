@@ -28,6 +28,84 @@ Changelog
 ---------
 
 
+10.8.2
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Relax Kubernetes client version support to <34.0.0 (#55932)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.8.1
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#50803)``
+* ``Add more error handling in pod_manager consume_logs (#55479)``
+* ``Add more robust check of the container statuses (#55371)``
+* ``Fix circular import in version_compat (#55809)``
+
+Misc
+~~~~
+
+* ``Move the KubernetesPodOperator 'convert_config_file_to_dict' call (#55064)``
+* ``Fix kpo log_events_on_failure logs warnings at warning level (#54967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch all airflow logging to structlog (#52651)``
+
+10.8.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Add customizable log prefix and formatter to KubernetesPodOperator (#53598)``
+* ``Enhanced Pod Failure Logging in KubernetesExecutor  (#54115)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Handle Kubernetes API responses with non-JSON bodies (#55107)``
+* ``Fix KubernetesExecutor retry on 409 conflict (#54777)``
+* ``KubernetesPodOperator logs pod and container state after error occurred (#54828)``
+* ``Throttle HTTPError during consume pod logs (#54761)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``Refactor Kubernetes Executor Types to NamedTuples (#54858)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Fix k8s pod yaml test to expect redacted sensitive data (#54883)``
+   * ``Move secrets_masker over to airflow_shared distribution (#54449)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 10.7.0
 ......
 

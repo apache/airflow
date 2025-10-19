@@ -26,7 +26,7 @@ import pytest
 from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 
@@ -91,7 +91,7 @@ class TestVariables:
 
 
 class TestVariableFromSecrets:
-    def test_var_get_from_secrets_found(self, mock_supervisor_comms, patched_secrets_masker, tmp_path):
+    def test_var_get_from_secrets_found(self, mock_supervisor_comms, tmp_path):
         """Tests getting a variable from secrets backend."""
         path = tmp_path / "var.env"
         path.write_text("VAR_A=some_value")
@@ -109,9 +109,7 @@ class TestVariableFromSecrets:
             assert retrieved_var is not None
             assert retrieved_var == "some_value"
 
-    def test_var_get_from_secrets_found_with_deserialize(
-        self, mock_supervisor_comms, tmp_path, patched_secrets_masker
-    ):
+    def test_var_get_from_secrets_found_with_deserialize(self, mock_supervisor_comms, tmp_path):
         """Tests getting a variable from secrets backend when deserialize_json is provided."""
         path = tmp_path / "var.json"
         dict_data = {"num1": 23, "num2": 42}
@@ -156,7 +154,7 @@ class TestVariableFromSecrets:
             mock_mask_secret.assert_called_with("super-secret", "secret")
 
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
-    def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms, patched_secrets_masker):
+    def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms):
         """Tests getting a variable from environment variable."""
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
@@ -172,17 +170,17 @@ class TestVariableFromSecrets:
         "airflow.secrets.local_filesystem.LocalFilesystemBackend.get_variable",
     )
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
-    def test_backend_fallback_to_env_var(
-        self, mock_get_variable, mock_env_get, mock_supervisor_comms, patched_secrets_masker
-    ):
+    def test_backend_fallback_to_env_var(self, mock_get_variable, mock_env_get, mock_supervisor_comms):
         """Tests if variable retrieval falls back to environment variable backend if not found in secrets backend."""
         mock_get_variable.return_value = None
         mock_env_get.return_value = "fake_value"
 
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        assert len(backends) == 2
+        # LocalFilesystemBackend (custom), EnvironmentVariablesBackend, ExecutionAPISecretsBackend
+        assert len(backends) == 3
         backend_classes = [backend.__class__.__name__ for backend in backends]
         assert "LocalFilesystemBackend" in backend_classes
+        assert "ExecutionAPISecretsBackend" in backend_classes
 
         var = Variable.get(key="fake_var_key")
         # mock_env is only called when LocalFilesystemBackend doesn't have it

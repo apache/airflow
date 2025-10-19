@@ -30,8 +30,6 @@ __deprecated_classes = {
     },
     "task_group": {
         "TaskGroup": "airflow.sdk.TaskGroup",
-        "get_task_group_children_getter": "airflow.sdk.definitions.taskgroup.get_task_group_children_getter",
-        "task_group_to_dict": "airflow.sdk.definitions.taskgroup.task_group_to_dict",
     },
     "timezone": {
         # Since we have corrected all uses inside core to use the internal version, anything hitting this

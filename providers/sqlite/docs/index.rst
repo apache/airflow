@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-sqlite/|version|/providers/sqlite/tests/system/sqlite>
+    Example Dags <https://github.com/apache/airflow/tree/providers-sqlite/|version|/providers/sqlite/tests/system/sqlite>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-sqlite/>
     Installing from sources <installing-providers-from-sources>
 
@@ -79,8 +79,6 @@ apache-airflow-providers-sqlite package
 
 Release: 4.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
@@ -90,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.sqlite`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-sqlite``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

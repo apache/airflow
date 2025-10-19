@@ -28,8 +28,8 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.src.airflow.providers.common.sql.dialects.dialect
-isort:skip_file
+Definition of the public interface for
+airflow.providers.common.sql.src.airflow.providers.common.sql.dialects.dialect.
 """
 
 from collections.abc import Callable, Iterable, Mapping

@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
+    Example Dags <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-vertica/>
     Installing from sources <installing-providers-from-sources>
 
@@ -80,8 +80,6 @@ apache-airflow-providers-vertica package
 
 Release: 4.1.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 
@@ -91,7 +89,7 @@ All classes for this package are included in the ``airflow.providers.vertica`` p
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-vertica``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

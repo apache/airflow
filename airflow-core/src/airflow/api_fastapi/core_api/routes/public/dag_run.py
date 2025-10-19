@@ -21,7 +21,7 @@ import textwrap
 from typing import Annotated, Literal, cast
 
 import structlog
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
@@ -43,6 +43,7 @@ from airflow.api_fastapi.common.parameters import (
     OffsetFilter,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunVersionFilter,
     QueryLimit,
     QueryOffset,
     Range,
@@ -50,6 +51,8 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
     _SearchParam,
     datetime_range_filter_factory,
+    filter_param_factory,
+    float_range_filter_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -80,6 +83,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -315,9 +319,15 @@ def get_dag_runs(
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
+    duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
+    conf_contains: Annotated[
+        FilterParam[str],
+        Depends(filter_param_factory(DagRun.conf, str, FilterOptionEnum.CONTAINS, "conf_contains")),
+    ],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
+    dag_version: QueryDagRunVersionFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -348,6 +358,7 @@ def get_dag_runs(
         _SearchParam,
         Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
     ],
+    dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -360,6 +371,10 @@ def get_dag_runs(
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
         query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
 
+    # Add join with DagVersion if dag_version filter is active
+    if dag_version.value:
+        query = query.join(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+
     dag_run_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -368,11 +383,15 @@ def get_dag_runs(
             start_date_range,
             end_date_range,
             update_at_range,
+            duration_range,
+            conf_contains,
             state,
             run_type,
+            dag_version,
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,
+            dag_id_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -407,6 +426,7 @@ def trigger_dag_run(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
+    request: Request,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
@@ -419,6 +439,12 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
+    referer = request.headers.get("referer")
+    if referer:
+        triggered_by = DagRunTriggeredByType.UI
+    else:
+        triggered_by = DagRunTriggeredByType.REST_API
+
     try:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
         params = body.validate_context(dag)
@@ -430,7 +456,7 @@ def trigger_dag_run(
             run_after=params["run_after"],
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.REST_API,
+            triggered_by=triggered_by,
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             session=session,
@@ -451,7 +477,7 @@ def trigger_dag_run(
     "/{dag_run_id}/wait",
     tags=["experimental"],
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
-    description="🚧 This is an experimental endpoint and may change or be removed without notice.",
+    description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.",
     responses={
         **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
@@ -494,6 +520,7 @@ def wait_dag_run_until_finished(
         run_id=dag_run_id,
         interval=interval,
         result_task_ids=result_task_ids,
+        session=session,
     )
     return StreamingResponse(waiter.wait())
 
@@ -547,6 +574,16 @@ def get_list_dag_runs_batch(
         ),
         attribute=DagRun.end_date,
     )
+    duration = RangeFilter(
+        Range(
+            lower_bound_gte=body.duration_gte,
+            lower_bound_gt=body.duration_gt,
+            upper_bound_lte=body.duration_lte,
+            upper_bound_lt=body.duration_lt,
+        ),
+        attribute=DagRun.duration,
+    )
+    conf_contains = FilterParam(DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS)
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
@@ -572,7 +609,17 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun).options(joinedload(DagRun.dag_model))
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, run_after, start_date, end_date, state, readable_dag_runs_filter],
+        filters=[
+            dag_ids,
+            logical_date,
+            run_after,
+            start_date,
+            end_date,
+            duration,
+            conf_contains,
+            state,
+            readable_dag_runs_filter,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,

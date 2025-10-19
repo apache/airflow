@@ -26,15 +26,22 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overl
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from more_itertools import chunked
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
+
+try:
+    from airflow.sdk import Connection
+except ImportError:
+    from airflow.models.connection import Connection  # type: ignore[assignment]
 
 USE_PSYCOPG3: bool
 try:
@@ -62,11 +69,6 @@ if TYPE_CHECKING:
 
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
-
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
@@ -155,7 +157,9 @@ class PostgresHook(DbApiHook):
         "aws_conn_id",
         "sqlalchemy_scheme",
         "sqlalchemy_query",
+        "azure_conn_id",
     }
+    default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
@@ -176,6 +180,8 @@ class PostgresHook(DbApiHook):
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+        if conn.extra_dejson.get("iam", False):
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
             drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
             username=self.__cast_nullable(conn.login, str),
@@ -440,8 +446,14 @@ class PostgresHook(DbApiHook):
         return PostgresHook._serialize_cell_ppg2(cell, conn)
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """Get the IAM token from different identity providers."""
+        if conn.extra_dejson.get("azure_conn_id"):
+            return self.get_azure_iam_token(conn)
+        return self.get_aws_iam_token(conn)
+
+    def get_aws_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
-        Get the IAM token.
+        Get the AWS IAM token.
 
         This uses AWSHook to retrieve a temporary password to connect to
         Postgres or Redshift. Port is required. If none is provided, the default
@@ -498,6 +510,36 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return cast("str", login), cast("str", token), port
+
+    def get_azure_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """
+        Get the Azure IAM token.
+
+        This uses AzureBaseHook to retrieve an OAUTH token to connect to Postgres.
+        Scope for the OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[postgres]``.
+        """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+        azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
+        try:
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
+        azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        try:
+            token = azure_base_hook.get_token(scope).token
+        except AttributeError as e:
+            if e.name == "get_token" and e.obj == azure_base_hook:
+                raise AttributeError(
+                    "'AzureBaseHook' object has no attribute 'get_token'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0",
+                    name=e.name,
+                    obj=e.obj,
+                ) from e
+            raise
+        return cast("str", conn.login or azure_conn.login), token, conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
@@ -574,3 +616,79 @@ class PostgresHook(DbApiHook):
 
         for output in conn.notices:
             self.log.info(output)
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=False,
+        fast_executemany=False,
+        autocommit=False,
+        **kwargs,
+    ):
+        """
+        Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
+
+        :param table: Name of the target table
+        :param rows: The rows to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param commit_every: The maximum number of rows to insert in one
+            transaction. Set to 0 to insert all rows in one transaction.
+        :param replace: Whether to replace instead of insert
+        :param executemany: If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
+        :param fast_executemany: If True, rows will be inserted using an optimized
+            bulk execution strategy (``psycopg2.extras.execute_batch``). This can
+            significantly improve performance for large inserts. If set to False,
+            the method falls back to the default implementation from
+            ``DbApiHook.insert_rows``.
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        """
+        # if fast_executemany is disabled, defer to default implementation of insert_rows in DbApiHook
+        if not fast_executemany:
+            return super().insert_rows(
+                table,
+                rows,
+                target_fields=target_fields,
+                commit_every=commit_every,
+                replace=replace,
+                executemany=executemany,
+                autocommit=autocommit,
+                **kwargs,
+            )
+
+        # if fast_executemany is enabled, use optimized execute_batch from psycopg
+        nb_rows = 0
+        with self._create_autocommit_connection(autocommit) as conn:
+            conn.commit()
+            with closing(conn.cursor()) as cur:
+                for chunked_rows in chunked(rows, commit_every):
+                    values = list(
+                        map(
+                            lambda row: self._serialize_cells(row, conn),
+                            chunked_rows,
+                        )
+                    )
+                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                    self.log.debug("Generated sql: %s", sql)
+
+                    try:
+                        execute_batch(cur, sql, values, page_size=commit_every)
+                    except Exception as e:
+                        self.log.error("Generated sql: %s", sql)
+                        self.log.error("Parameters: %s", values)
+                        raise e
+
+                    conn.commit()
+                    nb_rows += len(chunked_rows)
+                    self.log.info("Loaded %s rows into %s so far", nb_rows, table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)

@@ -61,7 +61,8 @@ function install_from_sources() {
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
         uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -80,6 +81,7 @@ function install_from_sources() {
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
               --editable ./task-sdk-tests \
+              --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -105,8 +107,10 @@ function install_from_sources() {
                 for project_folder in "${projects_with_devel_dependencies[@]}"; do
                     echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
                     set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
-                        fallback_no_constraints_installation="true"
+                    if ! uv pip install --editable .  --directory "${project_folder}" \
+                        --constraint "${HOME}/constraints.txt" --group dev \
+                        --no-python-downloads --no-managed-python; then
+                            fallback_no_constraints_installation="true"
                     fi
                     set +x
                 done
@@ -124,7 +128,8 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+                --no-python-downloads --no-managed-python
             set +x
         fi
     fi
@@ -134,13 +139,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi

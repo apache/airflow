@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -94,8 +95,12 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
         self.mssql_conn_id = mssql_conn_id
         self.source_project_dataset_table = source_project_dataset_table
 
-    def get_sql_hook(self) -> MsSqlHook:
+    @cached_property
+    def mssql_hook(self) -> MsSqlHook:
         return MsSqlHook(schema=self.database, mssql_conn_id=self.mssql_conn_id)
+
+    def get_sql_hook(self) -> MsSqlHook:
+        return self.mssql_hook
 
     def persist_links(self, context: Context) -> None:
         project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")

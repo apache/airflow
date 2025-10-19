@@ -22,12 +22,15 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1754502801
+source-date-epoch: 1759300651
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.15.0
+  - 9.14.0
+  - 9.13.0
   - 9.12.0
   - 9.11.0
   - 9.10.0
@@ -627,9 +630,12 @@ hooks:
       - airflow.providers.amazon.aws.hooks.glue
       - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
-  - integration-name: Amazon Kinesis Data Firehose
+  - integration-name: Amazon Kinesis Data Stream
     python-modules:
       - airflow.providers.amazon.aws.hooks.kinesis
+  - integration-name: Amazon Kinesis Data Firehose
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.firehose
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function

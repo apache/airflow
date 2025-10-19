@@ -43,7 +43,6 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
@@ -220,6 +219,31 @@ class TestGCSToBigQueryOperator:
         ]
 
         hook.return_value.insert_job.assert_has_calls(calls)
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_two_partitionings_should_fail(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        with pytest.raises(
+            ValueError, match=r"Only one of time_partitioning or range_partitioning can be set."
+        ):
+            GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields=SCHEMA_FIELDS,
+                max_id_key=MAX_ID_KEY,
+                write_disposition=WRITE_DISPOSITION,
+                external_table=False,
+                project_id=JOB_PROJECT_ID,
+                time_partitioning={"field": "created", "type": "DAY"},
+                range_partitioning={"field": "grade", "range": {"start": 0, "end": 100, "interval": 20}},
+            )
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_should_throw_ex_when_query_returns_no_rows(self, hook):
@@ -1746,7 +1770,8 @@ class TestAsyncGCSToBigQueryOperator:
             job_id=None,
             dag_id="adhoc_airflow",
             task_id=TASK_ID,
-            logical_date=datetime(2016, 1, 1, 0, 0),
+            logical_date=None,
+            run_after=hook.return_value.get_run_after_or_logical_date(),
             configuration={},
             force_rerun=True,
         )

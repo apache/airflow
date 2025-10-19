@@ -32,5 +32,5 @@ with DAG(
     BaseOperator(task_id="visible_task")
 
     if current_dag_id == DAG_ID:
-        # this task will be invisible if the DAG ID is not properly set in the parsing context.
+        # this task will be invisible if the Dag ID is not properly set in the parsing context.
         BaseOperator(task_id="conditional_task")

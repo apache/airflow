@@ -225,6 +225,7 @@ bytestring
 cacert
 Cadwyn
 callables
+callsite
 camelCase
 Cancelled
 cancelled
@@ -271,6 +272,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -475,6 +477,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -606,6 +609,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
@@ -1575,6 +1579,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1609,6 +1614,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
@@ -1967,6 +1973,8 @@ utilise
 Utils
 utils
 uuid
+uv
+uvicorn
 V1JobList
 validator
 validators

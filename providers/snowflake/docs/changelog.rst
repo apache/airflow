@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+6.5.4
+.....
+
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.5.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(snowflake): enhance error message formatting for SQL errors (#54063)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 6.5.2
 .....
 
@@ -157,10 +192,17 @@ Features
 
 * ``Adding OAuth support for SnowflakeHook  (#47191)``
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Existing connections using key pairs break as a result of changing the connection string to be base64 encoded.
+
+  * ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+
 Bug Fixes
 ~~~~~~~~~
 
-* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
 * ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
 * ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``

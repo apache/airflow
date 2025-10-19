@@ -32,7 +32,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -106,14 +106,14 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     note: str | None = None
 
     @model_validator(mode="after")
-    def check_data_intervals(cls, values):
-        if (values.data_interval_start is None) != (values.data_interval_end is None):
+    def check_data_intervals(self):
+        if (self.data_interval_start is None) != (self.data_interval_end is None):
             raise ValueError(
                 "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
-        return values
+        return self
 
-    def validate_context(self, dag: DAG) -> dict:
+    def validate_context(self, dag: SerializedDAG) -> dict:
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None
@@ -180,3 +180,10 @@ class DAGRunsBatchBody(StrictBaseModel):
     end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
     end_date_lt: AwareDatetime | None = None
+
+    duration_gte: float | None = None
+    duration_gt: float | None = None
+    duration_lte: float | None = None
+    duration_lt: float | None = None
+
+    conf_contains: str | None = None

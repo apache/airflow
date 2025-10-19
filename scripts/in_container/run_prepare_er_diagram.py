@@ -37,12 +37,12 @@ MIGRATIONS_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "migra
 if __name__ == "__main__":
     console = Console(width=400, color_system="standard")
     try:
-        from eralchemy2 import render_er
+        from eralchemy import render_er
     except ImportError:
         if sys.platform == "darwin":
             console.print(
                 "[red]Likely you have no graphviz installed[/]"
-                "Please install eralchemy2 package to run this script. "
+                "Please install eralchemy package to run this script. "
                 "This will require to install graphviz, "
                 "and installing graphviz might be difficult for MacOS. Please follow: "
                 "https://pygraphviz.github.io/documentation/stable/install.html#macos ."

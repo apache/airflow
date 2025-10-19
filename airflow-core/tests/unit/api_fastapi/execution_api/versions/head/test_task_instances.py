@@ -189,6 +189,7 @@ class TestTIRunState:
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
+                "triggering_user_name": None,
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
@@ -637,6 +638,62 @@ class TestTIRunState:
         assert response.status_code == 200
         assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
 
+    def test_ti_run_with_triggering_user_name(
+        self,
+        client,
+        session,
+        dag_maker,
+        time_machine,
+    ):
+        """
+        Test that the triggering_user_name field is correctly returned when it has a non-None value.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        with dag_maker(dag_id=str(uuid4()), session=session):
+            EmptyOperator(task_id="test_ti_run_with_triggering_user_name")
+
+        # Create DagRun with triggering_user_name set to a specific value
+        dr = dag_maker.create_dagrun(
+            run_id="test",
+            logical_date=instant,
+            state=DagRunState.RUNNING,
+            start_date=instant,
+            triggering_user_name="test_user",
+        )
+
+        ti = dr.get_task_instance(task_id="test_ti_run_with_triggering_user_name")
+        ti.set_state(State.QUEUED)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-unixname",
+                "pid": 12345,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        json_response = response.json()
+
+        # Verify the dag_run is present
+        assert "dag_run" in json_response
+        dag_run = json_response["dag_run"]
+
+        # The triggering_user_name field should be present with the correct value
+        assert dag_run["triggering_user_name"] == "test_user"
+
+        # Verify other expected fields are still present
+        assert dag_run["dag_id"] == ti.dag_id
+        assert dag_run["run_id"] == "test"
+        assert dag_run["state"] == "running"
+
 
 class TestTIUpdateState:
     def setup_method(self):
@@ -781,40 +838,6 @@ class TestTIUpdateState:
         assert len(event) == 1
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
-
-    def test_ti_update_state_to_failed_with_inactive_asset(self, client, session, create_task_instance):
-        # inactive
-        asset = AssetModel(
-            id=1,
-            name="my-task-2",
-            uri="s3://bucket/my-task",
-            group="asset",
-            extra={},
-        )
-        session.add(asset)
-
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_success_with_asset_events",
-            start_date=DEFAULT_START_DATE,
-            state=State.RUNNING,
-        )
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": "success",
-                "end_date": DEFAULT_END_DATE.isoformat(),
-                "task_outlets": [{"name": "my-task-2", "uri": "s3://bucket/my-task", "type": "Asset"}],
-                "outlet_events": [],
-            },
-        )
-
-        assert response.status_code == 204
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
 
     @pytest.mark.parametrize(
         "outlet_events, expected_extra",

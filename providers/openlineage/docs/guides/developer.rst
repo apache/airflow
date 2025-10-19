@@ -180,7 +180,7 @@ Custom Extractors
 This approach is recommended when dealing with Operators that you can not modify (f.e. third party providers), but still want the lineage to be extracted from them.
 If you want to extract lineage from your own Operators, you may prefer directly implementing OpenLineage methods as described in :ref:`openlineage_methods:openlineage`.
 
-This approach works by detecting which Airflow Operators your DAG is using, and extracting lineage data from them using corresponding Extractors class.
+This approach works by detecting which Airflow Operators your Dag is using, and extracting lineage data from them using corresponding Extractors class.
 
 Interface
 ^^^^^^^^^
@@ -476,19 +476,19 @@ a string of semicolon separated full import path to the functions.
 Job Hierarchy
 =============
 
-Apache Airflow features an inherent job hierarchy: DAGs, large and independently schedulable units, comprise smaller, executable tasks.
+Apache Airflow features an inherent job hierarchy: Dags, large and independently schedulable units, comprise smaller, executable tasks.
 
 OpenLineage reflects this structure in its Job Hierarchy model.
 
-- Upon DAG scheduling, a START event is emitted.
+- Upon Dag scheduling, a START event is emitted.
 - Subsequently, following Airflow's task order, each task triggers:
 
   - START events at TaskInstance start.
   - COMPLETE/FAILED events upon completion.
 
-- Finally, upon DAG termination, a completion event (COMPLETE or FAILED) is emitted.
+- Finally, upon Dag termination, a completion event (COMPLETE or FAILED) is emitted.
 
-TaskInstance events' ParentRunFacet references the originating DAG run.
+TaskInstance events' ParentRunFacet references the originating Dag run.
 
 .. _troubleshooting:openlineage:
 

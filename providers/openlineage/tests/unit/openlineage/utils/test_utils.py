@@ -44,6 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
     _truncate_string_to_byte_size,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_airflow_state_run_facet,
     get_dag_documentation,
     get_fully_qualified_class_name,
     get_job_name,
@@ -57,6 +58,7 @@ from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -182,14 +184,13 @@ def test_get_airflow_dag_run_facet():
         "fileloc": pathlib.Path(__file__).resolve().as_posix(),
         "owner": "airflow",
         "timetable": {},
+        "timetable_summary": "@once",
         "start_date": "2024-06-01T00:00:00+00:00",
         "tags": "['test']",
         "owner_links": {},
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
-    else:  # Airflow 3 and up.
-        expected_dag_info["timetable_summary"] = "@once"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
             dag=expected_dag_info,
@@ -274,7 +275,7 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
     assert deserialized._task_module == op_module_path
-    assert deserialized._task_type == op_name
+    assert deserialized.task_type == op_name
 
 
 def test_get_fully_qualified_class_name_mapped_operator():
@@ -1055,7 +1056,21 @@ def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     assert result == {}
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2.9+ tests")
+def test_daginfo_timetable_summary():
+    from airflow.timetables.simple import NullTimetable
+
+    dag = MagicMock()
+    # timetable is enough to get summary
+    dag.timetable = NullTimetable()
+    dag.timetable_summary = None
+    assert DagInfo(dag).timetable_summary == "None"
+
+    # but if summary is present, it's preferred
+    dag.timetable_summary = "explicit_summary"
+    assert DagInfo(dag).timetable_summary == "explicit_summary"
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestDagInfoAirflow2:
     def test_dag_info(self):
         with DAG(
@@ -1080,6 +1095,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "['test']",
             "timetable": {},
+            "timetable_summary": "@once",
             "owner_links": {"some_owner": "https://airflow.apache.org"},
         }
 
@@ -1100,6 +1116,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
+            "timetable_summary": "*/4 3 * * *",
             "owner_links": {},
         }
 
@@ -1124,6 +1141,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "My Team's Baseball Games",
+            "timetable_summary": "My Team's Baseball Games",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1151,6 +1169,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1176,6 +1195,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1204,6 +1224,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1250,6 +1271,7 @@ class TestDagInfoAirflow2:
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
             "owner": "",
             "schedule_interval": "Dataset or */4 3 * * *",
+            "timetable_summary": "Dataset or */4 3 * * *",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "owner_links": {},
@@ -1301,6 +1323,7 @@ class TestDagInfoAirflow210:
             "owner_links": {},
             "timetable": {"dataset_condition": {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}}},
             "schedule_interval": "Dataset",
+            "timetable_summary": "Dataset",
         }
 
 
@@ -1763,7 +1786,7 @@ def test_taskinstance_info_af3():
     runtime_ti.bundle_instance = bundle_instance
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
-        "log_url": None,
+        "log_url": runtime_ti.log_url,
         "map_index": 2,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
@@ -2033,3 +2056,65 @@ def test_get_operator_provider_version_for_mapped_operator(mock_providers_manage
     mapped_operator = BashOperator.partial(task_id="test_task").expand(bash_command=["echo 1", "echo 2"])
     result = get_operator_provider_version(mapped_operator)
     assert result == "1.2.0"
+
+
+class TestGetAirflowStateRunFacet:
+    @pytest.mark.db_test
+    def test_task_with_timestamps_defined(self, dag_maker):
+        """Test task instance with defined start_date and end_date."""
+        with dag_maker(dag_id="test_dag"):
+            BaseOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(task_id="test_task")
+
+        # Set valid timestamps
+        start_time = pendulum.parse("2024-01-01T10:00:00Z")
+        end_time = pendulum.parse("2024-01-01T10:02:30Z")  # 150 seconds difference
+        ti.start_date = start_time
+        ti.end_date = end_time
+        ti.state = TaskInstanceState.SUCCESS
+        ti.duration = None
+
+        # Persist changes to database
+        with create_session() as session:
+            session.merge(ti)
+            session.commit()
+
+        result = get_airflow_state_run_facet(
+            dag_id="test_dag",
+            run_id=dag_run.run_id,
+            task_ids=["test_task"],
+            dag_run_state=DagRunState.SUCCESS,
+        )
+
+        assert result["airflowState"].tasksDuration["test_task"] == 150.0
+
+    @pytest.mark.db_test
+    def test_task_with_none_timestamps_fallback_to_zero(self, dag_maker):
+        """Test task with None timestamps falls back to 0.0."""
+        with dag_maker(dag_id="test_dag"):
+            BaseOperator(task_id="terminated_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(task_id="terminated_task")
+
+        # Set None timestamps (signal-terminated case)
+        ti.start_date = None
+        ti.end_date = None
+        ti.state = TaskInstanceState.SKIPPED
+        ti.duration = None
+
+        # Persist changes to database
+        with create_session() as session:
+            session.merge(ti)
+            session.commit()
+
+        result = get_airflow_state_run_facet(
+            dag_id="test_dag",
+            run_id=dag_run.run_id,
+            task_ids=["terminated_task"],
+            dag_run_state=DagRunState.FAILED,
+        )
+
+        assert result["airflowState"].tasksDuration["terminated_task"] == 0.0

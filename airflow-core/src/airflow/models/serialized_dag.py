@@ -27,13 +27,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import TaskNotFound
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
@@ -45,20 +45,15 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session
 
-    from airflow.models import Operator
-    from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
 
@@ -285,13 +280,17 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
-    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
-    dag_hash = Column(String(32), nullable=False)
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
+    _data: Mapped[dict | None] = mapped_column(
+        "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
+    )
+    _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
+    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[UtcDateTime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
+    dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
 
     dag_runs = relationship(
         DagRun,
@@ -307,7 +306,7 @@ class SerializedDagModel(Base):
         innerjoin=True,
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
-    dag_version_id = Column(
+    dag_version_id: Mapped[str] = mapped_column(
         UUIDType(binary=False),
         ForeignKey("dag_version.id", ondelete="CASCADE"),
         nullable=False,
@@ -317,15 +316,9 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG | LazyDeserializedDAG) -> None:
-        from airflow.sdk import DAG
-
+    def __init__(self, dag: LazyDeserializedDAG) -> None:
         self.dag_id = dag.dag_id
-        if isinstance(dag, DAG):
-            dag_data = SerializedDAG.to_dict(dag)
-        else:
-            dag_data = dag.data
-
+        dag_data = dag.data
         self.dag_hash = SerializedDagModel.hash(dag_data)
 
         # partially ordered json data
@@ -382,7 +375,7 @@ class SerializedDagModel(Base):
     @provide_session
     def write_dag(
         cls,
-        dag: DAG | LazyDeserializedDAG,
+        dag: LazyDeserializedDAG,
         bundle_name: str,
         bundle_version: str | None = None,
         min_update_interval: int | None = None,
@@ -484,8 +477,8 @@ class SerializedDagModel(Base):
         """
         # Subquery to get the latest serdag per dag_id
         latest_serdag_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .filter(cls.dag_id.in_(dag_ids))
+            select(cls.dag_id, func.max(cls.created_at).label("created_at"))
+            .where(cls.dag_id.in_(dag_ids))
             .group_by(cls.dag_id)
             .subquery()
         )
@@ -509,9 +502,7 @@ class SerializedDagModel(Base):
         :returns: a dict of DAGs read from database
         """
         latest_serialized_dag_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
-            .group_by(cls.dag_id)
-            .subquery()
+            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
         )
         serialized_dags = session.scalars(
             select(cls).join(
@@ -592,65 +583,6 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
-        """
-        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
-
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        """
-        return session.scalar(
-            select(cls.created_at).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
-        )
-
-    @classmethod
-    @provide_session
-    def get_max_last_updated_datetime(cls, session: Session = NEW_SESSION) -> datetime | None:
-        """
-        Get the maximum date when any DAG was last updated in serialized_dag table.
-
-        :param session: ORM Session
-        """
-        return session.scalar(select(func.max(cls.created_at)))
-
-    @classmethod
-    @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = NEW_SESSION) -> str | None:
-        """
-        Get the latest DAG version for a given DAG ID.
-
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        :return: DAG Hash, or None if the DAG is not found
-        """
-        return session.scalar(
-            select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
-        )
-
-    @classmethod
-    def get_latest_version_hash_and_updated_datetime(
-        cls,
-        dag_id: str,
-        *,
-        session: Session,
-    ) -> tuple[str, datetime] | None:
-        """
-        Get the latest version for a DAG ID and the date it was last updated in serialized_dag table.
-
-        :meta private:
-        :param dag_id: DAG ID
-        :param session: ORM Session
-        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
-        """
-        return session.execute(
-            select(cls.dag_hash, cls.created_at)
-            .where(cls.dag_id == dag_id)
-            .order_by(cls.created_at.desc())
-            .limit(1)
-        ).one_or_none()
-
-    @classmethod
-    @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs.
@@ -664,6 +596,11 @@ class SerializedDagModel(Base):
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
+            elif session.bind.dialect.name == "postgresql":
+                # Use #> operator which works for both JSON and JSONB types
+                # Returns the JSON sub-object at the specified path
+                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                load_json = None
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
                 load_json = None
@@ -694,16 +631,3 @@ class SerializedDagModel(Base):
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag
-
-    @staticmethod
-    @provide_session
-    def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
-        try:
-            # get the latest version of the DAG
-            model = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
-            if model:
-                return model.dag.get_task(task_id)
-        except (exc.NoResultFound, TaskNotFound):
-            return None
-
-        return None
