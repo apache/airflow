@@ -980,13 +980,6 @@ repos:
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
         pass_filenames: false
-      - id: update-breeze-readme-config-hash
-        name: Update Breeze README.md with config files hash
-        language: python
-        entry: ./scripts/ci/prek/update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
-        pass_filenames: false
-        require_serial: true
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
