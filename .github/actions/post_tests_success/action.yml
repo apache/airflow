@@ -16,21 +16,21 @@
 # under the License.
 #
 ---
-name: 'Post tests on success'
-description: 'Run post tests actions on success'
+name: "Post tests on success"
+description: "Run post tests actions on success"
 inputs:
   codecov-token:
-    description: 'Codecov token'
+    description: "Codecov token"
     required: true
-    default: ''
+    default: ""
   python-version:
-    description: 'Python version'
+    description: "Python version"
     required: true
-    default: ''
+    default: ""
   test-name:
-    description: 'The name of the test to run'
+    description: "The name of the test to run"
     required: true
-    default: ''
+    default: ""
 runs:
   using: "composite"
   steps:
