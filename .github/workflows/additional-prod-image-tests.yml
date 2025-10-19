@@ -196,6 +196,7 @@ jobs:
     name: "Test e2e integration tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      workflow-name: "Regular e2e test"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
@@ -205,6 +206,7 @@ jobs:
     name: "Remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      workflow-name: "Remote logging e2e test"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
