@@ -61,6 +61,54 @@ After
 
 .. image:: ../img/change-site-title/example_instance_name_configuration.png
 
+Customizing side/navbar color
+-----------------------------
+
+We can provide a color to generate and apply a custom color palette for the UI's side/navbar.
+
+The color is used as the base for generating a cohesive theme that adapts text, backgrounds, and accent colors automatically.
+
+.. important::
+
+    - The color must be provided as a six-digit hexadecimal value in the form ``#RRGGBB``
+    - Invalid or missing values  the theme to the built-in default color scheme.
+
+.. note::
+
+    Both pure white ``#ffffff`` and pure black ``#000000`` will generate the same color palette (grayscale).
+    They have no hue or color saturation. Their only difference is brightness, not color tone.
+
+To make this change, simply:
+
+1.  Add the configuration option of ``theme`` under the ``[api]`` section inside ``airflow.cfg``:
+
+.. code-block::
+
+  [api]
+
+  theme = "#ff0000"
+
+
+2.  Alternatively, you can set a custom title using the environment variable:
+
+.. code-block::
+
+  AIRFLOW__API__THEME = "#ff0000"
+
+
+Screenshots
+^^^^^^^^^^^
+
+Light Mode
+""""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+
+Dark Mode
+"""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+
 |
 
 Adding Dashboard Alert Messages
