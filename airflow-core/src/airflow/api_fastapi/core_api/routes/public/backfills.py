@@ -25,7 +25,6 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -58,6 +57,7 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
 )
+from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -215,7 +215,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
-    b.completed_at = cast(UtcDateTime, timezone.utcnow())
+    b.completed_at = cast("UtcDateTime", timezone.utcnow())
     return b
 
 

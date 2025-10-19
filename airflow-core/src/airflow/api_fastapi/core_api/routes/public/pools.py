@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
@@ -69,7 +69,7 @@ def delete_pool(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
     result = session.execute(delete(Pool).where(Pool.pool == pool_name))
-    affected_count = getattr(result, 'rowcount', 0)
+    affected_count = getattr(result, "rowcount", 0)
 
     if affected_count == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")

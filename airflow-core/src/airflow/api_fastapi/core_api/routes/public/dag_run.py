@@ -172,8 +172,6 @@ def patch_dag_run(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    
-    assert dag_run is not None
 
     dag = get_dag_for_run(dag_bag, dag_run, session=session)
 
@@ -208,16 +206,26 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
-            dag_run = session.get(DagRun, dag_run.id)
-            assert dag_run is not None
+            dag_run_pk: int = dag_run.id
+            dag_run = session.get(DagRun, dag_run_pk)
+            if dag_run is None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    f"DagRun with id: `{dag_run_pk}` was not found",
+                )
             if dag_run.dag_run_note is None:
                 dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
                 dag_run.dag_run_note.user_id = user.get_id()
 
-    dag_run = session.get(DagRun, dag_run.id)
-    assert dag_run is not None
+    dag_run_pk_final: int = dag_run.id
+    dag_run = session.get(DagRun, dag_run_pk_final)
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DagRun with id: `{dag_run_pk_final}` was not found",
+        )
 
     return dag_run
 
@@ -308,7 +316,11 @@ def clear_dag_run(
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-    assert dag_run_cleared is not None
+    if dag_run_cleared is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DagRun with id: `{dag_run.id}` was not found after clearing",
+        )
     return dag_run_cleared
 
 
@@ -543,7 +555,7 @@ def get_list_dag_runs_batch(
     session: SessionDep,
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = FilterParam(cast(ColumnElement, DagRun.dag_id), body.dag_ids, FilterOptionEnum.IN)
+    dag_ids = FilterParam(cast("ColumnElement", DagRun.dag_id), body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(
             lower_bound_gte=body.logical_date_gte,
@@ -551,7 +563,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=cast(ColumnElement, DagRun.logical_date),
+        attribute=cast("ColumnElement", DagRun.logical_date),
     )
     run_after = RangeFilter(
         Range(
@@ -560,7 +572,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=cast(ColumnElement, DagRun.run_after),
+        attribute=cast("ColumnElement", DagRun.run_after),
     )
     start_date = RangeFilter(
         Range(
@@ -569,7 +581,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=cast(ColumnElement, DagRun.start_date),
+        attribute=cast("ColumnElement", DagRun.start_date),
     )
     end_date = RangeFilter(
         Range(
@@ -578,7 +590,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=cast(ColumnElement, DagRun.end_date),
+        attribute=cast("ColumnElement", DagRun.end_date),
     )
     duration = RangeFilter(
         Range(
@@ -587,10 +599,12 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=cast(ColumnElement, DagRun.duration),
+        attribute=cast("ColumnElement", DagRun.duration),
     )
-    conf_contains = FilterParam(cast(ColumnElement, DagRun.conf), body.conf_contains, FilterOptionEnum.CONTAINS)
-    state = FilterParam(cast(ColumnElement, DagRun.state), body.states, FilterOptionEnum.ANY_EQUAL)
+    conf_contains = FilterParam(
+        cast("ColumnElement", DagRun.conf), body.conf_contains, FilterOptionEnum.CONTAINS
+    )
+    state = FilterParam(cast("ColumnElement", DagRun.state), body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
