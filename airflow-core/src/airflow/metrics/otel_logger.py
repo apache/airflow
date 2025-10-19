@@ -390,6 +390,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
         interval = float(interval)
+    else:
+        # If the env variable is an empty string.
+        interval = None
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
