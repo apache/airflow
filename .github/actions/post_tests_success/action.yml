@@ -27,13 +27,17 @@ inputs:
     description: 'Python version'
     required: true
     default: ''
+  test-name:
+    description: 'The name of the test to run'
+    required: true
+    default: ''
 runs:
   using: "composite"
   steps:
     - name: "Upload artifact for warnings"
       uses: actions/upload-artifact@v4
       with:
-        name: test-warnings-${{ env.JOB_ID }}
+        name: test-warnings-${{ inputs.test-name }}-${{ env.JOB_ID }}
         path: ./files/warnings-*.txt
         retention-days: 7
         if-no-files-found: ignore
@@ -51,6 +55,6 @@ runs:
         env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
         && inputs.python-version != '3.13'
       with:
-        name: coverage-${{env.JOB_ID}}
+        name: coverage-${{ inputs.test-name }}-${{env.JOB_ID}}
         flags: python-${{ env.PYTHON_MAJOR_MINOR_VERSION }},${{ env.BACKEND }}-${{ env.BACKEND_VERSION }}
         directory: "./files/coverage-reports/"

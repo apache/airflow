@@ -215,7 +215,10 @@ jobs:
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           python-version: ${{ matrix.python-version }}
+          test-name: ${{ inputs.test-name }}
         if: success()
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
+        with:
+          test-name: ${{ inputs.test-name }}
         if: failure() || cancelled()

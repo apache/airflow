@@ -18,13 +18,18 @@
 ---
 name: 'Post tests on failure'
 description: 'Run post tests actions on failure'
+inputs:
+  test-name:
+    description: 'The name of the test to run'
+    required: true
+    default: ''
 runs:
   using: "composite"
   steps:
     - name: "Upload airflow logs"
       uses: actions/upload-artifact@v4
       with:
-        name: airflow-logs-${{env.JOB_ID}}
+        name: airflow-logs-${{ inputs.test-name }}-${{env.JOB_ID}}
         path: './files/airflow_logs*'
         retention-days: 7
         if-no-files-found: ignore
