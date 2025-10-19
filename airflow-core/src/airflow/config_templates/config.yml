@@ -1363,7 +1363,7 @@ api:
     theme:
       description: |
         Creates and sets a custom color palette for the side/navbar based on a color.
-        It expects a hex color code. If the value is not provided UI will use default theme.
+        It expects a hex six-digit form. If the value is not provided UI will use default theme.
       version_added: ~
       type: string
       example: "#dce7f5"
