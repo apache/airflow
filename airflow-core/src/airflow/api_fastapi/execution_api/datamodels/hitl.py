@@ -94,6 +94,6 @@ class HITLDetailResponse(BaseModel):
             response_received=hitl_detail.response_received,
             responded_at=responded_at_datetime,
             responded_by_user=hitl_user,
-            chosen_options=hitl_detail.chosen_options.get("options", []) if hitl_detail.chosen_options else None,
+            chosen_options=hitl_detail.chosen_options if isinstance(hitl_detail.chosen_options, list) else None,
             params_input=hitl_detail.params_input or {},
         )
