@@ -24,7 +24,6 @@ from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.hitl import HITLDetail
-from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class HITLUser(BaseModel):
@@ -60,7 +59,7 @@ class HITLDetailResponse(BaseModel):
 
     response_received: bool
     responded_by_user: HITLUser | None = None
-    responded_at: UtcDateTime | None
+    responded_at: datetime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
@@ -76,9 +75,24 @@ class HITLDetailResponse(BaseModel):
             else None
         )
 
+        # Convert UtcDateTime to datetime for Pydantic compatibility
+        responded_at_datetime = None
+        if hitl_detail.responded_at is not None:
+            # Convert UtcDateTime to standard datetime
+            responded_at_datetime = datetime(
+                year=hitl_detail.responded_at.year,
+                month=hitl_detail.responded_at.month,
+                day=hitl_detail.responded_at.day,
+                hour=hitl_detail.responded_at.hour,
+                minute=hitl_detail.responded_at.minute,
+                second=hitl_detail.responded_at.second,
+                microsecond=hitl_detail.responded_at.microsecond,
+                tzinfo=hitl_detail.responded_at.tzinfo,
+            )
+
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
-            responded_at=hitl_detail.responded_at,
+            responded_at=responded_at_datetime,
             responded_by_user=hitl_user,
             chosen_options=hitl_detail.chosen_options.get("options", []) if hitl_detail.chosen_options else None,
             params_input=hitl_detail.params_input or {},
