@@ -934,6 +934,7 @@ jobs:
     timeout-minutes: 15
     name: "Summarize warnings"
     needs:
+      - build-info
       - tests-mysql-core
       - tests-mysql-providers
       - tests-non-db-core
