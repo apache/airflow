@@ -141,6 +141,71 @@ def _find_aggregates(
         return
 
 
+def _build_task_instance_summaries(
+    serdag: SerializedDagModel,
+    ti_details: dict[str, list],
+) -> list[dict]:
+    """
+    Build task instance summaries from a serialized DAG and TI details.
+
+    This function generates summaries for all tasks/groups in the DAG structure,
+    including synthetic nodes for removed tasks that have TIs but are no longer
+    in the current DAG structure.
+
+    Args:
+        serdag: The serialized DAG model
+        ti_details: Dictionary mapping task_id to list of TI state/date dicts
+
+    Returns:
+        List of task instance summary dictionaries with deduplication applied
+        (groups take precedence over tasks with the same ID)
+    """
+    yielded_task_ids: set[str] = set()
+    task_instances_list = []
+
+    # Yield all nodes discoverable from the serialized DAG structure
+    for node in _find_aggregates(
+        node=serdag.dag.task_group,
+        parent_node=None,
+        ti_details=ti_details,
+    ):
+        if node["type"] in {"task", "mapped_task"}:
+            yielded_task_ids.add(node["task_id"])
+            if node["type"] == "task":
+                node["child_states"] = None
+                node["min_start_date"] = None
+                node["max_end_date"] = None
+        task_instances_list.append(node)
+
+    # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
+    # but are not present in the current DAG structure (e.g. removed tasks)
+    missing_task_ids = set(ti_details.keys()) - yielded_task_ids
+    for task_id in sorted(missing_task_ids):
+        detail = ti_details[task_id]
+        # Create a leaf task node with aggregated state from its TIs
+        agg = _get_aggs_for_node(detail)
+        task_instances_list.append(
+            {
+                "task_id": task_id,
+                "type": "task",
+                "parent_id": None,
+                **agg,
+                # Align with leaf behavior
+                "child_states": None,
+                "min_start_date": None,
+                "max_end_date": None,
+            }
+        )
+
+    # If a group id and a task id collide, prefer the group record
+    group_ids = {n.get("task_id") for n in task_instances_list if n.get("type") == "group"}
+    filtered = [
+        n for n in task_instances_list if not (n.get("type") == "task" and n.get("task_id") in group_ids)
+    ]
+
+    return filtered
+
+
 def get_batch_ti_summaries(
     dag_id: str,
     run_ids: list[str],
@@ -231,49 +296,8 @@ def get_batch_ti_summaries(
             )
             continue
 
-        # Helper function to generate node summaries
-        def get_node_summaries():
-            yielded_task_ids: set[str] = set()
-
-            # Yield all nodes discoverable from the serialized DAG structure
-            for node in _find_aggregates(
-                node=serdag.dag.task_group,
-                parent_node=None,
-                ti_details=ti_details,
-            ):
-                if node["type"] in {"task", "mapped_task"}:
-                    yielded_task_ids.add(node["task_id"])
-                    if node["type"] == "task":
-                        node["child_states"] = None
-                        node["min_start_date"] = None
-                        node["max_end_date"] = None
-                yield node
-
-            # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
-            # but are not present in the current DAG structure (e.g. removed tasks)
-            missing_task_ids = set(ti_details.keys()) - yielded_task_ids
-            for task_id in sorted(missing_task_ids):
-                detail = ti_details[task_id]
-                # Create a leaf task node with aggregated state from its TIs
-                agg = _get_aggs_for_node(detail)
-                yield {
-                    "task_id": task_id,
-                    "type": "task",
-                    "parent_id": None,
-                    **agg,
-                    # Align with leaf behavior
-                    "child_states": None,
-                    "min_start_date": None,
-                    "max_end_date": None,
-                }
-
-        task_instances_list = list(get_node_summaries())
-
-        # If a group id and a task id collide, prefer the group record
-        group_ids = {n.get("task_id") for n in task_instances_list if n.get("type") == "group"}
-        filtered = [
-            n for n in task_instances_list if not (n.get("type") == "task" and n.get("task_id") in group_ids)
-        ]
+        # Build task instance summaries using the common utility function
+        filtered = _build_task_instance_summaries(serdag, ti_details)
 
         summaries.append(
             {
