@@ -416,6 +416,7 @@ def _configure_session(disable_connection_pool: bool, pool_class):
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
+    print(SQL_ALCHEMY_CONN)
     if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
 
