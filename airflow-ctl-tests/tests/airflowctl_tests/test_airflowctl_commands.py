@@ -101,9 +101,19 @@ def test_airflowctl_commands(tmp_path_factory, monkeypatch, login_command, login
     tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
     copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
 
+    dot_env_file = tmp_dir / ".env"
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # To enable debug mode for airflowctl CLI
+        "AIRFLOW_CTL_CLI_DEBUG_MODE=true\n"
+        # To enable config operations to work
+        "AIRFLOW__API__EXPOSE_CONFIG=true\n"
+    )
+
     # Set environment variables for the test
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", DOCKER_IMAGE)
     monkeypatch.setenv("AIRFLOW_CTL_VERSION", os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0"))
+    monkeypatch.setenv("ENV_FILE_PATH", str(tmp_dir / ".env"))
 
     # Initialize Docker client
     compose = DockerClient(compose_files=[str(tmp_docker_compose_file)])

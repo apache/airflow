@@ -73,6 +73,8 @@ def pytest_sessionstart(session):
 
 @pytest.fixture
 def login_command():
+    # Passing password via command line is insecure but acceptable for testing purposes
+    # Please do not do this in production, it enables possibility of exposing your credentials
     return "auth login --username airflow --password airflow"
 
 

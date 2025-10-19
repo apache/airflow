@@ -868,7 +868,7 @@ def airflowctl_integration_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    # Export the TASK_SDK_VERSION environment variable for the test
+    # Export the AIRFLOW_CTL_VERSION environment variable for the test
     import os
 
     os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version

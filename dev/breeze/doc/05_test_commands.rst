@@ -212,9 +212,9 @@ You can also iterate over those tests with pytest command but unlike regular uni
 a local venv. You can build the prod image with breeze and that will be used by default if present to run the tests.
 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
-``breeze testing task-sdk-integration-tests`` command.
+``breeze testing airflow-ctl-integration-tests`` command.
 
-The task-sdk tests are in ``task-sdk-tests/`` folder in the main repo.
+The airflowctl tests are in ``airflow-ctl-tests/`` folder in the main repo.
 
 Running integration core tests
 ...............................
