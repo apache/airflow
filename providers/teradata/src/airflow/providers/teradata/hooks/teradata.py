@@ -212,7 +212,7 @@ class TeradataHook(DbApiHook):
             password=connection.password,
             host=connection.host,
             port=connection.port,
-            database=connection.schema,
+            database=connection.schema if connection.schema else None,
         )
 
     def get_uri(self) -> str:
