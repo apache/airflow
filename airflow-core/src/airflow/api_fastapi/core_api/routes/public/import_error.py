@@ -86,9 +86,7 @@ def get_import_error(
 
     readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
     # We need file_dag_ids as a set for intersection, issubset operations
-    file_dag_ids = set(
-        session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
-    )
+    file_dag_ids = set(session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)))
     # Can the user read any DAGs in the file?
     if not readable_dag_ids.intersection(file_dag_ids):
         raise HTTPException(
@@ -145,7 +143,7 @@ def get_import_errors(
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if can_read_all_dags:
         # Early return if the user has access to all DAGs
-        import_errors = list(session.scalars(import_errors_select).all())
+        import_errors = list(session.scalars(import_errors_select))
         return ImportErrorCollectionResponse(
             import_errors=import_errors,
             total_entries=total_entries,
