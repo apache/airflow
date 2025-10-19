@@ -33,14 +33,9 @@ class PubsubPullTrigger(BaseTrigger):
     """
     Initialize the Pubsub Pull Trigger with needed parameters.
 
+    :param subscription: the Pub/Sub subscription name. Do not include the full subscription path
     :param project_id: the Google Cloud project ID for the subscription (templated)
-    :param subscription: the Pub/Sub subscription name. Do not include the full subscription path.
-    :param max_messages: The maximum number of messages to retrieve per
-        PubSub pull request
-    :param ack_messages: If True, each message will be acknowledged
-        immediately rather than by any downstream tasks
     :param gcp_conn_id: Reference to google cloud connection id
-    :param poke_interval: polling period in seconds to check for the status
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -48,40 +43,50 @@ class PubsubPullTrigger(BaseTrigger):
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
+        account from the list granting this role to the originating account (templated)
+
+    :param max_messages: The maximum number of messages to retrieve per
+        PubSub pull request
+    :param ack_messages: If True, each message will be acknowledged
+        immediately rather than by any downstream tasks
+    :param poke_interval: polling period in seconds to check for the status
+    :param waiter_delay: The time in seconds to wait between calls to the SQS API to receive messages
     """
 
     def __init__(
         self,
         project_id: str,
         subscription: str,
-        max_messages: int,
-        ack_messages: bool,
-        gcp_conn_id: str,
-        poke_interval: float = 10.0,
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        max_messages: int = 100,
+        ack_messages: bool = True,
+        poke_interval: float = 10.0,
+        waiter_delay: int = 60,
     ):
         super().__init__()
         self.project_id = project_id
         self.subscription = subscription
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
         self.max_messages = max_messages
         self.ack_messages = ack_messages
         self.poke_interval = poke_interval
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
+        self.waiter_delay = waiter_delay
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger",
             {
-                "project_id": self.project_id,
                 "subscription": self.subscription,
+                "project_id": self.project_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
                 "max_messages": self.max_messages,
                 "ack_messages": self.ack_messages,
                 "poke_interval": self.poke_interval,
-                "gcp_conn_id": self.gcp_conn_id,
-                "impersonation_chain": self.impersonation_chain,
+                "waiter_delay": self.waiter_delay,
             },
         )
 
@@ -101,8 +106,10 @@ class PubsubPullTrigger(BaseTrigger):
 
                     yield TriggerEvent({"status": "success", "message": messages_json})
                     return
+
                 self.log.info("Sleeping for %s seconds.", self.poke_interval)
                 await asyncio.sleep(self.poke_interval)
+
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
             return
