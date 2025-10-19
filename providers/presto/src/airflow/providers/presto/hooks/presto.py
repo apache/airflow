@@ -156,13 +156,10 @@ class PrestoHook(DbApiHook):
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 
-        if not conn.host:
-            raise ValueError("Presto connection error: 'host' is missing in the connection.")
-        if not conn.port:
-            raise ValueError("Presto connection error: 'port' is missing in connection.")
-        if not conn.login:
-            raise ValueError("Presto connection error: 'login' is missing in Connection")
-
+        required_attrs = ["host", "login", "port"]
+        for attr in required_attrs:
+            if getattr(conn, attr) is None:
+                raise ValueError(f"Presto connections error: '{attr}' is missing in the connection")
         # adding only when **kwargs are given by user
         query = {
             k: v
@@ -174,9 +171,6 @@ class PrestoHook(DbApiHook):
             }.items()
             if v is not None
         }
-
-        url_query_params = {k: v for k, v in query.items() if v is not None}
-
         return URL.create(
             drivername="presto",
             username=conn.login,
@@ -184,7 +178,7 @@ class PrestoHook(DbApiHook):
             host=str(conn.host),
             port=conn.port,
             database=extra.get("catalog"),
-            query=url_query_params,
+            query=query,
         )
 
     def get_uri(self) -> str:
