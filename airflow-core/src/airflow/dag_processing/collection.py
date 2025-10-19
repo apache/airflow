@@ -28,7 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
-from typing import TYPE_CHECKING, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
@@ -37,6 +37,7 @@ from sqlalchemy.orm import joinedload, load_only
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
+from airflow.configuration import conf
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -59,17 +60,17 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
-from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
 
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import Select, Subquery
 
     from airflow.models.dagwarning import DagWarning
     from airflow.typing_compat import Self
+    from airflow.utils.sqlalchemy import UtcDateTime
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
@@ -95,7 +96,7 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
     if len(dag_ids) == 1:  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
         (dag_id,) = dag_ids
-        last_automated_runs_subq = (
+        last_automated_runs_subq_scalar: Any = (
             select(func.max(DagRun.logical_date).label("max_logical_date"))
             .where(
                 DagRun.dag_id == dag_id,
@@ -105,10 +106,10 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
         )
         query = select(DagRun).where(
             DagRun.dag_id == dag_id,
-            DagRun.logical_date == last_automated_runs_subq,
+            DagRun.logical_date == last_automated_runs_subq_scalar,
         )
     else:
-        last_automated_runs_subq = (
+        last_automated_runs_subq_table: Subquery = (
             select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
             .where(
                 DagRun.dag_id.in_(dag_ids),
@@ -118,8 +119,8 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
             .subquery()
         )
         query = select(DagRun).where(
-            DagRun.dag_id == last_automated_runs_subq.c.dag_id,
-            DagRun.logical_date == last_automated_runs_subq.c.max_logical_date,
+            DagRun.dag_id == last_automated_runs_subq_table.c.dag_id,
+            DagRun.logical_date == last_automated_runs_subq_table.c.max_logical_date,
         )
     return query.options(
         load_only(
@@ -304,9 +305,10 @@ def _update_import_errors(
                         ParseImportError.filename == relative_fileloc,
                     )
                 )
-                get_listener_manager().hook.on_existing_dag_import_error(
-                    filename=import_error.full_file_path(), stacktrace=stacktrace
-                )
+                if import_error is not None:
+                    get_listener_manager().hook.on_existing_dag_import_error(
+                        filename=import_error.full_file_path(), stacktrace=stacktrace
+                    )
             except Exception:
                 log.exception("error calling listener")
         else:
@@ -443,7 +445,12 @@ class DagModelOperation(NamedTuple):
             .options(joinedload(DagModel.schedule_asset_alias_references))
             .options(joinedload(DagModel.task_outlet_asset_references))
         )
-        stmt = with_row_locks(stmt, of=DagModel, session=session)
+        # Apply row locking if enabled
+        if conf.getboolean("scheduler", "use_row_level_locking", fallback=True):
+            if session.bind is not None:
+                dialect = session.bind.dialect
+                if dialect.name != "mysql" or getattr(dialect, "supports_for_update_of", False):
+                    stmt = stmt.with_for_update(of=DagModel)
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
@@ -476,7 +483,7 @@ class DagModelOperation(NamedTuple):
             dm.owners = dag.owner or conf.get("operators", "default_owner")
             dm.is_stale = False
             dm.has_import_errors = False
-            dm.last_parsed_time = utcnow()
+            dm.last_parsed_time = cast("UtcDateTime", utcnow())
             dm.last_parse_duration = parse_duration
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
@@ -642,7 +649,8 @@ def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Ass
 
 def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
     return set(
-        session.execute(
+        tuple(row)
+        for row in session.execute(
             select(AssetModel.name, AssetModel.uri).where(
                 tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
                 AssetModel.active.has(),
@@ -650,7 +658,7 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
                     DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
                 ),
             )
-        )
+        ).all()
     )
 
 
@@ -756,20 +764,20 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
-        if (dialect_name := session.bind.dialect.name) == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert
+        if session.bind is not None and (dialect_name := session.bind.dialect.name) == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
-            stmt = insert(AssetActive).on_conflict_do_nothing()
-        elif dialect_name == "mysql":
-            from sqlalchemy.dialects.mysql import insert
+            stmt: Any = postgresql_insert(AssetActive).on_conflict_do_nothing()
+        elif session.bind is not None and dialect_name == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
 
             # MySQL does not support "do nothing"; this updates the row in
             # conflict with its own value to achieve the same idea.
-            stmt = insert(AssetActive).on_duplicate_key_update(name=AssetActive.name)
+            stmt = mysql_insert(AssetActive).on_duplicate_key_update(name=AssetActive.name)
         else:
-            from sqlalchemy.dialects.sqlite import insert
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-            stmt = insert(AssetActive).on_conflict_do_nothing()
+            stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
         if values := [{"name": m.name, "uri": m.uri} for m in models]:
             session.execute(stmt, values)
 
@@ -836,11 +844,12 @@ class AssetModelOperation(NamedTuple):
         if not references:
             return
         orm_refs = set(
-            session.execute(
+            tuple(row)
+            for row in session.execute(
                 select(model.dag_id, getattr(model, attr)).where(
                     model.dag_id.in_(dag_id for dag_id, _ in references)
                 )
-            )
+            ).all()
         )
         new_refs = references - orm_refs
         old_refs = orm_refs - references
