@@ -7754,6 +7754,24 @@ export const $GridTISummariesBatch = {
     description: 'Batch of Task Instance Summaries for multiple DAG runs.'
 } as const;
 
+export const $GridTISummariesBatchRequest = {
+    properties: {
+        run_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            maxItems: 100,
+            minItems: 1,
+            title: 'Run Ids'
+        }
+    },
+    type: 'object',
+    required: ['run_ids'],
+    title: 'GridTISummariesBatchRequest',
+    description: 'Request model for batch TI summaries.'
+} as const;
+
 export const $HistoricalMetricDataResponse = {
     properties: {
         dag_run_types: {

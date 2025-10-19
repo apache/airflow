@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.utils.state import TaskInstanceState
 
@@ -40,6 +40,12 @@ class GridTISummaries(BaseModel):
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
+
+
+class GridTISummariesBatchRequest(BaseModel):
+    """Request model for batch TI summaries."""
+
+    run_ids: list[str] = Field(..., min_length=1, max_length=100)
 
 
 class GridTISummariesBatch(BaseModel):

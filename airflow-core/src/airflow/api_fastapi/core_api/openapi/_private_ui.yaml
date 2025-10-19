@@ -975,10 +975,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                type: string
-              title: Run Ids
+              $ref: '#/components/schemas/GridTISummariesBatchRequest'
       responses:
         '200':
           description: Successful Response
@@ -2076,6 +2073,20 @@ components:
       - summaries
       title: GridTISummariesBatch
       description: Batch of Task Instance Summaries for multiple DAG runs.
+    GridTISummariesBatchRequest:
+      properties:
+        run_ids:
+          items:
+            type: string
+          type: array
+          maxItems: 100
+          minItems: 1
+          title: Run Ids
+      type: object
+      required:
+      - run_ids
+      title: GridTISummariesBatchRequest
+      description: Request model for batch TI summaries.
     HITLDetail:
       properties:
         options:

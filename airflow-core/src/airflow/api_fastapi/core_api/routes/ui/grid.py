@@ -45,6 +45,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.common import (
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTISummaries,
     GridTISummariesBatch,
+    GridTISummariesBatchRequest,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
@@ -454,7 +455,7 @@ def get_grid_ti_summaries(
 )
 def get_grid_ti_summaries_batch(
     dag_id: str,
-    run_ids: list[str],
+    request: GridTISummariesBatchRequest,
     session: SessionDep,
 ) -> GridTISummariesBatch:
     """
@@ -463,16 +464,4 @@ def get_grid_ti_summaries_batch(
     This endpoint is much more efficient than calling /ti_summaries/{dag_id}/{run_id}
     multiple times, as it fetches all task instances in a single database query.
     """
-    if not run_ids:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "run_ids must not be empty",
-        )
-
-    if len(run_ids) > 100:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Cannot fetch more than 100 runs at once",
-        )
-
-    return get_batch_ti_summaries(dag_id, run_ids, session)  # type: ignore[return-value]
+    return get_batch_ti_summaries(dag_id, request.run_ids, session)  # type: ignore[return-value]

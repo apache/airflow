@@ -1936,6 +1936,13 @@ export type GridTISummariesBatch = {
 };
 
 /**
+ * Request model for batch TI summaries.
+ */
+export type GridTISummariesBatchRequest = {
+    run_ids: Array<(string)>;
+};
+
+/**
  * Historical Metric Data serializer for responses.
  */
 export type HistoricalMetricDataResponse = {
@@ -3369,7 +3376,7 @@ export type GetGridTiSummariesResponse = GridTISummaries;
 
 export type GetGridTiSummariesBatchData = {
     dagId: string;
-    requestBody: Array<(string)>;
+    requestBody: GridTISummariesBatchRequest;
 };
 
 export type GetGridTiSummariesBatchResponse = GridTISummariesBatch;

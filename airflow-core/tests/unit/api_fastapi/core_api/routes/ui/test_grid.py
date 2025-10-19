@@ -802,7 +802,7 @@ class TestGridTISummariesBatch:
         # Call batch endpoint
         response = test_client.post(
             f"/grid/ti_summaries_batch/{DAG_ID}",
-            json=["run_1", "run_2"],
+            json={"run_ids": ["run_1", "run_2"]},
         )
 
         assert response.status_code == 200
@@ -830,11 +830,11 @@ class TestGridTISummariesBatch:
         """Test batch endpoint rejects empty run_ids."""
         response = test_client.post(
             f"/grid/ti_summaries_batch/{DAG_ID}",
-            json=[],
+            json={"run_ids": []},
         )
 
-        assert response.status_code == 400
-        assert "run_ids must not be empty" in response.text
+        assert response.status_code == 422
+        assert "run_ids" in response.text
 
     def test_batch_ti_summaries_too_many_runs(self, test_client, session):
         """Test batch endpoint rejects more than 100 run_ids."""
@@ -842,8 +842,8 @@ class TestGridTISummariesBatch:
 
         response = test_client.post(
             f"/grid/ti_summaries_batch/{DAG_ID}",
-            json=run_ids,
+            json={"run_ids": run_ids},
         )
 
-        assert response.status_code == 400
-        assert "Cannot fetch more than 100 runs at once" in response.text
+        assert response.status_code == 422
+        assert "run_ids" in response.text

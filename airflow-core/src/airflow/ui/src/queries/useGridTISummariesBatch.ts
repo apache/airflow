@@ -44,7 +44,7 @@ export const useGridTISummariesBatch = ({
     queryFn: () =>
       GridService.getGridTiSummariesBatch({
         dagId,
-        requestBody: runIds,
+        requestBody: { run_ids: runIds },
       }),
     queryKey: ["grid", "ti-summaries-batch", dagId, runIds],
     refetchInterval: hasPendingState ? refetchInterval : false,
