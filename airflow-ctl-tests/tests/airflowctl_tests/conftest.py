@@ -21,10 +21,18 @@ import subprocess
 import sys
 
 import pytest
+from rich.console import Console
 
-from airflowctl_tests.constants import AIRFLOW_ROOT_PATH
+from airflowctl_tests.constants import (
+    AIRFLOW_ROOT_PATH,
+    DOCKER_COMPOSE_FILE_PATH,
+    DOCKER_IMAGE,
+)
+
+docker_client = None
 
 
+# Pytest hook to run at the start of the session
 def pytest_sessionstart(session):
     """Install airflowctl at the very start of the pytest session."""
     from rich.console import Console
@@ -69,6 +77,134 @@ def pytest_sessionstart(session):
         console.print(f"[red]Stdout: {e.stdout}")
         console.print(f"[red]Stderr: {e.stderr}")
         raise
+
+    docker_compose_up(
+        session.config._tmp_path_factory,
+        console,
+    )
+
+
+def print_diagnostics(compose, compose_version, docker_version, console):
+    """Print diagnostic information when test fails."""
+    console.print("[red]=== DIAGNOSTIC INFORMATION ===[/]")
+    console.print(f"Docker version: {docker_version}")
+    console.print(f"Docker Compose version: {compose_version}")
+    console.print("\n[yellow]Container Status:[/]")
+    try:
+        containers = compose.compose.ps()
+        for container in containers:
+            console.print(f"  {container.name}: {container.state}")
+    except Exception as e:
+        console.print(f"  Error getting container status: {e}")
+
+    console.print("\n[yellow]Container Logs:[/]")
+    try:
+        logs = compose.compose.logs()
+        console.print(logs)
+    except Exception as e:
+        console.print(f"  Error getting logs: {e}")
+
+
+def debug_environment(console):
+    """Debug the Python environment setup in CI."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    console.print("[yellow]===== CI ENVIRONMENT DEBUG =====")
+    console.print(f"[blue]Python executable: {sys.executable}")
+    console.print(f"[blue]Python version: {sys.version}")
+    console.print(f"[blue]Working directory: {os.getcwd()}")
+    console.print(f"[blue]VIRTUAL_ENV: {os.environ.get('VIRTUAL_ENV', 'Not set')}")
+    console.print(f"[blue]PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
+
+    console.print(f"[blue]Python executable exists: {Path(sys.executable).exists()}")
+    if Path(sys.executable).is_symlink():
+        console.print(f"[blue]Python executable is symlink to: {Path(sys.executable).readlink()}")
+
+    try:
+        uv_python = subprocess.check_output(["uv", "python", "find"], text=True).strip()
+        console.print(f"[cyan]UV Python: {uv_python}")
+        console.print(f"[green]Match: {uv_python == sys.executable}")
+
+        console.print(f"[cyan]UV Python exists: {Path(uv_python).exists()}")
+        if Path(uv_python).is_symlink():
+            console.print(f"[cyan]UV Python is symlink to: {Path(uv_python).readlink()}")
+    except Exception as e:
+        console.print(f"[red]UV Python error: {e}")
+
+    # Check what's installed in current environment
+    try:
+        import airflowctl
+
+        console.print(f"[green]✅ airflow already available: {airflowctl.__file__}")
+    except ImportError:
+        console.print("[red]❌ airflowctl not available in current environment")
+
+    console.print("[yellow]================================")
+
+
+def docker_compose_up(tmp_path_factory, console):
+    """Fixture to spin up Docker Compose environment for the test session."""
+    from shutil import copyfile
+
+    from python_on_whales import DockerClient, docker
+
+    global docker_client
+
+    tmp_dir = tmp_path_factory.mktemp("airflow-ctl-test")
+    console.print(f"[yellow]Tests are run in {tmp_dir}")
+
+    # Copy docker-compose.yaml to temp directory
+    tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
+    copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
+
+    dot_env_file = tmp_dir / ".env"
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # To enable debug mode for airflowctl CLI
+        "AIRFLOW_CTL_CLI_DEBUG_MODE=true\n"
+        # To enable config operations to work
+        "AIRFLOW__API__EXPOSE_CONFIG=true\n"
+    )
+
+    # Set environment variables for the test
+    os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
+    os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
+    os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
+
+    # Initialize Docker client
+    docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+
+    try:
+        console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
+        docker_client.compose.up(detach=True, wait=True)
+        console.print("[green]Docker compose started for airflowctl test\n")
+    except Exception:
+        print_diagnostics(docker_client.compose, docker_client.compose.version(), docker.version(), console)
+        debug_environment(console)
+        docker_compose_down()
+        raise
+
+
+def docker_compose_down():
+    """Tear down Docker Compose environment."""
+    global docker_client
+    if docker_client:
+        docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Tear down test environment at the end of the pytest session."""
+    if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+        docker_compose_down()
+
+
+# Fixtures for tests
+@pytest.fixture
+def console():
+    return Console(width=400, color_system="standard")
 
 
 @pytest.fixture
