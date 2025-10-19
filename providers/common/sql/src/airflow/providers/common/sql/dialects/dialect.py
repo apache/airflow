@@ -117,11 +117,10 @@ class Dialect(LoggingMixin):
     ) -> list[str] | None:
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
+        table_name = self.unescape_word(table)
+        schema = self.unescape_word(schema) if schema else None
         column_names = []
-        for column in self.inspector.get_columns(
-            table_name=self.unescape_word(table),
-            schema=self.unescape_word(schema) if schema else None,
-        ):
+        for column in self.inspector.get_columns(table_name=table_name, schema=schema):
             if predicate(column):
                 column_names.append(column["name"])
         self.log.debug("Column names for table '%s': %s", table, column_names)
