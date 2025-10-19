@@ -25,7 +25,10 @@ from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
-from airflow.providers.microsoft.azure.version_compat import BaseSensorOperator
+from airflow.providers.microsoft.azure.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    BaseSensorOperator,
+)
 
 if TYPE_CHECKING:
     from datetime import timedelta
@@ -60,6 +63,7 @@ class MSGraphSensor(BaseSensorOperator):
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
 
+    start_from_trigger = AIRFLOW_V_3_1_PLUS
     template_fields: Sequence[str] = (
         "url",
         "response_type",
@@ -107,8 +111,61 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
+        if self.start_from_trigger:
+            try:
+                from airflow.triggers.base import StartTriggerArgs
 
-    def execute(self, context: Context):
+                self.start_trigger_args = StartTriggerArgs(
+                    trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+                    trigger_kwargs=dict(
+                        url=self.url,
+                        response_type=self.response_type,
+                        path_parameters=self.path_parameters,
+                        url_template=self.url_template,
+                        method=self.method,
+                        query_parameters=self.query_parameters,
+                        headers=self.headers,
+                        data=self.data,
+                        conn_id=self.conn_id,
+                        timeout=self.timeout,
+                        proxies=self.proxies,
+                        scopes=self.scopes,
+                        api_version=self.api_version,
+                        serializer=f"{type(self.serializer).__module__}.{type(self.serializer).__name__}",
+                    ),
+                    next_method=self.execute_complete.__name__,
+                )
+            except ImportError:
+                self.start_from_trigger = False
+
+    def execute(self, context: Context) -> None:
+        if not self.start_from_trigger:
+            self.defer(
+                trigger=MSGraphTrigger(
+                    url=self.url,
+                    response_type=self.response_type,
+                    path_parameters=self.path_parameters,
+                    url_template=self.url_template,
+                    method=self.method,
+                    query_parameters=self.query_parameters,
+                    headers=self.headers,
+                    data=self.data,
+                    conn_id=self.conn_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    scopes=self.scopes,
+                    api_version=self.api_version,
+                    serializer=type(self.serializer),
+                ),
+                method_name=self.execute_complete.__name__,
+            )
+        return
+
+    def retry_execute(
+        self,
+        context: Context,
+        **kwargs,
+    ) -> Any:
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -128,13 +185,6 @@ class MSGraphSensor(BaseSensorOperator):
             ),
             method_name=self.execute_complete.__name__,
         )
-
-    def retry_execute(
-        self,
-        context: Context,
-        **kwargs,
-    ) -> Any:
-        self.execute(context=context)
 
     def execute_complete(
         self,
