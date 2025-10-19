@@ -29,7 +29,6 @@ import os
 import subprocess
 import sys
 import traceback
-import warnings
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any
@@ -42,7 +41,7 @@ from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
 from airflow.stats import Stats
@@ -100,16 +99,6 @@ def _get_celery_app() -> Celery:
         celery_configuration = DEFAULT_CELERY_CONFIG
 
     celery_app_name = conf.get("celery", "CELERY_APP_NAME")
-    if celery_app_name == "airflow.executors.celery_executor":
-        warnings.warn(
-            "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
-            "'airflow.executors.celery_executor'. "
-            "Change it to `airflow.providers.celery.executors.celery_executor`, and "
-            "update the `-app` flag in your Celery Health Checks "
-            "to use `airflow.providers.celery.executors.celery_executor.app`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     return Celery(celery_app_name, config_source=celery_configuration)
 
