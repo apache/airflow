@@ -229,7 +229,7 @@ jobs:
         with:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
           platform: ${{ inputs.platform }}
-          save-cache: false
+          save-cache: true
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
