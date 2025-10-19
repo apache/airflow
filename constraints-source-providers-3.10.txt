@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-19T00:44:25.518212
+# This constraints file was automatically generated on 2025-10-19T18:03:24.272525
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -475,7 +475,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
-psutil==7.1.0
+psutil==7.1.1
 psycopg-binary==3.2.11
 psycopg2-binary==2.9.11
 psycopg==3.2.11
