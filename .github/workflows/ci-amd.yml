@@ -165,13 +165,6 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-      - name: "Install and cache prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ steps.breeze.outputs.host-python-version }}
-          platform: "linux/amd64"
-          save-cache: true
   run-pin-versions-hook:
     name: "Run pin-versions hook"
     needs: [build-info]
@@ -881,7 +874,6 @@ jobs:
       - tests-non-db-providers
       - tests-postgres-core
       - tests-postgres-providers
-      # - tests-special
       - tests-sqlite-core
       - tests-sqlite-providers
       - tests-task-sdk
