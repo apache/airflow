@@ -70,7 +70,32 @@ export const useDagParams = (dagId: string, open: boolean) => {
     });
   }
 
-  const paramsDict: ParamsSpec = data?.params ?? ({} as ParamsSpec);
+  // Normalize backend params (which may be plain values or null) to ParamSpec entries
+  const rawParams = (data as unknown as { params?: unknown } | undefined)?.params;
+
+  const hasObjectParams = typeof rawParams === "object" && rawParams !== null;
+
+  const paramsDict: ParamsSpec = hasObjectParams
+    ? Object.fromEntries(
+        Object.entries(rawParams as Record<string, unknown>).map(([key, val]) => {
+          const maybeSpec = val as Partial<ParamSpec> | null;
+
+          if (maybeSpec && typeof maybeSpec === "object" && "value" in maybeSpec && "schema" in maybeSpec) {
+            return [key, maybeSpec as ParamSpec];
+          }
+
+          return [
+            key,
+            {
+              // eslint-disable-next-line unicorn/no-null
+              description: null,
+              schema: {} as ParamSchema,
+              value: val,
+            } as ParamSpec,
+          ];
+        }),
+      )
+    : ({} as ParamsSpec);
 
   return { paramsDict };
 };
