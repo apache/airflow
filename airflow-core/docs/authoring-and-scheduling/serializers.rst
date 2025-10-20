@@ -28,9 +28,9 @@ like ``str`` and ``int`` and it loops over iterables. When things become more co
 
 Airflow out of the box supports three ways of custom serialization. Primitives are returned as is, without
 additional encoding, e.g. a ``str`` remains a ``str``. When it is not a primitive (or iterable thereof) Airflow
-looks for a registered serializer and deserializer in the namespace of ``airflow.serialization.serializers``.
-If not found it will look in the class for a ``serialize()`` method or in case of deserialization a
-``deserialize(data, version: int)`` method. Finally, if the class is either decorated with ``@dataclass``
+first looks in the class for a ``serialize()`` method or in case of deserialization a ``deserialize(data, version: int)`` method.
+Next airflow checks for a registered serializer and deserializer in the namespace of ``airflow.serialization.serializers``.
+Finally, if the class is either decorated with ``@dataclass``
 or ``@attr.define`` it will use the public methods for those decorators.
 
 If you are looking to extend Airflow with a new serializer, it is good to know when to choose what way of serialization.
