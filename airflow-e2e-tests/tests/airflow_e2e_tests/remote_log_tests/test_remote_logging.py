@@ -63,6 +63,10 @@ class TestRemoteLogging:
         task_log_sources = [
             source for content in task_logs.get("content", [{}]) for source in content.get("sources", [])
         ]
+        # remove "/opt/airflow/logs/" prefix from log source paths
+        # before: /opt/airflow/logs/dag_id=example_xcom_test/run_id=manual__2025-10-20T03:24:32.261538+00:00/task_id=bash_pull/attempt=1.log
+        # after: dag_id=example_xcom_test/run_id=manual__2025-10-20T03:24:32.261538+00:00/task_id=bash_pull/attempt=1.log
+        task_log_sources = [source.replace("/opt/airflow/logs/", "") for source in task_log_sources]
 
         s3_client = boto3.client(
             "s3",
