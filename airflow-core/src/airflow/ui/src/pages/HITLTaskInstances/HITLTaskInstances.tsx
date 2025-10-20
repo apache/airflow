@@ -85,7 +85,7 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
-          accessorKey: "dag_id",
+          accessorKey: "dag_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
@@ -128,11 +128,11 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
-          accessorKey: "task_id",
+          accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-                <TruncatedText text={original.task_instance.task_id} />
+                <TruncatedText text={original.task_instance.task_display_name} />
               </RouterLink>
             </Link>
           ),
