@@ -466,9 +466,9 @@ repos:
           --pattern '^openlineage\.client\.(facet|run)'
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
       - id: check-common-compat-sdk-imports-in-sync
-        name: Check common.compat sdk.pyi is in sync
+        name: Check common.compat sdk TYPE_CHECKING matches runtime maps
         language: python
-        files: ^providers/common/compat/src/airflow/providers/common/compat/sdk\.(py|pyi)$
+        files: ^providers/common/compat/src/airflow/providers/common/compat/sdk\.py$
         pass_filenames: false
         entry: ./scripts/ci/prek/check_common_compat_lazy_imports.py
       - id: check-airflow-providers-bug-report-template
