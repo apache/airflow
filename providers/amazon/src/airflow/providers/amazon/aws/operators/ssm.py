@@ -185,27 +185,14 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
     def execute(self, context: Context) -> dict[str, Any]:
         """Execute the operator to retrieve command invocation output."""
         if self.instance_id:
-            # Get output for specific instance
             self.log.info(
                 "Retrieving output for command %s on instance %s", self.command_id, self.instance_id
             )
-            invocation_details = self.hook.get_command_invocation(self.command_id, self.instance_id)
+            invocations = [{"InstanceId": self.instance_id}]
+        else:
+            self.log.info("Retrieving output for command %s from all instances", self.command_id)
+            invocations = self.hook.list_command_invocations(self.command_id)
 
-            return {
-                "command_id": self.command_id,
-                "instance_id": self.instance_id,
-                "status": invocation_details.get("Status"),
-                "response_code": invocation_details.get("ResponseCode"),
-                "standard_output": invocation_details.get("StandardOutputContent", ""),
-                "standard_error": invocation_details.get("StandardErrorContent", ""),
-                "execution_start_time": invocation_details.get("ExecutionStartDateTime"),
-                "execution_end_time": invocation_details.get("ExecutionEndDateTime"),
-                "document_name": invocation_details.get("DocumentName"),
-                "comment": invocation_details.get("Comment", ""),
-            }
-        # Get output for all instances
-        self.log.info("Retrieving output for command %s from all instances", self.command_id)
-        invocations = self.hook.list_command_invocations(self.command_id)
         output_data = {"command_id": self.command_id, "invocations": []}
 
         for invocation in invocations:

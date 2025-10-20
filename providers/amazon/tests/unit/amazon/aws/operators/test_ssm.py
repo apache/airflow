@@ -133,18 +133,22 @@ class TestSsmGetCommandInvocationOperator:
         # Verify hook was called correctly
         mock_hook.get_command_invocation.assert_called_once_with(self.command_id, self.instance_id)
 
-        # Verify returned data structure
+        # Verify returned data structure - should use standardized format with invocations array
         expected_result = {
             "command_id": self.command_id,
-            "instance_id": self.instance_id,
-            "status": "Success",
-            "response_code": 0,
-            "standard_output": "Hello World",
-            "standard_error": "",
-            "execution_start_time": "2023-01-01T12:00:00Z",
-            "execution_end_time": "2023-01-01T12:00:05Z",
-            "document_name": "AWS-RunShellScript",
-            "comment": "Test command",
+            "invocations": [
+                {
+                    "instance_id": self.instance_id,
+                    "status": "Success",
+                    "response_code": 0,
+                    "standard_output": "Hello World",
+                    "standard_error": "",
+                    "execution_start_time": "2023-01-01T12:00:00Z",
+                    "execution_end_time": "2023-01-01T12:00:05Z",
+                    "document_name": "AWS-RunShellScript",
+                    "comment": "Test command",
+                }
+            ],
         }
         assert result == expected_result
 
