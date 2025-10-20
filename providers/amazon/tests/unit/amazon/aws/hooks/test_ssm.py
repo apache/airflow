@@ -88,8 +88,9 @@ class TestSsmHook:
         assert error["Code"] == "ParameterNotFound"
         assert BAD_PARAM_NAME in error["Message"]
 
-    def test_get_command_invocation(self):
-        command_id = "test-command-id"
+    @mock.patch("airflow.providers.amazon.aws.hooks.ssm.SsmHook.conn", new_callable=mock.PropertyMock)
+    def test_get_command_invocation(self, mock_conn):
+        command_id = "12345678-1234-1234-1234-123456789012"
         instance_id = "i-1234567890abcdef0"
         expected_response = {
             "CommandId": command_id,
@@ -100,38 +101,37 @@ class TestSsmHook:
             "StandardErrorContent": "",
         }
 
-        with mock.patch.object(self.hook.conn, "get_command_invocation") as mock_get_command:
-            mock_get_command.return_value = expected_response
+        mock_conn.return_value.get_command_invocation.return_value = expected_response
 
-            result = self.hook.get_command_invocation(command_id, instance_id)
+        result = self.hook.get_command_invocation(command_id, instance_id)
 
-            mock_get_command.assert_called_once_with(CommandId=command_id, InstanceId=instance_id)
-            assert result == expected_response
+        mock_conn.return_value.get_command_invocation.assert_called_once_with(CommandId=command_id, InstanceId=instance_id)
+        assert result == expected_response
 
-    def test_list_command_invocations(self):
-        command_id = "test-command-id"
+    @mock.patch("airflow.providers.amazon.aws.hooks.ssm.SsmHook.conn", new_callable=mock.PropertyMock)
+    def test_list_command_invocations(self, mock_conn):
+        command_id = "12345678-1234-1234-1234-123456789012"
         expected_invocations = [
             {"InstanceId": "i-111", "Status": "Success"},
             {"InstanceId": "i-222", "Status": "Failed"},
         ]
         expected_response = {"CommandInvocations": expected_invocations}
 
-        with mock.patch.object(self.hook.conn, "list_command_invocations") as mock_list_commands:
-            mock_list_commands.return_value = expected_response
+        mock_conn.return_value.list_command_invocations.return_value = expected_response
 
-            result = self.hook.list_command_invocations(command_id)
+        result = self.hook.list_command_invocations(command_id)
 
-            mock_list_commands.assert_called_once_with(CommandId=command_id)
-            assert result == expected_response
+        mock_conn.return_value.list_command_invocations.assert_called_once_with(CommandId=command_id)
+        assert result == expected_response
 
-    def test_list_command_invocations_empty_response(self):
-        command_id = "test-command-id"
+    @mock.patch("airflow.providers.amazon.aws.hooks.ssm.SsmHook.conn", new_callable=mock.PropertyMock)
+    def test_list_command_invocations_empty_response(self, mock_conn):
+        command_id = "12345678-1234-1234-1234-123456789012"
         expected_response = {}  # No CommandInvocations key
 
-        with mock.patch.object(self.hook.conn, "list_command_invocations") as mock_list_commands:
-            mock_list_commands.return_value = expected_response
+        mock_conn.return_value.list_command_invocations.return_value = expected_response
 
-            result = self.hook.list_command_invocations(command_id)
+        result = self.hook.list_command_invocations(command_id)
 
-            mock_list_commands.assert_called_once_with(CommandId=command_id)
-            assert result == expected_response
+        mock_conn.return_value.list_command_invocations.assert_called_once_with(CommandId=command_id)
+        assert result == expected_response
