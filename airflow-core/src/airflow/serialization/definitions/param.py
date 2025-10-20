@@ -90,7 +90,11 @@ class SerializedParam:
 
     def dump(self) -> dict[str, Any]:
         """Return the full param spec for API consumers."""
-        return {"value": self.value, "schema": self.schema, "description": self.description}
+        return {
+            "value": None if isinstance(self.value, ArgNotSet) else self.value,
+            "schema": self.schema,
+            "description": self.description,
+        }
 
 
 def _coerce_param(v: Any) -> SerializedParam:
