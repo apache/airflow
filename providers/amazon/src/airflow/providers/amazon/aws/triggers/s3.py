@@ -129,8 +129,8 @@ class S3KeyTrigger(BaseTrigger):
                                             metadata[mk] = f[mk]
                                         except KeyError:
                                             self.log.info("Key %s not found, performing head_object", mk)
-                                        obj = await self.hook.head_object_async(f, self.bucket_name)
-                                        metadata[mk] = obj.get(mk, None)
+                                            obj = await self.hook.head_object_async(f, self.bucket_name)
+                                            metadata[mk] = obj.get(mk, None)
                                 files.append(metadata)
 
                             yield TriggerEvent({"status": "running", "files": files})
