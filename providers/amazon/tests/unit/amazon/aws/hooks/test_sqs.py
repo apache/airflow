@@ -122,13 +122,7 @@ class TestSqsHook:
         received = hook.get_conn().receive_message(QueueUrl=self.queue_url, MessageAttributeNames=["All"])
         assert "Messages" in received
         message = received["Messages"][0]
-        assert (
-            message["MessageAttributes"]["Author"]["StringValue"] == MSG_ATTRIBUTES["Author"]["StringValue"]
-        )
-        assert (
-            message["MessageAttributes"]["Priority"]["StringValue"]
-            == MSG_ATTRIBUTES["Priority"]["StringValue"]
-        )
+        assert message["MessageAttributes"] == MSG_ATTRIBUTES
 
     def test_send_message_with_delay(self, hook):
         """Test sending a message with a delay."""
