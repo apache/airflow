@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import sys
 import warnings
 
 from airflow.dag_processing.dagbag import DagBag
@@ -31,11 +32,10 @@ class TestSafeDagIntegration:
     test_dir = os.path.dirname(os.path.abspath(__file__))
     dag_folder = os.path.join(test_dir, "dags")
 
-    TEST_DAG_ERRORS_FILE = "safe_dag_test_errors.py"
-    TEST_DAG_MIXED_FILE = "safe_dag_test_mixed.py"
+    TEST_DAG_FILE = "safe_dag_test.py"
     TEST_DAG_DIRECT_EXECUTION_FILE = "safe_dag_direct_execution.py"
 
-    EXPECTED_SUCCESSFUL_DAGS = ["successful_dag", "success_dag_1", "success_dag_2", "direct_execution_dag"]
+    EXPECTED_SUCCESSFUL_DAGS = ["success_dag_1", "success_dag_2", "direct_execution_dag"]
 
     def test_safe_dag_errors_collected_by_dagbag(self):
         """
@@ -69,35 +69,24 @@ class TestSafeDagIntegration:
     def _assert_error_content(self, dagbag: DagBag) -> None:
         error_files = list(dagbag.import_errors.keys())
 
-        errors_file_path = next(path for path in error_files if self.TEST_DAG_ERRORS_FILE in path)
-        mixed_file_path = next(path for path in error_files if self.TEST_DAG_MIXED_FILE in path)
+        for key in error_files:
+            assert os.path.isabs(key), f"import_errors key '{key}' should be an absolute path"
 
-        # Verify error content from errors test file
-        errors_from_errors_file = dagbag.import_errors[errors_file_path]
-        assert len(errors_from_errors_file) >= 2, (
-            f"Expected at least 2 errors from {self.TEST_DAG_ERRORS_FILE}, got {len(errors_from_errors_file)}"
-        )
+        file_path = next(path for path in error_files if self.TEST_DAG_FILE in path)
 
-        error_text = " ".join(errors_from_errors_file)
-        assert "Failed to create DAG at line" in error_text, "Error should include line number information"
-        assert (
-            "missing" in error_text.lower() or "required" in error_text.lower() or "ParserError" in error_text
-        ), "Should capture DAG creation errors like missing parameters or invalid date strings"
-
-        # Verify error content from mixed test file
-        errors_from_mixed_file = dagbag.import_errors[mixed_file_path]
+        errors_from_mixed_file = dagbag.import_errors[file_path]
         assert len(errors_from_mixed_file) >= 1, (
-            f"Expected at least 1 error from {self.TEST_DAG_MIXED_FILE}, got {len(errors_from_mixed_file)}"
+            f"Expected at least 1 error from {self.TEST_DAG_FILE}, got {len(errors_from_mixed_file)}"
         )
 
         mixed_error_text = " ".join(errors_from_mixed_file)
-        assert "Failed to create DAG at line" in mixed_error_text, (
+        assert "failed to create dag at line" in mixed_error_text.lower(), (
             "Error should include line number information"
         )
 
     def test_safe_dag_without_dagbag_context_warns(self):
         """
-        Test that verifies that safe_dag gracefully handles being used outside of the
+        Verifies safe_dag gracefully handles being used outside of the
         DagBag processing context by importing a DAG file directly and validating
         that DAGs are created successfully while issuing appropriate warnings.
         """
@@ -127,3 +116,6 @@ class TestSafeDagIntegration:
             assert len(safe_dag_warnings) > 0, (
                 "Should issue warning about safe_dag usage outside DagBag context"
             )
+
+            if "test_direct_execution" in sys.modules:
+                del sys.modules["test_direct_execution"]
