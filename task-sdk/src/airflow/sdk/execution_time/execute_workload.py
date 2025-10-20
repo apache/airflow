@@ -28,6 +28,7 @@ Arguments:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from typing import TYPE_CHECKING
 
@@ -48,7 +49,10 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     dispose_orm(do_log=False)
 
-    configure_logging(output=sys.stdout.buffer, json_output=True)
+    if os.environ.get("DEBUGPY_RUNNING", "") == "true":
+        configure_logging(output=sys.stdout, json_output=True)
+    else:
+        configure_logging(output=sys.stdout.buffer, json_output=True)
 
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
