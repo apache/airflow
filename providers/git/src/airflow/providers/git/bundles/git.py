@@ -175,9 +175,12 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
+
+            # Fetch to ensure we have latest refs and validate repo integrity
+            self._fetch_bare_repo()
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
-                "Bare repository clone/open failed, cleaning up and retrying",
+                "Bare repository clone/open/fetch failed, cleaning up and retrying",
                 bare_repo_path=self.bare_repo_path,
                 exc=e,
             )
