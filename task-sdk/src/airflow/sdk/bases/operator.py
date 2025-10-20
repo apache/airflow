@@ -46,6 +46,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
+    DEFAULT_RETRY_DELAY_MULTIPLIER,
     DEFAULT_TASK_EXECUTION_TIMEOUT,
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
@@ -234,6 +235,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": False,
+    "retry_delay_multiplier": DEFAULT_RETRY_DELAY_MULTIPLIER,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
@@ -270,6 +272,7 @@ if TYPE_CHECKING:
         max_retry_delay: None | timedelta | float = ...,
         retry_delay: timedelta | float = ...,
         retry_exponential_backoff: bool = ...,
+        retry_delay_multiplier: float = ...,
         priority_weight: int = ...,
         weight_rule: str | PriorityWeightStrategy = ...,
         sla: timedelta | None = ...,
@@ -570,6 +573,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "email_on_failure": bool,
     "retries": int,
     "retry_exponential_backoff": bool,
+    "retry_delay_multiplier": (int, float),
     "depends_on_past": bool,
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
@@ -651,6 +655,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param retry_exponential_backoff: allow progressively longer waits between
         retries by using exponential backoff algorithm on retry delay (delay
         will be converted into seconds)
+    :param retry_delay_multiplier: multiplier for exponential backoff. The default is 2.0,
+        meaning the delay doubles with each retry. For example, with retry_delay=4min and
+        multiplier=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
@@ -828,6 +835,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: bool = False
+    retry_delay_multiplier: float = DEFAULT_RETRY_DELAY_MULTIPLIER
     max_retry_delay: timedelta | float | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
@@ -911,6 +919,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "email_on_retry",
         "retry_delay",
         "retry_exponential_backoff",
+        "retry_delay_multiplier",
         "max_retry_delay",
         "start_date",
         "end_date",
@@ -986,6 +995,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
+        retry_delay_multiplier: float = DEFAULT_RETRY_DELAY_MULTIPLIER,
         max_retry_delay: timedelta | float | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1132,6 +1142,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Converted by setattr
         self.retry_delay = retry_delay  # type: ignore[assignment]
         self.retry_exponential_backoff = retry_exponential_backoff
+        self.retry_delay_multiplier = retry_delay_multiplier
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
 
