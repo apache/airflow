@@ -16,24 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
-import { useCallback } from "react";
+import { HStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, useParams } from "react-router-dom";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+
+import { FilterBar, type FilterValue } from "src/components/FilterBar";
+
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 import { SearchBar } from "src/components/SearchBar";
-import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { taskInstanceStateOptions } from "src/constants/stateOptions";
+
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
+
 
 export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
@@ -43,33 +44,38 @@ export const TaskInstancesFilter = ({
   readonly taskDisplayNamePattern: string | undefined;
 }) => {
   const { dagId, runId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+    const keys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.TASK_STATE,          
+      SearchParamsKeys.START_DATE,
+      SearchParamsKeys.END_DATE,
+      SearchParamsKeys.DURATION_GTE,
+      SearchParamsKeys.DURATION_LTE,
+      SearchParamsKeys.TRY_NUMBER,
+      SearchParamsKeys.MAP_INDEX,
+      SearchParamsKeys.DAG_VERSION,
+     
+    ];
+    
+    if (runId === undefined) {
+      keys.splice(1, 0, SearchParamsKeys.RUN_ID); 
+    }
+
+  
+
+    return keys;
+  }, [runId, dagId]);
+  
+  const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
+
+  const [ searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation();
 
-  const filteredState = searchParams.getAll(STATE_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const hasFilteredState = filteredState.length > 0;
 
-  const handleStateChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
-
-      if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(STATE_PARAM);
-      } else {
-        searchParams.delete(STATE_PARAM);
-        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -101,6 +107,29 @@ export const TaskInstancesFilter = ({
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+  
+
+
+  const initialValues = useMemo(() => {
+    const values: Record<string, FilterValue> = {};
+
+    filterConfigs.forEach((config) => {
+      const value = searchParams.get(config.key);
+
+      if (value !== null && value !== "") {
+        if (config.type === "number") {
+          const parsedValue = Number(value);
+
+          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
+        } else {
+          values[config.key] = value;
+        }
+      }
+    });
+
+    return values;
+  }, [searchParams, filterConfigs]);
+
   return (
     <HStack paddingY="4px">
       {dagId === undefined && (
@@ -121,46 +150,13 @@ export const TaskInstancesFilter = ({
         onChange={handleSearchChange}
         placeHolder={translate("dags:search.tasks")}
       />
-      <Select.Root
-        collection={taskInstanceStateOptions}
-        maxW="450px"
-        multiple
-        onValueChange={handleStateChange}
-        value={hasFilteredState ? filteredState : ["all"]}
-      >
-        <Select.Trigger
-          {...(hasFilteredState ? { clearable: true } : {})}
-          colorPalette="brand"
-          isActive={Boolean(filteredState)}
-        >
-          <Select.ValueText>
-            {() =>
-              hasFilteredState ? (
-                <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
-                  {filteredState.map((state) => (
-                    <StateBadge key={state} state={state as TaskInstanceState}>
-                      {translate(`common:states.${state}`)}
-                    </StateBadge>
-                  ))}
-                </HStack>
-              ) : (
-                translate("dags:filters.allStates")
-              )
-            }
-          </Select.ValueText>
-        </Select.Trigger>
-        <Select.Content>
-          {taskInstanceStateOptions.items.map((option) => (
-            <Select.Item item={option} key={option.label}>
-              {option.value === "all" ? (
-                translate(option.label)
-              ) : (
-                <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
-              )}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
+      <FilterBar
+        configs={filterConfigs}
+        initialValues={initialValues}
+        onFiltersChange={handleFiltersChange}
+      />
     </HStack>
   );
 };
+  
+

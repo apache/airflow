@@ -47,11 +47,17 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
   POOL: POOL_PARAM,
   START_DATE: START_DATE_PARAM,
-  STATE: STATE_PARAM,
+  TASK_STATE: STATE_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
+  
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -229,6 +235,11 @@ export const TaskInstances = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
+  const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const pool = searchParams.getAll(POOL_PARAM);
@@ -247,8 +258,12 @@ export const TaskInstances = () => {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
+      versionNumber: filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
+      mapIndex: mapIndexFilter !== null && mapIndexFilter!== "" ? [Number(mapIndexFilter)]: undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       pool: hasFilteredPool ? pool : undefined,
@@ -256,6 +271,7 @@ export const TaskInstances = () => {
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
+      tryNumber: tryNumberFilter !== null && tryNumberFilter!== "" ? [Number(tryNumberFilter)]: undefined,
     },
     undefined,
     {
