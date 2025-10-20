@@ -31,6 +31,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    AsyncPodManager,
     PodLogsConsumer,
     PodManager,
     PodPhase,
@@ -698,6 +699,142 @@ class TestPodManager:
         mock_container_is_running.return_value = True
         self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod)
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
+
+
+class TestAsyncPodManager:
+    def setup_method(self):
+        self.mock_async_hook = mock.AsyncMock()
+        self.async_pod_manager = AsyncPodManager(
+            async_hook=self.mock_async_hook,
+            callbacks=[],
+        )
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = "Pod took too long to be scheduled on the cluster, giving up. More than 0s. Check the pod events in kubernetes."
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=0,
+                startup_timeout=0,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_informative_error_on_startup_timeout(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        condition = mock.MagicMock()
+        condition.type = "PodScheduled"
+        condition.status = "True"
+        pod_response.status.conditions = [condition]
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = "Pod took too long to start. More than 0s. Check the pod events in kubernetes."
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=0,
+                startup_timeout=0,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_fast_error_on_image_error(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        container_status = mock.MagicMock()
+        waiting_state = mock.MagicMock()
+        waiting_state.reason = "ErrImagePull"
+        waiting_state.message = "Test error"
+        container_status.state.waiting = waiting_state
+        pod_response.status.container_statuses = [container_status]
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
+        condition_scheduled = mock.MagicMock()
+        condition_scheduled.type = "PodScheduled"
+        condition_scheduled.status = "True"
+
+        pod_info_pending = mock.MagicMock()
+        pod_info_pending.status.phase = PodPhase.PENDING
+        pod_info_pending.status.conditions = []
+
+        pod_info_pending_scheduled = mock.MagicMock()
+        pod_info_pending_scheduled.status.phase = PodPhase.PENDING
+        pod_info_pending_scheduled.status.conditions = [condition_scheduled]
+
+        pod_info_succeeded = mock.MagicMock()
+        pod_info_succeeded.status.phase = PodPhase.SUCCEEDED
+
+        # Simulate sequence of pod states
+        self.mock_async_hook.get_pod.side_effect = [
+            pod_info_pending,
+            pod_info_pending_scheduled,
+            pod_info_pending_scheduled,
+            pod_info_succeeded,
+        ]
+        startup_check_interval = 10
+        schedule_timeout = 30
+        startup_timeout = 60
+        mock_pod = mock.MagicMock()
+        await self.async_pod_manager.await_pod_start(
+            pod=mock_pod,
+            schedule_timeout=schedule_timeout,
+            startup_timeout=startup_timeout,
+            check_interval=startup_check_interval,
+        )
+        assert mock_time_sleep.call_count == 3
+        assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
+        assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
+        assert self.async_pod_manager.stop_watching_events is True
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events(self, mock_time_sleep):
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod"
+        mock_pod.metadata.namespace = "default"
+
+        events = mock.MagicMock()
+        events.items = []
+        for id in ["event 1", "event 2"]:
+            event = mock.MagicMock()
+            event.message = f"test {id}"
+            event.involved_object.field_path = f"object {id}"
+            events.items.append(event)
+        startup_check_interval = 10
+
+        def get_pod_events_side_effect(name, namespace):
+            self.async_pod_manager.stop_watching_events = True
+            return events
+
+        self.mock_async_hook.get_pod_events.side_effect = get_pod_events_side_effect
+
+        with mock.patch.object(type(self.async_pod_manager), "log", create=True) as log_mock:
+            await self.async_pod_manager.watch_pod_events(pod=mock_pod, check_interval=startup_check_interval)
+            log_mock.info.assert_any_call(
+                "The Pod has an Event: %s from %s", "test event 1", "object event 1"
+            )
+            log_mock.info.assert_any_call(
+                "The Pod has an Event: %s from %s", "test event 2", "object event 2"
+            )
+            mock_time_sleep.assert_called_once_with(startup_check_interval)
 
 
 class TestPodLogsConsumer:

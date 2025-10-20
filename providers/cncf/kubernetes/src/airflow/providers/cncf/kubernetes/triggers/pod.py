@@ -28,6 +28,7 @@ import tenacity
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    AsyncPodManager,
     OnFinishAction,
     PodLaunchTimeoutException,
     PodPhase,
@@ -69,6 +70,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
     :param startup_check_interval: interval in seconds to check if the pod has already started.
+    :param schedule_timeout: timeout in seconds to schedule pod in cluster.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
@@ -91,7 +93,8 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
-        startup_check_interval: int = 5,
+        startup_check_interval: float = 5,
+        schedule_timeout: int | None = None,
         on_finish_action: str = "delete_pod",
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
@@ -110,11 +113,12 @@ class KubernetesPodTrigger(BaseTrigger):
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
+        # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
+        self.schedule_timeout = schedule_timeout or startup_timeout
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
         self.trigger_kwargs = trigger_kwargs or {}
-
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -133,6 +137,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "startup_check_interval": self.startup_check_interval,
+                "schedule_timeout": self.schedule_timeout,
                 "trigger_start_time": self.trigger_start_time,
                 "on_finish_action": self.on_finish_action.value,
                 "last_log_time": self.last_log_time,
@@ -209,17 +214,16 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
-        while True:
-            pod = await self._get_pod()
-            if not pod.status.phase == "Pending":
-                return self.define_container_state(pod)
-
-            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
-            if self.startup_timeout < delta.total_seconds():
-                raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
-
-            self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
-            await asyncio.sleep(self.startup_check_interval)
+        pod = await self._get_pod()
+        events_task = self.pod_manager.watch_pod_events(pod, self.startup_check_interval)
+        pod_start_task = self.pod_manager.await_pod_start(
+            pod=pod,
+            schedule_timeout=self.schedule_timeout,
+            startup_timeout=self.startup_timeout,
+            check_interval=self.startup_check_interval,
+        )
+        await asyncio.gather(pod_start_task, events_task)
+        return self.define_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """
@@ -286,6 +290,10 @@ class KubernetesPodTrigger(BaseTrigger):
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
         )
+
+    @cached_property
+    def pod_manager(self) -> AsyncPodManager:
+        return AsyncPodManager(async_hook=self.hook)  # , callbacks=self.callbacks)
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses
