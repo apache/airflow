@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from multiprocessing import Process
 
 import psutil
@@ -35,7 +35,6 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
@@ -124,18 +123,11 @@ def _serve_logs(skip_serve_logs: bool = False):
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
-    check_interval = None
-    with suppress(AirflowConfigException):  # remove when min airflow version >= 3.0
-        check_interval = conf.getint(
-            section="dag_processor",
-            key="stale_bundle_cleanup_interval",
-        )
-    if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
-        # do not start bundle cleanup process
-        try:
-            yield
-        finally:
-            return
+    check_interval = conf.getint(
+        section="dag_processor",
+        key="stale_bundle_cleanup_interval",
+    )
+
     from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
