@@ -746,22 +746,24 @@ def post_clear_task_instances(
     task_ids = body.task_ids
     if task_ids is not None:
         tasks = set(task_ids)
-        mapped_tasks = set([t for t in tasks if isinstance(t, tuple)])
+        mapped_tasks_tuples = set(t for t in tasks if isinstance(t, tuple))
         # Unmapped tasks are expressed in their task_ids (without map_indexes)
-        unmapped_tid: set[str] = tasks - mapped_tasks  # type: ignore[assignment]
+        unmapped_task_ids = set(t for t in tasks if not isinstance(t, tuple))
 
         if upstream or downstream:
-            mapped_tid: set[str] = set([tid for tid, _ in mapped_tasks])
+            mapped_task_ids = set(tid for tid, _ in mapped_tasks_tuples)
             relatives = dag.partial_subset(
-                task_ids=unmapped_tid | mapped_tid,
+                task_ids=unmapped_task_ids | mapped_task_ids,
                 include_downstream=downstream,
                 include_upstream=upstream,
                 exclude_original=True,
             )
-            unmapped_tid = unmapped_tid | set(relatives.task_dict.keys())
+            unmapped_task_ids = unmapped_task_ids | set(relatives.task_dict.keys())
 
-        mapped_tasks_list = [(tid, map_id) for tid, map_id in mapped_tasks if tid not in unmapped_tid]
-        task_ids = mapped_tasks_list + list(unmapped_tid)
+        mapped_tasks_list = [
+            (tid, map_id) for tid, map_id in mapped_tasks_tuples if tid not in unmapped_task_ids
+        ]
+        task_ids = mapped_tasks_list + list(unmapped_task_ids)
 
     # Prepare common parameters
     common_params = {
