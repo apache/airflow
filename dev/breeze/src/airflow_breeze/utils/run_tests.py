@@ -47,6 +47,8 @@ TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-tests"
 TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
 TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
 
+AIRFLOW_CTL_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl-tests"
+
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
     GroupOfTests.PYTHON_API_CLIENT,
@@ -111,6 +113,9 @@ def run_docker_compose_tests(
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+    elif test_type == "airflow-ctl-integration":
+        test_path = Path("tests") / "airflowctl_tests" / "test_airflowctl_commands.py"
+        cwd = AIRFLOW_CTL_TESTS_ROOT_PATH.as_posix()
     else:
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
