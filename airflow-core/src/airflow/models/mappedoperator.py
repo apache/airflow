@@ -285,6 +285,12 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("max_retry_delay")
 
     @property
+    def retry_delay_multiplier(self) -> float:
+        return float(
+            self.partial_kwargs.get("retry_delay_multiplier", SerializedBaseOperator.retry_delay_multiplier)
+        )
+
+    @property
     def weight_rule(self) -> PriorityWeightStrategy:
         return validate_and_load_priority_weight_strategy(
             self.partial_kwargs.get("weight_rule", SerializedBaseOperator._weight_rule)

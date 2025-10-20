@@ -1300,6 +1300,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
     retry_exponential_backoff: bool = False
+    retry_delay_multiplier: float = 2.0
     run_as_user: str | None = None
 
     start_date: datetime.datetime | None = None
@@ -2020,6 +2021,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
                 "resources",
                 "retries",
                 "retry_delay",
+                "retry_delay_multiplier",
                 "retry_exponential_backoff",
                 "run_as_user",
                 "start_date",
