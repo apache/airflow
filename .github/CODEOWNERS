@@ -112,6 +112,9 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 # Task SDK integration tests
 /task-sdk-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
 
+# airflowctl integration tests
+/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+
 # Issue triage process
 ISSUE_TRIAGE_PROCESS.rst @eladkal
 
