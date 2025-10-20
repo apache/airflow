@@ -24,10 +24,11 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Integer, String, delete, select
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.version_compat import timezone
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin

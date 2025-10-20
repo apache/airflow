@@ -24,10 +24,11 @@ from sqlalchemy import (
     String,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.version_compat import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
