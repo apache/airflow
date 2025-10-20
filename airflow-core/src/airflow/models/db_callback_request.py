@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from importlib import import_module
 from typing import TYPE_CHECKING
 
@@ -37,7 +38,7 @@ class DbCallbackRequest(Base):
     __tablename__ = "callback_request"
 
     id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     priority_weight: Mapped[int] = mapped_column(Integer(), nullable=False)
     callback_data: Mapped[dict] = mapped_column(ExtendedJSON, nullable=False)
     callback_type: Mapped[str] = mapped_column(String(20), nullable=False)
