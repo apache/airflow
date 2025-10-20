@@ -85,7 +85,7 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
-          accessorKey: "dag_display_name",
+          accessorKey: "task_instance.dag_id",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
@@ -93,6 +93,7 @@ const taskInstanceColumns = ({
               </RouterLink>
             </Link>
           ),
+          enableSorting: false,
           header: translate("common:dagId"),
         },
       ]),
