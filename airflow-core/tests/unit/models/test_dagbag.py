@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from unittest.mock import MagicMock, patch
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
