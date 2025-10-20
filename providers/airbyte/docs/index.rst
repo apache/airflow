@@ -48,6 +48,8 @@
     :maxdepth: 1
     :caption: System tests
 
+    System Tests <_api/tests/system/airbyte/index>
+
 .. note::
    System tests live in the source tree under ``providers/airbyte/tests/system``.
    They are not part of the API reference. When AutoAPI generates system test

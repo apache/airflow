@@ -32,14 +32,13 @@ from __future__ import annotations
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 import logging
-from packaging.version import Version
-import astroid
 import os
 from pathlib import Path
 from typing import Any
 
+import astroid
 import rich
-from packaging.version import parse as parse_version
+from packaging.version import Version, parse as parse_version
 
 import airflow
 from airflow.configuration import retrieve_configuration_description
@@ -154,10 +153,12 @@ extensions.extend(
 if Version(astroid.__version__).major >= 4:
     if "autoapi.extension" in extensions:
         extensions.remove("autoapi.extension")
-    extensions.extend([
-        "sphinx.ext.autodoc",
-        "sphinx.ext.napoleon",
-    ])
+    extensions.extend(
+        [
+            "sphinx.ext.autodoc",
+            "sphinx.ext.napoleon",
+        ]
+    )
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -335,6 +336,26 @@ if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     # when running under astroid>=4 (we only document code, not tests).
     if Version(astroid.__version__).major >= 4:
         rich.print("[yellow]Skipping adding system tests directory to autoapi_dirs under astroid>=4[/yellow]")
+        # Create a placeholder System Tests index so provider index.rst toctree does not warn
+        # under astroid>=4 where we do not include tests in autoapi_dirs.
+        try:
+            tests_placeholder = (
+                Path(__file__).parent
+                / ".."
+                / ".."
+                / ".."
+            ).resolve()  # repo root of devel-common/src/docs
+            # Sphinx srcdir for providers is providers/<id>/docs
+            # Place under that _api/tests/system/<provider-id>/index.rst
+            provider_docs_dir = (AIRFLOW_REPO_ROOT_PATH / "providers" / PACKAGE_ID.replace(".", "/") / "docs").resolve()
+            target_placeholder = (
+                provider_docs_dir / "_api" / "tests" / "system" / PACKAGE_ID.replace(".", "/") / "index.rst"
+            )
+            target_placeholder.parent.mkdir(parents=True, exist_ok=True)
+            if not target_placeholder.exists():
+                target_placeholder.write_text("System Tests\n============\n\nThis page is intentionally left blank during docs build (astroid>=4).\n")
+        except Exception as e:  # best-effort: never fail docs build due to placeholder
+            rich.print(f"[yellow]Failed to create system tests placeholder: {e}[/yellow]")
     else:
         test_dir = SYSTEM_TESTS_DIR.parent
         autoapi_dirs.append(test_dir.as_posix())
@@ -365,8 +386,9 @@ if Version(astroid.__version__).major >= 4:
         ]
         apidoc.main(args)
 
-    def setup(app):  # noqa: D401 - used by Sphinx
+    def setup(app):
         app.connect("builder-inited", _generate_provider_api_docs)
+
 
 rich.print("[bright_blue]AUTOAPI_IGNORE (provider build):")
 rich.print(autoapi_ignore)
