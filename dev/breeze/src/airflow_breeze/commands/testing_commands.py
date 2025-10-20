@@ -855,7 +855,7 @@ def task_sdk_integration_tests(
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflowctl_integration_tests(
     python: str,
-    image_name: str,
+    image_name: str | None,
     skip_docker_compose_deletion: bool,
     github_repository: str,
     include_success_outputs: bool,
