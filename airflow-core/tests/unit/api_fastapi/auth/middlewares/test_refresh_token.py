@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -71,6 +71,18 @@ class TestJWTRefreshMiddleware:
         call_next.assert_called_once_with(mock_request)
         mock_resolve_user_from_token.assert_called_once_with("valid_token")
         mock_auth_manager.generate_jwt.assert_not_called()
+
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
+    @pytest.mark.asyncio
+    async def test_dispatch_expired_token(self, mock_resolve_user_from_token, middleware, mock_request):
+        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "invalid_token"}
+        mock_resolve_user_from_token.side_effect = HTTPException(status_code=403)
+
+        call_next = AsyncMock(return_value=Response())
+        await middleware.dispatch(mock_request, call_next)
+
+        call_next.assert_called_once_with(mock_request)
+        mock_resolve_user_from_token.assert_called_once_with("invalid_token")
 
     @pytest.mark.asyncio
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")

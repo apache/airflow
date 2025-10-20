@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -64,5 +64,8 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     async def _refresh_user(current_token: str) -> BaseUser | None:
-        user = await resolve_user_from_token(current_token)
+        try:
+            user = await resolve_user_from_token(current_token)
+        except HTTPException:
+            return None
         return get_auth_manager().refresh_user(user=user)
