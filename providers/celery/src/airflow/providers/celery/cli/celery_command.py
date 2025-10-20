@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time
 from contextlib import contextmanager, suppress
@@ -196,7 +197,10 @@ def worker(args):
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
-        configure_logging(output=sys.stdout.buffer)
+        if os.environ.get("DEBUGPY_RUNNING", "") == "true":
+            configure_logging(output=sys.stdout)
+        else:
+            configure_logging(output=sys.stdout.buffer)
     else:
         # Disable connection pool so that celery worker does not hold an unnecessary db connection
         settings.reconfigure_orm(disable_connection_pool=True)
