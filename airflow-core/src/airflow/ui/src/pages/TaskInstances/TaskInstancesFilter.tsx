@@ -34,6 +34,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { AttrSelectFilterMulti } from "./AttrSelectFilterMulti";
+import { StateFilter } from "./StateFilter";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -83,7 +84,7 @@ export const TaskInstancesFilter = ({
 
 
     return keys;
-  }, [runId, dagId]);
+  }, [runId]);
   const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
 
 
@@ -144,7 +145,10 @@ export const TaskInstancesFilter = ({
         searchParams.delete(STATE_PARAM);
         value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
       }
-      resetPagination();
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
       setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
@@ -250,46 +254,11 @@ const handleSelectedPools = (value: Array<string> | undefined) =>
         onChange={handleSearchChange}
         placeHolder={translate("dags:search.tasks")}
       />
-      <Select.Root
-        collection={taskInstanceStateOptions}
-        maxW="450px"
-        multiple
-        onValueChange={handleStateChange}
+      <StateFilter
         value={hasFilteredState ? filteredState : ["all"]}
-      >
-        <Select.Trigger
-          {...(hasFilteredState ? { clearable: true } : {})}
-          colorPalette="brand"
-          isActive={Boolean(filteredState)}
-        >
-          <Select.ValueText>
-            {() =>
-              hasFilteredState ? (
-                <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
-                  {filteredState.map((state) => (
-                    <StateBadge key={state} state={state as TaskInstanceState}>
-                      {translate(`common:states.${state}`)}
-                    </StateBadge>
-                  ))}
-                </HStack>
-              ) : (
-                translate("dags:filters.allStates")
-              )
-            }
-          </Select.ValueText>
-        </Select.Trigger>
-        <Select.Content>
-          {taskInstanceStateOptions.items.map((option) => (
-            <Select.Item item={option} key={option.label}>
-              {option.value === "all" ? (
-                translate(option.label)
-              ) : (
-                <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
-              )}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
+        onChange={handleStateChange}
+        t={translate}
+      />
       </HStack>
       <HStack>
         <AttrSelectFilterMulti
