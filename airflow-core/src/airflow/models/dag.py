@@ -750,10 +750,12 @@ def __getattr__(name: str):
 
     import warnings
 
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     warnings.warn(
         f"Import {name!r} directly from the airflow module is deprecated and "
         f"will be removed in the future. Please import it from 'airflow.sdk'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 
