@@ -27,6 +27,8 @@ import pytest
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
 
+REQUIRE_OPENLINEAGE_VERSION = r"`require_openlineage_version` decorator must be used with at least one argument.*@require_openlineage_version\(provider_min_version=\"1\.0\.0\"\)"
+
 
 def _mock_version(package):
     if package == "apache-airflow-providers-openlineage":
@@ -52,29 +54,16 @@ def test_decorator_without_arguments():
 
 
 def test_decorator_without_arguments_with_parentheses():
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError, match=REQUIRE_OPENLINEAGE_VERSION):
 
         @require_openlineage_version()
         def dummy():
             return "result"
 
-    expected_error = (
-        "`require_openlineage_version` decorator must be used with at least one argument: "
-        "'provider_min_version' or 'client_min_version', "
-        'e.g., @require_openlineage_version(provider_min_version="1.0.0")'
-    )
-    assert str(excinfo.value) == expected_error
-
 
 def test_no_arguments_provided():
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError, match=REQUIRE_OPENLINEAGE_VERSION):
         require_openlineage_version()
-    expected_error = (
-        "`require_openlineage_version` decorator must be used with at least one argument: "
-        "'provider_min_version' or 'client_min_version', "
-        'e.g., @require_openlineage_version(provider_min_version="1.0.0")'
-    )
-    assert str(excinfo.value) == expected_error
 
 
 @pytest.mark.parametrize("provider_min_version", ("1.0.0", "0.9", "0", "0.9.9", "1.0.0.dev0", "1.0.0rc1"))

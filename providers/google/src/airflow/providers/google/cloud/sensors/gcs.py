@@ -29,6 +29,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.lazy_compat import BaseSensorOperator, poke_mode_only
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -36,13 +37,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-    from airflow.sdk.bases.sensor import poke_mode_only
-else:
-    from airflow.sensors.base import BaseSensorOperator, poke_mode_only  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

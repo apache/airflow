@@ -66,6 +66,12 @@ def lazy_load_command(import_path: str) -> Callable:
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     import sys
 
+    if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+        rich.print(
+            "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+        )
+
     try:
         function(args)
     except AirflowCtlCredentialNotFoundException as e:
@@ -77,7 +83,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
-    except httpx.RemoteProtocolError as e:
+    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
         rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
@@ -187,7 +193,8 @@ class Password(argparse.Action):
     """Custom action to prompt for password input."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        values = getpass.getpass()
+        if values is None:
+            values = getpass.getpass()
         setattr(namespace, self.dest, values)
 
 
