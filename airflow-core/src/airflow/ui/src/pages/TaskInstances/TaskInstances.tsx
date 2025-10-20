@@ -289,7 +289,7 @@ export const TaskInstances = () => {
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
- 
+
   const filterTaskInstances = ({
   instances,
   operatorNames,
@@ -309,9 +309,9 @@ export const TaskInstances = () => {
     );
 const filteredInstances = filterTaskInstances({
   instances: data?.task_instances ?? [],
-  operatorNames: operator,   
-  queueNames: queue,         
-  poolNames: pool,           
+  operatorNames: operator,
+  queueNames: queue,
+  poolNames: pool,
 });
 
   return (

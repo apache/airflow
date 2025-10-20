@@ -56,12 +56,12 @@ export const TaskInstancesFilter = ({
   taskDisplayNamePattern,
 }: Props) => {
   const { dagId, runId } = useParams();
-  
+
   const [ searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation();
-  
+
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       SearchParamsKeys.LOGICAL_DATE_GTE,
@@ -117,7 +117,7 @@ export const TaskInstancesFilter = ({
     instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? []
   );
 
- 
+
 
   const filteredState = searchParams.getAll(STATE_PARAM);
 
@@ -328,4 +328,3 @@ const handleSelectedPools = (value: Array<string> | undefined) =>
     </VStack>
   );
 };
-
