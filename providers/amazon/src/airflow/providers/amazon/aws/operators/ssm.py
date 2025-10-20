@@ -191,7 +191,8 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
             invocations = [{"InstanceId": self.instance_id}]
         else:
             self.log.info("Retrieving output for command %s from all instances", self.command_id)
-            invocations = self.hook.list_command_invocations(self.command_id)
+            response = self.hook.list_command_invocations(self.command_id)
+            invocations = response.get("CommandInvocations", [])
 
         output_data = {"command_id": self.command_id, "invocations": []}
 

@@ -164,7 +164,7 @@ class TestSsmGetCommandInvocationOperator:
             {"InstanceId": "i-111"},
             {"InstanceId": "i-222"},
         ]
-        mock_hook.list_command_invocations.return_value = mock_invocations
+        mock_hook.list_command_invocations.return_value = {"CommandInvocations": mock_invocations}
 
         # Mock get_command_invocation responses
         mock_invocation_details_1 = {
@@ -240,7 +240,7 @@ class TestSsmGetCommandInvocationOperator:
 
         # Mock list_command_invocations response
         mock_invocations = [{"InstanceId": "i-111"}]
-        mock_hook.list_command_invocations.return_value = mock_invocations
+        mock_hook.list_command_invocations.return_value = {"CommandInvocations": mock_invocations}
 
         # Mock get_command_invocation to raise an exception
         mock_hook.get_command_invocation.side_effect = Exception("API Error")

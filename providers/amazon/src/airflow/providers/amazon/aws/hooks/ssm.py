@@ -85,7 +85,7 @@ class SsmHook(AwsBaseHook):
         """
         return self.conn.get_command_invocation(CommandId=command_id, InstanceId=instance_id)
 
-    def list_command_invocations(self, command_id: str) -> list[dict]:
+    def list_command_invocations(self, command_id: str) -> dict:
         """
         List all command invocations for a given command ID.
 
@@ -93,7 +93,6 @@ class SsmHook(AwsBaseHook):
             - :external+boto3:py:meth:`SSM.Client.list_command_invocations`
 
         :param command_id: The ID of the command.
-        :return: List of command invocations.
+        :return: Response from SSM list_command_invocations API.
         """
-        response = self.conn.list_command_invocations(CommandId=command_id)
-        return response.get("CommandInvocations", [])
+        return self.conn.list_command_invocations(CommandId=command_id)

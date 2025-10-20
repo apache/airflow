@@ -122,7 +122,7 @@ class TestSsmHook:
             result = self.hook.list_command_invocations(command_id)
 
             mock_list_commands.assert_called_once_with(CommandId=command_id)
-            assert result == expected_invocations
+            assert result == expected_response
 
     def test_list_command_invocations_empty_response(self):
         command_id = "test-command-id"
@@ -134,4 +134,4 @@ class TestSsmHook:
             result = self.hook.list_command_invocations(command_id)
 
             mock_list_commands.assert_called_once_with(CommandId=command_id)
-            assert result == []
+            assert result == expected_response
