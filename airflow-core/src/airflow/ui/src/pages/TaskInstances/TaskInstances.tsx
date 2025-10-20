@@ -253,9 +253,6 @@ export const TaskInstances = () => {
   const operator = searchParams.getAll(OPERATOR_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
-  const hasFilteredPool = pool.length > 0;
-  const hasFilteredQueue = queue.length > 0;
-  const hasFilteredOperator = operator.length > 0;
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
@@ -293,25 +290,25 @@ export const TaskInstances = () => {
   const filterTaskInstances = ({
   instances,
   operatorNames,
-  queueNames,
   poolNames,
+  queueNames,
 }: {
   instances: Array<TaskInstanceResponse>;
   operatorNames: Array<string>;
-  queueNames: Array<string>;
   poolNames: Array<string>;
+  queueNames: Array<string>;
 }) =>
     instances.filter(
-      (instances) =>
-        (operatorNames.length === 0 || operatorNames.includes(instances.operator_name as string)) &&
-        (queueNames.length === 0 || queueNames.includes(instances.queue as string)) &&
-        (poolNames.length === 0 || poolNames.includes(instances.pool?.toString() as string)),
+      (instance) =>
+        (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
+        (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
+        (poolNames.length === 0 || poolNames.includes(instance.pool?.toString())),
     );
 const filteredInstances = filterTaskInstances({
   instances: data?.task_instances ?? [],
   operatorNames: operator,
-  queueNames: queue,
   poolNames: pool,
+  queueNames: queue,
 });
 
   return (

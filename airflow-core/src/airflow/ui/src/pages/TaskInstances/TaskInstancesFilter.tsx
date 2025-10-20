@@ -101,14 +101,16 @@ export const TaskInstancesFilter = ({
     resetPagination();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+
       next.delete(key);
-      values.forEach((v) => next.append(key, v));
+      values.forEach((val) => next.append(key, val));
+
       return next;
     });
   }, [resetPagination, setSearchParams]);
 
   const allOperatorNames: Array<string> = uniq(
-    instances?.task_instances.map((ti) => (ti.operator ?? (ti as any).operator_name) as string | null | undefined) ?? []
+    instances?.task_instances.map((ti) => ti.operator_name as string | null | undefined) ?? []
   );
   const allQueueValues: Array<string> = uniq(
     instances?.task_instances.map((ti) => ti.queue as string | null | undefined) ?? []
