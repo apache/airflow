@@ -197,7 +197,7 @@ def worker(args):
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
-        if os.environ.get("DEBUGPY_RUNNING", "") == "true":
+        if os.getenv("DEBUGPY_RUNNING") == "true":
             configure_logging(output=sys.stdout)
         else:
             configure_logging(output=sys.stdout.buffer)

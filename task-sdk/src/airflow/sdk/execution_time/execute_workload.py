@@ -49,7 +49,7 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     dispose_orm(do_log=False)
 
-    if os.environ.get("DEBUGPY_RUNNING", "") == "true":
+    if os.getenv("DEBUGPY_RUNNING") == "true":
         configure_logging(output=sys.stdout, json_output=True)
     else:
         configure_logging(output=sys.stdout.buffer, json_output=True)
