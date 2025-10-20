@@ -52,17 +52,17 @@ export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
 }: Props) => {
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+  const ParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.LOGICAL_DATE_GTE,
-      SearchParamsKeys.LOGICAL_DATE_LTE,
-      SearchParamsKeys.START_DATE,
-      SearchParamsKeys.END_DATE,
-      SearchParamsKeys.DURATION_GTE,
-      SearchParamsKeys.DURATION_LTE,
-      SearchParamsKeys.TRY_NUMBER,
-      SearchParamsKeys.MAP_INDEX,
-      SearchParamsKeys.DAG_VERSION,
+    SearchParamsKeys.LOGICAL_DATE_GTE,
+    SearchParamsKeys.LOGICAL_DATE_LTE,
+    SearchParamsKeys.START_DATE,
+    SearchParamsKeys.END_DATE,
+    SearchParamsKeys.DURATION_GTE,
+    SearchParamsKeys.DURATION_LTE,
+    SearchParamsKeys.TRY_NUMBER,
+    SearchParamsKeys.MAP_INDEX,
+    SearchParamsKeys.DAG_VERSION,
     ];
 
     if (runId === undefined) {
@@ -80,8 +80,8 @@ export const TaskInstancesFilter = ({
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation();
 
-  
-  const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
+
+  const { filterConfigs, handleFiltersChange} = useFiltersHandler(ParamKeys);
 
 
   const uniq = (xs: Array<string | null | undefined>) =>
@@ -117,7 +117,7 @@ export const TaskInstancesFilter = ({
   );
 
 
- 
+
   const filteredState = searchParams.getAll(STATE_PARAM);
 
   const selectedOperators = searchParams.getAll(OPERATOR_PARAM);
