@@ -29,12 +29,12 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.apprise.notifications.apprise import send_apprise_notification
     from apprise import NotifyType
 
-    with Dag(
+    with DAG(
         dag_id="apprise_notifier_testing",
         schedule=None,
         start_date=datetime(2024, 1, 1),

@@ -25,8 +25,10 @@
   - [Pull request run](#pull-request-run)
   - [Canary run](#canary-run)
 - [Workflows](#workflows)
-  - [Differences for `main` and `v*-*-test` branches](#differences-for-main-and-v--test-branches)
-  - [Tests Workflow](#tests-workflow)
+  - [Workflow Architecture Overview](#workflow-architecture-overview)
+  - [Branch-Specific Behavior](#branch-specific-behavior)
+  - [Tests Workflow Structure](#tests-workflow-structure)
+  - [Implementation Details](#implementation-details)
   - [CodeQL scan](#codeql-scan)
   - [Publishing documentation](#publishing-documentation)
 
@@ -36,7 +38,7 @@
 
 The Apache Airflow project utilizes several types of Continuous
 Integration (CI) jobs, each with a distinct purpose and context. These
-jobs are executed by the `ci.yaml` workflow.
+jobs are executed by the `ci-amd.yml` and `ci-arm.yml` workflows.
 
 In addition to the standard "PR" runs, we also execute "Canary" runs.
 These runs are designed to detect potential issues that could affect
@@ -118,98 +120,273 @@ trigger the `canary` run manually via `workflow-dispatch` mechanism.
 
 # Workflows
 
-A general note about cancelling duplicated workflows: for `Tests` and `CodeQL` workflows,
-we use the `concurrency` feature of GitHub actions to automatically cancel "old" workflow runs of
-each type. This means that if you push a new commit to a branch or to a pull
-request while a workflow is already running, GitHub Actions will automatically cancel the
-old workflow run.
+Apache Airflow's CI system has evolved into what we call a composite workflow architecture. This approach breaks down our testing process into manageable, reusable pieces that work together to validate code changes.
 
-## Differences for `main` and `v*-*-test` branches
+## Workflow Architecture Overview
 
-The type of tests executed varies depending on the version or branch
-being tested. For the "main" development branch, we run all tests to
-maintain the quality of Airflow. However, when releasing patch-level
-updates on older branches, we only run a subset of tests. This is
-because older branches are used exclusively for releasing Airflow and
-its corresponding image, not for releasing providers or Helm charts,
-so all those tests are skipped there by default.
+Our CI system runs on two main workflows that handle different processor architectures:
 
-This behaviour is controlled by `default-branch` output of the
-build-info job. Whenever we create a branch for an older version, we update
-the `AIRFLOW_BRANCH` in `airflow_breeze/branch_defaults.py` to point to
-the new branch. In several places, the selection of tests is
-based on whether this output is `main`. They are marked in the "Release branches" column of
-the table below.
+- **`ci-amd.yml`** - Handles testing on AMD64 systems (the most common architecture)
+- **`ci-arm.yml`** - Runs the same tests on ARM64 systems for compatibility
 
-## Tests Workflow
+These workflows don't contain all the testing logic themselves. Instead, they call smaller, specialized workflows called composite workflows. Each composite workflow focuses on one specific area of testing.
 
-This workflow is a regular workflow that performs all checks of Airflow code. The `main` and `v*-*-test`
-pushes are `canary` runs.
+### Understanding Composite Workflows
 
-| Job                                | Description                                                | PR      | main    | v*-*-test |
-|------------------------------------|------------------------------------------------------------|---------|---------|-----------|
-| Build info                         | Prints detailed information about the build                | Yes     | Yes     | Yes       |
-| Push early cache & images          | Pushes early cache/images to GitHub Registry               |         | Yes (2) | Yes (2)   |
-| Check that image builds quickly    | Checks that image builds quickly                           |         | Yes     | Yes       |
-| Build CI images                    | Builds images                                              | Yes     | Yes     | Yes       |
-| Generate constraints/CI verify     | Generate constraints for the build and verify CI image     | Yes     | Yes     | Yes       |
-| Build PROD images                  | Builds images                                              | Yes     | Yes     | Yes (3)   |
-| Run breeze tests                   | Run unit tests for Breeze                                  | Yes     | Yes     | Yes       |
-| Test OpenAPI client gen            | Tests if OpenAPIClient continues to generate               | Yes     | Yes     | Yes       |
-| React WWW tests                    | React UI tests for new Airflow UI                          | Yes     | Yes     | Yes       |
-| Test examples image building       | Tests if PROD image build examples work                    | Yes     | Yes     | Yes       |
-| Test git clone on Windows          | Tests if Git clone for for Windows                         | Yes (4) | Yes (4) | Yes (4)   |
-| Upgrade checks                     | Performs checks if there are some pending upgrades         |         | Yes     | Yes       |
-| Static checks                      | Performs full static checks                                | Yes (5) | Yes     | Yes (6)   |
-| Basic static checks                | Performs basic static checks (no image)                    | Yes (5) |         |           |
-| Build and publish docs             | Builds and tests publishing of the documentation           | Yes (8) | Yes (8) | Yes (8)   |
-| Spellcheck docs                    | Spellcheck docs                                            | Yes     | Yes     | Yes (7)   |
-| Tests wheel provider distributions | Tests if provider distributions can be built and released  | Yes     | Yes     |           |
-| Tests Airflow compatibility        | Compatibility of provider distributions with older Airflow | Yes     | Yes     |           |
-| Tests dist provider distributions  | Tests if dist provider distributions can be built          |         | Yes     |           |
-| Tests airflow release commands     | Tests if airflow release command works                     |         | Yes     | Yes       |
-| DB tests matrix                    | Run the Pytest unit DB tests                               | Yes     | Yes     | Yes (7)   |
-| No DB tests                        | Run the Pytest unit Non-DB tests (with pytest-xdist)       | Yes     | Yes     | Yes (7)   |
-| Integration tests                  | Runs integration tests (Postgres/Mysql)                    | Yes     | Yes     | Yes (7)   |
-| Quarantined tests                  | Runs quarantined tests (with flakiness and side-effects)   | Yes     | Yes     | Yes (7)   |
-| Test airflow packages              | Tests that Airflow package can be built and released       | Yes     | Yes     | Yes       |
-| Helm tests                         | Run the Helm integration tests                             | Yes     | Yes     |           |
-| Helm release tests                 | Run the tests for Helm releasing                           | Yes     | Yes     |           |
-| Summarize warnings                 | Summarizes warnings from all other tests                   | Yes     | Yes     | Yes       |
-| Docker Compose test/PROD verify    | Tests quick-start Docker Compose and verify PROD image     | Yes     | Yes     | Yes       |
-| Tests Kubernetes                   | Run Kubernetes test                                        | Yes     | Yes     |           |
-| Update constraints                 | Upgrade constraints to latest ones                         | Yes     | Yes (2) | Yes (2)   |
-| Push cache & images                | Pushes cache/images to GitHub Registry (3)                 |         | Yes (3) |           |
-| Build CI ARM images                | Builds CI images for ARM                                   | Yes (9) |         |           |
+A composite workflow is essentially a reusable piece of our CI pipeline. Rather than having one massive workflow file with hundreds of lines, we split the work into focused components:
 
-`(1)` Scheduled jobs builds images from scratch - to test if everything
-works properly for clean builds
+- Basic validation happens in one workflow
+- Image building gets its own workflow
+- Database testing has dedicated workflows
+- Kubernetes testing runs separately
 
-`(2)` PROD and CI cache & images are pushed as "cache" (both AMD and
-ARM) and "latest" (only AMD) to GitHub Container Registry and
-constraints are upgraded only if all tests are successful. The images
-are rebuilt in this step using constraints pushed in the previous step.
-Constraints are only actually pushed in the `canary` runs.
+Each composite workflow is stored in `.github/workflows/` and gets called using GitHub's `uses: ./.github/workflows/...` syntax. When we need to modify how database tests work, we only touch that specific workflow file.
 
-`(3)` In main, PROD image uses locally build providers using "latest"
-version of the provider code. In the non-main version of the build, the
-latest released providers from PyPI are used.
+### Workflow Cancellation
 
-`(4)` Always run with public runners to test if Git clone works on
-Windows.
+GitHub Actions includes a concurrency feature that we use to prevent wasted resources. If you push new commits while tests are already running, the system cancels the old test run and starts over with your latest code. This saves time and compute resources.
 
-`(5)` Run full set of static checks when selective-checks determine that
-they are needed (basically, when Python code has been modified).
+## Branch-Specific Behavior
 
-`(6)` On non-main builds some of the static checks that are related to
-Providers are skipped via selective checks (`skip-prek-hooks` check).
+Different branches in our repository serve different purposes, so they get different levels of testing.
 
-`(7)` On non-main builds the unit tests, docs and integration tests
-for providers are skipped via selective checks.
+### Main Branch Testing
 
-`(8)` Docs publishing is only done in Canary run.
+The `main` branch undergoes the most extensive testing since it serves as the primary development branch. All available test suites execute on this branch:
 
-`(9)` ARM images are not currently built - until we have ARM runners available.
+- Core Airflow functionality tests
+- Provider package tests
+- Integration tests with external systems
+- Helm chart validation
+- Kubernetes deployment tests
+- Documentation building and validation
+
+We run everything on `main` because we want to catch problems as early as possible in the development cycle.
+
+### Release Branch Testing
+
+Release branches (named `v*-*-test`) get a more focused set of tests. These branches are used only for releasing Airflow core and Docker images, not for provider packages or Helm charts. So we skip tests that aren't relevant:
+
+- Core Airflow tests still run
+- Image building and validation continues
+- Provider-specific tests are skipped
+- Helm and Kubernetes tests are skipped
+
+This approach saves time and resources while still ensuring release quality.
+
+### Branch Detection Logic
+
+The system determines which tests to run through the `build-info` job. This job checks the `AIRFLOW_BRANCH` setting in `airflow_breeze/branch_defaults.py` to understand what branch type it's working with, then enables or disables test groups accordingly.
+
+## Tests Workflow Structure
+
+The Tests workflow handles all code validation for Apache Airflow. When changes get pushed to `main` or release branches, these runs become "canary" builds that also update shared infrastructure like dependency constraints and Docker images.
+
+### Workflow Execution Flow
+
+Tests run in a specific sequence, with each stage building on the results of previous stages:
+
+#### 1. Build Info
+
+The build-info job examines what files changed in your pull request and decides which tests need to run. If you only changed documentation, it might skip Python tests entirely. If you modified provider code, it focuses on provider-related testing. This selective approach saves time and resources.
+
+#### 2. Basic Tests
+
+Before running expensive tests, we validate basic functionality:
+
+- Breeze development environment tests
+- React UI component tests
+- Code formatting and style checks
+- Dependency upgrade monitoring
+
+These quick checks catch obvious problems early.
+
+#### 3. Image Building
+
+We build the Docker environments needed for testing:
+
+- CI images optimized for running tests
+- Production images that match what users download
+- Dependency constraint files that lock versions for consistent testing
+
+Having standardized environments ensures tests behave predictably.
+
+#### 4. Core Testing
+
+The main testing phase runs multiple test suites in parallel:
+
+- Database tests against PostgreSQL, MySQL, and SQLite
+- Non-database tests for core logic
+- Provider package tests for external integrations
+- Integration tests that verify component interactions
+
+Parallel execution speeds up the overall process.
+
+#### 5. Specialized Testing
+
+Additional tests verify specific deployment scenarios:
+
+- Kubernetes integration tests
+- Helm chart deployment tests
+- Task SDK and CLI tool validation
+
+These ensure Airflow works correctly in various real-world environments.
+
+#### 6. Finalization
+
+Successful test runs trigger several cleanup and publishing tasks:
+
+- Updated Docker images get pushed to the registry
+- Constraint files get updated with tested dependency versions
+- Test warnings and issues get summarized
+- Artifacts get prepared for future builds
+
+### Composite Workflow Groups
+
+Here's what each workflow group does and when it runs:
+
+| Workflow Group                     | Purpose                                                     | PR      | main    | v*-*-test |
+|------------------------------------|-------------------------------------------------------------|---------|---------|-----------|
+| **Build Info**                     | Analyzes changes and determines which tests to run          | Yes     | Yes     | Yes       |
+| **Basic Tests**                    | Runs quick validation: Breeze, UI, static checks            | Yes     | Yes     | Yes       |
+| **CI Image Build**                 | Builds Docker images for testing                            | Yes     | Yes     | Yes       |
+| **Additional CI Image Checks**     | Validates CI images meet quality standards                  | Yes     | Yes     | Yes       |
+| **Generate Constraints**           | Creates dependency version lock files                       | Yes     | Yes     | Yes       |
+| **CI Image Checks**                | Runs static analysis and builds docs (AMD only)             | Yes     | Yes     | Yes       |
+| **Provider Tests**                 | Tests integration with external services                    | Yes     | Yes     | Yes (1)   |
+| **Unit Tests (Multiple Groups)**   | Runs core functionality tests with different databases      | Yes     | Yes     | Yes (1)   |
+| **Special Tests**                  | Handles integration and system tests (AMD only)             | Yes (3) | Yes     | Yes (1)   |
+| **Helm Tests**                     | Tests Kubernetes deployment via Helm                        | Yes     | Yes     | Yes (1)   |
+| **PROD Image Build**               | Builds production-ready Docker images                       | Yes     | Yes     | Yes       |
+| **Additional PROD Image Tests**    | Final validation of production images (AMD only)            | Yes     | Yes     | Yes       |
+| **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
+| **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
+| **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
+
+#### AMD-Only Workflows
+
+Some workflows run only on AMD architecture because they produce architecture-independent results. Running documentation builds or static analysis on both AMD and ARM would waste resources without providing additional value.
+
+### Individual Jobs (Non-Composite)
+
+A few jobs run as individual tasks rather than composite workflows:
+
+| Individual Job                     | Purpose                                                     | PR      | main    | v*-*-test |
+|------------------------------------|-------------------------------------------------------------|---------|---------|-----------|
+| **Pin Versions Hook** (AMD only)   | Ensures dependency versions are properly locked             | Yes     | Yes     | Yes       |
+| **Go SDK Tests**                   | Tests Go language components                                | Yes     | Yes     | Yes       |
+| **Summarize Warnings** (AMD only)  | Collects and organizes warnings from all test runs          | Yes     | Yes     | Yes       |
+
+#### Why These Remain Separate
+
+- **Pin Versions Hook**: Simple validation that doesn't require complex orchestration
+- **Go SDK Tests**: Uses Go's native testing tools, separate from Python ecosystem
+- **Summarize Warnings**: Runs after other tests complete, just aggregates data
+
+### Footnotes
+
+The numbered references in the tables above have specific meanings:
+
+**`(1)` Release Branch Optimization**
+
+Release branches skip certain test categories:
+
+- Provider tests are skipped since providers aren't released from these branches
+- Helm and Kubernetes tests are skipped for the same reason
+- This saves time and compute resources while maintaining release quality
+
+**`(2)` Image and Constraint Publishing**
+
+Successful test runs trigger publishing activities:
+
+- Cache images for both AMD and ARM get pushed to speed up future builds
+- Only AMD images get the "latest" tag since it's our primary architecture
+- Dependency constraint files only get updated during canary runs
+
+**`(3)` Conditional Special Tests**
+
+Special tests (integration and system tests) run selectively:
+
+- When complete test coverage is required for thorough validation
+- In canary runs for scheduled quality checks
+- When dependency upgrades require thorough testing
+
+## Implementation Details
+
+Here's how the composite workflow system is organized in practice.
+
+### Composite Workflow Files
+
+Each composite workflow is stored in a separate file under `.github/workflows/`. This organization makes the system easier to maintain and understand:
+
+#### Basic Validation
+
+- `basic-tests.yml` - Handles Breeze tests, UI validation, static analysis, and upgrade monitoring
+
+#### Image Management
+
+- `ci-image-build.yml` - Builds Docker images for testing
+- `additional-ci-image-checks.yml` - Validates CI images meet quality standards
+- `prod-image-build.yml` - Creates production-ready images
+- `additional-prod-image-tests.yml` - Final validation of production images
+
+#### Standards and Documentation
+
+- `generate-constraints.yml` - Creates dependency version lock files
+- `ci-image-checks.yml` - Runs static analysis and builds documentation
+
+#### Testing
+
+- `run-unit-tests.yml` - Flexible testing framework that works with different databases
+- `test-providers.yml` - Tests integration with external services
+- `special-tests.yml` - Handles complex integration and system tests
+
+#### Deployment Testing
+
+- `helm-tests.yml` - Tests Kubernetes deployment via Helm charts
+- `k8s-tests.yml` - Tests direct Kubernetes integration
+- `airflow-distributions-tests.yml` - Validates package distributions
+
+#### Finalization
+
+- `finalize-tests.yml` - Publishes results and updates shared resources
+
+### Benefits of Composite Workflows
+
+This architecture provides several practical advantages:
+
+#### Modularity
+
+Each workflow handles one specific area of testing. When you need to modify provider testing, you only touch `test-providers.yml`. This isolation prevents changes from having unexpected side effects.
+
+#### Maintainability
+
+Problems are easier to diagnose and fix. Database test failures point you directly to `run-unit-tests.yml`. Image building problems are isolated in the image-related workflows.
+
+#### Reusability
+
+Both AMD and ARM workflows use the same composite workflows. We write the testing logic once and reuse it across architectures.
+
+#### Clarity
+
+The main workflow files focus on orchestration rather than implementation details:
+
+```yaml
+- name: "Basic tests"
+  uses: ./.github/workflows/basic-tests.yml
+- name: "Build CI images"
+  uses: ./.github/workflows/ci-image-build.yml
+```
+
+#### Parallel Execution
+
+Independent workflows can run simultaneously. While images are building, static checks can run in parallel, reducing overall execution time.
+
+#### Expertise Focus
+
+Different team members can specialize in different workflow files. Kubernetes experts maintain `k8s-tests.yml`, while Docker specialists handle the image building workflows.
+
+This approach has transformed our CI system from a single large workflow into a collection of focused, maintainable components.
 
 ## CodeQL scan
 

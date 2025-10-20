@@ -88,6 +88,11 @@
     "taskGroup": "Task Gruppe"
   },
   "limitedList": "+{{count}} mehr",
+  "limitedList.allItems": "Alle {{count}} Einträge:",
+  "limitedList.clickToInteract": "Klicken Sie auf eine Markierung, um Dags zu filtern",
+  "limitedList.clickToOpenFull": "Klicken Sie auf \"+{{count}} mehr\" für die vollständige Ansicht",
+  "limitedList.copyPasteText": "Sie können den obigen Text kopieren und einfügen",
+  "limitedList.showingItems": "{{count}} Einträge werden angezeigt",
   "logs": {
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"

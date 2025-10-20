@@ -88,6 +88,11 @@
     "taskGroup": "Feladatcsoport"
   },
   "limitedList": "+{{count}} további",
+  "limitedList.allItems": "Összes {{count}} elem:",
+  "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ok szűréséhez",
+  "limitedList.clickToOpenFull": "Kattintson a \"+{{count}} további\" gombra a teljes nézethez",
+  "limitedList.copyPasteText": "A fenti szöveg másolható és beilleszthető",
+  "limitedList.showingItems": "{{count}} elem megjelenítése",
   "logs": {
     "file": "Fájl",
     "location": "{{name}} fájl {{line}}. sora"

@@ -861,14 +861,7 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "owner_links": {},
-            "params": {
-                "foo": {
-                    "__class": "airflow.sdk.definitions.param.Param",
-                    "description": None,
-                    "schema": {},
-                    "value": 1,
-                }
-            },
+            "params": {"foo": 1},
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,
@@ -957,14 +950,7 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "owner_links": {},
-            "params": {
-                "foo": {
-                    "__class": "airflow.sdk.definitions.param.Param",
-                    "description": None,
-                    "schema": {},
-                    "value": 1,
-                }
-            },
+            "params": {"foo": 1},
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,

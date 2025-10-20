@@ -519,6 +519,7 @@ class DagModelOperation(NamedTuple):
                 )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
+            dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version

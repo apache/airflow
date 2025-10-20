@@ -28,6 +28,5 @@ DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 TASK_SDK_HOST_PORT = os.environ.get("TASK_SDK_HOST_PORT", "localhost:8080")
-TASK_SDK_API_VERSION = "2025-08-10"
 
 DOCKER_COMPOSE_FILE_PATH = TASK_SDK_TESTS_ROOT / "docker" / "docker-compose.yaml"

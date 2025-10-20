@@ -55,6 +55,8 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
+KEY_VALUE_SPECIFICATION_ERROR = "Key and Value must be specified as a pair. Only one of the two had a value"
+
 
 @pytest.fixture
 def mocked_s3_res():
@@ -1413,9 +1415,8 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key("s3://foo/bar.csv")
         assert test_bucket_name_with_key == ("foo", "bar.csv")
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Missing key parameter!"):
             fake_s3_hook.test_function_with_test_key("s3://foo/bar.csv")
-        assert isinstance(ctx.value, ValueError)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
@@ -1601,7 +1602,7 @@ class TestAwsS3Hook:
         hook = S3Hook(extra_args={"unknown_s3_args": "value"})
         path = tmp_path / "testfile"
         path.write_text("Content")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid extra_args key 'unknown_s3_args'"):
             hook.load_file_obj(path.open("rb"), "my_key", s3_bucket, acl_policy="public-read")
 
     def test_should_pass_extra_args(self, s3_bucket, tmp_path):
@@ -1726,7 +1727,7 @@ class TestAwsS3Hook:
 
         hook.create_bucket(bucket_name="new_bucket")
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key)
 
     @mock_aws
@@ -1734,7 +1735,7 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
         value = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value)
 
     @mock_aws
@@ -1743,7 +1744,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tag_set=tag_set)
 
     @mock_aws
@@ -1752,7 +1753,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         value = "Green"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tag_set=tag_set)
 
     @mock_aws

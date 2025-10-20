@@ -164,8 +164,6 @@ def relative_path(path):
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags())
 def test_should_be_importable(example: str):
-    pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,

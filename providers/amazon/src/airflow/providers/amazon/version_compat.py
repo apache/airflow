@@ -34,11 +34,14 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
+AIRFLOW_V_3_1_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 1)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook
+    from airflow.sdk.bases.sensor import poke_mode_only
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.sensors.base import poke_mode_only  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator, BaseOperatorLink, BaseSensorOperator
@@ -55,5 +58,6 @@ __all__ = [
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "poke_mode_only",
     "XCom",
 ]

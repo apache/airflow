@@ -24,14 +24,23 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 import requests
+
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
 try:
     from airflow.sdk import task
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
@@ -52,9 +61,6 @@ def _get_actual_model(key) -> str:
         try:
             model_name = model["name"].split("/")[-1]
             splited_model_name = model_name.split("-")
-            if not splited_model_name[-1].isdigit():
-                # We are not using model aliases because sometimes it is not guaranteed to work
-                continue
             if not source_model and "flash" in model_name:
                 source_model = model_name
             elif (
@@ -88,6 +94,13 @@ SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
 TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/gemini-2_0/text/sft_train_data.jsonl"
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
 
+BUCKET_NAME = f"bucket_tuning_dag_{PROJECT_ID}"
+FILE_NAME = "video_tuning_dataset.jsonl"
+UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+TRAIN_VIDEO_DATASET = f"gs://{BUCKET_NAME}/{FILE_NAME}"
+TUNED_VIDEO_MODEL_DISPLAY_NAME = "my_tuned_gemini_video_model"
+
+
 with DAG(
     dag_id=DAG_ID,
     description="Sample DAG with generative model tuning tasks.",
@@ -110,6 +123,21 @@ with DAG(
 
     get_actual_model_task = get_actual_model(get_gemini_api_key_task)
 
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
+    )
+
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file",
+        src=UPLOAD_FILE_PATH,
+        dst=FILE_NAME,
+        bucket=BUCKET_NAME,
+    )
+
+    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_NAME)
+
     # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
     sft_train_task = SupervisedFineTuningTrainOperator(
         task_id="sft_train_task",
@@ -121,7 +149,27 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
 
-    get_gemini_api_key_task >> get_actual_model_task >> sft_train_task
+    # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
+    sft_video_task = SupervisedFineTuningTrainOperator(
+        task_id="sft_train_video_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        source_model=SOURCE_MODEL,
+        train_dataset=TRAIN_VIDEO_DATASET,
+        tuned_model_display_name=TUNED_VIDEO_MODEL_DISPLAY_NAME,
+    )
+    # [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
+
+    delete_bucket.trigger_rule = TriggerRule.ALL_DONE
+
+    (
+        get_gemini_api_key_task
+        >> get_actual_model_task
+        >> create_bucket
+        >> upload_file
+        >> [sft_train_task, sft_video_task]
+        >> delete_bucket
+    )
 
     from tests_common.test_utils.watcher import watcher
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 
@@ -74,6 +75,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     LazyDeserializedDAG,
     SerializedDAG,
+    _has_kubernetes,
     create_scheduler_operator,
 )
 from airflow.triggers.base import BaseTrigger
@@ -718,3 +720,29 @@ class TestSerializedBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+
+class TestKubernetesImportAvoidance:
+    """Test that serialization doesn't import kubernetes unnecessarily."""
+
+    def test_has_kubernetes_no_import_when_not_needed(self):
+        """Ensure _has_kubernetes() doesn't import k8s when not already loaded."""
+        # Remove kubernetes from sys.modules if present
+        k8s_modules = [m for m in list(sys.modules.keys()) if m.startswith("kubernetes")]
+        if k8s_modules:
+            pytest.skip("Kubernetes already imported, cannot test import avoidance")
+
+        # Call _has_kubernetes() - should check sys.modules and return False without importing
+        result = _has_kubernetes()
+
+        assert result is False
+        assert "kubernetes.client" not in sys.modules
+
+    def test_has_kubernetes_uses_existing_import(self):
+        """Ensure _has_kubernetes() uses k8s when it's already imported."""
+        pytest.importorskip("kubernetes")
+
+        # Now k8s is imported, should return True
+        result = _has_kubernetes()
+
+        assert result is True

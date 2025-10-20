@@ -695,8 +695,12 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Amazon Kinesis Data Firehose",
+                "integration-name": "Amazon Kinesis Data Stream",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.kinesis"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Firehose",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.firehose"],
             },
             {
                 "integration-name": "AWS Lambda",
