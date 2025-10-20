@@ -41,7 +41,7 @@ const handleMouseEnter =
   };
 
 const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${taskId.replaceAll(".", "-")}`);
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${taskId.replaceAll(".", "-")}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
@@ -89,7 +89,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       alignItems="center"
       bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
       height="20px"
-      id={taskId.replaceAll(".", "-")}
+      id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
       onMouseEnter={onMouseEnter}
