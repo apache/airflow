@@ -90,6 +90,7 @@ const parseLogs = ({
           logLevelFilters,
           logLink,
           logMessage: datum,
+          renderingMode: "jsx",
           showSource,
           showTimestamp,
           sourceFilters,
@@ -249,5 +250,5 @@ export const useLogs = (
     tryNumber,
   });
 
-  return { data: parsedData, ...rest };
+  return { parsedData, ...rest, fetchedData: data };
 };
