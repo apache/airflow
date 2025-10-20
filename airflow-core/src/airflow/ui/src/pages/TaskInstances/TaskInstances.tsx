@@ -53,15 +53,15 @@ const {
   END_DATE: END_DATE_PARAM,
   LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
   LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
-  NAME_PATTERN: NAME_PATTERN_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
+  NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR: OPERATOR_PARAM,
   POOL: POOL_PARAM,
   QUEUE: QUEUE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
-  
+
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -267,13 +267,12 @@ export const TaskInstances = () => {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
-      versionNumber: filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
-      logicalDateGte: logicalDateGte ?? undefined,
-      logicalDateLte: logicalDateLte ?? undefined,
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter!== "" ? [Number(mapIndexFilter)]: undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
@@ -282,6 +281,7 @@ export const TaskInstances = () => {
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter!== "" ? [Number(tryNumberFilter)]: undefined,
+      versionNumber: filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
     },
     undefined,
     {
@@ -289,29 +289,37 @@ export const TaskInstances = () => {
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
-
-  const filteredInstances = (data?.task_instances ?? []).filter((ti) => {
-    const op   = (ti.operator_name ?? (ti as any).operator) as string | undefined;
-    const q    = ti.queue as string | undefined;
-    const p    = ti.pool as string | undefined;
-
-    const okOp   = !hasFilteredOperator || (op && operator.includes(op));
-    const okQ    = !hasFilteredQueue    || (q && queue.includes(q));
-    const okPool = !hasFilteredPool     || (p && pool.includes(p));
-
-    const okName =
-      !taskDisplayNamePattern ||
-      ((ti.task_display_name ?? ti.task_id ?? "").toString().includes(taskDisplayNamePattern));
-
-    return okOp && okQ && okPool && okName;
-  });
+ 
+  const filterTaskInstances = ({
+  instances,
+  operatorNames,
+  queueNames,
+  poolNames,
+}: {
+  instances: Array<TaskInstanceResponse>;
+  operatorNames: Array<string>;
+  queueNames: Array<string>;
+  poolNames: Array<string>;
+}) =>
+    instances.filter(
+      (instances) =>
+        (operatorNames.length === 0 || operatorNames.includes(instances.operator_name as string)) &&
+        (queueNames.length === 0 || queueNames.includes(instances.queue as string)) &&
+        (poolNames.length === 0 || poolNames.includes(instances.pool?.toString() as string)),
+    );
+const filteredInstances = filterTaskInstances({
+  instances: data?.task_instances ?? [],
+  operatorNames: operator,   
+  queueNames: queue,         
+  poolNames: pool,           
+});
 
   return (
     <>
       <TaskInstancesFilter
+        instances={data}
         setTaskDisplayNamePattern={setTaskDisplayNamePattern}
         taskDisplayNamePattern={taskDisplayNamePattern}
-        instances={data}
       />
       <DataTable
         columns={taskInstanceColumns({

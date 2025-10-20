@@ -38,24 +38,29 @@ import { AttrSelectFilterMulti } from "./AttrSelectFilterMulti";
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  STATE: STATE_PARAM,
-  QUEUE: QUEUE_PARAM,
-  POOL: POOL_PARAM,
   OPERATOR: OPERATOR_PARAM,
+  POOL: POOL_PARAM,
+  QUEUE: QUEUE_PARAM,
+  STATE: STATE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type Props = {
+  readonly instances?: TaskInstanceCollectionResponse | undefined;
   readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly taskDisplayNamePattern: string | undefined;
-  readonly instances?: TaskInstanceCollectionResponse | undefined;
 };
 
 export const TaskInstancesFilter = ({
+  instances,
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
-  instances,
 }: Props) => {
   const { dagId, runId } = useParams();
+  
+  const [ searchParams, setSearchParams] = useSearchParams();
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination, sorting } = tableURLState;
+  const { t: translate } = useTranslation();
   
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
@@ -68,27 +73,39 @@ export const TaskInstancesFilter = ({
       SearchParamsKeys.TRY_NUMBER,
       SearchParamsKeys.MAP_INDEX,
       SearchParamsKeys.DAG_VERSION,
-     
+
     ];
-    
+
     if (runId === undefined) {
-      keys.splice(1, 0, SearchParamsKeys.RUN_ID); 
+      keys.splice(1, 0, SearchParamsKeys.RUN_ID);
     }
 
-  
+
 
     return keys;
   }, [runId, dagId]);
-  
-  const uniq = (xs: Array<string | null | undefined>) =>
-    Array.from(new Set(xs.filter(Boolean) as string[]));
+  const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
 
-  const setMultiParam = (key: string, values: string[]) => {
-    searchParams.delete(key);
-    values.forEach((v) => searchParams.append(key, v));
+
+  const uniq = (xs: Array<string | null | undefined>) =>
+    [...new Set(xs.filter((x): x is string => x !== null && x !== undefined && x !== ""))];
+
+  const resetPagination = useCallback(() => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+  }, [pagination, sorting, setTableURLState]);
+
+  const setMultiParam = useCallback((key: string, values: Array<string>) => {
     resetPagination();
-    setSearchParams(searchParams);
-  };
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(key);
+      values.forEach((v) => next.append(key, v));
+      return next;
+    });
+  }, [resetPagination, setSearchParams]);
 
   const allOperatorNames: Array<string> = uniq(
     instances?.task_instances.map((ti) => (ti.operator ?? (ti as any).operator_name) as string | null | undefined) ?? []
@@ -100,12 +117,7 @@ export const TaskInstancesFilter = ({
     instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? []
   );
 
-  const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
-
-  const [ searchParams, setSearchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
-  const { t: translate } = useTranslation();
+ 
 
   const filteredState = searchParams.getAll(STATE_PARAM);
 
@@ -116,14 +128,9 @@ export const TaskInstancesFilter = ({
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
 
-  const resetPagination = () =>
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
 
-  
-  
+
+
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
@@ -141,13 +148,13 @@ export const TaskInstancesFilter = ({
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-const handleSelectedOperators = (value: string[] | undefined) =>
+const handleSelectedOperators = (value: Array<string> | undefined) =>
   setMultiParam(OPERATOR_PARAM, value ?? []);
 
-const handleSelectedQueues = (value: string[] | undefined) =>
+const handleSelectedQueues = (value: Array<string> | undefined) =>
   setMultiParam(QUEUE_PARAM, value ?? []);
 
-const handleSelectedPools = (value: string[] | undefined) =>
+const handleSelectedPools = (value: Array<string> | undefined) =>
   setMultiParam(POOL_PARAM, value ?? []);
 
   const handleSearchChange = (value: string) => {
@@ -184,10 +191,12 @@ const handleSelectedPools = (value: string[] | undefined) =>
     resetPagination();
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
+
       next.delete(STATE_PARAM);
       next.delete(OPERATOR_PARAM);
       next.delete(QUEUE_PARAM);
       next.delete(POOL_PARAM);
+
       return next;
     });
   }, [setSearchParams, resetPagination]);
@@ -219,8 +228,8 @@ const handleSelectedPools = (value: string[] | undefined) =>
     (searchParams.getAll(POOL_PARAM).length > 0 ? 1 : 0);
 
   return (
-    <VStack justifyContent="space-between" align="start">
-    <HStack paddingY="4px" alignItems="start">
+    <VStack align="start" justifyContent="space-between">
+    <HStack alignItems="start" paddingY="4px">
       {dagId === undefined && (
         <SearchBar
           buttonProps={{ disabled: true }}
@@ -316,8 +325,7 @@ const handleSelectedPools = (value: string[] | undefined) =>
           onFiltersChange={handleFiltersChange}
         />
       </VStack>
-    </VStack>     
+    </VStack>
   );
 };
-  
 

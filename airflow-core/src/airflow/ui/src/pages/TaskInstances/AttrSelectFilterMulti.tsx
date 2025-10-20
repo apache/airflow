@@ -53,10 +53,10 @@ export const AttrSelectFilterMulti = ({
   return (
     <Select.Root
       collection={thingCollection}
-      width="200px"
       multiple
       onValueChange={handleValueChange}
       value={selectedValues}
+      width="200px"
     >
       <Select.Trigger colorPalette="brand" >
         <Select.ValueText placeholder={placeholderText} width="200px">
