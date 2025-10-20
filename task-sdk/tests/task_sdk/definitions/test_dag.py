@@ -23,9 +23,11 @@ import weakref
 from datetime import datetime, timedelta, timezone
 from types import ModuleType
 from typing import Any
+from unittest import mock
 
 import pytest
 
+from airflow.providers.standard.decorators.bash import BashOperator
 from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, DAG_PARSING_ERRORS_ATTR, dag as dag_decorator, safe_dag
@@ -853,7 +855,8 @@ class TestCycleTester:
 
 
 class TestSafeDag:
-    """Test the safe_dag context manager functionality."""
+    INVALID_DATE = "invalid_date_format"
+    INVALID_TASK_ID = "invalid task id"
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
@@ -876,87 +879,172 @@ class TestSafeDag:
         if "test_module" in sys.modules:
             del sys.modules["test_module"]
 
-    def test_safe_dag_stores_errors_in_module(self):
-        """Test that errors are stored in module.__airflow_dag_parsing_errors."""
+    def test_dag_decorator_creation_fails_invalid_args(self):
+        with safe_dag():
+
+            @dag_decorator(dag_id="dag_decorator", start_date=TestSafeDag.INVALID_DATE)
+            def broken_dag():
+                BaseOperator(task_id="task_id")
+
+            broken_dag()
+
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_DATE)
+
+    def test_dag_decorator_creation_failed_task(self, monkeypatch):
+        fake_dag = DAG("dag_decorator", start_date=DEFAULT_DATE)
+        monkeypatch.setattr(
+            "airflow.sdk.definitions._internal.contextmanager.DagContext.get_latest_popped",
+            lambda: fake_dag,
+        )
+
+        with safe_dag():
+
+            @dag_decorator(dag_id="decorated_bad", start_date=DEFAULT_DATE)
+            def broken():
+                BaseOperator(task_id=TestSafeDag.INVALID_TASK_ID)
+
+            broken()
+
+        self._assert_failed_dag(fake_dag)
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_TASK_ID)
+
+    def test_dag_context_manager_creation_fails_invalid_args(self):
+        with safe_dag():
+            with DAG(dag_id="dag_context_manager", start_date=TestSafeDag.INVALID_DATE):
+                BaseOperator(task_id="task_id")
+
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_DATE)
+
+    def test_dag_context_manager_creation_failed_task(self, monkeypatch):
+        fake_dag = DAG("fake_dag_context_manager", start_date=DEFAULT_DATE)
+        monkeypatch.setattr(
+            "airflow.sdk.definitions._internal.contextmanager.DagContext.get_latest_popped",
+            lambda: fake_dag,
+        )
+
+        with safe_dag():
+            with DAG("dag_context_manager", start_date=DEFAULT_DATE):
+                BaseOperator(task_id=TestSafeDag.INVALID_TASK_ID)
+
+        self._assert_failed_dag(fake_dag)
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_TASK_ID)
+
+    def test_dag_constructor_creation_fails_invalid_args(self):
+        with safe_dag():
+            DAG("dag_constructor", start_date=TestSafeDag.INVALID_DATE)
+
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_DATE)
+
+    def test_dag_constructor_creation_failed_task(self, monkeypatch):
+        dag = DAG("dag_constructor", start_date=DEFAULT_DATE)
+        monkeypatch.setattr(
+            "airflow.sdk.definitions._internal.contextmanager.DagContext.get_latest_popped",
+            lambda: dag,
+        )
+
+        with safe_dag():
+            BaseOperator(task_id=TestSafeDag.INVALID_TASK_ID, dag=dag)
+
+        self._assert_failed_dag(dag)
+        self._assert_single_parsing_error(contains=TestSafeDag.INVALID_TASK_ID)
+
+    def test_warns_if_used_outside_dag_parsing_context(self, monkeypatch):
+        monkeypatch.setattr(
+            "airflow.sdk.definitions._internal.contextmanager.DagContext.current_autoregister_module_name",
+            None,
+        )
+
+        def _run_invalid_dag_creation():
+            with safe_dag():
+                with pytest.raises(ValueError, match=TestSafeDag.INVALID_DATE):
+                    with DAG(dag_id="test_dag", start_date=TestSafeDag.INVALID_DATE):
+                        BashOperator(task_id="task_id", bash_command="echo 'This should not execute'")
+
+        with pytest.warns(
+            UserWarning, match=r"safe_dag\(\) can only be used during DAG file processing by DagBag"
+        ):
+            _run_invalid_dag_creation()
+
         assert not hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
 
+    def test_successful_execution_context_manager(self):
+        dag_id = "test_dag"
+        task_id = "task_id"
+
         with safe_dag():
-            raise RuntimeError("Test error")
+            with DAG(dag_id=dag_id, start_date=DEFAULT_DATE) as dag:
+                task = BaseOperator(task_id=task_id)
 
-        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        assert isinstance(errors, list)
-        assert len(errors) == 1
-        error_msg = errors[0]
-        assert error_msg.startswith("Failed to create DAG at line")
-        assert "Test error" in error_msg
-        assert "Traceback (most recent call last):" in error_msg
+        self._assert_successful_dag(dag, task, dag_id, task_id)
 
-    def test_safe_dag_catches_dag_creation_errors(self):
-        """Test that safe_dag catches exceptions during DAG creation."""
+    def test_successful_execution_explicit_dag(self):
+        dag_id = "test_dag"
+        task_id = "task_id"
+
         with safe_dag():
-            raise ValueError("Invalid DAG configuration")
+            dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+            task = BaseOperator(task_id=task_id, dag=dag)
 
-        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        assert len(errors) == 1
+        self._assert_successful_dag(dag, task, dag_id, task_id)
 
-    def test_safe_dag_catches_task_creation_errors(self):
-        """Test that safe_dag catches exceptions during task creation."""
+    def test_preserves_existing_errors(self):
+        existin_error = "existing error"
+        setattr(self.test_module, DAG_PARSING_ERRORS_ATTR, [existin_error])
+
         with safe_dag():
-            dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-            BaseOperator(task_id="invalid task id with spaces", dag=dag)
+            DAG(dag_id="test_dag", start_date=TestSafeDag.INVALID_DATE)
 
-        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
         errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        assert len(errors) == 1
+        assert len(errors) == 2
+        assert existin_error in errors[0]
+        assert TestSafeDag.INVALID_DATE in errors[1]
+
+    def test_always_clear_latest_popped(self):
+        with mock.patch(
+            "airflow.sdk.definitions._internal.contextmanager.DagContext.clear_latest_popped"
+        ) as mock_clear:
+            with safe_dag():
+                pass
+
+            mock_clear.assert_called_once()
 
     def test_safe_dag_allows_multiple_error_blocks(self):
-        """Test that multiple safe_dag blocks can each fail independently."""
-        with safe_dag():
-            raise ValueError("First error")
+        invalid_schedule = 10
 
         with safe_dag():
-            raise TypeError("Second error")
+            DAG(dag_id="invalid_config_dag_1", start_date=TestSafeDag.INVALID_DATE)
 
         with safe_dag():
-            dag = DAG("successful_dag", schedule=None, start_date=DEFAULT_DATE)
-            BaseOperator(task_id="task1", dag=dag)
+            DAG(dag_id="invalid_config_dag_2", start_date=DEFAULT_DATE, schedule=invalid_schedule)
+
+        with safe_dag():
+            dag = DAG("successful_dag", start_date=DEFAULT_DATE)
+            BaseOperator(task_id="task_id", dag=dag)
 
         assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
         errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
         assert len(errors) == 2
 
-        assert "First error" in errors[0]
-        assert "Second error" in errors[1]
-        assert "ValueError" in errors[0]
-        assert "TypeError" in errors[1]
+        assert TestSafeDag.INVALID_DATE in errors[0]
+        assert str(invalid_schedule) in errors[1]
 
-    def test_safe_dag_successful_execution(self):
-        """Test that safe_dag doesn't interfere with successful DAG creation."""
-        dag = None
-        task = None
+    def _assert_single_parsing_error(self, contains: str | None = None):
+        assert hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
+        assert len(errors) == 1
+        if contains:
+            assert contains in errors[0]
 
-        with safe_dag():
-            dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-            task = BaseOperator(task_id="task1", dag=dag)
+    def _assert_failed_dag(self, dag: DAG):
+        assert hasattr(dag, "_safe_dag_failed")
+        assert dag._safe_dag_failed is True
 
+    def _assert_successful_dag(self, dag, task, dag_id, task_id):
         assert dag is not None
-        assert dag.dag_id == "test_dag"
+        assert dag.dag_id == dag_id
         assert task is not None
-        assert task.task_id == "task1"
+        assert task.task_id == task_id
         assert task.dag is dag
 
+        assert not getattr(dag, "_safe_dag_failed", False)
         assert not hasattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-
-    def test_safe_dag_preserves_existing_errors(self):
-        """Test that safe_dag preserves existing errors in the module."""
-        setattr(self.test_module, DAG_PARSING_ERRORS_ATTR, ["Existing error"])
-
-        with safe_dag():
-            raise RuntimeError("New error")
-
-        errors = getattr(self.test_module, DAG_PARSING_ERRORS_ATTR)
-        assert len(errors) == 2
-        assert "Existing error" in errors[0]
-        assert "New error" in errors[1]

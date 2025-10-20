@@ -80,10 +80,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-TAG_MAX_LEN = 100
-
 # Module attribute name for storing DAG parsing errors from safe_dag context manager
 DAG_PARSING_ERRORS_ATTR = "__airflow_dag_parsing_errors"
+
+TAG_MAX_LEN = 100
 
 __all__ = [
     "DAG",
@@ -1652,10 +1652,25 @@ def safe_dag():
         return
 
     module = sys.modules[module_name]
+    pre_existing_dags = {id(o): o for o in module.__dict__.values() if isinstance(o, DAG)}
 
     try:
         yield
     except Exception as e:
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        # In case DAG was already created, mark it as failed to prevent it from being processed
+        if current_dag := DagContext.get_latest_popped():
+            current_dag._safe_dag_failed = True
+        # DAG created using standard constructor don't pop DagContext
+        else:
+            new_dags = [
+                o for o in module.__dict__.values() if isinstance(o, DAG) and id(o) not in pre_existing_dags
+            ]
+
+            for dag in new_dags:
+                dag._safe_dag_failed = True
+
         if not hasattr(module, DAG_PARSING_ERRORS_ATTR):
             setattr(module, DAG_PARSING_ERRORS_ATTR, [])
 
@@ -1664,3 +1679,5 @@ def safe_dag():
         error_line = tb[-1].lineno if tb else "unknown"
         error_msg = f"Failed to create DAG at line {error_line}: {str(e)}\n{traceback.format_exc()}"
         getattr(module, DAG_PARSING_ERRORS_ATTR).append(error_msg)
+    finally:
+        DagContext.clear_latest_popped()
