@@ -33,7 +33,6 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
-import { ResetButton } from "src/components/ui";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -59,7 +58,8 @@ export const TaskInstancesFilter = ({
   
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
-             
+      SearchParamsKeys.LOGICAL_DATE_GTE,
+      SearchParamsKeys.LOGICAL_DATE_LTE,
       SearchParamsKeys.START_DATE,
       SearchParamsKeys.END_DATE,
       SearchParamsKeys.DURATION_GTE,

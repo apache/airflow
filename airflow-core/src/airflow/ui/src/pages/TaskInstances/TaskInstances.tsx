@@ -51,6 +51,8 @@ const {
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   OPERATOR: OPERATOR_PARAM,
@@ -240,6 +242,8 @@ export const TaskInstances = () => {
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
@@ -266,6 +270,8 @@ export const TaskInstances = () => {
       versionNumber: filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
       mapIndex: mapIndexFilter !== null && mapIndexFilter!== "" ? [Number(mapIndexFilter)]: undefined,
