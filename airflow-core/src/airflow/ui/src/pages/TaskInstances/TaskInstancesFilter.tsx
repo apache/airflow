@@ -52,13 +52,6 @@ export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
 }: Props) => {
-  const { dagId, runId } = useParams();
-
-  const [ searchParams, setSearchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
-  const { t: translate } = useTranslation();
-
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       SearchParamsKeys.LOGICAL_DATE_GTE,
@@ -79,7 +72,15 @@ export const TaskInstancesFilter = ({
 
 
     return keys;
-  }, [runId]);
+  }, []);
+  const { dagId, runId } = useParams();
+
+  const [ searchParams, setSearchParams] = useSearchParams();
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination, sorting } = tableURLState;
+  const { t: translate } = useTranslation();
+
+  
   const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
 
 
@@ -104,15 +105,15 @@ export const TaskInstancesFilter = ({
       return next;
     });
   }, [resetPagination, setSearchParams]);
-  const taskInstances = instances?.task_instances ?? [];
+
   const allOperatorNames: Array<string> = uniq(
-    taskInstances.map((ti) => ti.operator_name as string | null | undefined) ?? []
+    instances?.task_instances.map((ti) => ti.operator_name as string | null | undefined) ?? []
   );
   const allQueueValues: Array<string> = uniq(
-    taskInstances.map((ti) => ti.queue as string | null | undefined) ?? []
+    instances?.task_instances.map((ti) => ti.queue as string | null | undefined) ?? []
   );
   const allPoolValues: Array<string> = uniq(
-    taskInstances.map((ti) => ti.pool as string | null | undefined) ?? []
+    instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? []
   );
 
 

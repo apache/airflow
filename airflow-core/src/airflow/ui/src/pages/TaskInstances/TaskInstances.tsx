@@ -235,8 +235,9 @@ const filterTaskInstances = ({
       (instance) =>
         (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
         (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
-        (poolNames.length === 0 || poolNames.includes(instance.pool?.toString())),
+        (poolNames.length === 0 || poolNames.includes(instance.pool as string)),
     );
+
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
