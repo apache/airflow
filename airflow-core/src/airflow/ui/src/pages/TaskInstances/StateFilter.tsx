@@ -23,7 +23,6 @@ import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 
-
 type Props<V extends string> = {
   readonly maxW?: string;
   readonly onChange: (details: SelectValueChangeDetails<V>) => void;
