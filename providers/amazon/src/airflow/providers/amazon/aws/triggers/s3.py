@@ -108,11 +108,25 @@ class S3KeyTrigger(BaseTrigger):
                         client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
                     ):
                         if self.should_check_fn:
-                            s3_objects = await self.hook.get_files_async(
+                            raw_objects = await self.hook.get_files_async(
                                 client, self.bucket_name, self.bucket_key, self.wildcard_match
                             )
-                            await asyncio.sleep(self.poke_interval)
-                            yield TriggerEvent({"status": "running", "files": s3_objects})
+                            files = []
+                            for f in raw_objects:
+                                metadata = {}
+                                if "*" in self.metadata_keys:
+                                    metadata = await self.hook.head_object_async(f, self.bucket_name)
+                                else:
+                                    for mk in self.metadata_keys:
+                                        try:
+                                            metadata[mk] = f[mk]
+                                        except KeyError:
+                                            self.log.info("Key %s not found, performing head_object", mk)
+                                        obj = await self.hook.head_object_async(f, self.bucket_name)
+                                        metadata[mk] = obj.get(mk, None)
+                                files.append(metadata)
+
+                            yield TriggerEvent({"status": "running", "files": files})
                         else:
                             yield TriggerEvent({"status": "success"})
                         return
