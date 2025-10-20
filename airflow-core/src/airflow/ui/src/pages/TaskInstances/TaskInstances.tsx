@@ -53,7 +53,9 @@ const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
+  OPERATOR: OPERATOR_PARAM,
   POOL: POOL_PARAM,
+  QUEUE: QUEUE_PARAM,
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
@@ -243,10 +245,13 @@ export const TaskInstances = () => {
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const pool = searchParams.getAll(POOL_PARAM);
+  const queue = searchParams.getAll(QUEUE_PARAM);
+  const operator = searchParams.getAll(OPERATOR_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
-
+  const hasFilteredQueue = queue.length > 0;
+  const hasFilteredOperator = operator.length > 0;
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
@@ -266,7 +271,6 @@ export const TaskInstances = () => {
       mapIndex: mapIndexFilter !== null && mapIndexFilter!== "" ? [Number(mapIndexFilter)]: undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      pool: hasFilteredPool ? pool : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
@@ -280,11 +284,28 @@ export const TaskInstances = () => {
     },
   );
 
+  const filteredInstances = (data?.task_instances ?? []).filter((ti) => {
+    const op   = (ti.operator_name ?? (ti as any).operator) as string | undefined;
+    const q    = ti.queue as string | undefined;
+    const p    = ti.pool as string | undefined;
+
+    const okOp   = !hasFilteredOperator || (op && operator.includes(op));
+    const okQ    = !hasFilteredQueue    || (q && queue.includes(q));
+    const okPool = !hasFilteredPool     || (p && pool.includes(p));
+
+    const okName =
+      !taskDisplayNamePattern ||
+      ((ti.task_display_name ?? ti.task_id ?? "").toString().includes(taskDisplayNamePattern));
+
+    return okOp && okQ && okPool && okName;
+  });
+
   return (
     <>
       <TaskInstancesFilter
         setTaskDisplayNamePattern={setTaskDisplayNamePattern}
         taskDisplayNamePattern={taskDisplayNamePattern}
+        instances={data}
       />
       <DataTable
         columns={taskInstanceColumns({
@@ -293,7 +314,7 @@ export const TaskInstances = () => {
           taskId: Boolean(groupId) ? undefined : taskId,
           translate,
         })}
-        data={data?.task_instances ?? []}
+        data={filteredInstances}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}

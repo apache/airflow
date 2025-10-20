@@ -23,7 +23,7 @@ import { useSearchParams, useParams } from "react-router-dom";
 
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
 
-
+import type { TaskInstanceCollectionResponse } from "openapi/requests";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
@@ -32,23 +32,28 @@ import { StateBadge } from "src/components/StateBadge";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
+import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
+import { ResetButton } from "src/components/ui";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   STATE: STATE_PARAM,
+  QUEUE: QUEUE_PARAM,
+  POOL: POOL_PARAM,
+  OPERATOR: OPERATOR_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type Props = {
   readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly taskDisplayNamePattern: string | undefined;
-
+  readonly instances?: TaskInstanceCollectionResponse | undefined;
 };
 
 export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
-
+  instances,
 }: Props) => {
   const { dagId, runId } = useParams();
   
@@ -74,8 +79,26 @@ export const TaskInstancesFilter = ({
     return keys;
   }, [runId, dagId]);
   
+  const uniq = (xs: Array<string | null | undefined>) =>
+    Array.from(new Set(xs.filter(Boolean) as string[]));
 
-  
+  const setMultiParam = (key: string, values: string[]) => {
+    searchParams.delete(key);
+    values.forEach((v) => searchParams.append(key, v));
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
+  const allOperatorNames: Array<string> = uniq(
+    instances?.task_instances.map((ti) => (ti.operator ?? (ti as any).operator_name) as string | null | undefined) ?? []
+  );
+  const allQueueValues: Array<string> = uniq(
+    instances?.task_instances.map((ti) => ti.queue as string | null | undefined) ?? []
+  );
+  const allPoolValues: Array<string> = uniq(
+    instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? []
+  );
+
   const { filterConfigs, handleFiltersChange} = useFiltersHandler(searchParamKeys);
 
   const [ searchParams, setSearchParams] = useSearchParams();
@@ -85,17 +108,21 @@ export const TaskInstancesFilter = ({
 
   const filteredState = searchParams.getAll(STATE_PARAM);
 
+  const selectedOperators = searchParams.getAll(OPERATOR_PARAM);
+  const selectedQueues = searchParams.getAll(QUEUE_PARAM);
+  const selectedPools = searchParams.getAll(POOL_PARAM);
+
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
 
-
-  
   const resetPagination = () =>
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
 
+  
+  
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
@@ -113,6 +140,14 @@ export const TaskInstancesFilter = ({
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
+const handleSelectedOperators = (value: string[] | undefined) =>
+  setMultiParam(OPERATOR_PARAM, value ?? []);
+
+const handleSelectedQueues = (value: string[] | undefined) =>
+  setMultiParam(QUEUE_PARAM, value ?? []);
+
+const handleSelectedPools = (value: string[] | undefined) =>
+  setMultiParam(POOL_PARAM, value ?? []);
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -168,6 +203,7 @@ export const TaskInstancesFilter = ({
   }, [searchParams, filterConfigs]);
 
   return (
+    <HStack justifyContent="space-between">
     <HStack paddingY="4px">
       {dagId === undefined && (
         <SearchBar
@@ -227,14 +263,38 @@ export const TaskInstancesFilter = ({
           ))}
         </Select.Content>
       </Select.Root>
+      </HStack>
+      <HStack justifyContent="space-between" paddingY="4px" gap={2}>
+        <AttrSelectFilterMulti
+          displayPrefix={translate("operator")}
+          handleSelect={handleSelectedOperators}
+          placeholderText={translate("selectOperator")}
+          selectedValues={selectedOperators}
+          values={allOperatorNames}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix={translate("queue")}
+          handleSelect={handleSelectedQueues}
+          placeholderText={translate("selectQueues")}
+          selectedValues={selectedQueues}
+          values={allQueueValues}
+        />
+        <AttrSelectFilterMulti
+          displayPrefix={translate("pool")}
+          handleSelect={handleSelectedPools}
+          placeholderText={translate("selectPools")}
+          selectedValues={selectedPools}
+          values={allPoolValues}
+        />
+      </HStack>
       <VStack alignItems="flex-start" gap={1}>
-      <FilterBar
-        configs={filterConfigs}
-        initialValues={initialValues}
-        onFiltersChange={handleFiltersChange}
-      />
+        <FilterBar
+          configs={filterConfigs}
+          initialValues={initialValues}
+          onFiltersChange={handleFiltersChange}
+        />
       </VStack>
-    </HStack>
+    </HStack>     
   );
 };
   
