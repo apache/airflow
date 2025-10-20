@@ -61,7 +61,6 @@ const {
   START_DATE: START_DATE_PARAM,
   STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
-
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -231,12 +230,12 @@ const filterTaskInstances = ({
   poolNames: Array<string>;
   queueNames: Array<string>;
 }) =>
-    instances.filter(
-      (instance) =>
-        (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
-        (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
-        (poolNames.length === 0 || poolNames.includes(instance.pool)),
-    );
+  instances.filter(
+    (instance) =>
+      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
+      (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
+      (poolNames.length === 0 || poolNames.includes(instance.pool)),
+  );
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
@@ -288,15 +287,16 @@ export const TaskInstances = () => {
       limit: pagination.pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
-      mapIndex: mapIndexFilter !== null && mapIndexFilter!== "" ? [Number(mapIndexFilter)]: undefined,
+      mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
-      tryNumber: tryNumberFilter !== null && tryNumberFilter!== "" ? [Number(tryNumberFilter)]: undefined,
-      versionNumber: filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+      tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
+      versionNumber:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
     },
     undefined,
     {
@@ -305,12 +305,12 @@ export const TaskInstances = () => {
     },
   );
 
-const filteredInstances = filterTaskInstances({
-  instances: data?.task_instances ?? [],
-  operatorNames: operator,
-  poolNames: pool,
-  queueNames: queue,
-});
+  const filteredInstances = filterTaskInstances({
+    instances: data?.task_instances ?? [],
+    operatorNames: operator,
+    poolNames: pool,
+    queueNames: queue,
+  });
 
   return (
     <>

@@ -17,12 +17,12 @@
  * under the License.
  */
 import { HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
-import { Select } from "src/components/ui";
-import { StateBadge } from "src/components/StateBadge";
+
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
+import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 
-type Option<V extends string> = { label: string; value: V };
 
 type Props<V extends string> = {
   readonly maxW?: string;
@@ -31,13 +31,11 @@ type Props<V extends string> = {
   readonly value: Array<V>; // e.g. (TaskInstanceState | "all" | "none")[]
 };
 
-export const StateFilter = <V extends string>({
-  maxW = "450px",
-  onChange,
-  translate,
-  value,
-}: Props<V>) => {
-  const hasFilteredState = !(value.length === 0 || (value.length === 1 && (value[0] as unknown as string) === "all"));
+export const StateFilter = <V extends string>({ maxW = "450px", onChange, translate, value }: Props<V>) => {
+  const hasFilteredState = !(
+    value.length === 0 ||
+    (value.length === 1 && (value[0] as unknown as string) === "all")
+  );
 
   return (
     <Select.Root
@@ -47,7 +45,11 @@ export const StateFilter = <V extends string>({
       onValueChange={onChange}
       value={hasFilteredState ? value : (["all"] as unknown as Array<V>)}
     >
-      <Select.Trigger {...(hasFilteredState ? { clearable: true } : {})} colorPalette="brand" isActive={hasFilteredState}>
+      <Select.Trigger
+        {...(hasFilteredState ? { clearable: true } : {})}
+        colorPalette="brand"
+        isActive={hasFilteredState}
+      >
         <Select.ValueText>
           {() =>
             hasFilteredState ? (
@@ -72,16 +74,16 @@ export const StateFilter = <V extends string>({
       <Select.Content>
         {taskInstanceStateOptions.items.map((option) => (
           <Select.Item item={option} key={option.label}>
-            {(option.value as unknown as string) === "all"
-              ? translate(option.label)
-              : (
-                <StateBadge state={option.value as unknown as TaskInstanceState}>
-                  {translate(option.label)}
-                </StateBadge>
-              )}
+            {(option.value as unknown as string) === "all" ? (
+              translate(option.label)
+            ) : (
+              <StateBadge state={option.value as unknown as TaskInstanceState}>
+                {translate(option.label)}
+              </StateBadge>
+            )}
           </Select.Item>
         ))}
       </Select.Content>
     </Select.Root>
   );
-}
+};
