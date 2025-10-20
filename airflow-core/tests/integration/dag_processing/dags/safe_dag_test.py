@@ -19,23 +19,25 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.operators.bash import BashOperator
-from airflow.sdk import DAG
-from airflow.sdk.definitions.dag import safe_dag
+from airflow.sdk import DAG, dag as dag_decorator, safe_dag  # type: ignore[attr-defined]
 
 with safe_dag():
     success_dag_1 = DAG("success_dag_1", start_date=datetime(2024, 1, 1))
-    task1 = BashOperator(task_id="task1", bash_command="echo hello", dag=success_dag_1)
+    BashOperator(task_id="task1", bash_command="echo hello", dag=success_dag_1)
 
 with safe_dag():
-    # Invalid operator parameter
-    failing_dag_1 = DAG("failing_dag_1", start_date=datetime(2024, 1, 1))
-    task2 = BashOperator(task_id="task2", bash_command=123, dag=failing_dag_1)
+    # Invalid DAG parameter
+    with DAG("failing_dag_1", start_date="invalid_date_format") as dag:  # type: ignore[arg-type]
+        BashOperator(task_id="task2", bash_command="echo 'This should not execute'")
 
 with safe_dag():
     success_dag_2 = DAG("success_dag_2", start_date=datetime(2024, 1, 1))
-    task3 = BashOperator(task_id="task3", bash_command="echo world", dag=success_dag_2)
+    BashOperator(task_id="task3", bash_command="echo world", dag=success_dag_2)
 
 with safe_dag():
     # Missing required parameter - bash_command
-    failing_dag_2 = DAG("failing_dag_2", start_date=datetime(2024, 1, 1))
-    task4 = BashOperator(task_id="task4", dag=failing_dag_2)
+    @dag_decorator("failing_dag_2", start_date=datetime(2024, 1, 1))
+    def broken_task():
+        BashOperator(task_id="task4")
+
+    broken_task()

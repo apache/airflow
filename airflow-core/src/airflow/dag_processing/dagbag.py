@@ -558,6 +558,12 @@ class DagBag(LoggingMixin):
         found_dags = []
 
         for dag, mod in top_level_dags:
+            is_failed = getattr(dag, "_safe_dag_failed", False)
+            if is_failed:
+                self.log.info("Skipping DAG %s due to safe_dag failure", dag.dag_id)
+                delattr(dag, "_safe_dag_failed")
+                continue
+
             dag.fileloc = mod.__file__
             relative_fileloc = self._get_relative_fileloc(dag.fileloc)
             dag.relative_fileloc = relative_fileloc
