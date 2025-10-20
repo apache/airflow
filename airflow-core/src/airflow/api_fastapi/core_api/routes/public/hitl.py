@@ -53,7 +53,6 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
@@ -221,7 +220,6 @@ def get_hitl_details(
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
-                    "dag_display_name": DagModel.dag_display_name,
                     "task_display_name": TI.task_display_name,
                     "run_after": DagRun.run_after,
                     "rendered_map_index": TI.rendered_map_index,
