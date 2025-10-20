@@ -220,6 +220,23 @@ const taskInstanceColumns = ({
   },
 ];
 
+const filterTaskInstances = ({
+  instances,
+  operatorNames,
+  poolNames,
+  queueNames,
+}: {
+  instances: Array<TaskInstanceResponse>;
+  operatorNames: Array<string>;
+  poolNames: Array<string>;
+  queueNames: Array<string>;
+}) =>
+    instances.filter(
+      (instance) =>
+        (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
+        (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
+        (poolNames.length === 0 || poolNames.includes(instance.pool?.toString())),
+    );
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
@@ -287,23 +304,6 @@ export const TaskInstances = () => {
     },
   );
 
-  const filterTaskInstances = ({
-  instances,
-  operatorNames,
-  poolNames,
-  queueNames,
-}: {
-  instances: Array<TaskInstanceResponse>;
-  operatorNames: Array<string>;
-  poolNames: Array<string>;
-  queueNames: Array<string>;
-}) =>
-    instances.filter(
-      (instance) =>
-        (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
-        (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
-        (poolNames.length === 0 || poolNames.includes(instance.pool?.toString())),
-    );
 const filteredInstances = filterTaskInstances({
   instances: data?.task_instances ?? [],
   operatorNames: operator,

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, type SelectValueChangeDetails, type ListCollection } from "@chakra-ui/react";
+import { HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { Select } from "src/components/ui";
 import { StateBadge } from "src/components/StateBadge";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -25,18 +25,18 @@ import { taskInstanceStateOptions } from "src/constants/stateOptions";
 type Option<V extends string> = { label: string; value: V };
 
 type Props<V extends string> = {
-  value: V[]; // e.g. (TaskInstanceState | "all" | "none")[]
-  onChange: (details: SelectValueChangeDetails<V>) => void;
-  t: (key: string) => string;
-  maxW?: string;
+  readonly maxW?: string;
+  readonly onChange: (details: SelectValueChangeDetails<V>) => void;
+  readonly translate: (key: string) => string;
+  readonly value: Array<V>; // e.g. (TaskInstanceState | "all" | "none")[]
 };
 
-export function StateFilter<V extends string>({
-  value,
-  onChange,
-  t,
+export const StateFilter = <V extends string>({
   maxW = "450px",
-}: Props<V>) {
+  onChange,
+  translate,
+  value,
+}: Props<V>) => {
   const hasFilteredState = !(value.length === 0 || (value.length === 1 && (value[0] as unknown as string) === "all"));
 
   return (
@@ -45,7 +45,7 @@ export function StateFilter<V extends string>({
       maxW={maxW}
       multiple
       onValueChange={onChange}
-      value={hasFilteredState ? value : (["all"] as unknown as V[])}
+      value={hasFilteredState ? value : (["all"] as unknown as Array<V>)}
     >
       <Select.Trigger {...(hasFilteredState ? { clearable: true } : {})} colorPalette="brand" isActive={hasFilteredState}>
         <Select.ValueText>
@@ -58,12 +58,12 @@ export function StateFilter<V extends string>({
                     // safe because when hasFilteredState is true, we never include "all"/"none"
                     state={state as unknown as TaskInstanceState}
                   >
-                    {t(`common:states.${state as string}`)}
+                    {translate(`common:states.${state as string}`)}
                   </StateBadge>
                 ))}
               </HStack>
             ) : (
-              t("dags:filters.allStates")
+              translate("dags:filters.allStates")
             )
           }
         </Select.ValueText>
@@ -73,10 +73,10 @@ export function StateFilter<V extends string>({
         {taskInstanceStateOptions.items.map((option) => (
           <Select.Item item={option} key={option.label}>
             {(option.value as unknown as string) === "all"
-              ? t(option.label)
+              ? translate(option.label)
               : (
                 <StateBadge state={option.value as unknown as TaskInstanceState}>
-                  {t(option.label)}
+                  {translate(option.label)}
                 </StateBadge>
               )}
           </Select.Item>

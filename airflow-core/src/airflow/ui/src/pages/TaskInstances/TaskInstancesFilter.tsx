@@ -24,15 +24,11 @@ import { useSearchParams, useParams } from "react-router-dom";
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests";
-import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 import { ResetButton } from "src/components/ui";
 import { SearchBar } from "src/components/SearchBar";
-import { StateBadge } from "src/components/StateBadge";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { Select } from "src/components/ui";
-import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { AttrSelectFilterMulti } from "./AttrSelectFilterMulti";
 import { StateFilter } from "./StateFilter";
 
@@ -74,7 +70,6 @@ export const TaskInstancesFilter = ({
       SearchParamsKeys.TRY_NUMBER,
       SearchParamsKeys.MAP_INDEX,
       SearchParamsKeys.DAG_VERSION,
-
     ];
 
     if (runId === undefined) {
@@ -109,19 +104,19 @@ export const TaskInstancesFilter = ({
       return next;
     });
   }, [resetPagination, setSearchParams]);
-
+  const taskInstances = instances?.task_instances ?? [];
   const allOperatorNames: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.operator_name as string | null | undefined) ?? []
+    taskInstances.map((ti) => ti.operator_name as string | null | undefined) ?? []
   );
   const allQueueValues: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.queue as string | null | undefined) ?? []
+    taskInstances.map((ti) => ti.queue as string | null | undefined) ?? []
   );
   const allPoolValues: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? []
+    taskInstances.map((ti) => ti.pool as string | null | undefined) ?? []
   );
 
 
-
+ 
   const filteredState = searchParams.getAll(STATE_PARAM);
 
   const selectedOperators = searchParams.getAll(OPERATOR_PARAM);
@@ -255,9 +250,9 @@ const handleSelectedPools = (value: Array<string> | undefined) =>
         placeHolder={translate("dags:search.tasks")}
       />
       <StateFilter
-        value={hasFilteredState ? filteredState : ["all"]}
         onChange={handleStateChange}
-        t={translate}
+        translate={translate}
+        value={hasFilteredState ? filteredState : ["all"]}
       />
       </HStack>
       <HStack>
