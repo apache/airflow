@@ -166,6 +166,7 @@ class ClearTaskInstancesBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = False
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
 class Value(RootModel[list]):

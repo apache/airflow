@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useCallback } from "react";
 import { VStack, Icon, Text, Spinner } from "@chakra-ui/react";
 import { GoAlertFill } from "react-icons/go";
 import { useTranslation } from "react-i18next";
@@ -7,39 +8,39 @@ import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDr
 import { getRelativeTime } from "src/utils/datetimeUtils";
 
 type Props = {
-  readonly onClose: () => void;
-  readonly onConfirm?: () => void;
-  readonly open: boolean;
   readonly dagDetails?: {
     dagId: string;
     dagRunId: string;
-    taskId: string;
-    mapIndex?: number;
     downstream?: boolean;
     future?: boolean;
-    past?: boolean;
-    upstream?: boolean;
+    mapIndex?: number;
     onlyFailed?: boolean;
+    past?: boolean;
+    taskId: string;
+    upstream?: boolean;
   };
+  readonly onClose: () => void;
+  readonly onConfirm?: () => void;
+  readonly open: boolean;
   readonly preventRunningTask: boolean;
 };
 
 const ClearTaskInstanceConfirmationDialog = ({
-  onClose,
-  open,
-  onConfirm,
   dagDetails,
+  onClose,
+  onConfirm,
+  open,
   preventRunningTask,
 }: Props) => {
   const { t: translate } = useTranslation();
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId ?? "",
     options: {
-      enabled: open && !!dagDetails,
+      enabled: open && Boolean(dagDetails),
+      gcTime: 0,
       refetchOnMount: "always",
       refetchOnWindowFocus: false,
       staleTime: 0,
-      gcTime: 0,
     },
     requestBody: {
       dag_run_id: dagDetails?.dagRunId ?? "",
@@ -54,10 +55,10 @@ const ClearTaskInstanceConfirmationDialog = ({
 
   const [isReady, setIsReady] = useState(false);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (onConfirm) onConfirm();
     onClose();
-  };
+  }, [onConfirm, onClose]);
 
   const taskCurrentState = data?.task_instances?.[0]?.state;
 
@@ -79,9 +80,9 @@ const ClearTaskInstanceConfirmationDialog = ({
       <Dialog.Content backdrop>
         {isFetching ? (
           // Loading State — keeps the dialog mounted during fetch
-          <VStack align="center" justify="center" py={8} gap={3}>
+          <VStack align="center" gap={3} justify="center" py={8}>
             <Spinner size="lg" />
-            <Text fontSize="md" color="gray.600">
+            <Text color="gray.600" fontSize="md">
               {translate("common:loadingTaskDetails", "Loading task details…")}
             </Text>
           </VStack>
@@ -90,29 +91,23 @@ const ClearTaskInstanceConfirmationDialog = ({
             <Dialog.Header>
               <VStack align="start" gap={4}>
                 <Dialog.Title>
-                  <Icon size="md" color="tomato">
+                  <Icon color="tomato" size="md">
                     <GoAlertFill />
                   </Icon>
                   {translate("dags:runAndTaskActions.confirmationDialog.title")}
                 </Dialog.Title>
                 <Dialog.Description>
-                  {data?.task_instances?.[0] && (
+                  {data.task_instances?.[0] ? (
                     <>
-                      {translate(
-                        "dags:runAndTaskActions.confirmationDialog.description",
-                        {
-                          state: taskCurrentState,
-                          time:
-                            data.task_instances[0].start_date &&
-                            getRelativeTime(
-                              data.task_instances[0].start_date
-                            ),
-                          user:
-                            data.task_instances[0].unixname ?? "unknown user",
-                        }
-                      )}
+                      {translate("dags:runAndTaskActions.confirmationDialog.description", {
+                        state: taskCurrentState,
+                        time: data.task_instances[0].start_date
+                          ? getRelativeTime(data.task_instances[0].start_date)
+                          : undefined,
+                        user: data.task_instances[0].unixname ?? "unknown user",
+                      })}
                     </>
-                  )}
+                  ) : null}
                 </Dialog.Description>
               </VStack>
             </Dialog.Header>

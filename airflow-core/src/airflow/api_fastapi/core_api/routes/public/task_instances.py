@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Annotated, Literal, cast
 
 import structlog
@@ -82,8 +83,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import TaskNotFound
-from airflow.exceptions import AirflowClearRunningTaskException
+from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -91,7 +91,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
-import inspect
 
 log = structlog.get_logger(__name__)
 
@@ -791,14 +790,10 @@ def post_clear_task_instances(
     if "prevent_running_task" in params:
         kwargs["prevent_running_task"] = body.prevent_running_task
 
-
     if not dry_run:
         try:
             clear_task_instances(
-                task_instances,
-                session,
-                DagRunState.QUEUED if reset_dag_runs else False,
-                **kwargs
+                task_instances, session, DagRunState.QUEUED if reset_dag_runs else False, **kwargs
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

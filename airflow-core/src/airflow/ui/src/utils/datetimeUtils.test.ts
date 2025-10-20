@@ -71,6 +71,7 @@ describe("getRelativeTime", () => {
 
   it("returns relative time for a valid date", () => {
     const date = "2024-03-14T10:00:00.000Z";
+
     expect(getRelativeTime(date)).toBe("a few seconds ago");
   });
 
@@ -80,6 +81,7 @@ describe("getRelativeTime", () => {
 
   it("handles future dates", () => {
     const futureDate = "2024-03-14T10:00:20.000Z";
+
     expect(getRelativeTime(futureDate)).toBe("in a few seconds");
   });
 });

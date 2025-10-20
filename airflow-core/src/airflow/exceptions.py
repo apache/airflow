@@ -536,5 +536,6 @@ def __getattr__(name: str):
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
+
 class AirflowClearRunningTaskException(AirflowException):
     """Raise when the user attempts to clear currently running tasks."""

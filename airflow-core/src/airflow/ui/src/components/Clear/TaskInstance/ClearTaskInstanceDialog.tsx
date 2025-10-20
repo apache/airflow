@@ -42,8 +42,8 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
   const { t: translate } = useTranslation();
-  const { open, onOpen, onClose } = useDisclosure();
-  
+  const { onClose, onOpen, open } = useDisclosure();
+
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -111,7 +111,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
 
   return (
     <>
-    <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog && !open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : null} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -177,10 +177,10 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             ) : undefined}
             <Checkbox
               checked={preventRunningTask}
-              style={{ marginRight: "auto"}}
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
+              style={{ marginRight: "auto"}}
             >
-              {translate("dags:runAndTaskActions.options.preventRunningTasks")} 
+              {translate("dags:runAndTaskActions.options.preventRunningTasks")}
             </Checkbox>
             <Button
               colorPalette="brand"
@@ -194,8 +194,18 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>
-    {open && (
-        <ClearTaskInstanceConfirmationDialog
+    {open ? <ClearTaskInstanceConfirmationDialog
+          dagDetails={{
+            dagId,
+            dagRunId,
+            downstream,
+            future,
+            mapIndex,
+            onlyFailed,
+            past,
+            taskId,
+            upstream,
+          }}
           onClose={onClose}
           onConfirm={() => {
             mutate({
@@ -225,20 +235,8 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             onCloseDialog();
           }}
           open={open}
-          dagDetails={{
-            dagId,
-            dagRunId,
-            taskId,
-            mapIndex,
-            downstream,
-            future,
-            past,
-            upstream,
-            onlyFailed,
-          }}
           preventRunningTask={preventRunningTask}
-        />
-      )}
+        /> : null}
     </>
   );
 };

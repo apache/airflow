@@ -35,7 +35,7 @@ import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
-import { ApiError } from "openapi/requests";
+import type { ApiError } from "openapi/requests";
 
 export const useClearTaskInstances = ({
   dagId,
@@ -51,14 +51,14 @@ export const useClearTaskInstances = ({
 
   const onError = (error: unknown) => {
     // Narrow the type safely
-    if (error && typeof error === "object" && "detail" in error) {
+    if (typeof error === "object" && error !== null) {
       const apiError = error as ApiError;
 
       const detail = typeof apiError.detail === "string" ? apiError.detail : "";
       const ifDetailIsIncluded =
         typeof detail === "string" && detail.includes("AirflowClearRunningTaskException");
 
-      if (detail && ifDetailIsIncluded) {
+      if (detail !== "" && ifDetailIsIncluded === true) {
         toaster.create({
           description: detail,
           title: translate("dags:runAndTaskActions.clear.error", {

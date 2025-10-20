@@ -214,24 +214,25 @@ def clear_task_instances(
     :meta private:
     """
     task_instance_ids: list[str] = []
-    from airflow.models.dagbag import DBDagBag
     from airflow.exceptions import AirflowClearRunningTaskException
+    from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
         task_instance_ids.append(ti.id)
         ti.prepare_db_for_next_try(session)
-        
+
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
-                raise AirflowClearRunningTaskException("AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state.")
+                raise AirflowClearRunningTaskException(
+                    "AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state."
+                )
                 # Prevents the task from re-running and clearing when prevent_running_task from the frontend and the tas is running is True.
 
-            else:
-                ti.state = TaskInstanceState.RESTARTING
-                # If a task is cleared when running and the prevent_running_task is false, 
-                # set its state to RESTARTING so that
-                # the task is terminated and becomes eligible for retry.
+            ti.state = TaskInstanceState.RESTARTING
+        # If a task is cleared when running and the prevent_running_task is false,
+        # set its state to RESTARTING so that
+        # the task is terminated and becomes eligible for retry.
         else:
             dr = ti.dag_run
             if run_on_latest_version:
