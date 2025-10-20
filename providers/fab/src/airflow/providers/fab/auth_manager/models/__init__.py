@@ -43,16 +43,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-
-try:
-    from sqlalchemy.orm import mapped_column
-except ImportError:
-    # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):
-        from sqlalchemy import Column
-
-        return Column(*args, **kwargs)
-
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 
 if TYPE_CHECKING:
     try:
