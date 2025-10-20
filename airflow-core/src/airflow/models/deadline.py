@@ -98,6 +98,10 @@ class Deadline(Base):
     __tablename__ = "deadline"
 
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id: Mapped[int | None] = mapped_column(
@@ -144,8 +148,11 @@ class Deadline(Base):
         resource_type, resource_details = _determine_resource()
 
         return (
-            f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_time} or run: {self.callback.path}({self.callback.kwargs or ''})"
+            f"[{resource_type} Deadline] "
+            f"created at {self.created_at}, "
+            f"{resource_details}, "
+            f"needed by {self.deadline_time} "
+            f"or run: {self.callback.path}({self.callback.kwargs or ''})"
         )
 
     @classmethod
