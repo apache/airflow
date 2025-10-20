@@ -370,53 +370,8 @@ def _configure_async_session() -> None:
     )
 
 
-def _configure_session(disable_connection_pool: bool, pool_class):
-    """(Re)create engine, NonScopedSession, Session using SQLAlchemy."""
-    from airflow._shared.secrets_masker import mask_secret
-
-    global NonScopedSession, Session, engine
-
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
-
-    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
-        # Skip DB initialization in unit tests, if DB tests are skipped
-        Session = SkipDBTestsSession
-        engine = None
-        return
-
-    engine_args = prepare_engine_args(disable_connection_pool, pool_class)
-
-    connect_args = _get_connect_args("sync")
-    if SQL_ALCHEMY_CONN.startswith("sqlite"):
-        connect_args["check_same_thread"] = False
-
-    engine = create_engine(
-        SQL_ALCHEMY_CONN,
-        connect_args=connect_args,
-        **engine_args,
-        future=True,
-    )
-
-    mask_secret(engine.url.password)
-    setup_event_handlers(engine)
-
-    if conf.has_option("database", "sql_alchemy_session_maker"):
-        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
-    else:
-        _session_maker = functools.partial(
-            sessionmaker,
-            autocommit=False,
-            autoflush=False,
-            expire_on_commit=False,
-        )
-
-    NonScopedSession = _session_maker(engine)
-    Session = scoped_session(NonScopedSession)
-
-
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
-    print(SQL_ALCHEMY_CONN)
     if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
 
@@ -425,15 +380,63 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
-    _configure_session(disable_connection_pool, pool_class)
+    def _configure_session():
+        """(Re)create engine, NonScopedSession, Session using SQLAlchemy."""
+        global NonScopedSession
+        global Session
+        global engine
+
+        from airflow._shared.secrets_masker import mask_secret
+
+        log.debug("Setting up DB connection pool (PID %s)", os.getpid())
+
+        if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+            # Skip DB initialization in unit tests, if DB tests are skipped
+            Session = SkipDBTestsSession
+            engine = None
+            return
+
+        engine_args = prepare_engine_args(disable_connection_pool, pool_class)
+
+        connect_args = _get_connect_args("sync")
+        if SQL_ALCHEMY_CONN.startswith("sqlite"):
+            connect_args["check_same_thread"] = False
+
+        engine = create_engine(
+            SQL_ALCHEMY_CONN,
+            connect_args=connect_args,
+            **engine_args,
+            future=True,
+        )
+
+        mask_secret(engine.url.password)
+        setup_event_handlers(engine)
+
+        if conf.has_option("database", "sql_alchemy_session_maker"):
+            _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+        else:
+            _session_maker = functools.partial(
+                sessionmaker,
+                autocommit=False,
+                autoflush=False,
+                expire_on_commit=False,
+            )
+
+        NonScopedSession = _session_maker(engine)
+        Session = scoped_session(NonScopedSession)
+
+    _configure_session()
     _configure_async_session()
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
         def clean_in_fork():
             _globals = globals()
-            if _globals.get("engine"):
-                _configure_session(disable_connection_pool, pool_class)
+            if engine := _globals.get("engine"):
+                if engine.dialect.name == "mysql":
+                    _configure_session()
+                else:
+                    engine.dispose(close=False)
             if _globals.get("async_engine"):
                 _configure_async_session()
 
