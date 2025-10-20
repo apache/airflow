@@ -1197,7 +1197,33 @@ class DAG:
             data_interval = (
                 self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
             )
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))  # type: ignore[arg-type]
+            from airflow.models.dag_version import DagVersion
+
+            version = DagVersion.get_version(self.dag_id)
+            if not version:
+                from airflow.dag_processing.bundles.manager import DagBundlesManager
+                from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+                from airflow.sdk.definitions._internal.dag_parsing_context import (
+                    _airflow_parsing_context_manager,
+                )
+
+                manager = DagBundlesManager()
+                manager.sync_bundles_to_db(session=session)
+                session.commit()
+                # sync all bundles? or use the dags-folder bundle?
+                # What if the test dag is in a different bundle?
+                for bundle in manager.get_all_dag_bundles():
+                    if not bundle.is_initialized:
+                        bundle.initialize()
+                    with _airflow_parsing_context_manager(dag_id=self.dag_id):
+                        dagbag = DagBag(
+                            dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False
+                        )
+                        sync_bag_to_db(dagbag, bundle.name, bundle.version)
+                    version = DagVersion.get_version(self.dag_id)
+                    if version:
+                        break
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
             # Without it, we need "Scheduler Dag" (Serialized dag) for the scheduler bits
@@ -1206,8 +1232,8 @@ class DAG:
 
             # Scheduler DAG shouldn't have these attributes, but assigning them
             # here is an easy hack to get this test() thing working.
-            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined]
-            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined]
+            scheduler_dag.on_success_callback = self.on_success_callback  # type: ignore[attr-defined, union-attr]
+            scheduler_dag.on_failure_callback = self.on_failure_callback  # type: ignore[attr-defined, union-attr]
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,

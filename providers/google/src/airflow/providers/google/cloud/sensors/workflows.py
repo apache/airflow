@@ -23,14 +23,9 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.workflows.executions_v1beta import Execution
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry

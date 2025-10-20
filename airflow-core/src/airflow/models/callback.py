@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -124,7 +125,7 @@ class Callback(Base):
     priority_weight: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Creation time of the callback
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Used for callbacks of type CallbackType.TRIGGERER
     trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
