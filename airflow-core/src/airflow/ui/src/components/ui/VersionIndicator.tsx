@@ -48,50 +48,94 @@ export const DagVersionIndicator = ({
       left={isVertical ? "-1px" : "0"}
       position="absolute"
       top={isVertical ? "0" : "-1px"}
-      width={isVertical ? "2px" : "18px"}
+      width={isVertical ? "1.75px" : "18px"}
       zIndex={3}
     >
       {isVertical ? (
         <>
-          <Box bg="orange.focusRing" height="100%" left="0" position="absolute" top="0" width="2px" />
+          <Box bg="orange.focusRing" height="100%" left="0" position="absolute" top="0" width="1.75px" />
 
           <Box
-            bg="orange.focusRing"
-            borderRadius="4px"
-            left="1px"
+            _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
+            left="50%"
             position="absolute"
-            px="2px"
-            py="0.5px"
-            title={`Version ${dagVersionNumber}`}
             top="-7px"
             transform="translateX(-50%)"
             zIndex={5}
           >
-            <Text
-              color={{ _dark: "black", _light: "white" }}
-              fontSize="7px"
-              fontWeight="bold"
-              lineHeight="1"
-              whiteSpace="nowrap"
+            <Box
+              _hover={{
+                bg: "orange.emphasis",
+                cursor: "pointer",
+              }}
+              bg="orange.focusRing"
+              borderRadius="50%"
+              height="8px"
+              transition="all 0.2s"
+              width="8px"
+            />
+            <Box
+              bg="orange.focusRing"
+              borderRadius="4px"
+              className="version-tooltip"
+              left="50%"
+              opacity={0}
+              pointerEvents="none"
+              position="absolute"
+              px="2px"
+              py="0.5px"
+              top="0"
+              transform="translateX(-50%)"
+              transition="all 0.2s"
+              visibility="hidden"
             >
-              {`v${dagVersionNumber ?? ""}`}
-            </Text>
+              <Text
+                color={{ _dark: "black", _light: "white" }}
+                fontSize="7px"
+                fontWeight="bold"
+                lineHeight="1"
+                whiteSpace="nowrap"
+              >
+                {`v${dagVersionNumber ?? ""}`}
+              </Text>
+            </Box>
           </Box>
         </>
       ) : (
-        <>
-          <Box bg="orange.focusRing" height="2px" left="0" position="absolute" top="0" width="100%" />
+        <Box
+          _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
+          left="50%"
+          position="absolute"
+          top="-6.5px"
+          transform="translateX(-50%)"
+          zIndex={5}
+        >
+          <Box
+            _hover={{
+              cursor: "pointer",
+            }}
+            alignItems="center"
+            color="orange.fg"
+            display="flex"
+            justifyContent="center"
+            transition="all 0.2s"
+          >
+            <FiGitCommit size="15px" />
+          </Box>
           <Box
             bg="orange.focusRing"
             borderRadius="4px"
+            className="version-tooltip"
             left="50%"
+            opacity={0}
+            pointerEvents="none"
             position="absolute"
             px="2px"
             py="0.5px"
-            title={`Version ${dagVersionNumber}`}
-            top="-4px"
+            top="4px"
             transform="translateX(-50%)"
-            zIndex={5}
+            transition="all 0.2s"
+            visibility="hidden"
           >
             <Text
               color={{ _dark: "black", _light: "white" }}
@@ -103,7 +147,7 @@ export const DagVersionIndicator = ({
               {`v${dagVersionNumber ?? ""}`}
             </Text>
           </Box>
-        </>
+        </Box>
       )}
     </Box>
   );
