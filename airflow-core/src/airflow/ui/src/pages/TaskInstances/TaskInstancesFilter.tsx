@@ -39,6 +39,16 @@ const {
   POOL: POOL_PARAM,
   QUEUE: QUEUE_PARAM,
   STATE: STATE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
+  START_DATE: START_DATE_PARAM,
+  END_DATE: END_DATE_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  RUN_ID: RUN_ID_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type Props = {
@@ -54,19 +64,19 @@ export const TaskInstancesFilter = ({
 }: Props) => {
   const ParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
-    SearchParamsKeys.LOGICAL_DATE_GTE,
-    SearchParamsKeys.LOGICAL_DATE_LTE,
-    SearchParamsKeys.START_DATE,
-    SearchParamsKeys.END_DATE,
-    SearchParamsKeys.DURATION_GTE,
-    SearchParamsKeys.DURATION_LTE,
-    SearchParamsKeys.TRY_NUMBER,
-    SearchParamsKeys.MAP_INDEX,
-    SearchParamsKeys.DAG_VERSION,
+      LOGICAL_DATE_GTE_PARAM as FilterableSearchParamsKeys,
+      LOGICAL_DATE_LTE_PARAM as FilterableSearchParamsKeys,
+      START_DATE_PARAM as FilterableSearchParamsKeys,
+      END_DATE_PARAM as FilterableSearchParamsKeys,
+      DURATION_GTE_PARAM as FilterableSearchParamsKeys,
+      DURATION_LTE_PARAM as FilterableSearchParamsKeys,
+      TRY_NUMBER_PARAM as FilterableSearchParamsKeys,
+      MAP_INDEX_PARAM as FilterableSearchParamsKeys,
+      DAG_VERSION_PARAM as FilterableSearchParamsKeys,
     ];
 
     if (runId === undefined) {
-      keys.splice(1, 0, SearchParamsKeys.RUN_ID);
+      keys.splice(1, 0, RUN_ID_PARAM as FilterableSearchParamsKeys);
     }
 
 
