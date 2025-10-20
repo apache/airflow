@@ -62,7 +62,7 @@ export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
 }: Props) => {
-  const ParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+  const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       LOGICAL_DATE_GTE_PARAM as FilterableSearchParamsKeys,
       LOGICAL_DATE_LTE_PARAM as FilterableSearchParamsKeys,
@@ -91,7 +91,7 @@ export const TaskInstancesFilter = ({
   const { t: translate } = useTranslation();
 
 
-  const { filterConfigs, handleFiltersChange} = useFiltersHandler(ParamKeys);
+  const { filterConfigs, handleFiltersChange} = useFiltersHandler(paramKeys);
 
 
   const uniq = (xs: Array<string | null | undefined>) =>
