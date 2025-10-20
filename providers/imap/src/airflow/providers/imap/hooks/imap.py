@@ -85,7 +85,7 @@ class ImapHook(BaseHook):
 
     def _build_client(self, conn: Connection) -> imaplib.IMAP4_SSL | imaplib.IMAP4:
         mail_client: imaplib.IMAP4_SSL | imaplib.IMAP4
-        host = conn.host if conn.host else ""
+        host = conn.host or ""
         use_ssl = conn.extra_dejson.get("use_ssl", True)
         if use_ssl:
             from airflow.configuration import conf
