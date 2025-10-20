@@ -50,6 +50,7 @@ export enum SearchParamsKeys {
   OWNERS = "owners",
   PAUSED = "paused",
   POOL = "pool",
+  QUEUE = "queue",
   RESPONDED_BY_USER_NAME = "responded_by_user_name",
   RESPONSE_RECEIVED = "response_received",
   RETRIES = "retries",

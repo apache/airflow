@@ -30,13 +30,13 @@ import {
   MdCheckCircle,
 } from "react-icons/md";
 
-import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
-import { dagRunStateOptions, dagRunTypeOptions, taskInstanceStateOptions} from "src/constants/stateOptions";
+import { dagRunStateOptions, dagRunTypeOptions } from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -215,20 +215,6 @@ export const useFilterConfigs = () => {
       icon: <MdDateRange />,
       label: translate("common:table.from"),
       type: FilterTypes.DATE,
-    },
-    [SearchParamsKeys.TASK_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("common:state"),
-      options: taskInstanceStateOptions.items.map((option) => ({
-        label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
-            <StateBadge state={option.value as TaskInstanceState }>{translate(option.label)}</StateBadge>
-          ),
-        value: option.value,
-      })),
-      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,
