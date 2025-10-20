@@ -78,6 +78,11 @@
     "githubRepo": "Repositori de GitHub",
     "restApiReference": "Referència de l'API REST"
   },
+  "download": {
+    "download": "Descarregar",
+    "hotkey": "d",
+    "tooltip": "Prem {{hotkey}} per descarregar els registres"
+  },
   "duration": "Duració",
   "endDate": "Data de finalització",
   "error": {
