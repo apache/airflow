@@ -14,21 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import warnings
+import os
+from pathlib import Path
 
-from airflow.sdk import Metadata
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
-# TODO: Remove this module in Airflow 3.2
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
+DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 
-warnings.warn(
-    "Import from the airflow.datasets.metadata module is deprecated and will "
-    "be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecatedImportWarning,
-    stacklevel=2,
+DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
+
+DOCKER_COMPOSE_FILE_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
 )
-
-__all__ = ["Metadata"]

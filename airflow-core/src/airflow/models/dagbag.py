@@ -146,10 +146,12 @@ def __getattr__(name: str) -> Any:
     if name in {"DagBag", "FileLoadStat", "timeout"}:
         import warnings
 
+        from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
         warnings.warn(
             f"Importing {name} from airflow.models.dagbag is deprecated and will be removed in a future "
             "release. Please import from airflow.dag_processing.dagbag instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         # Import on demand to avoid import-time side effects

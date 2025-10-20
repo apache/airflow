@@ -14,21 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import warnings
+from rich.console import Console
 
-from airflow.sdk import Metadata
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+console = Console(width=400, color_system="standard")
 
-# TODO: Remove this module in Airflow 3.2
 
-warnings.warn(
-    "Import from the airflow.datasets.metadata module is deprecated and will "
-    "be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecatedImportWarning,
-    stacklevel=2,
-)
-
-__all__ = ["Metadata"]
+__all__ = ["console"]
