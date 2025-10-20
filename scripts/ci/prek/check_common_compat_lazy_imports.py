@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Check and generate lazy_compat.pyi from lazy_compat.py.
+Check and generate sdk.pyi from sdk.py.
 
 This script can be used as:
 1. Pre-commit hook - checks if .pyi is in sync with _IMPORT_MAP
@@ -38,9 +38,9 @@ from pathlib import Path
 
 def extract_import_map(py_file: Path) -> dict[str, str | tuple[str, ...]]:
     """
-    Extract _IMPORT_MAP from lazy_compat.py.
+    Extract _IMPORT_MAP from sdk.py.
 
-    :param py_file: Path to lazy_compat.py
+    :param py_file: Path to sdk.py
     :return: Dictionary mapping class names to module paths
     """
     content = py_file.read_text()
@@ -55,14 +55,14 @@ def extract_import_map(py_file: Path) -> dict[str, str | tuple[str, ...]]:
                 if isinstance(target, ast.Name) and target.id == "_IMPORT_MAP":
                     return ast.literal_eval(node.value)
 
-    raise ValueError("Could not find _IMPORT_MAP in lazy_compat.py")
+    raise ValueError("Could not find _IMPORT_MAP in sdk.py")
 
 
 def extract_rename_map(py_file: Path) -> dict[str, tuple[str, str, str]]:
     """
-    Extract _RENAME_MAP from lazy_compat.py.
+    Extract _RENAME_MAP from sdk.py.
 
-    :param py_file: Path to lazy_compat.py
+    :param py_file: Path to sdk.py
     :return: Dictionary mapping new class names to (new_path, old_path, old_name)
     """
     content = py_file.read_text()
@@ -77,14 +77,14 @@ def extract_rename_map(py_file: Path) -> dict[str, tuple[str, str, str]]:
                 if isinstance(target, ast.Name) and target.id == "_RENAME_MAP":
                     return ast.literal_eval(node.value)
 
-    raise ValueError("Could not find _RENAME_MAP in lazy_compat.py")
+    raise ValueError("Could not find _RENAME_MAP in sdk.py")
 
 
 def extract_module_map(py_file: Path) -> dict[str, str | tuple[str, ...]]:
     """
-    Extract _MODULE_MAP from lazy_compat.py.
+    Extract _MODULE_MAP from sdk.py.
 
-    :param py_file: Path to lazy_compat.py
+    :param py_file: Path to sdk.py
     :return: Dictionary mapping module names to module paths
     """
     content = py_file.read_text()
@@ -99,7 +99,7 @@ def extract_module_map(py_file: Path) -> dict[str, str | tuple[str, ...]]:
                 if isinstance(target, ast.Name) and target.id == "_MODULE_MAP":
                     return ast.literal_eval(node.value)
 
-    raise ValueError("Could not find _MODULE_MAP in lazy_compat.py")
+    raise ValueError("Could not find _MODULE_MAP in sdk.py")
 
 
 def generate_pyi_content(
@@ -134,7 +134,7 @@ def generate_pyi_content(
 """
 Type stubs for IDE autocomplete - always uses Airflow 3 paths.
 
-This file is auto-generated from lazy_compat.py.
+This file is auto-generated from sdk.py.
     - run scripts/ci/prek/check_common_compat_lazy_imports.py --generate instead.
 """
 
@@ -292,7 +292,7 @@ def validate_imports(
 
 
 def main() -> int:
-    """Generate and check lazy_compat.pyi."""
+    """Generate and check sdk.pyi."""
     repo_root = Path(__file__).parent.parent.parent.parent
     lazy_compat_py = (
         repo_root
@@ -304,7 +304,7 @@ def main() -> int:
         / "providers"
         / "common"
         / "compat"
-        / "lazy_compat.py"
+        / "sdk.py"
     )
     lazy_compat_pyi = lazy_compat_py.with_suffix(".pyi")
 
@@ -390,37 +390,31 @@ def main() -> int:
         extra_modules = pyi_module_imports - map_modules
 
         if not (missing_attrs or extra_attrs or missing_modules or extra_modules):
-            print(f"✓ lazy_compat.pyi is in sync with lazy_compat.py ({total_imports} imports)")
+            print(f"✓ sdk.pyi is in sync with sdk.py ({total_imports} imports)")
             return 0
 
         # Out of sync
         if missing_attrs:
-            print(
-                f"ERROR: lazy_compat.pyi is missing {len(missing_attrs)} attributes from "
-                "_RENAME_MAP/_IMPORT_MAP:"
-            )
+            print(f"ERROR: sdk.pyi is missing {len(missing_attrs)} attributes from _RENAME_MAP/_IMPORT_MAP:")
             for name in sorted(missing_attrs)[:10]:
                 print(f"  - {name}")
             if len(missing_attrs) > 10:
                 print(f"  ... and {len(missing_attrs) - 10} more")
 
         if extra_attrs:
-            print(
-                f"ERROR: lazy_compat.pyi has {len(extra_attrs)} extra attributes not in "
-                "_RENAME_MAP/_IMPORT_MAP:"
-            )
+            print(f"ERROR: sdk.pyi has {len(extra_attrs)} extra attributes not in _RENAME_MAP/_IMPORT_MAP:")
             for name in sorted(extra_attrs)[:10]:
                 print(f"  + {name}")
             if len(extra_attrs) > 10:
                 print(f"  ... and {len(extra_attrs) - 10} more")
 
         if missing_modules:
-            print(f"ERROR: lazy_compat.pyi is missing {len(missing_modules)} modules from _MODULE_MAP:")
+            print(f"ERROR: sdk.pyi is missing {len(missing_modules)} modules from _MODULE_MAP:")
             for name in sorted(missing_modules):
                 print(f"  - {name} (module)")
 
         if extra_modules:
-            print(f"ERROR: lazy_compat.pyi has {len(extra_modules)} extra modules not in _MODULE_MAP:")
+            print(f"ERROR: sdk.pyi has {len(extra_modules)} extra modules not in _MODULE_MAP:")
             for name in sorted(extra_modules):
                 print(f"  + {name} (module)")
 
