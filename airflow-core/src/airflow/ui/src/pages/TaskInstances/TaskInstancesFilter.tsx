@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { HStack, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, useParams } from "react-router-dom";
@@ -27,12 +27,13 @@ import type { TaskInstanceCollectionResponse } from "openapi/requests";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { ResetButton } from "src/components/ui";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { Select } from "src/components/ui";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
-import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
+import { AttrSelectFilterMulti } from "./AttrSelectFilterMulti";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -179,8 +180,17 @@ const handleSelectedPools = (value: string[] | undefined) =>
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  
-
+  const onClearFilters = useCallback(() => {
+    resetPagination();
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete(STATE_PARAM);
+      next.delete(OPERATOR_PARAM);
+      next.delete(QUEUE_PARAM);
+      next.delete(POOL_PARAM);
+      return next;
+    });
+  }, [setSearchParams, resetPagination]);
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
@@ -202,9 +212,15 @@ const handleSelectedPools = (value: string[] | undefined) =>
     return values;
   }, [searchParams, filterConfigs]);
 
+  const taskFilterCount =
+    (searchParams.getAll(STATE_PARAM).length > 0 ? 1 : 0) +
+    (searchParams.getAll(OPERATOR_PARAM).length > 0 ? 1 : 0) +
+    (searchParams.getAll(QUEUE_PARAM).length > 0 ? 1 : 0) +
+    (searchParams.getAll(POOL_PARAM).length > 0 ? 1 : 0);
+
   return (
-    <HStack justifyContent="space-between">
-    <HStack paddingY="4px">
+    <VStack justifyContent="space-between" align="start">
+    <HStack paddingY="4px" alignItems="start">
       {dagId === undefined && (
         <SearchBar
           buttonProps={{ disabled: true }}
@@ -264,28 +280,34 @@ const handleSelectedPools = (value: string[] | undefined) =>
         </Select.Content>
       </Select.Root>
       </HStack>
-      <HStack justifyContent="space-between" paddingY="4px" gap={2}>
+      <HStack>
         <AttrSelectFilterMulti
-          displayPrefix={translate("operator")}
+          displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
           placeholderText={translate("selectOperator")}
           selectedValues={selectedOperators}
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
-          displayPrefix={translate("queue")}
+          displayPrefix={undefined}
           handleSelect={handleSelectedQueues}
           placeholderText={translate("selectQueues")}
           selectedValues={selectedQueues}
           values={allQueueValues}
         />
         <AttrSelectFilterMulti
-          displayPrefix={translate("pool")}
+          displayPrefix={undefined}
           handleSelect={handleSelectedPools}
           placeholderText={translate("selectPools")}
           selectedValues={selectedPools}
           values={allPoolValues}
         />
+        <Box>
+          <ResetButton
+            filterCount={taskFilterCount}
+            onClearFilters={onClearFilters}
+          />
+        </Box>
       </HStack>
       <VStack alignItems="flex-start" gap={1}>
         <FilterBar
@@ -294,7 +316,7 @@ const handleSelectedPools = (value: string[] | undefined) =>
           onFiltersChange={handleFiltersChange}
         />
       </VStack>
-    </HStack>     
+    </VStack>     
   );
 };
   
