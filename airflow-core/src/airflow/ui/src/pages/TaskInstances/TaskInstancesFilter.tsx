@@ -34,21 +34,21 @@ import { StateFilter } from "./StateFilter";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
+  END_DATE: END_DATE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR: OPERATOR_PARAM,
   POOL: POOL_PARAM,
   QUEUE: QUEUE_PARAM,
-  STATE: STATE_PARAM,
-  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
-  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
-  START_DATE: START_DATE_PARAM,
-  END_DATE: END_DATE_PARAM,
-  DURATION_GTE: DURATION_GTE_PARAM,
-  DURATION_LTE: DURATION_LTE_PARAM,
-  TRY_NUMBER: TRY_NUMBER_PARAM,
-  MAP_INDEX: MAP_INDEX_PARAM,
-  DAG_VERSION: DAG_VERSION_PARAM,
   RUN_ID: RUN_ID_PARAM,
+  START_DATE: START_DATE_PARAM,
+  STATE: STATE_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type Props = {
@@ -62,6 +62,7 @@ export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
 }: Props) => {
+  const { dagId, runId } = useParams();
   const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       LOGICAL_DATE_GTE_PARAM as FilterableSearchParamsKeys,
@@ -82,8 +83,8 @@ export const TaskInstancesFilter = ({
 
 
     return keys;
-  }, []);
-  const { dagId, runId } = useParams();
+  }, [runId]);
+
 
   const [ searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
