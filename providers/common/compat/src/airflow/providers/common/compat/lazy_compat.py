@@ -209,6 +209,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.utils.python_virtualenv",
     ),
     # ============================================================================
+    # Timeout Utilities
+    # ============================================================================
+    "timeout": ("airflow.sdk.execution_time.timeout", "airflow.utils.timeout"),
+    # ============================================================================
     # XCom & Task Communication
     # ============================================================================
     "XCOM_RETURN_KEY": "airflow.models.xcom",

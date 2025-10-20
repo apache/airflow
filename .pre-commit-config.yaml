@@ -980,13 +980,6 @@ repos:
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
         pass_filenames: false
-      - id: update-breeze-readme-config-hash
-        name: Update Breeze README.md with config files hash
-        language: python
-        entry: ./scripts/ci/prek/update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
-        pass_filenames: false
-        require_serial: true
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -1349,6 +1342,7 @@ repos:
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
+        stages: ['pre-push']
         name: Run mypy for dev
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1363,6 +1357,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-airflow-core
+        stages: ['pre-push']
         name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1377,6 +1372,7 @@ repos:
         files: ^airflow-core/.*\.py$
         require_serial: true
       - id: mypy-providers
+        stages: ['pre-push']
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1391,6 +1387,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-task-sdk
+        stages: ['pre-push']
         name: Run mypy for task-sdk
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1405,6 +1402,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-devel-common
+        stages: ['pre-push']
         name: Run mypy for devel-common
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1419,6 +1417,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-airflow-ctl
+        stages: ['pre-push']
         name: Run mypy for airflow-ctl
         language: python
         entry: ./scripts/ci/prek/mypy.py

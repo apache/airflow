@@ -132,6 +132,7 @@ from airflow.sdk.bases.decorator import (
 )
 from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
 from airflow.sdk.definitions.template import literal as literal
+from airflow.sdk.execution_time.timeout import timeout as timeout
 from airflow.sdk.execution_time.xcom import XCom as XCom
 
 __all__: list[str] = [
@@ -225,6 +226,7 @@ __all__: list[str] = [
     "task",
     "task_group",
     "teardown",
+    "timeout",
     "timezone",
     "write_python_script",
 ]

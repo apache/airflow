@@ -50,7 +50,9 @@ For Breeze (local development):
 .. code-block:: bash
 
     uv tool install prek
-    prek install -f
+    prek install --force
+    prek install --force --hook-type pre-push
+
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
@@ -151,7 +153,8 @@ Option B – One-Click GitHub Codespaces
 
       curl -LsSf https://astral.sh/uv/install.sh | sh
       uv tool install prek
-      prek install -f
+      prek install --force
+      prek install --force --hook-type pre-push # for running mypy checks when pushing to repo
       uv tool install -e ./dev/breeze
       uv run setup_vscode.py
       breeze start-airflow

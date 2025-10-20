@@ -50,12 +50,12 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.lazy_compat import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
-from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:

@@ -32,7 +32,7 @@ from pathlib import Path
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
-from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
+from airflow_breeze.utils.reinstall import inform_about_self_upgrade, reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 PYPROJECT_TOML_FILE = "pyproject.toml"
@@ -82,37 +82,6 @@ def skip_group_output():
     return in_autocomplete() or in_help() or os.environ.get("SKIP_GROUP_OUTPUT") is not None
 
 
-def get_package_setup_metadata_hash() -> str:
-    """
-    Retrieves hash of setup files from the source of installation of Breeze.
-
-    This is used in order to determine if we need to upgrade Breeze, because some
-    setup files changed. Blake2b algorithm will not be flagged by security checkers
-    as insecure algorithm (in Python 3.9 and above we can use `usedforsecurity=False`
-    to disable it, but for now it's better to use more secure algorithms.
-    """
-    # local imported to make sure that autocomplete works
-    try:
-        from importlib.metadata import distribution
-    except ImportError:
-        from importlib_metadata import distribution  # type: ignore[assignment]
-
-    prefix = "Package config hash: "
-    metadata = distribution("apache-airflow-breeze").metadata
-    try:
-        description = metadata.json["description"]
-    except (AttributeError, KeyError):
-        description = str(metadata["Description"]) if "Description" in metadata else ""
-
-    if isinstance(description, list):
-        description = "\n".join(description)
-
-    for line in description.splitlines(keepends=False):
-        if line.startswith(prefix):
-            return line[len(prefix) :]
-    return "NOT FOUND"
-
-
 def get_pyproject_toml_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
@@ -154,15 +123,7 @@ def set_forced_answer_for_upgrade_check():
         set_forced_answer("quit")
 
 
-def process_breeze_readme(breeze_sources: Path, sources_hash: str):
-    breeze_readme = breeze_sources / "README.md"
-    lines = breeze_readme.read_text().splitlines(keepends=True)
-    result_lines = []
-    for line in lines:
-        if line.startswith("Package config hash:"):
-            line = f"Package config hash: {sources_hash}\n"
-        result_lines.append(line)
-    breeze_readme.write_text("".join(result_lines))
+MY_BREEZE_ROOT_PATH = Path(__file__).resolve().parents[1]
 
 
 def reinstall_if_setup_changed() -> bool:
@@ -170,28 +131,16 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-    try:
-        package_hash = get_package_setup_metadata_hash()
-    except ModuleNotFoundError as e:
-        if "importlib_metadata" in e.msg:
-            return False
-        if "apache-airflow-breeze" in e.msg:
-            print(
-                """Missing Package `apache-airflow-breeze`. Please install it.\n
-                   Use `uv tool install -e ./dev/breeze or `pipx install -e ./dev/breeze`
-                   to install the package."""
-            )
-            return False
-    sources_hash = get_installation_sources_config_metadata_hash()
-    if sources_hash != package_hash:
-        installation_sources = get_installation_airflow_sources()
-        if installation_sources is not None:
-            breeze_sources = installation_sources / "dev" / "breeze"
-            warn_dependencies_changed()
-            process_breeze_readme(breeze_sources, sources_hash)
-            set_forced_answer_for_upgrade_check()
-            reinstall_breeze(breeze_sources)
-            set_forced_answer(None)
+
+    res = subprocess.run(
+        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+        cwd=MY_BREEZE_ROOT_PATH,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    if "Modified" in res.stderr:
+        inform_about_self_upgrade()
         return True
     return False
 

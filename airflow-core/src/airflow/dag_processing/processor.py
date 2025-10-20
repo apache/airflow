@@ -44,6 +44,8 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskStates,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -54,6 +56,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    TaskStatesResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -116,6 +119,8 @@ ToManager = Annotated[
     | GetConnection
     | GetVariable
     | PutVariable
+    | GetTaskStates
+    | GetTICount
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
@@ -131,6 +136,7 @@ ToDagProcessor = Annotated[
     DagFileParseRequest
     | ConnectionResult
     | VariableResult
+    | TaskStatesResult
     | PreviousDagRunResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
@@ -517,6 +523,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
+            TaskStatesResponse,
             VariableResponse,
             XComSequenceIndexResponse,
         )
@@ -589,6 +596,29 @@ class DagFileProcessorProcess(WatchedSubprocess):
             from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetTICount):
+            resp = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+        elif isinstance(msg, GetTaskStates):
+            task_states_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(task_states_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(task_states_map)
+            else:
+                resp = task_states_map
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

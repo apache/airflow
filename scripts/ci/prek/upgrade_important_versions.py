@@ -74,13 +74,14 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     ),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
     (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
     (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
@@ -497,7 +498,7 @@ if __name__ == "__main__":
         copy_env = os.environ.copy()
         del copy_env["VIRTUAL_ENV"]
         subprocess.run(
-            ["uv", "sync", "--resolution", "highest"],
+            ["uv", "sync", "--resolution", "highest", "--upgrade"],
             check=True,
             cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
             env=copy_env,

@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import zipfile
 from pathlib import Path
+from pprint import pformat
 from unittest import mock
 
 import pytest
@@ -125,22 +126,32 @@ class TestListPyFilesPath:
         assert all(os.path.basename(file) not in should_ignore for file in files)
 
     def test_find_path_from_directory_glob_ignore(self):
-        should_ignore = [
+        should_ignore = {
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
             "test_invalid_cron.py",
             "test_invalid_param.py",
             "test_ignore_this.py",
             "test_prev_dagrun_dep.py",
             "test_nested_dag.py",
-            "test_dont_ignore.py",
             ".airflowignore",
-        ]
-        should_not_ignore = ["test_on_kill.py", "test_negate_ignore.py", "test_nested_negate_ignore.py"]
-        files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
+        }
+        should_not_ignore = {
+            "test_on_kill.py",
+            "test_negate_ignore.py",
+            "test_dont_ignore_this.py",
+            "test_nested_negate_ignore.py",
+            "test_explicit_dont_ignore.py",
+        }
+        actual_files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
 
-        assert files
-        assert all(os.path.basename(file) not in should_ignore for file in files)
-        assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
-            should_not_ignore
+        assert actual_files
+        assert all(os.path.basename(file) not in should_ignore for file in actual_files)
+        actual_included_filenames = set(
+            [os.path.basename(f) for f in actual_files if os.path.basename(f) in should_not_ignore]
+        )
+        assert actual_included_filenames == should_not_ignore, (
+            f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
 
     def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
@@ -223,6 +234,8 @@ class TestListPyFilesPath:
         # No_dags is empty, _invalid_ is ignored by .airflowignore
         ignored_files = {
             "no_dags.py",
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
             "test_invalid_cron.py",
             "test_invalid_dup_task.py",
             "test_ignore_this.py",
@@ -243,7 +256,9 @@ class TestListPyFilesPath:
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
         detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
-        assert detected_files == expected_files
+        assert detected_files == expected_files, (
+            f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
+        )
 
 
 @pytest.mark.parametrize(

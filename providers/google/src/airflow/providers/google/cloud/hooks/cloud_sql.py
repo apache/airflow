@@ -57,6 +57,7 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models import Connection  # type: ignore[assignment,attr-defined,no-redef]
 
+from airflow.providers.common.compat.lazy_compat import BaseHook
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
 )
@@ -66,7 +67,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
