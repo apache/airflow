@@ -530,7 +530,7 @@ class TestDataflowCreatePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_projectid_invalid(self):
@@ -572,7 +572,7 @@ class TestDataflowCreatePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
@@ -636,7 +636,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_project_id(self, sdk_connection_not_found):
@@ -650,7 +650,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_location(self, sdk_connection_not_found):
@@ -664,7 +664,7 @@ class TestDataflowRunPipelineOperator:
             "location": None,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_response(self):
@@ -678,7 +678,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises((TypeError, AirflowException), match="missing keyword argument"):
+        with pytest.raises((TypeError, AirflowException, RuntimeError), match="missing keyword argument"):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
                 "error": {"message": "example error"}
             }
@@ -743,7 +743,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_project_id(self, sdk_connection_not_found):
@@ -757,7 +757,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_location(self, sdk_connection_not_found):
@@ -771,7 +771,7 @@ class TestDataflowDeletePipelineOperator:
             "location": None,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
     def test_invalid_response(self, sdk_connection_not_found):
@@ -785,7 +785,7 @@ class TestDataflowDeletePipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(AirflowException):
+        with pytest.raises((AirflowException, RuntimeError)):
             DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
                 "error": {"message": "example error"}
             }

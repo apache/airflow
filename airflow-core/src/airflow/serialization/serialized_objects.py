@@ -63,7 +63,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializationError,
     SerializationError,
-    TaskDeferred,
     TaskNotFound,
 )
 from airflow.models.connection import Connection
@@ -737,6 +736,8 @@ class BaseSerialization:
 
         :meta private:
         """
+        from airflow.sdk.exceptions import TaskDeferred
+
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
