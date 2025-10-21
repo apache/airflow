@@ -25,11 +25,17 @@ from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.apache.kafka.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.module_loading import import_string
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger
+else:
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
-class AwaitMessageTrigger(BaseTrigger):
+
+class AwaitMessageTrigger(BaseEventTrigger):
     """
     A trigger that waits for a message matching specific criteria to arrive in Kafka.
 

@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "Treść",
+    "createdAtFrom": "Utworzono od",
+    "createdAtTo": "Utworzono do",
     "response": {
       "all": "Wszystkie",
       "pending": "Oczekujące",
