@@ -140,8 +140,9 @@ class TestDagRunOperator:
             assert task.trigger_run_id == expected_run_id  # run_id is saved as attribute
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_one")
-    def test_extra_operator_link(self, mock_xcom_get_one, dag_maker):
+    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_value")
+    def test_extra_operator_link(self, mock_xcom_get_value, dag_maker):
+        from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -153,7 +154,13 @@ class TestDagRunOperator:
         dr = dag_maker.create_dagrun(run_id="test_run_id")
         ti = dr.get_task_instance(task_id=task.task_id)
 
-        mock_xcom_get_one.return_value = ti.run_id
+        # Mock XCom.get_value to return None for dag_id but return run_id for XCOM_RUN_ID
+        def mock_get_value(ti_key, key):
+            if key == XCOM_RUN_ID:
+                return "test_run_id"
+            return None
+        
+        mock_xcom_get_value.side_effect = mock_get_value
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
@@ -162,7 +169,8 @@ class TestDagRunOperator:
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    def test_extra_operator_link_with_dynamic_dag_id(self, dag_maker):
+    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_value")
+    def test_extra_operator_link_with_dynamic_dag_id(self, mock_xcom_get_value, dag_maker):
         """Test that operator link works correctly when dag_id is dynamically resolved from XCom."""
         from airflow.providers.standard.operators.trigger_dagrun import XCOM_DAG_ID, XCOM_RUN_ID
 
@@ -177,10 +185,15 @@ class TestDagRunOperator:
         dr = dag_maker.create_dagrun(run_id="test_run_id")
         ti = dr.get_task_instance(task_id=task.task_id)
 
-        # Simulate that the operator has pushed the resolved dag_id to XCom
-        # This happens during execute() for dynamic dag_ids
-        ti.xcom_push(key=XCOM_DAG_ID, value="dynamic_dag_id")
-        ti.xcom_push(key=XCOM_RUN_ID, value="dynamic_run_id")
+        # Mock XCom.get_value to return our test values
+        def mock_get_value(ti_key, key):
+            if key == XCOM_DAG_ID:
+                return "dynamic_dag_id"
+            elif key == XCOM_RUN_ID:
+                return "dynamic_run_id"
+            return None
+        
+        mock_xcom_get_value.side_effect = mock_get_value
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
