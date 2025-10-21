@@ -1073,14 +1073,14 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     inlet_events = ti.get_template_context()["inlet_events"]
 
     # access the asset events of Asset(name="test", uri="test://uri")
-    assert inlet_events[0] == [asset_event_resp]
-    assert inlet_events[-2] == [asset_event_resp]
-    assert inlet_events[Asset(name="test", uri="test://uri")] == [asset_event_resp]
+    assert list(inlet_events[0]) == [asset_event_resp]
+    assert list(inlet_events[-2]) == [asset_event_resp]
+    assert list(inlet_events[Asset(name="test", uri="test://uri")]) == [asset_event_resp]
 
     # access the asset events of AssetAlias(name="alias-name")
-    assert inlet_events[1] == [asset_event_resp]
-    assert inlet_events[-1] == [asset_event_resp]
-    assert inlet_events[AssetAlias(name="alias-name")] == [asset_event_resp]
+    assert list(inlet_events[1]) == [asset_event_resp]
+    assert list(inlet_events[-1]) == [asset_event_resp]
+    assert list(inlet_events[AssetAlias(name="alias-name")]) == [asset_event_resp]
 
     # access with invalid index
     with pytest.raises(IndexError):
