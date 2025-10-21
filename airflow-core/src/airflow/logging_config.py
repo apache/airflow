@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -152,7 +153,7 @@ def validate_logging_config():
                 f"task_log_reader setting in [logging] has a deprecated value of {task_log_reader!r}, "
                 "but no handler with this name was found. Please update your config to use task. "
                 "Running config has been adjusted to match",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=2,
             )
             conf.set("logging", "task_log_reader", "task")
