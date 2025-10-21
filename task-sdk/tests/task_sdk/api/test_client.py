@@ -40,6 +40,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunStateResponse,
     HITLDetailRequest,
+    DagStateResponse,
     HITLDetailResponse,
     HITLUser,
     TerminalTIState,
@@ -1536,3 +1537,21 @@ class TestSSLContextCaching:
         assert ctx1 is not ctx2
         assert info.misses == 2
         assert info.currsize == 2
+
+
+class TestDagsOperations:
+    def test_get_state(self):
+        """Test that the client can get the state of a dag run"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag/state":
+                return httpx.Response(
+                    status_code=200,
+                    json={"is_paused": False},
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dags.get_state(dag_id="test_dag")
+
+        assert result == DagStateResponse(is_paused=False)

@@ -654,6 +654,11 @@ class HITLDetailRequestResult(HITLDetailRequest):
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
+class DagStateResult(BaseModel):
+    is_paused: bool
+    type: Literal["DagStateResult"] = "DagStateResult"
+
+
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
@@ -661,6 +666,7 @@ ToTask = Annotated[
     | DagRunResult
     | DagRunStateResult
     | DRCount
+    | DagStateResult
     | ErrorResponse
     | PrevSuccessfulDagRunResult
     | PreviousTIResult
@@ -978,6 +984,11 @@ class MaskSecret(BaseModel):
     type: Literal["MaskSecret"] = "MaskSecret"
 
 
+class GetDagState(BaseModel):
+    dag_id: str
+    type: Literal["GetDagState"] = "GetDagState"
+
+
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
@@ -989,6 +1000,7 @@ ToSupervisor = Annotated[
     | GetDagRun
     | GetDagRunState
     | GetDRCount
+    | GetDagState
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
     | GetPreviousTI
