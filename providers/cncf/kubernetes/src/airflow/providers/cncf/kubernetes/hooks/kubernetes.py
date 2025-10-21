@@ -692,8 +692,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             try:
                 deployment = self.get_deployment_status(name=name, namespace=namespace)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
+                msg = f"Exception occurred while checking for Deployment status: {e}"
+                self.log.exception(msg)
+                raise RuntimeError(msg) from e
 
             deployment_status = V1Deployment.to_dict(deployment)["status"]
             replicas = deployment_status["replicas"]
