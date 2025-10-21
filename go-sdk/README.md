@@ -24,7 +24,7 @@ Task functions written in Go full access to the Airflow "model", natively in go.
 
 The Task API however does not provide a means to get the `ExecuteTaskWorkload` to the go worker itself. For
 that we use the Edge Executor API.
-Longer term we will likely need to stabilize the Edge Executor API and write a go client for that.
+Longer term we will likely need to stabilize the Edge Executor API and add versioning to it.
 
 Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow go to be interpreted) all tasks must be a) compiled in to the binary, and b) "registered" inside the worker process in order to be executed.
 
