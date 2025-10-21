@@ -75,27 +75,10 @@ class HITLDetailResponse(BaseModel):
             else None
         )
 
-        # Convert UtcDateTime to datetime for Pydantic compatibility
-        responded_at_datetime = None
-        if hitl_detail.responded_at is not None:
-            # Convert UtcDateTime to standard datetime
-            responded_at_datetime = datetime(
-                year=hitl_detail.responded_at.year,
-                month=hitl_detail.responded_at.month,
-                day=hitl_detail.responded_at.day,
-                hour=hitl_detail.responded_at.hour,
-                minute=hitl_detail.responded_at.minute,
-                second=hitl_detail.responded_at.second,
-                microsecond=hitl_detail.responded_at.microsecond,
-                tzinfo=hitl_detail.responded_at.tzinfo,
-            )
-
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
-            responded_at=responded_at_datetime,
+            responded_at=hitl_detail.responded_at,
             responded_by_user=hitl_user,
-            chosen_options=hitl_detail.chosen_options
-            if isinstance(hitl_detail.chosen_options, list)
-            else None,
+            chosen_options=hitl_detail.chosen_options,
             params_input=hitl_detail.params_input or {},
         )
