@@ -33,7 +33,10 @@ class TestS3KeyTrigger:
         and classpath.
         """
         trigger = S3KeyTrigger(
-            bucket_key="s3://test_bucket/file", bucket_name="test_bucket", wildcard_match=True
+            bucket_key="s3://test_bucket/file",
+            bucket_name="test_bucket",
+            wildcard_match=True,
+            metadata_keys=["Size", "LastModified"],
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeyTrigger"
@@ -49,6 +52,7 @@ class TestS3KeyTrigger:
             "verify": None,
             "region_name": None,
             "botocore_config": None,
+            "metadata_keys": ["Size", "LastModified"],
         }
 
     @pytest.mark.asyncio
@@ -63,8 +67,81 @@ class TestS3KeyTrigger:
         await asyncio.sleep(0.5)
 
         assert task.done() is True
+        result = await task
+        assert result == TriggerEvent({"status": "success"})
         asyncio.get_event_loop().stop()
 
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
+    async def test_run_with_metadata(self, mock_get_files_async, mock_get_head_object_async, mock_client):
+        """
+        Test if the task retrieves metadata correctly when should_check_fn is True.
+        """
+        mock_get_files_async.return_value = ["file1.txt", "file2.txt"]
+        mock_get_head_object_async.side_effect = [
+            {"ContentLength": 1024, "LastModified": "2023-10-01T12:00:00Z"},
+            {"ContentLength": 2048, "LastModified": "2023-10-02T12:00:00Z"},
+        ]
+        trigger = S3KeyTrigger(
+            bucket_key="s3://test_bucket/file",
+            bucket_name="test_bucket",
+            should_check_fn=True,
+            metadata_keys=["Size", "LastModified"],
+        )
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        assert task.done() is True
+        result = await task
+        expected = TriggerEvent({
+            "status": "running",
+            "files": [
+                {"Size": 1024, "LastModified": "2023-10-01T12:00:00Z", "Key": "file1.txt"},
+                {"Size": 2048, "LastModified": "2023-10-02T12:00:00Z", "Key": "file2.txt"},
+            ],
+        })
+        assert result == expected
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
+    async def test_run_with_all_metadata(self, mock_get_files_async, mock_get_head_object_async, mock_client):
+        """
+        Test if the task retrieves all metadata when metadata_keys contains '*'.
+        """
+        mock_get_files_async.return_value = ["file1.txt"]
+        mock_get_head_object_async.return_value = {
+            "ContentLength": 1024,
+            "LastModified": "2023-10-01T12:00:00Z",
+            "ETag": "abc123",
+        }
+        trigger = S3KeyTrigger(
+            bucket_key="s3://test_bucket/file",
+            bucket_name="test_bucket",
+            should_check_fn=True,
+            metadata_keys=["*"],
+        )
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        assert task.done() is True
+        result = await task
+        expected = TriggerEvent({
+            "status": "running",
+            "files": [{
+                "ContentLength": 1024,
+                "LastModified": "2023-10-01T12:00:00Z",
+                "ETag": "abc123",
+                "Key": "file1.txt",
+            }],
+        })
+        assert result == expected
+        asyncio.get_event_loop().stop()
+    
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
