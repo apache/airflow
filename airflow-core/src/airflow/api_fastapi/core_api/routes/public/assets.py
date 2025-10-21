@@ -330,7 +330,7 @@ def get_asset_events(
     )
 
     assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
-    assets_events = list(session.scalars(assets_event_select))
+    assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
         asset_events=assets_events,
