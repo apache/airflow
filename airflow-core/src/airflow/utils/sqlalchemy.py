@@ -363,7 +363,9 @@ def with_row_locks(
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
-    if dialect_name == "mysql" and not getattr(session.bind.dialect, "supports_for_update_of", True):
+    if dialect_name == "mysql" and not getattr(
+        session.bind.dialect if session.bind else None, "supports_for_update_of", True
+    ):
         return query
     if nowait:
         kwargs["nowait"] = True
