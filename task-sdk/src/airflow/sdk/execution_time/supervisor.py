@@ -1314,6 +1314,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.conf,
                 msg.logical_date,
                 msg.reset_dag_run,
+                msg.reset_mode,
             )
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)

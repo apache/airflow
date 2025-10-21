@@ -116,6 +116,8 @@ class TriggerDagRunOperator(BaseOperator):
         DAG run conf is immutable and will not be reset on rerun of an existing DAG run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing DAG run will be cleared to rerun.
+    :param reset_mode: Defines the reset behavior for the dag run — whether to reset all tasks or only those that have failed.
+        Input options - all or only_failed
     :param wait_for_completion: Whether or not wait for DAG run completion. (default: False)
     :param poke_interval: Poke interval to check DAG run status when wait_for_completion=True.
         (default: 60)
@@ -152,6 +154,7 @@ class TriggerDagRunOperator(BaseOperator):
         conf: dict | None = None,
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
+        reset_mode: str = "all",
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list[str | DagRunState] | None = None,
@@ -188,6 +191,9 @@ class TriggerDagRunOperator(BaseOperator):
             raise TypeError(
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
+        if reset_mode not in ["all", "only_failed"]:
+            raise ValueError("reset_mode must be one of 'all', 'only_failed'")
+        self.reset_mode = reset_mode
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
@@ -236,6 +242,7 @@ class TriggerDagRunOperator(BaseOperator):
             conf=self.conf,
             logical_date=parsed_logical_date,
             reset_dag_run=self.reset_dag_run,
+            reset_mode=self.reset_mode,
             skip_when_already_exists=self.skip_when_already_exists,
             wait_for_completion=self.wait_for_completion,
             allowed_states=self.allowed_states,

@@ -102,6 +102,17 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class DAGRunClearPayload(BaseModel):
+    """
+    Schema for DAG Run Clear Body.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -332,6 +343,7 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+    reset_mode: Annotated[str | None, Field(title="Reset Mode")] = "all"
 
 
 class UpdateHITLDetailPayload(BaseModel):
