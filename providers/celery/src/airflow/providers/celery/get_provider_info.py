@@ -96,7 +96,7 @@ def get_provider_info():
                         "default": "true",
                     },
                     "broker_url": {
-                        "description": "The Celery broker URL. Celery supports RabbitMQ, Redis, Amazon SQS\nand few other experimental brokers. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
+                        "description": "The Celery broker URL. Celery supports multiple broker types. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
