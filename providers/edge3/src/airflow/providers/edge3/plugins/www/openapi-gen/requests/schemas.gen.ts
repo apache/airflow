@@ -365,10 +365,7 @@ export const $TaskInstance = {
 export const $TaskInstanceState = {
     type: 'string',
     enum: ['removed', 'scheduled', 'queued', 'running', 'success', 'restarting', 'failed', 'up_for_retry', 'up_for_reschedule', 'upstream_failed', 'skipped', 'deferred'],
-    title: 'TaskInstanceState',
-    description: `All possible states that a Task Instance can be in.
-
-Note that None is also allowed, so always use this in a type hint with Optional.`
+    title: 'TaskInstanceState'
 } as const;
 
 export const $ValidationError = {

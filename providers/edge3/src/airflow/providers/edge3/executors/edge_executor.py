@@ -68,7 +68,8 @@ class EdgeExecutor(BaseExecutor):
         """
         Check if already existing table matches the newest table schema.
 
-        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider distributions.
+        workaround till support for Airflow 2.x is dropped,
+        then it is possible to use alembic also for provider distributions.
         """
         inspector = inspect(engine)
         edge_job_columns = None
@@ -78,7 +79,7 @@ class EdgeExecutor(BaseExecutor):
             edge_job_columns = [column["name"] for column in edge_job_schema]
             for column in edge_job_schema:
                 if column["name"] == "command":
-                    edge_job_command_len = column["type"].length
+                    edge_job_command_len = column["type"].length  # type: ignore[attr-defined]
 
         # version 0.6.0rc1 added new column concurrency_slots
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
@@ -284,7 +285,7 @@ class EdgeExecutor(BaseExecutor):
                 map_index=job.map_index,
                 session=session,
             )
-            job.state = ti.state if ti else TaskInstanceState.REMOVED
+            job.state = ti.state if ti and ti.state else TaskInstanceState.REMOVED
 
             if job.state != TaskInstanceState.RUNNING:
                 # Edge worker does not backport emitted Airflow metrics, so export some metrics
