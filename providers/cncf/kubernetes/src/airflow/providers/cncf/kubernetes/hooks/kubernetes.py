@@ -43,7 +43,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -842,7 +842,10 @@ class AsyncKubernetesHook(KubernetesHook):
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
             if self.conn_id:
-                connection = await sync_to_async(self.get_connection)(self.conn_id)
+                if AIRFLOW_V_3_1_PLUS:
+                    connection = await self.aget_connection(self.conn_id)
+                else:
+                    connection = await sync_to_async(self.get_connection)(self.conn_id)
                 self._extras = connection.extra_dejson
             else:
                 self._extras = {}
