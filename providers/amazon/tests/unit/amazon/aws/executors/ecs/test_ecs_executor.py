@@ -1343,7 +1343,7 @@ class TestEcsExecutorConfig:
             (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
         }
         with conf_vars(conf_overrides):
-            with pytest.raises(ValueError, match="At least one subnet is required to run a task."):
+            with pytest.raises(ValueError, match="At least one subnet is required to run a task"):
                 ecs_executor_config.build_task_kwargs(conf)
 
     # TODO: When merged this needs updating to the actually supported version
