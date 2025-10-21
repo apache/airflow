@@ -233,7 +233,7 @@ export const TaskInstancesFilter = ({
 
   return (
     <VStack align="start" justifyContent="space-between">
-      <HStack alignItems="start" paddingY="4px">
+      <HStack alignItems="start" paddingY="4px" minWidth="100%">
         {dagId === undefined && (
           <SearchBar
             buttonProps={{ disabled: true }}

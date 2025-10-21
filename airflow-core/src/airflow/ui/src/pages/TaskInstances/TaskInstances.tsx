@@ -326,7 +326,7 @@ export const TaskInstances = () => {
           taskId: Boolean(groupId) ? undefined : taskId,
           translate,
         })}
-        data={filteredInstances}
+        data={filteredInstances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
