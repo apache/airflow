@@ -77,11 +77,8 @@ def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
 
     If that container is present and completed and succeeded, returns True.  Returns False otherwise.
     """
-    if not container_is_completed(pod, container_name):
-        return False
-
     container_status = get_container_status(pod, container_name)
-    if not container_status:
+    if not container_status or container_status.state.terminated is None:
         return False
     return container_status.state.terminated.exit_code == 0
 
