@@ -45,6 +45,11 @@ def next_run_assets(
 
     latest_run = dag_model.get_last_dagrun(session=session)
 
+    if latest_run and latest_run.logical_date:
+        on_clause = AssetEvent.timestamp >= latest_run.logical_date
+    else:
+        on_clause = True
+
     events = [
         dict(info._mapping)
         for info in session.execute(
@@ -72,16 +77,7 @@ def next_run_assets(
             .join(
                 AssetEvent,
                 and_(
-                    AssetEvent.asset_id == AssetModel.id,
-                    (
-                        case(
-                            (
-                                latest_run and latest_run.logical_date,
-                                AssetEvent.timestamp >= latest_run.logical_date,
-                            ),
-                            else_=True,
-                        )
-                    ),
+                    AssetEvent.asset_id == AssetModel.id, on_clause,
                 ),
                 isouter=True,
             )

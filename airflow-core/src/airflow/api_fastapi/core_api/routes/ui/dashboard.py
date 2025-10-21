@@ -93,11 +93,11 @@ def historical_metrics(
     historical_metrics_response = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-            **{row.name: row.count for row in dag_run_types},
+            **{row.run_type: row.count for row in dag_run_types},
         },
         "dag_run_states": {
             **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-            **{row.name: row.count for row in dag_run_states},
+            **{row.state: row.count for row in dag_run_states},
         },
         "task_instance_states": {
             "no_status": 0,

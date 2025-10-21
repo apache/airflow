@@ -71,7 +71,7 @@ def list_backfills_ui(
         limit=limit,
         session=session,
     )
-    backfills = [BackfillResponse(**row._mapping) for row in session.scalars(select_stmt)]
+    backfills = [BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row for row in session.scalars(select_stmt)]
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
