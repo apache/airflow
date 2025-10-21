@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
@@ -57,8 +58,6 @@ class JobState(str, Enum):
 
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm.session import Session
 
     from airflow.executors.base_executor import BaseExecutor
