@@ -20,11 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
-<<<<<<< HEAD
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
-=======
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
->>>>>>> bb09da4770 (Add autorefresh to Required Actions button (#55543))
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -38,20 +34,12 @@ export const NeedsReviewButton = ({
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-<<<<<<< HEAD
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
   const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
-=======
-  const refetchInterval = useAutoRefresh({ dagId });
-  const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-      dagRunId: runId,
->>>>>>> bb09da4770 (Add autorefresh to Required Actions button (#55543))
       responseReceived: false,
       state: ["deferred"],
       taskId,

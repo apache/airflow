@@ -160,6 +160,7 @@ class TriggerDagRunOperator(BaseOperator):
         skip_when_already_exists: bool = False,
         fail_when_dag_is_paused: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        note: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -177,6 +178,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
+        self.note = note
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self._defer = deferrable
@@ -249,6 +251,7 @@ class TriggerDagRunOperator(BaseOperator):
             failed_states=self.failed_states,
             poke_interval=self.poke_interval,
             deferrable=self._defer,
+            note=self.note,
         )
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
@@ -259,6 +262,7 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_logical_date,
                 replace_microseconds=False,
+                note=self.note,
             )
 
         except DagRunAlreadyExists as e:
