@@ -238,6 +238,10 @@ class SerializedTaskGroup(DAGNode):
                         if tg.node_id in graph_unsorted:
                             break
                         tg = tg.parent_group
+
+                    if tg:
+                        # We are already going to visit that TG
+                        break
                 else:
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
