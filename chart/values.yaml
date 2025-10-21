@@ -1017,9 +1017,9 @@ workers:
     # Celery queue groups for different queues and node assignments
     # When defined, ONLY these worker groups will be created (no default worker deployment)
     # Each worker group creates a separate Deployment assigned to specific nodes and queues
-    celeryQueueGroups: []
-    # celeryQueueGroups:
-    # - name: default-workers
+    queueGroups: []
+    # queueGroups:
+    # - name: base-workers
     #   queues: "default,email,notifications"
     #   replicas: 3
     #   resources:

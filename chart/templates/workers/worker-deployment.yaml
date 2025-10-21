@@ -25,12 +25,12 @@
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 
-{{- /* Build worker groups list: use celeryQueueGroups if defined, otherwise create default worker */ -}}
+{{- /* Build worker groups list: use queueGroups if defined, otherwise create default worker */ -}}
 {{- $workerGroups := list }}
-{{- if .Values.workers.celery.celeryQueueGroups }}
-  {{- $workerGroups = .Values.workers.celery.celeryQueueGroups }}
+{{- if .Values.workers.celery.queueGroups }}
+  {{- $workerGroups = .Values.workers.celery.queueGroups }}
 {{- else }}
-  {{- $defaultWorker := dict
+  {{- $baseWorker := dict
     "name" ""
     "queues" ""
     "replicas" .Values.workers.replicas
@@ -41,18 +41,18 @@
     "podAnnotations" .Values.workers.podAnnotations
     "priorityClassName" .Values.workers.priorityClassName
     "env" .Values.workers.env }}
-  {{- $workerGroups = list $defaultWorker }}
+  {{- $workerGroups = list $baseWorker }}
 {{- end }}
 
-{{- /* Loop through all worker groups (either celeryQueueGroups or default) */ -}}
+{{- /* Loop through all worker groups (either queueGroups or default) */ -}}
 {{- range $groupIndex, $workerGroup := $workerGroups }}
 {{- if $groupIndex }}
 ---
 {{- end }}
 
 {{- /* Set variables based on whether this is default worker or custom group */ -}}
-{{- $isDefaultWorker := eq $workerGroup.name "" }}
-{{- $workerName := ternary "worker" (printf "worker-%s" $workerGroup.name) $isDefaultWorker }}
+{{- $isBaseWorker := eq $workerGroup.name "" }}
+{{- $workerName := ternary "worker" (printf "worker-%s" $workerGroup.name) $isBaseWorker }}
 {{- $groupQueues := $workerGroup.queues }}
 {{- $groupReplicas := $workerGroup.replicas | default 1 }}
 {{- $groupNodeSelector := $workerGroup.nodeSelector | default dict }}
@@ -88,7 +88,7 @@ metadata:
   labels:
     tier: airflow
     component: worker
-    {{- if not $isDefaultWorker }}
+    {{- if not $isBaseWorker }}
     worker-group: {{ $workerGroup.name }}
     {{- end }}
     release: {{ $.Release.Name }}
@@ -104,7 +104,7 @@ spec:
   {{- if $persistence }}
   serviceName: {{ include "airflow.fullname" $ }}-{{ $workerName }}
   {{- end }}
-  {{- if not $isDefaultWorker }}
+  {{- if not $isBaseWorker }}
   replicas: {{ $groupReplicas }}
   {{- else if and (not $keda) (not $hpa) }}
   replicas: {{ $.Values.workers.replicas }}
@@ -119,7 +119,7 @@ spec:
     matchLabels:
       tier: airflow
       component: worker
-      {{- if not $isDefaultWorker }}
+      {{- if not $isBaseWorker }}
       worker-group: {{ $workerGroup.name }}
       {{- end }}
       release: {{ $.Release.Name }}
@@ -141,7 +141,7 @@ spec:
         {{- if or ($.Values.labels) ($.Values.workers.labels) ($groupLabels) }}
           {{- mustMerge $groupLabels $.Values.workers.labels $.Values.labels | toYaml | nindent 8 }}
         {{- end }}
-        {{- if not $isDefaultWorker }}
+        {{- if not $isBaseWorker }}
         worker-group: {{ $workerGroup.name }}
         {{- end }}
       annotations:
@@ -179,7 +179,7 @@ spec:
               labelSelector:
                 matchLabels:
                   component: worker
-                  {{- if not $isDefaultWorker }}
+                  {{- if not $isBaseWorker }}
                   worker-group: {{ $workerGroup.name }}
                   {{- end }}
               topologyKey: kubernetes.io/hostname
@@ -303,9 +303,9 @@ spec:
           {{- if $.Values.workers.command }}
           command: {{ tpl (toYaml $.Values.workers.command) $ | nindent 12 }}
           {{- end }}
-          {{- if and $isDefaultWorker $.Values.workers.args }}
+          {{- if and $isBaseWorker $.Values.workers.args }}
           args: {{ tpl (toYaml $.Values.workers.args) $ | nindent 12 }}
-          {{- else if not $isDefaultWorker }}
+          {{- else if not $isBaseWorker }}
           args:
             - "bash"
             - "-c"
