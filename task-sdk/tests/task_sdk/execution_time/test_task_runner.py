@@ -81,11 +81,13 @@ from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
     DagRunStateResult,
+    DagStateResult,
     DeferTask,
     DRCount,
     ErrorResponse,
     GetConnection,
     GetDagRunState,
+    GetDagState,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -2941,6 +2943,19 @@ class TestRuntimeTaskInstance:
             for call in mock_supervisor_comms.send.mock_calls
             if hasattr(call.kwargs.get("msg"), "rendered_fields")
         )
+
+    def test_get_dag_state(self, mock_supervisor_comms):
+        """Test that get_dag_state sends the correct request and returns the state."""
+        mock_supervisor_comms.send.return_value = DagStateResult(is_paused=False)
+
+        response = RuntimeTaskInstance.get_dag_state(
+            dag_id="test_dag",
+        )
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetDagState(dag_id="test_dag"),
+        )
+        assert response.is_paused is False
 
 
 class TestXComAfterTaskExecution:

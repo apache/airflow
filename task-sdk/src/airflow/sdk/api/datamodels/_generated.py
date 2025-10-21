@@ -132,6 +132,14 @@ class DagRunType(str, Enum):
     ASSET_MATERIALIZATION = "asset_materialization"
 
 
+class DagStateResponse(BaseModel):
+    """
+    Schema for DAG State response.
+    """
+
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+
+
 class HITLUser(BaseModel):
     """
     Schema for a Human-in-the-loop users.
