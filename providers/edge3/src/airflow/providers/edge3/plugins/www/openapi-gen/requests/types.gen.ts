@@ -52,10 +52,10 @@ export type EdgeWorkerState = 'starting' | 'running' | 'idle' | 'shutdown reques
  */
 export type ExecuteTask = {
     token: string;
-    ti: TaskInstance;
     dag_rel_path: string;
     bundle_info: BundleInfo;
     log_path: string | null;
+    ti: TaskInstance;
     type?: "ExecuteTask";
 };
 
