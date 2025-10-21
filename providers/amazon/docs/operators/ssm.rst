@@ -116,7 +116,7 @@ To wait on the state of an Amazon SSM run command job until it reaches a termina
 IAM Permissions
 ---------------
 
-You need to ensure the following IAM permissions are granted to allow Airflow to run, retrive and monitor SSM Run Command executions:
+You need to ensure the following IAM permissions are granted to allow Airflow to run, retrieve and monitor SSM Run Command executions:
 
 .. code-block::
 
