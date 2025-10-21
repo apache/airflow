@@ -444,7 +444,7 @@ class DagModelOperation(NamedTuple):
             .options(joinedload(DagModel.schedule_asset_alias_references))
             .options(joinedload(DagModel.task_outlet_asset_references))
         )
-        stmt = with_row_locks(stmt, session=session, of=DagModel)
+        stmt = with_row_locks(stmt, of=DagModel, session=session)
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:

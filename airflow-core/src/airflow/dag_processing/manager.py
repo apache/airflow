@@ -454,7 +454,7 @@ class DagFileProcessorManager(LoggingMixin):
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            query = with_row_locks(query, session=session, of=DbCallbackRequest, skip_locked=True)
+            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
