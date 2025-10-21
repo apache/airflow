@@ -156,7 +156,9 @@ class SFTPOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
                 else:
                     self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
-                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or "")
+                    self.sftp_hook = SFTPHook(
+                        ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or ""
+                    )
 
             if not self.sftp_hook:
                 raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
