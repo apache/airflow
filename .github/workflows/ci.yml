@@ -225,6 +225,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -252,6 +253,8 @@ jobs:
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      generate-pypi-constraints: "true"
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
