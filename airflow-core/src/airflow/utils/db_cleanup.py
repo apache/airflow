@@ -166,6 +166,8 @@ config_list: list[_TableConfig] = [
         recency_column_name="created_at",
         dependent_tables=["task_instance", "dag_run"],
         dag_id_column_name="dag_id",
+        keep_last=True,
+        keep_last_group_by=["dag_id"],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
 ]
@@ -337,10 +339,7 @@ def _build_query(
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
 
-    if dag_ids or exclude_dag_ids:
-        if dag_id_column is None:
-            raise ValueError("Must provide a dag_id_column along with dag_ids and exclude_dag_ids")
-
+    if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
 
         if dag_ids:
