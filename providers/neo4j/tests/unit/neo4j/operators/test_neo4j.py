@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.common.compat.lazy_compat import timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)

@@ -33,6 +33,8 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy.orm.session import Session
 
 
@@ -67,7 +69,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
+    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 

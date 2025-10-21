@@ -121,19 +121,19 @@ class SSHOperator(BaseOperator):
         """Create SSHHook to run commands on remote host."""
         if self.ssh_conn_id:
             self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-            hook = SSHHook(
-                ssh_conn_id=self.ssh_conn_id,
-                conn_timeout=self.conn_timeout,
-                cmd_timeout=self.cmd_timeout,
-                banner_timeout=self.banner_timeout,
-            )
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
                     "in ssh_hook or predefined in connection of ssh_conn_id."
                 )
-                hook.remote_host = self.remote_host
+            hook = SSHHook(
+                ssh_conn_id=self.ssh_conn_id,
+                remote_host=self.remote_host or "",
+                conn_timeout=self.conn_timeout,
+                cmd_timeout=self.cmd_timeout,
+                banner_timeout=self.banner_timeout,
+            )
             return hook
         raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 

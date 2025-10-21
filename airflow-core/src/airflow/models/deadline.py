@@ -411,7 +411,7 @@ class ReferenceModels:
             dag_id = kwargs["dag_id"]
 
             # Get database dialect to use appropriate time difference calculation
-            dialect = session.bind.dialect.name
+            dialect = getattr(session.bind.dialect, "name", None)
 
             # Create database-specific expression for calculating duration in seconds
             if dialect == "postgresql":

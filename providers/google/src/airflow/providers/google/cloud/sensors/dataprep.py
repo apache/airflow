@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook, JobGroupStatuses
 
 if TYPE_CHECKING:

@@ -56,7 +56,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     .. note::
-        get_uri() depends on SQLAlchemy and PyAthena.
+        get_uri() depends on SQLAlchemy and PyAthena
     """
 
     conn_name_attr = "athena_conn_id"
@@ -155,14 +155,16 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         conn_params = self._get_conn_params()
         creds = self.get_credentials(region_name=conn_params["region_name"])
 
-        return URL.create(
-            f"awsathena+{conn_params['driver']}",
-            username=creds.access_key,
-            password=creds.secret_key,
-            host=f"athena.{conn_params['region_name']}.{conn_params['aws_domain']}",
-            port=443,
-            database=conn_params["schema_name"],
-            query={"aws_session_token": creds.token, **self.conn.extra_dejson},
+        return str(
+            URL.create(
+                f"awsathena+{conn_params['driver']}",
+                username=creds.access_key,
+                password=creds.secret_key,
+                host=f"athena.{conn_params['region_name']}.{conn_params['aws_domain']}",
+                port=443,
+                database=conn_params["schema_name"],
+                query={"aws_session_token": creds.token, **self.conn.extra_dejson},
+            )
         )
 
     def get_conn(self) -> AthenaConnection:

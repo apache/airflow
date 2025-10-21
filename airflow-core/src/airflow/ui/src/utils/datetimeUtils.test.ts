@@ -21,11 +21,11 @@ import { describe, it, expect } from "vitest";
 import { getDuration, renderDuration } from "./datetimeUtils";
 
 describe("getDuration", () => {
-  it("handles durations less than 10 seconds", () => {
+  it("handles durations less than 60 seconds", () => {
     const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-14T10:00:05.500Z";
+    const end = "2024-03-14T10:00:05.5111111Z";
 
-    expect(getDuration(start, end)).toBe("5.50s");
+    expect(getDuration(start, end)).toBe("00:00:05.511");
   });
 
   it("handles durations spanning multiple days", () => {

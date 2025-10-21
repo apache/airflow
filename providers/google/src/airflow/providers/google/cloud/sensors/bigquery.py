@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,

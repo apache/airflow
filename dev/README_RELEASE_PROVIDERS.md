@@ -22,6 +22,7 @@
 
 - [What the provider distributions are](#what-the-provider-distributions-are)
 - [Provider distributions](#provider-distributions)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider distributions versioning](#provider-distributions-versioning)
@@ -80,6 +81,14 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
 
 # Bump min Airflow version for providers
 

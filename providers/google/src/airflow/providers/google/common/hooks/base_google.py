@@ -50,7 +50,7 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,

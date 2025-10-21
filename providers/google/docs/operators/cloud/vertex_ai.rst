@@ -576,83 +576,107 @@ To get a pipeline job list you can use
 Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateEmbeddingsOperator`.
+
 To generate text embeddings you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
-    :end-before: [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_embeddings_task]
+    :end-before: [END how_to_cloud_gen_ai_generate_embeddings_task]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`.
 
 To generate content with a generative model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_generate_content_operator]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator`.
 
 To run a supervised fine tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model_tuning.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
-    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    :start-after: [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
+    :end-before: [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
 
 You can also use supervised fine tuning job for video tasks: training and tracking
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model_tuning.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
-    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
+    :start-after: [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
+    :end-before: [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICountTokensOperator`.
 
 To calculates the number of input tokens before sending a request to the Gemini API you can use:
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.
 The operator returns the total tokens in :ref:`XCom <concepts:xcom>` under ``total_tokens`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_count_tokens_operator]
-    :end-before: [END how_to_cloud_vertex_ai_count_tokens_operator]
+    :start-after: [START how_to_cloud_gen_ai_count_tokens_operator]
+    :end-before: [END how_to_cloud_gen_ai_count_tokens_operator]
 
 To evaluate a model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
 The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
     :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator`.
+
 To create cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`.
 The operator returns the cached content resource name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_cached_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_cached_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_create_cached_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_create_cached_content_operator]
+
+.. warning::
+    This operator is deprecated and will be removed after January 3, 2026. Please use
+    :class:`~airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`.
 
 To generate a response from cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`.
 The operator returns the cached content response in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    :start-after: [START how_to_cloud_gen_ai_generate_from_cached_content_operator]
+    :end-before: [END how_to_cloud_gen_ai_generate_from_cached_content_operator]
 
 Interacting with Vertex AI Feature Store
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

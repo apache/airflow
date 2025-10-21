@@ -86,8 +86,32 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "task_instance.dag_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+                <TruncatedText text={original.task_instance.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("common:dagId"),
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink
+                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+              >
+                <TruncatedText text={original.task_instance.dag_run_id} />
+              </RouterLink>
+            </Link>
+          ),
+          header: translate("common:dagRunId"),
         },
       ]),
   ...(Boolean(runId)
@@ -107,15 +131,34 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.task_display_name} />
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+                <TruncatedText text={original.task_instance.task_display_name} />
+              </RouterLink>
+            </Link>
           ),
-          enableSorting: false,
           header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.rendered_map_index ?? ""} />,
     header: translate("common:mapIndex"),
+  },
+  {
+    accessorKey: "task_instance_operator",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
+    header: translate("common:task.operator"),
+  },
+  {
+    accessorKey: "created_at",
+    cell: ({ row: { original } }) => <Time datetime={original.created_at} />,
+    header: translate("response.created"),
+  },
+  {
+    accessorKey: "responded_by_user_name",
+    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
+    header: translate("response.responded_by_user_name"),
   },
   {
     accessorKey: "responded_at",

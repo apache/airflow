@@ -21,20 +21,14 @@ import ast
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    try:
-        from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-    except ModuleNotFoundError:
-        from airflow.decorators.base import (
-            DecoratedOperator,
-            TaskDecorator,
-            task_decorator_factory,
-        )
+from airflow.providers.common.compat.sdk import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class _StubOperator(DecoratedOperator):

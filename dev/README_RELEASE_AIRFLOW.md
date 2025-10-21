@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Validating completeness of i18n locale files and announcing i18n freeze time](#validating-completeness-of-i18n-locale-files-and-announcing-i18n-freeze-time)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
@@ -63,6 +64,14 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
 
 # Selecting what to put into the release
 

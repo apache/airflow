@@ -68,6 +68,7 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
@@ -1187,6 +1188,11 @@ class TestStringifiedDAGs:
         assert isinstance(observed_param, SerializedParam)
         assert observed_param.description == param.description
         assert observed_param.schema == param.schema
+        assert observed_param.dump() == {
+            "value": None if param.value is NOTSET else param.value,
+            "schema": param.schema,
+            "description": param.description,
+        }
 
     @pytest.mark.parametrize(
         "val, expected_val",

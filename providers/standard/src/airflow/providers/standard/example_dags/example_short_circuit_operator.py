@@ -21,15 +21,10 @@ from __future__ import annotations
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import ShortCircuitOperator
 from airflow.sdk import DAG, chain
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 with DAG(
     dag_id="example_short_circuit_operator",

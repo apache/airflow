@@ -32,7 +32,7 @@ from airflow.sdk import DAG, Param, task
 from airflow.sdk.bases.notifier import BaseNotifier
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 # [START hitl_tutorial]
 

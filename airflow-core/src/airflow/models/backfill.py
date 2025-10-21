@@ -98,6 +98,17 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class UnknownActiveBackfills(AirflowException):
+    """
+    Raised when the quantity of active backfills cannot be determined.
+
+    :meta private:
+    """
+
+    def __init__(self, dag_id: str):
+        super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -472,6 +483,8 @@ def _create_backfill(
                 Backfill.completed_at.is_(None),
             )
         )
+        if num_active is None:
+            raise UnknownActiveBackfills(dag_id)
         if num_active > 0:
             raise AlreadyRunningBackfill(
                 f"Another backfill is running for dag {dag_id}. "
