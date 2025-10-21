@@ -21,6 +21,7 @@ import json
 import os
 import re
 import types
+from contextlib import nullcontext
 from unittest import mock
 from unittest.mock import patch
 
@@ -381,6 +382,112 @@ class TestGitDagBundle:
         mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.GitDagBundle._fetch_bare_repo")
+    def test_refresh_shallow_fetch_branch_only(self, mock_fetch_bare):
+        """Verify refresh does a shallow fetch for the branch only, not tags, and updates working repo."""
+        bundle = GitDagBundle(name="test", tracking_ref="main")
+
+        # Avoid real locking and hook env
+        bundle.lock = mock.MagicMock(return_value=nullcontext())
+        bundle.hook = None
+
+        # Mock working repo with origin and refs
+        origin = mock.MagicMock()
+        origin.refs = [types.SimpleNamespace(name="origin/main")]
+        repo_mock = mock.MagicMock()
+        repo_mock.remotes.origin = origin
+        bundle.repo = repo_mock
+
+        bundle.refresh()
+
+        # Bare repo: should be called once with heads refspec only, depth=1
+        assert mock_fetch_bare.call_count == 1
+        args, kwargs = mock_fetch_bare.call_args
+        assert kwargs["refspecs"] == [
+            "+refs/heads/main:refs/heads/main",
+        ]
+        assert kwargs["depth"] == 1
+
+        # Working repo: fetch should be called with heads refspec and depth=1
+        origin.fetch.assert_called_once_with(
+            [
+                "+refs/heads/main:refs/remotes/origin/main",
+            ],
+            depth=1,
+        )
+        # Head reset to remote branch
+        repo_mock.head.reset.assert_called_once()
+        reset_args, reset_kwargs = repo_mock.head.reset.call_args
+        assert reset_args[0] == "origin/main"
+        assert reset_kwargs == {"index": True, "working_tree": True}
+
+    @mock.patch("airflow.providers.git.bundles.git.GitDagBundle._fetch_bare_repo")
+    def test_refresh_shallow_fetch_tag_with_fallback(self, mock_fetch_bare):
+        """When branch fetch fails, refresh retries as tag and updates working repo accordingly."""
+        bundle = GitDagBundle(name="test", tracking_ref="v1.0")
+
+        # Avoid real locking and hook env
+        bundle.lock = mock.MagicMock(return_value=nullcontext())
+        bundle.hook = None
+
+        # Prepare working repo mock
+        origin = mock.MagicMock()
+        origin.refs = []  # no origin/v1.0 branch
+        repo_mock = mock.MagicMock()
+        repo_mock.remotes.origin = origin
+        bundle.repo = repo_mock
+
+        # First call raises (branch missing), second succeeds (tag)
+        mock_fetch_bare.side_effect = [GitCommandError("git", 128, "missing"), None]
+
+        bundle.refresh()
+
+        # Verify first tried heads, then tags; both with depth=1
+        assert mock_fetch_bare.call_count == 2
+        first_kwargs = mock_fetch_bare.call_args_list[0].kwargs
+        second_kwargs = mock_fetch_bare.call_args_list[1].kwargs
+        assert first_kwargs["refspecs"] == [
+            "+refs/heads/v1.0:refs/heads/v1.0",
+        ]
+        assert first_kwargs["depth"] == 1
+        assert second_kwargs["refspecs"] == [
+            "+refs/tags/v1.0:refs/tags/v1.0",
+        ]
+        assert second_kwargs["depth"] == 1
+
+        # Working repo fetched tag only with depth=1
+        origin.fetch.assert_called_once_with(
+            [
+                "+refs/tags/v1.0:refs/tags/v1.0",
+            ],
+            depth=1,
+        )
+        # Head reset with target = tracking_ref (no origin/v1.0 present)
+        repo_mock.head.reset.assert_called_once()
+        reset_args, reset_kwargs = repo_mock.head.reset.call_args
+        assert reset_args[0] == "v1.0"
+        assert reset_kwargs == {"index": True, "working_tree": True}
+
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_clone_sets_branch_on_working_repo(self, mock_repo):
+        """Working repo clone should pass branch=<tracking_ref>, single_branch=True, depth=1."""
+        bundle = GitDagBundle(name="test", tracking_ref="main")
+
+        with mock.patch("airflow.providers.git.bundles.git.os.path.exists", return_value=False):
+            bundle._clone_repo_if_required()
+
+        calls = mock_repo.clone_from.call_args_list
+        assert calls, "clone_from should be called"
+        found = False
+        for call in calls:
+            _, kwargs = call
+            if not kwargs.get("bare"):
+                assert kwargs.get("branch") == "main"
+                assert kwargs.get("single_branch") is True
+                assert kwargs.get("depth") == 1
+                found = True
+        assert found, "Expected a non-bare clone_from call with branch set"
 
     @pytest.mark.parametrize(
         "repo_url, extra_conn_kwargs, expected_url",

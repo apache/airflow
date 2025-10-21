@@ -139,6 +139,9 @@ class GitDagBundle(BaseDagBundle):
                 Repo.clone_from(
                     url=self.bare_repo_path,
                     to_path=self.repo_path,
+                    single_branch=True,
+                    depth=1,
+                    branch=self.tracking_ref,
                 )
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
@@ -221,13 +224,23 @@ class GitDagBundle(BaseDagBundle):
         except (BadName, ValueError):
             return False
 
-    def _fetch_bare_repo(self):
-        refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
-        cm = nullcontext()
-        if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
-            cm = self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
-        with cm:
-            self.bare_repo.remotes.origin.fetch(refspecs)
+    def _fetch_bare_repo(self, refspecs: list[str] | None = None, depth: int | None = None):
+        """
+        Fetch updates into the bare repository.
+
+        If ``refspecs`` is not provided, fetch all heads and tags.
+        When called with ``depth``, perform a shallow fetch.
+        """
+        refspecs = refspecs or ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
+        with (
+            self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+            if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND"))
+            else nullcontext()
+        ):
+            if depth is not None:
+                self.bare_repo.remotes.origin.fetch(refspecs, depth=depth)
+            else:
+                self.bare_repo.remotes.origin.fetch(refspecs)
             self.bare_repo.close()
 
     def refresh(self) -> None:
@@ -237,10 +250,34 @@ class GitDagBundle(BaseDagBundle):
         with self.lock():
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
-                self._fetch_bare_repo()
-                self.repo.remotes.origin.fetch(
-                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
-                )
+                # Shallow fetch only the tracking ref. Attempt branch first, then tag.
+                tracking_ref = self.tracking_ref
+
+                fetched_as_tag = False
+                try:
+                    # Try as branch
+                    bare_head_refspec = [
+                        f"+refs/heads/{tracking_ref}:refs/heads/{tracking_ref}",
+                    ]
+                    self._fetch_bare_repo(refspecs=bare_head_refspec, depth=1)
+                except GitCommandError:
+                    # If branch not found, try as tag
+                    bare_tag_refspec = [
+                        f"+refs/tags/{tracking_ref}:refs/tags/{tracking_ref}",
+                    ]
+                    self._fetch_bare_repo(refspecs=bare_tag_refspec, depth=1)
+                    fetched_as_tag = True
+
+                # Fetch the same ref into the working repo
+                if fetched_as_tag:
+                    working_refspecs = [
+                        f"+refs/tags/{tracking_ref}:refs/tags/{tracking_ref}",
+                    ]
+                else:
+                    working_refspecs = [
+                        f"+refs/heads/{tracking_ref}:refs/remotes/origin/{tracking_ref}",
+                    ]
+                self.repo.remotes.origin.fetch(working_refspecs, depth=1)
                 remote_branch = f"origin/{self.tracking_ref}"
                 if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
                     target = remote_branch
