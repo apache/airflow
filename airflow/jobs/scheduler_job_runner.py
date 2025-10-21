@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from deprecated import deprecated
-from sqlalchemy import and_, delete, desc, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, desc, func, inspect, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -1865,6 +1865,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 ti.task = task
                 if task.on_failure_callback:
+                    if inspect(ti).detached:
+                        ti = session.merge(ti)
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
