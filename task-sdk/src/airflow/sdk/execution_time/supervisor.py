@@ -83,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDagState,
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
@@ -1382,6 +1383,10 @@ class ActivitySubprocess(WatchedSubprocess):
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetDagState):
+            resp = self.client.dags.get_state(
+                dag_id=msg.dag_id,
+            )
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
