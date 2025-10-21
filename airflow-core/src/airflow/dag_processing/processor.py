@@ -549,7 +549,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             else:
                 resp = var
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            self.client.variables.set(msg.key, msg.value, msg.description, msg.team_id)
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetPreviousDagRun):

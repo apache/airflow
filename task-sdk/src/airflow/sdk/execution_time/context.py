@@ -270,7 +270,13 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     )
 
 
-def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
+def _set_variable(
+    key: str,
+    value: Any,
+    description: str | None = None,
+    serialize_json: bool = False,
+    team_id: str | None = None,
+) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
@@ -313,7 +319,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description, team_id=team_id))
 
     # Invalidate cache after setting the variable
     SecretCache.invalidate_variable(key)
