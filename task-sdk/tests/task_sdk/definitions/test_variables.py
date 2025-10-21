@@ -58,13 +58,14 @@ class TestVariables:
         assert var == expected_value
 
     @pytest.mark.parametrize(
-        "key, value, description, serialize_json",
+        "key, value, description, serialize_json, team_id",
         [
             pytest.param(
                 "key",
                 "value",
                 "description",
                 False,
+                None,
                 id="simple-value",
             ),
             pytest.param(
@@ -72,12 +73,23 @@ class TestVariables:
                 {"hi": "there", "hello": 42, "flag": True},
                 "description2",
                 True,
+                None,
                 id="serialize-json-value",
+            ),
+            pytest.param(
+                "key",
+                "value",
+                "description",
+                False,
+                "team-id-uuid",
+                id="simple-value",
             ),
         ],
     )
-    def test_var_set(self, key, value, description, serialize_json, mock_supervisor_comms):
-        Variable.set(key=key, value=value, description=description, serialize_json=serialize_json)
+    def test_var_set(self, key, value, description, serialize_json, team_id, mock_supervisor_comms):
+        Variable.set(
+            key=key, value=value, description=description, serialize_json=serialize_json, team_id=team_id
+        )
 
         expected_value = value
         if serialize_json:
@@ -85,7 +97,11 @@ class TestVariables:
 
         mock_supervisor_comms.send.assert_called_once_with(
             msg=PutVariable(
-                key=key, value=expected_value, description=description, serialize_json=serialize_json
+                key=key,
+                value=expected_value,
+                description=description,
+                serialize_json=serialize_json,
+                team_id=team_id,
             ),
         )
 

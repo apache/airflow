@@ -146,7 +146,7 @@ class Variable(Base, LoggingMixin):
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
@@ -186,6 +186,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
+        team_id: str | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -197,13 +198,14 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param team_id: ID of the team associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
@@ -219,6 +221,7 @@ class Variable(Base, LoggingMixin):
                 value=value,
                 description=description,
                 serialize_json=serialize_json,
+                team_id=team_id,
             )
             return
 
@@ -236,7 +239,7 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            new_variable = Variable(key=key, val=stored_value, description=description)
+            new_variable = Variable(key=key, val=stored_value, description=description, team_id=team_id)
 
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
@@ -255,6 +258,7 @@ class Variable(Base, LoggingMixin):
                 val=val,
                 description=description,
                 is_encrypted=is_encrypted,
+                team_id=team_id,
             )
 
             # Apply dialect-specific upsert
@@ -264,6 +268,7 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
+                    team_id=team_id,
                 )
             else:
                 # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
@@ -273,6 +278,7 @@ class Variable(Base, LoggingMixin):
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
+                        team_id=team_id,
                     ),
                 )
 

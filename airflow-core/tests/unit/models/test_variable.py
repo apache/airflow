@@ -197,6 +197,12 @@ class TestVariable:
         assert test_var.description == "a test variable"
         assert test_var.val == "value"
 
+    def test_set_variable_sets_team(self, testing_team, session):
+        Variable.set(key="key", value="value", team_id=testing_team.id, session=session)
+        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        assert test_var.team_id == testing_team.id
+        assert test_var.val == "value"
+
     def test_variable_set_existing_value_to_blank(self, session):
         test_value = "Some value"
         test_key = "test_key"
