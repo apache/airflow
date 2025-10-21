@@ -183,6 +183,11 @@ class KubernetesPodTrigger(BaseTrigger):
             )
             return
         except Exception as e:
+            self.log.exception(
+                "Unexpected error while waiting for pod %s in namespace %s",
+                self.pod_name,
+                self.pod_namespace,
+            )
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
