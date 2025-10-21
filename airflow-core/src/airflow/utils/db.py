@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import ClauseElement, TextClause
+    from sqlalchemy.sql.elements import ColumnElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
     from airflow.models.connection import Connection
@@ -1346,7 +1346,11 @@ def create_global_lock(
     lock_timeout: int = 1800,
 ) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
-    conn = session.get_bind().connect()
+    bind = session.get_bind()
+    if hasattr(bind, "connect"):
+        conn = bind.connect()
+    else:
+        conn = bind
     dialect = conn.dialect
     try:
         if dialect.name == "postgresql":
@@ -1361,7 +1365,9 @@ def create_global_lock(
             else:
                 conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
                 conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
@@ -1372,10 +1378,15 @@ def create_global_lock(
                 conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
             else:
                 conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            result = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            if result is None:
+                raise RuntimeError("Error releasing DB lock!")
+            (unlocked,) = result
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 
@@ -1460,7 +1471,8 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     :meta private:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    result = session.scalar(count_stmt)
+    return result or 0
 
 
 async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
@@ -1475,7 +1487,8 @@ async def get_query_count_async(statement: Select, *, session: AsyncSession) -> 
     :meta private:
     """
     count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
-    return await session.scalar(count_stmt)
+    result = await session.scalar(count_stmt)
+    return result or 0
 
 
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
@@ -1493,7 +1506,7 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     return bool(session.scalar(count_stmt))
 
 
-def exists_query(*where: ClauseElement, session: Session) -> bool:
+def exists_query(*where: ColumnElement[bool], session: Session) -> bool:
     """
     Check whether there is at least one row matching given clauses.
 
@@ -1527,8 +1540,8 @@ class LazySelectSequence(Sequence[T]):
     :meta private:
     """
 
-    _select_asc: ClauseElement
-    _select_desc: ClauseElement
+    _select_asc: Select
+    _select_desc: Select
     _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
     _len: int | None = attrs.field(init=False, default=None)
 
@@ -1537,7 +1550,7 @@ class LazySelectSequence(Sequence[T]):
         cls,
         select: Select,
         *,
-        order_by: Sequence[ClauseElement],
+        order_by: Sequence[ColumnElement],
         session: Session | None = None,
     ) -> Self:
         s1 = select
