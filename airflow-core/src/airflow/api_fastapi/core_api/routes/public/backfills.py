@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
@@ -215,7 +215,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
-    b.completed_at = cast("UtcDateTime", timezone.utcnow())
+    b.completed_at = timezone.utcnow()
     return b
 
 
