@@ -20,6 +20,9 @@ import warnings
 from collections.abc import Sequence
 from typing import Any
 
+from asgiref.sync import sync_to_async
+
+from airflow.providers.slack.version_compat import BaseHook, Connection
 from airflow.utils.types import NOTSET
 
 
@@ -120,3 +123,15 @@ def parse_filename(
         if fallback:
             return fallback, None
         raise ex from None
+
+
+async def get_async_connection(conn_id: str) -> Connection:
+    """
+    Get an asynchronous Airflow connection that is backwards compatible.
+
+    :param conn_id: The provided connection ID.
+    :returns: Connection
+    """
+    if hasattr(BaseHook, "aget_connection"):
+        return await BaseHook.aget_connection(conn_id=conn_id)
+    return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)

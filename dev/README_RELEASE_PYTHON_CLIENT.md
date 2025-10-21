@@ -21,7 +21,8 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [Release Process](#release-process)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
+- [Release package](#release-package)
   - [Prepare PyPI convenience "RC" packages](#prepare-pypi-convenience-rc-packages)
   - [Prepare Vote email on the Airflow Client release candidate](#prepare-vote-email-on-the-airflow-client-release-candidate)
 - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
@@ -41,7 +42,15 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Release Process
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
+
+# Release package
 
 The client versioning is independent of the Airflow versioning.
 
