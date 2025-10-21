@@ -31,15 +31,10 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment, Exe
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerDAGRunTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -121,15 +116,22 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
             )
 
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
+        logical_date = context.get("logical_date", None)
+        if logical_date is None:
+            raise RuntimeError(
+                "logical_date is None. Please make sure the sensor is not used in an asset-triggered Dag. "
+                "CloudComposerDAGRunSensor was designed to be used in time-based scheduled Dags only, "
+                "and asset-triggered Dags do not have logical_date. "
+            )
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
-                return context["logical_date"], context["logical_date"] - self.execution_range
-            return context["logical_date"] - self.execution_range, context["logical_date"]
+                return logical_date, logical_date - self.execution_range
+            return logical_date - self.execution_range, logical_date
         if isinstance(self.execution_range, list) and len(self.execution_range) > 0:
             return self.execution_range[0], self.execution_range[1] if len(
                 self.execution_range
-            ) > 1 else context["logical_date"]
-        return context["logical_date"] - timedelta(1), context["logical_date"]
+            ) > 1 else logical_date
+        return logical_date - timedelta(1), logical_date
 
     def poke(self, context: Context) -> bool:
         start_date, end_date = self._get_logical_dates(context)
