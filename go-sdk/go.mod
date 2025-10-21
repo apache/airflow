@@ -1,17 +1,19 @@
 module github.com/apache/airflow/go-sdk
 
-go 1.24
+go 1.24.0
+
+toolchain go1.24.6
 
 require (
 	github.com/cappuccinotm/slogx v1.4.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.7.0
-	github.com/ivanpirog/coloredcobra v1.0.1
+	github.com/ivanpirog/coloredcobra v1.0.2-0.20250501221745-46194c320708
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/spf13/cast v1.10.0
-	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/cobra v1.10.1
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.67.3
@@ -53,10 +55,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/samber/slog-http v1.8.2
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// https://github.com/ivanpirog/coloredcobra/pull/7
-replace github.com/ivanpirog/coloredcobra => github.com/gabe565/coloredcobra v0.0.0-20240807081640-cadd85f208af
