@@ -179,7 +179,7 @@ class CreateFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Creating the Feature Online Store...")
+        self.log.info("Creating the Feature Online Store id: %s", self.feature_online_store_id)
         result_operation = hook.create_feature_online_store(
             project_id=self.project_id,
             location=self.location,
