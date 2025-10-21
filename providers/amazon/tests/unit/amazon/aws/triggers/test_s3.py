@@ -147,31 +147,30 @@ class TestS3KeyTrigger:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
-    async def test_run_with_all_metadata(self, mock_get_async_conn, mock_get_head_object_async, mock_get_files_async):
+    async def test_run_with_all_metadata(self, mock_get_async_conn, mock_check_key_async, mock_get_head_object_async, mock_get_files_async):
         """
         Test if the task retrieves all metadata when metadata_keys contains '*'.
         """
-        mock_get_files_async.return_value = ["file1.txt"]        
+        mock_check_key_async.return_value = True
+        mock_get_files_async.return_value = ["file1.txt"]
         async def fake_get_head_object_async(*args, **kwargs):
             return {
                 "ContentLength": 1024,
                 "LastModified": "2023-10-01T12:00:00Z",
                 "ETag": "abc123",
             }
-        mock_get_head_object_async.side_effect = fake_get_head_object_async        
-        mock_get_async_conn.return_value.return_value.check_key.return_value = True
+        mock_get_head_object_async.side_effect = fake_get_head_object_async
+        mock_get_async_conn.return_value.__aenter__.return_value = async_mock.AsyncMock()
         trigger = S3KeyTrigger(
             bucket_key="test_bucket/file",
             bucket_name="test_bucket",
             should_check_fn=True,
             metadata_keys=["*"],
+            poke_interval=0.1,
         )
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-
-        assert task.done() is True
-        result = await task
+        result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)
         expected = TriggerEvent({
             "status": "running",
             "files": [{
