@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
@@ -244,7 +244,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=list(session.scalars(asset_aliases_select)),
+        asset_aliases=session.scalars(asset_aliases_select),
         total_entries=total_entries,
     )
 
@@ -428,7 +428,7 @@ def get_asset_queued_events(
     query = select(AssetDagRunQueue).where(*where_clause).options(joinedload(AssetDagRunQueue.dag_model))
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
-    adrqs = list(session.scalars(dag_asset_queued_events_select))
+    adrqs = session.scalars(dag_asset_queued_events_select).all()
 
     if not adrqs:
         raise HTTPException(
@@ -535,7 +535,7 @@ def get_dag_asset_queued_events(
     query = select(AssetDagRunQueue).where(*where_clause).options(joinedload(AssetDagRunQueue.dag_model))
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
-    adrqs = list(session.scalars(dag_asset_queued_events_select))
+    adrqs = session.scalars(dag_asset_queued_events_select).all()
     if not adrqs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
@@ -580,7 +580,7 @@ def get_dag_asset_queued_event(
         )
 
     return QueuedEventResponse(
-        created_at=cast("datetime", adrq.created_at),
+        created_at=adrq.created_at,
         dag_id=adrq.target_dag_id,
         asset_id=asset_id,
         dag_display_name=adrq.dag_model.dag_display_name,
