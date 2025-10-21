@@ -255,6 +255,7 @@ class TestDagRunOperator:
                 ),
             )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
         with pytest.raises(
             FeatureNotAvailable, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0"
