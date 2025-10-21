@@ -93,7 +93,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Load, Query, Session
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -108,6 +108,31 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+
+def _eager_load_dag_run_for_validation() -> tuple[Load, Load]:
+    """
+    Eager-load DagRun relations required for execution API datamodel validation.
+
+    When building TaskCallbackRequest with DRDataModel.model_validate(ti.dag_run),
+    the consumed_asset_events collection and nested asset/source_aliases must be
+    preloaded to avoid DetachedInstanceError after the session closes.
+
+    Returns a tuple of two load options:
+        - Asset loader: TI.dag_run → consumed_asset_events → asset
+        - Alias loader: TI.dag_run → consumed_asset_events → source_aliases
+
+    Example usage::
+
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        query = select(TI).options(asset_loader).options(alias_loader)
+    """
+    # Traverse TI → dag_run → consumed_asset_events once, then branch to asset/aliases
+    base = selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
+    return (
+        base.selectinload(AssetEvent.asset),
+        base.selectinload(AssetEvent.source_aliases),
+    )
 
 
 def _get_current_dag(dag_id: str, session: Session) -> SerializedDAG | None:
@@ -806,11 +831,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
             .where(filter_for_tis)
             .options(selectinload(TI.dag_model))
-            .options(joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(asset_loader)
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
@@ -2375,10 +2401,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _find_task_instances_without_heartbeats(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         task_instances_without_heartbeats = session.scalars(
             select(TI)
             .options(selectinload(TI.dag_model))
-            .options(selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events))
+            .options(asset_loader)
+            .options(alias_loader)
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
