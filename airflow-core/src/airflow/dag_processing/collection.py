@@ -28,7 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
@@ -70,7 +70,6 @@ if TYPE_CHECKING:
 
     from airflow.models.dagwarning import DagWarning
     from airflow.typing_compat import Self
-    from airflow.utils.sqlalchemy import UtcDateTime
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
@@ -483,7 +482,7 @@ class DagModelOperation(NamedTuple):
             dm.owners = dag.owner or conf.get("operators", "default_owner")
             dm.is_stale = False
             dm.has_import_errors = False
-            dm.last_parsed_time = cast("UtcDateTime", utcnow())
+            dm.last_parsed_time = utcnow()
             dm.last_parse_duration = parse_duration
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
@@ -648,7 +647,7 @@ def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Ass
 
 
 def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
-    return set(
+    return {
         tuple(row)
         for row in session.execute(
             select(AssetModel.name, AssetModel.uri).where(
@@ -658,8 +657,8 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
                     DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
                 ),
             )
-        ).all()
-    )
+        )
+    }
 
 
 class AssetModelOperation(NamedTuple):
@@ -843,14 +842,14 @@ class AssetModelOperation(NamedTuple):
     ) -> None:
         if not references:
             return
-        orm_refs = set(
+        orm_refs = {
             tuple(row)
             for row in session.execute(
                 select(model.dag_id, getattr(model, attr)).where(
                     model.dag_id.in_(dag_id for dag_id, _ in references)
                 )
-            ).all()
-        )
+            )
+        }
         new_refs = references - orm_refs
         old_refs = orm_refs - references
         if old_refs:

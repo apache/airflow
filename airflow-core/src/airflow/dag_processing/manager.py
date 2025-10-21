@@ -81,7 +81,6 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
-    from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagParsingStat(NamedTuple):
@@ -522,7 +521,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.warning("Bundle model not found for %s", bundle.name)
                     continue
                 elapsed_time_since_refresh = (
-                    now - cast("datetime", bundle_model.last_refreshed or utc_epoch())
+                    now - (bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()
                 if bundle.supports_versioning:
                     # we will also check the version of the bundle to see if another DAG processor has seen
@@ -553,7 +552,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.exception("Error refreshing bundle %s", bundle.name)
                     continue
 
-                bundle_model.last_refreshed = cast("UtcDateTime", now)
+                bundle_model.last_refreshed = now
                 self._force_refresh_bundles.discard(bundle.name)
 
                 if bundle.supports_versioning:

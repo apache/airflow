@@ -30,7 +30,7 @@ import warnings
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple
 
 from tabulate import tabulate
 
@@ -262,7 +262,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session | None = None):
+    def get_dag(self, dag_id, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -278,10 +278,7 @@ class DagBag(LoggingMixin):
             return dag
 
         is_expired = (
-            orm_dag.last_expired
-            and dag
-            and dag.last_loaded
-            and dag.last_loaded < cast("datetime", orm_dag.last_expired)
+            orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
         if is_expired:
             # Remove associated dags so we can re-add them.
