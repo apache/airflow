@@ -101,7 +101,7 @@ class TestLocalTaskJobForkSafety:
     remain valid after child process cleanup.
     """
 
-    @pytest.mark.backend("mysql")
+    @pytest.mark.backend("mysql", "postgres")
     def test_dispose_breaks_parent_connection(self):
         """
         Test that dispose(close=False) in child process breaks parent connection.
@@ -110,25 +110,38 @@ class TestLocalTaskJobForkSafety:
         engine.dispose(close=False), it invalidates the parent's connection
         pool, causing the parent to lose its database (only MYSQL) connection.
 
-        Expected result: Parent connection fails with OperationalError
+        Expected result:
+        - Parent connection fails with OperationalError in MYSQL backend
+        - Don't modify the parent process's database connections in Postgres backend
         """
         engine1 = create_test_engine()
         register_connection_finalizers(engine1)
+
+        query = get_connection_id_query(engine1.dialect.name)
 
         if register_at_fork := getattr(os, "register_at_fork", None):
             register_at_fork(after_in_child=lambda: engine1.dispose(close=False))
 
         # Establish connection before fork
         with engine1.connect() as conn:
-            conn.execute(text("SELECT CONNECTION_ID()")).scalar()
+            before_cid = conn.execute(text(query)).scalar()
+            before_engine_id = id(engine1)
 
         with fork_process():
             pass
 
-        # Verify parent connection is broken
-        with engine1.connect() as conn:
-            with pytest.raises(OperationalError, match="Lost connection to server during query"):
-                conn.execute(text("SELECT 1"))
+        if engine1.dialect.name == "mysql":
+            # Verify parent connection is broken
+            with engine1.connect() as conn:
+                with pytest.raises(OperationalError, match="Lost connection to server during query"):
+                    conn.execute(text("SELECT 1"))
+        else:
+            with engine1.connect() as conn:
+                after_cid = conn.execute(text(query)).scalar()
+                after_engine_id = id(engine1)
+
+            assert before_cid == after_cid
+            assert before_engine_id == after_engine_id
 
     @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.asyncio

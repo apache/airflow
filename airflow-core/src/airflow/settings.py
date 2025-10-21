@@ -433,7 +433,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         def clean_in_fork():
             _globals = globals()
             if engine := _globals.get("engine"):
-                if engine.dialect.name == "mysql":
+                if "mysql" in engine.dialect.name:
                     _configure_session()
                 else:
                     engine.dispose(close=False)
