@@ -178,7 +178,7 @@ This page allows you to view installed plugins, enable or disable them, and trou
 External Views
 --------------
 
-External views can also be embedded directly into the Airflow UI using iframes by providing a `url_route` value.
+External views can also be embedded directly into the Airflow UI using iframes by providing a ``url_route`` value.
 This allows you to render the view inline instead of opening it in a new browser tab.
 
 .. _plugin-example:
