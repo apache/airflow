@@ -23,6 +23,64 @@ then fall back to Airflow 2 paths, enabling code to work across both versions.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import airflow.sdk.io as io  # noqa: F401
+    import airflow.sdk.timezone as timezone  # noqa: F401
+    from airflow.models.xcom import XCOM_RETURN_KEY as XCOM_RETURN_KEY
+    from airflow.sdk import (
+        DAG as DAG,
+        Asset as Asset,
+        AssetAlias as AssetAlias,
+        AssetAll as AssetAll,
+        AssetAny as AssetAny,
+        BaseHook as BaseHook,
+        BaseNotifier as BaseNotifier,
+        BaseOperator as BaseOperator,
+        BaseOperatorLink as BaseOperatorLink,
+        BaseSensorOperator as BaseSensorOperator,
+        Connection as Connection,
+        Context as Context,
+        DagRunState as DagRunState,
+        EdgeModifier as EdgeModifier,
+        Label as Label,
+        Metadata as Metadata,
+        ObjectStoragePath as ObjectStoragePath,
+        Param as Param,
+        PokeReturnValue as PokeReturnValue,
+        TaskGroup as TaskGroup,
+        TaskInstanceState as TaskInstanceState,
+        TriggerRule as TriggerRule,
+        Variable as Variable,
+        WeightRule as WeightRule,
+        XComArg as XComArg,
+        chain as chain,
+        chain_linear as chain_linear,
+        cross_downstream as cross_downstream,
+        dag as dag,
+        get_current_context as get_current_context,
+        get_parsing_context as get_parsing_context,
+        setup as setup,
+        task as task,
+        task_group as task_group,
+        teardown as teardown,
+    )
+    from airflow.sdk.bases.decorator import (
+        DecoratedMappedOperator as DecoratedMappedOperator,
+        DecoratedOperator as DecoratedOperator,
+        TaskDecorator as TaskDecorator,
+        get_unique_task_id as get_unique_task_id,
+        task_decorator_factory as task_decorator_factory,
+    )
+    from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.definitions.context import context_merge as context_merge
+    from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
+    from airflow.sdk.definitions.template import literal as literal
+    from airflow.sdk.execution_time.context import context_to_airflow_vars as context_to_airflow_vars
+    from airflow.sdk.execution_time.timeout import timeout as timeout
+    from airflow.sdk.execution_time.xcom import XCom as XCom
+
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 
 # Rename map for classes that changed names between Airflow 2.x and 3.x
@@ -63,6 +121,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "setup": ("airflow.sdk", "airflow.decorators"),
     "teardown": ("airflow.sdk", "airflow.decorators"),
     "TaskDecorator": ("airflow.sdk.bases.decorator", "airflow.decorators"),
+    "task_decorator_factory": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
+    "get_unique_task_id": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     # ============================================================================
     # Models
     # ============================================================================
@@ -74,6 +134,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "XComArg": ("airflow.sdk", "airflow.models.xcom_arg"),
     "DecoratedOperator": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
     "DecoratedMappedOperator": ("airflow.sdk.bases.decorator", "airflow.decorators.base"),
+    "MappedOperator": ("airflow.sdk.definitions.mappedoperator", "airflow.models.mappedoperator"),
     # ============================================================================
     # Assets (Dataset → Asset rename in Airflow 3.0)
     # ============================================================================
@@ -119,6 +180,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Context & Utilities
     # ============================================================================
     "Context": ("airflow.sdk", "airflow.utils.context"),
+    "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
+    "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
     "get_current_context": ("airflow.sdk", "airflow.operators.python"),
     "get_parsing_context": ("airflow.sdk", "airflow.utils.dag_parsing_context"),
     # ============================================================================
