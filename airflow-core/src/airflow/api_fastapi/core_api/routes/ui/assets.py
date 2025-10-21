@@ -74,9 +74,13 @@ def next_run_assets(
                 and_(
                     AssetEvent.asset_id == AssetModel.id,
                     (
-                        AssetEvent.timestamp >= latest_run.logical_date
-                        if latest_run and latest_run.logical_date
-                        else True
+                        case(
+                            (
+                                latest_run and latest_run.logical_date,
+                                AssetEvent.timestamp >= latest_run.logical_date,
+                            ),
+                            else_=True,
+                        )
                     ),
                 ),
                 isouter=True,
