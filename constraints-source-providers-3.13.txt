@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-21T02:20:37.831387
+# This constraints file was automatically generated on 2025-10-21T19:44:34.295747
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -160,7 +160,7 @@ db-dtypes==1.4.3
 debugpy==1.8.17
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.2.0
+deltalake==1.2.1
 deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
@@ -266,7 +266,7 @@ grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.71.2
-grpcio==1.75.1
+grpcio==1.76.0
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
@@ -518,7 +518,7 @@ readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2025.10.22
+regex==2025.10.23
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -587,7 +587,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.17.0
+sqlalchemy-spanner==1.17.1
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0

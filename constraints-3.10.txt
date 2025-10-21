@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-21T02:24:37.291795
+# This constraints file was automatically generated on 2025-10-21T19:47:58.904425
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -589,7 +589,7 @@ reactivex==4.0.4
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.37.0
-regex==2025.10.22
+regex==2025.10.23
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -620,7 +620,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.37.0
-smart_open==7.4.0
+smart_open==7.4.1
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
@@ -631,7 +631,7 @@ sortedcontainers==2.4.0
 soupsieve==2.8
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.17.0
+sqlalchemy-spanner==1.17.1
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
@@ -674,7 +674,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.9.4
+uv==0.9.5
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
