@@ -533,6 +533,13 @@ class DAG:
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
+        if (
+            active_runs_limit := self.timetable.active_runs_limit
+        ) is not None and active_runs_limit < self.max_active_runs:
+            raise ValueError(
+                f"Invalid max_active_runs: {type(self.timetable)} "
+                f"requires max_active_runs <= {active_runs_limit}"
+            )
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
