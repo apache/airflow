@@ -65,6 +65,7 @@ PLURAL_SUFFIXES = {
     "nl": MOST_COMMON_PLURAL_SUFFIXES,
     "pl": ["_one", "_few", "_many", "_other"],
     "pt": ["_zero", "_one", "_many", "_other"],
+    "th": ["_other"],
     "tr": MOST_COMMON_PLURAL_SUFFIXES,
     "zh-CN": ["_other"],
     "zh-TW": ["_other"],
