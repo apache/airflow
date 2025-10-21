@@ -57,7 +57,6 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
 )
-from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
