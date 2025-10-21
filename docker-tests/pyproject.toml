@@ -37,7 +37,6 @@ version = "0.0.1"
 
 dependencies = [
     "apache-airflow-devel-common",
-    "python-on-whales>=0.70.0",
 ]
 
 [tool.pytest.ini_options]

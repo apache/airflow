@@ -119,3 +119,8 @@ updates:
       core-ui-package-updates:
         patterns:
           - "*"
+
+  - package-ecosystem: "uv"
+    directory: "/dev/breeze"
+    schedule:
+      interval: "weekly"
