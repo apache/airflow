@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
@@ -96,7 +96,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
             state = invocation["Status"]
 
             if state in self.FAILURE_STATES:
-                raise AirflowException(self.FAILURE_MESSAGE)
+                raise RuntimeError(self.FAILURE_MESSAGE)
 
             if state in self.INTERMEDIATE_STATES:
                 return False
@@ -122,6 +122,6 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error while running run command: {event}")
+            raise RuntimeError(f"Error while running run command: {event}")
 
         self.log.info("SSM run command `%s` completed.", event["command_id"])

@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
@@ -90,7 +90,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error while running run command: {event}")
+            raise RuntimeError(f"Error while running run command: {event}")
 
         self.log.info("SSM run command `%s` completed.", event["command_id"])
         return event["command_id"]
