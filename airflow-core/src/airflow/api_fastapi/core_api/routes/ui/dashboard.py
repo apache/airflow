@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.sql.expression import case, false
@@ -55,7 +57,7 @@ def historical_metrics(
 ) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
     current_time = timezone.utcnow()
-    permitted_dag_ids = readable_dags_filter.value
+    permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
     # DagRuns
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
@@ -63,7 +65,7 @@ def historical_metrics(
             func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
-        .where(DagRun.dag_id.in_(permitted_dag_ids or []))
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(DagRun.run_type)
     ).all()
 
@@ -73,7 +75,7 @@ def historical_metrics(
             func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
-        .where(DagRun.dag_id.in_(permitted_dag_ids or []))
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(DagRun.state)
     ).all()
 
@@ -85,7 +87,7 @@ def historical_metrics(
             func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
-        .where(DagRun.dag_id.in_(permitted_dag_ids or []))
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(TaskInstance.state)
     ).all()
 
@@ -118,11 +120,11 @@ def dag_stats(
     readable_dags_filter: ReadableDagsFilterDep,
 ) -> DashboardDagStatsResponse:
     """Return basic DAG stats with counts of DAGs in various states."""
-    permitted_dag_ids = readable_dags_filter.value
+    permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
     latest_dates_subq = (
         select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
         .where(DagRun.logical_date.is_not(None))
-        .where(DagRun.dag_id.in_(permitted_dag_ids or []))
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .group_by(DagRun.dag_id)
         .subquery()
     )
@@ -133,7 +135,7 @@ def dag_stats(
         .select_from(DagModel)
         .where(DagModel.is_stale == false())
         .where(DagModel.is_paused == false())
-        .where(DagModel.dag_id.in_(permitted_dag_ids or []))
+        .where(DagModel.dag_id.in_(permitted_dag_ids))
     )
     active_count = session.execute(active_count_query).scalar_one()
 
@@ -151,7 +153,7 @@ def dag_stats(
             & (DagRun.logical_date == latest_dates_subq.c.max_logical_date),
         )
         .where(DagModel.is_stale == false())
-        .where(DagRun.dag_id.in_(permitted_dag_ids or []))
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
         .cte()
     )
     combined_runs_query = select(
