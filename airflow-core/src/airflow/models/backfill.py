@@ -117,8 +117,8 @@ class Backfill(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    from_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
-    to_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    from_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    to_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     dag_run_conf: Mapped[JSONField] = mapped_column(JSONField(json=json), nullable=False, default={})
     is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
@@ -130,9 +130,9 @@ class Backfill(Base):
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    completed_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
     triggering_user_name: Mapped[str | None] = mapped_column(
@@ -173,7 +173,7 @@ class BackfillDagRun(Base):
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")

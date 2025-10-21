@@ -17,35 +17,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-if TYPE_CHECKING:
-    from airflow.providers.standard.operators.python import (
-        _SERIALIZERS,
-        PythonOperator,
-        ShortCircuitOperator,
-        get_current_context,
-    )
-else:
-    try:
-        from airflow.providers.standard.operators.python import (
-            _SERIALIZERS,
-            PythonOperator,
-            ShortCircuitOperator,
-            get_current_context,
-        )
-    except ModuleNotFoundError:
-        from airflow.operators.python import (
-            _SERIALIZERS,
-            PythonOperator,
-            ShortCircuitOperator,
-        )
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "BaseOperator": "airflow.providers.common.compat.sdk",
+    "get_current_context": "airflow.providers.common.compat.sdk",
+    # Standard provider items with direct fallbacks
+    "PythonOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "ShortCircuitOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "_SERIALIZERS": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+}
 
-    try:
-        from airflow.sdk import get_current_context
-    except (ImportError, ModuleNotFoundError):
-        from airflow.providers.standard.operators.python import get_current_context
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
 
-from airflow.providers.common.compat.version_compat import BaseOperator
-
-__all__ = ["BaseOperator", "PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
+__all__ = sorted(_IMPORT_MAP.keys())

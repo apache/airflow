@@ -340,7 +340,12 @@ def _convert_git_changes_to_table(
     header = ""
     if not table_data:
         return header, []
-    table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
+    table = tabulate(
+        table_data,
+        headers=headers,
+        tablefmt="pipe" if markdown else "rst",
+        colalign=("left", "center", "left"),
+    )
     if not markdown:
         header += f"\n\n{version}\n" + "." * len(version) + "\n\n"
         release_date = table_data[0][1]
