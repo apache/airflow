@@ -110,10 +110,12 @@ class DagContext(ContextStack[DAG]):
 
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
+    _latest_popped_dag: DAG | None = None
 
     @classmethod
     def pop(cls) -> DAG | None:
         dag = super().pop()
+        cls._latest_popped_dag = dag
         # In a few cases around serialization we explicitly push None in to the stack
         if cls.current_autoregister_module_name is not None and dag and getattr(dag, "auto_register", True):
             mod = sys.modules[cls.current_autoregister_module_name]
@@ -123,6 +125,14 @@ class DagContext(ContextStack[DAG]):
     @classmethod
     def get_current_dag(cls) -> DAG | None:
         return cls.get_current()
+
+    @classmethod
+    def get_latest_popped(cls) -> DAG | None:
+        return cls._latest_popped_dag
+
+    @classmethod
+    def clear_latest_popped(cls) -> None:
+        cls._latest_popped_dag = None
 
 
 class TaskGroupContext(ContextStack[TaskGroup]):
