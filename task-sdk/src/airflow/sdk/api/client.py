@@ -829,6 +829,7 @@ API_RETRIES = conf.getint("workers", "execution_api_retries")
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
+API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 
 
 class Client(httpx.Client):
@@ -848,6 +849,10 @@ class Client(httpx.Client):
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
             kwargs["verify"] = ctx
+
+        # Set timeout if not explicitly provided
+        kwargs.setdefault("timeout", API_TIMEOUT)
+
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,

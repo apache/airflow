@@ -294,7 +294,7 @@ def get_grid_runs(
         filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
-    return session.execute(dag_runs_select_filter)
+    return [GridRunsResponse(**row._mapping) for row in session.execute(dag_runs_select_filter)]
 
 
 @grid_router.get(

@@ -148,7 +148,7 @@ class RedshiftSQLHook(DbApiHook):
             login = cluster_creds["DbUser"]
         return login, token, port
 
-    def get_uri(self) -> str:
+    def get_uri(self) -> URL:
         """Overridden to use the Redshift dialect as driver name."""
         conn_params = self._get_conn_params()
 
@@ -162,15 +162,13 @@ class RedshiftSQLHook(DbApiHook):
         port = conn_params.get("port")
         database = conn_params.get("database")
 
-        return str(
-            URL.create(
-                drivername="postgresql",
-                username=str(username) if username is not None else None,
-                password=str(password) if password is not None else None,
-                host=str(host) if host is not None else None,
-                port=int(port) if port is not None else None,
-                database=str(database) if database is not None else None,
-            )
+        return URL.create(
+            drivername="postgresql",
+            username=str(username) if username is not None else None,
+            password=str(password) if password is not None else None,
+            host=str(host) if host is not None else None,
+            port=int(port) if port is not None else None,
+            database=str(database) if database is not None else None,
         )
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
