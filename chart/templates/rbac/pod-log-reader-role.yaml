@@ -20,7 +20,7 @@
 ################################
 ## Airflow Pod Reader Role
 #################################
-{{- if and .Values.rbac.create (or .Values.webserver.allowPodLogReading .Values.triggerer.enabled) }}
+{{- if and .Values.rbac.create .Values.webserver.allowPodLogReading }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRole
