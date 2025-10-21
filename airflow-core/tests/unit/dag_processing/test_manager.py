@@ -1192,6 +1192,7 @@ class TestDagFileProcessorManager:
 
         assert recorded == [("executor.running_dags", 2)]
 
+    @conf_vars({("core", "multi_team"): "true"})
     def test_bundles_with_team(self, session):
         team1_name = "test_team1"
         team2_name = "test_team2"
