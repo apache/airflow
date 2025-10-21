@@ -39,6 +39,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
+from airflow.utils.sqlalchemy import get_dialect_name
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -92,7 +93,7 @@ class CalendarService:
         granularity: Literal["hourly", "daily"],
     ) -> tuple[list[CalendarTimeRangeResponse], Sequence[Row]]:
         """Get historical DAG runs from the database."""
-        dialect = session.bind.dialect.name
+        dialect = get_dialect_name(session)
 
         time_expression = self._get_time_truncation_expression(DagRun.logical_date, granularity, dialect)
 

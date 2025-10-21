@@ -21,7 +21,6 @@ import datetime
 import pickle
 from copy import deepcopy
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
@@ -37,6 +36,7 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ensure_pod_is_valid_after_unpickling,
+    get_dialect_name,
     is_sqlalchemy_v1,
     prohibit_commit,
     with_row_locks,
@@ -59,15 +59,11 @@ class TestGetDialectName:
         mock_bind.dialect.name = "postgresql"
         mock_session.get_bind.return_value = mock_bind
 
-        from airflow.utils.sqlalchemy import get_dialect_name
-
         assert get_dialect_name(mock_session) == "postgresql"
 
     def test_raises_when_no_bind(self, mocker):
         mock_session = mocker.Mock()
         mock_session.get_bind.return_value = None
-
-        from airflow.utils.sqlalchemy import get_dialect_name
 
         with pytest.raises(ValueError, match="No bind/engine is associated"):
             get_dialect_name(mock_session)
@@ -80,8 +76,6 @@ class TestGetDialectName:
         delattr(mock_bind.dialect, "name") if hasattr(mock_bind.dialect, "name") else None
         mock_session.get_bind.return_value = mock_bind
 
-        from airflow.utils.sqlalchemy import get_dialect_name
-
         assert get_dialect_name(mock_session) is None
 
 
@@ -91,7 +85,7 @@ class TestSqlAlchemyUtils:
 
         # make sure NOT to run in UTC. Only postgres supports storing
         # timezone information in the datetime field
-        if session.bind.dialect.name == "postgresql":
+        if get_dialect_name(session) == "postgresql":
             session.execute(text("SET timezone='Europe/Amsterdam'"))
 
         self.session = session
@@ -157,7 +151,7 @@ class TestSqlAlchemyUtils:
         dag.clear()
 
     @pytest.mark.parametrize(
-        "dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock",
+        ("dialect", "supports_for_update_of", "use_row_level_lock_conf", "expected_use_row_level_lock"),
         [
             ("postgresql", True, True, True),
             ("postgresql", True, False, False),
@@ -225,7 +219,7 @@ class TestSqlAlchemyUtils:
 
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
-        "input, expected",
+        ("input", "expected"),
         [
             ("anything", "anything"),
             (
@@ -239,13 +233,13 @@ class TestExecutorConfigType:
             ),
         ],
     )
-    def test_bind_processor(self, input, expected):
+    def test_bind_processor(self, input, expected, mocker):
         """
         The returned bind processor should pickle the object as is, unless it is a dictionary with
         a pod_override node, in which case it should run it through BaseSerialization.
         """
         config_type = ExecutorConfigType()
-        mock_dialect = MagicMock()
+        mock_dialect = mocker.MagicMock()
         mock_dialect.dbapi = None
         process = config_type.bind_processor(mock_dialect)
         assert pickle.loads(process(input)) == expected
@@ -272,13 +266,13 @@ class TestExecutorConfigType:
             ),
         ],
     )
-    def test_result_processor(self, input):
+    def test_result_processor(self, input, mocker):
         """
         The returned bind processor should pickle the object as is, unless it is a dictionary with
         a pod_override node whose value was serialized with BaseSerialization.
         """
         config_type = ExecutorConfigType()
-        mock_dialect = MagicMock()
+        mock_dialect = mocker.MagicMock()
         mock_dialect.dbapi = None
         process = config_type.result_processor(mock_dialect, None)
         result = process(input)
@@ -310,7 +304,7 @@ class TestExecutorConfigType:
         assert instance.compare_values(a, a) is False
         assert instance.compare_values("a", "a") is True
 
-    def test_result_processor_bad_pickled_obj(self):
+    def test_result_processor_bad_pickled_obj(self, mocker):
         """
         If unpickled obj is missing attrs that curr lib expects
         """
@@ -342,7 +336,7 @@ class TestExecutorConfigType:
 
         # get the result processor method
         config_type = ExecutorConfigType()
-        mock_dialect = MagicMock()
+        mock_dialect = mocker.MagicMock()
         mock_dialect.dbapi = None
         process = config_type.result_processor(mock_dialect, None)
 
@@ -355,13 +349,13 @@ class TestExecutorConfigType:
 
 
 @pytest.mark.parametrize(
-    "mock_version, expected_result",
+    ("mock_version", "expected_result"),
     [
         ("1.0.0", True),  # Test 1: v1 identified as v1
         ("2.3.4", False),  # Test 2: v2 not identified as v1
     ],
 )
-def test_is_sqlalchemy_v1(mock_version, expected_result):
-    with mock.patch("airflow.utils.sqlalchemy.metadata") as mock_metadata:
-        mock_metadata.version.return_value = mock_version
-        assert is_sqlalchemy_v1() == expected_result
+def test_is_sqlalchemy_v1(mock_version, expected_result, mocker):
+    mock_metadata = mocker.patch("airflow.utils.sqlalchemy.metadata")
+    mock_metadata.version.return_value = mock_version
+    assert is_sqlalchemy_v1() == expected_result

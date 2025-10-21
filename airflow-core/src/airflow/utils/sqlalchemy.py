@@ -319,7 +319,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     Other databases do not need it since NULL values are considered lower than
     any other values, and appear first when the order is ASC (ascending).
     """
-    if session.bind.dialect.name == "postgresql":
+    if get_dialect_name(session) == "postgresql":
         return nullsfirst(col)
     return col
 
