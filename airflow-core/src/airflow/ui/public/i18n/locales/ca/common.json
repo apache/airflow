@@ -81,7 +81,7 @@
   "download": {
     "download": "Descarregar",
     "hotkey": "d",
-    "tooltip": "Prem {{hotkey}} per descarregar els registres"
+    "tooltip": "Prem {{hotkey}} per a descarregar els registres"
   },
   "duration": "Duració",
   "endDate": "Data de finalització",
