@@ -22,24 +22,24 @@
 #################################
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
 
-{{- /* Build worker groups list: use celeryQueueGroups if defined, otherwise create default worker */ -}}
+{{- /* Build worker groups list: use queueGroups if defined, otherwise create default worker */ -}}
 {{- $workerGroups := list }}
-{{- if .Values.workers.celery.celeryQueueGroups }}
-  {{- $workerGroups = .Values.workers.celery.celeryQueueGroups }}
+{{- if .Values.workers.celery.queueGroups }}
+  {{- $workerGroups = .Values.workers.celery.queueGroups }}
 {{- else }}
-  {{- $defaultWorker := dict "name" "" }}
-  {{- $workerGroups = list $defaultWorker }}
+  {{- $baseWorker := dict "name" "" }}
+  {{- $workerGroups = list $baseWorker }}
 {{- end }}
 
-{{- /* Loop through all worker groups (either celeryQueueGroups or default) */ -}}
+{{- /* Loop through all worker groups (either queueGroups or default) */ -}}
 {{- range $groupIndex, $workerGroup := $workerGroups }}
 {{- if $groupIndex }}
 ---
 {{- end }}
 
 {{- /* Set variables based on whether this is default worker or custom group */ -}}
-{{- $isDefaultWorker := eq $workerGroup.name "" }}
-{{- $workerName := ternary "worker" (printf "worker-%s" $workerGroup.name) $isDefaultWorker }}
+{{- $isBaseWorker := eq $workerGroup.name "" }}
+{{- $workerName := ternary "worker" (printf "worker-%s" $workerGroup.name) $isBaseWorker }}
 {{- $groupLabels := $workerGroup.labels | default dict }}
 
 apiVersion: v1
@@ -49,7 +49,7 @@ metadata:
   labels:
     tier: airflow
     component: worker
-    {{- if not $isDefaultWorker }}
+    {{- if not $isBaseWorker }}
     worker-group: {{ $workerGroup.name }}
     {{- end }}
     release: {{ $.Release.Name }}
@@ -63,7 +63,7 @@ spec:
   selector:
     tier: airflow
     component: worker
-    {{- if not $isDefaultWorker }}
+    {{- if not $isBaseWorker }}
     worker-group: {{ $workerGroup.name }}
     {{- end }}
     release: {{ $.Release.Name }}

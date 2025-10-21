@@ -1015,6 +1015,145 @@ class TestWorker:
         )
 
 
+class TestWorkerCeleryQueueGroups:
+    """Tests for Celery worker queue groups functionality."""
+
+    def test_default_worker_without_queue_groups(self):
+        """Test that default worker is created when no queueGroups are defined."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"queueGroups": []}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
+        assert jmespath.search("metadata.labels.component", docs[0]) == "worker"
+        # Should not have worker-group label for default worker
+        assert jmespath.search('metadata.labels."worker-group"', docs[0]) is None
+
+    def test_multiple_queue_groups_creation(self):
+        """Test creation of multiple worker groups."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "queueGroups": [
+                            {
+                                "name": "base-workers",
+                                "queues": "default,email",
+                                "replicas": 3,
+                            },
+                            {
+                                "name": "heavy-workers",
+                                "queues": "reports,batch",
+                                "replicas": 2,
+                            },
+                        ]
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 2
+
+        # First worker group
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-worker-base-workers"
+        assert jmespath.search('metadata.labels."worker-group"', docs[0]) == "base-workers"
+        assert jmespath.search("spec.replicas", docs[0]) == 3
+
+        # Second worker group
+        assert jmespath.search("metadata.name", docs[1]) == "release-name-worker-heavy-workers"
+        assert jmespath.search('metadata.labels."worker-group"', docs[1]) == "heavy-workers"
+        assert jmespath.search("spec.replicas", docs[1]) == 2
+
+    def test_queue_group_with_node_selector(self):
+        """Test worker group with nodeSelector configuration."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "queueGroups": [
+                            {
+                                "name": "compute-workers",
+                                "queues": "compute",
+                                "replicas": 1,
+                                "nodeSelector": {"workload": "compute-intensive"},
+                            }
+                        ]
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("spec.template.spec.nodeSelector.workload", docs[0]) == "compute-intensive"
+
+    def test_queue_group_with_resources(self):
+        """Test worker group with custom resource configuration."""
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "queueGroups": [
+                            {
+                                "name": "memory-workers",
+                                "queues": "memory_intensive",
+                                "replicas": 1,
+                                "resources": {
+                                    "requests": {"memory": "2Gi", "cpu": "1"},
+                                    "limits": {"memory": "4Gi", "cpu": "2"},
+                                },
+                            }
+                        ]
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        # Check main container resources
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "2Gi"
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "1"
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "4Gi"
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0]) == "2"
+
+    @pytest.mark.parametrize(
+        "executor",
+        ["CeleryExecutor", "CeleryKubernetesExecutor"],
+    )
+    def test_queue_groups_with_different_executors(self, executor):
+        """Test queue groups work with different Celery-based executors."""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "celery": {
+                        "queueGroups": [
+                            {
+                                "name": "test-workers",
+                                "queues": "default",
+                                "replicas": 1,
+                            }
+                        ]
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-worker-test-workers"
+
+
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
 
