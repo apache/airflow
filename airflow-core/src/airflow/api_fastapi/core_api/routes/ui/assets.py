@@ -77,7 +77,8 @@ def next_run_assets(
             .join(
                 AssetEvent,
                 and_(
-                    AssetEvent.asset_id == AssetModel.id, on_clause,
+                    AssetEvent.asset_id == AssetModel.id,
+                    on_clause,
                 ),
                 isouter=True,
             )
