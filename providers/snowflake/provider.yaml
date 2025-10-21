@@ -143,3 +143,16 @@ triggers:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.triggers.snowflake_trigger
+
+config:
+  snowflake:
+    description: |
+      Configuration for Snowflake hooks and operators.
+    options:
+      azure_oauth_scope:
+        description: |
+          The scope to use while retrieving OAuth token for Snowflake from Azure Entra authentication.
+        version_added: 6.6.0
+        type: string
+        example: ~
+        default: "api://snowflake_oauth_server/.default"
