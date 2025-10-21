@@ -94,6 +94,7 @@ class S3KeyTrigger(BaseTrigger):
                 "region_name": self.region_name,
                 "verify": self.verify,
                 "botocore_config": self.botocore_config,
+                "metadata_keys": self.metadata_keys,
             },
         )
 
@@ -121,18 +122,20 @@ class S3KeyTrigger(BaseTrigger):
                             files = []
                             for f in raw_objects:
                                 metadata = {}
+                                obj = await self.hook.get_head_object_async(client=client, key=f, bucket_name=self.bucket_name)
+                                if obj is None:
+                                    return
+
                                 if "*" in self.metadata_keys:
-                                    metadata = await self.hook.head_object_async(f, self.bucket_name)
+                                    metadata = obj
                                 else:
                                     for mk in self.metadata_keys:
-                                        try:
-                                            metadata[mk] = f[mk]
-                                        except KeyError:
-                                            self.log.info("Key %s not found, performing head_object", mk)
-                                            obj = await self.hook.head_object_async(f, self.bucket_name)
+                                        if mk == 'Size':
+                                            metadata[mk] = obj.get("ContentLength")
+                                        else:
                                             metadata[mk] = obj.get(mk, None)
+                                metadata['Key'] = f
                                 files.append(metadata)
-
                             yield TriggerEvent({"status": "running", "files": files})
                         else:
                             yield TriggerEvent({"status": "success"})
@@ -260,3 +263,4 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
