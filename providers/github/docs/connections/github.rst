@@ -24,7 +24,7 @@ The GitHub connection type provides connection to a GitHub or GitHub Enterprise.
 
 Configuring the Connection
 --------------------------
-Access Token (required)
+Access Token (optional)
     Personal Access token with required permissions.
         - GitHub - Create token - https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
         - GitHub Enterprise - Create token - https://docs.github.com/en/enterprise-cloud@latest/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token/
@@ -40,3 +40,26 @@ Host (optional)
     .. code-block::
 
         https://{hostname}/api/v3
+
+Extra Parameters
+----------------
+
+You can authenticate using a GitHub App installation by setting the extra field of your connection, instead of using a token.
+
+- ``key_path``: Path to the private key file used for GitHub App authentication.
+- ``app_id``: The application ID.
+- ``installation_id``: The ID of the app installation.
+- ``token_permissions``: A dictionary of permissions. - Properties of permissions - https://docs.github.com/en/rest/apps/apps?apiVersion=2022-11-28#create-an-installation-access-token-for-an-app
+
+
+Example::
+
+    {
+        "key_path": "FAKE_KEY.pem",
+        "app_id": "123456s",
+        "installation_id": 123456789,
+        "token_permissions": {
+            "issues":"write",
+            "contents":"read"
+        }
+    }
