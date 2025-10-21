@@ -5477,9 +5477,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Delete Task Instance
+              schema: {}
         '401':
           content:
             application/json:
@@ -7855,9 +7853,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: 'null'
-                title: Response Reparse Dag File
+              schema: {}
         '401':
           content:
             application/json:
