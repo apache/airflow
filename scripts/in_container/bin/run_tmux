@@ -24,7 +24,6 @@ if [[ ${BACKEND} != "sqlite"  ]]; then
     export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
 fi
 
-# If debugging the Celery worker, default Celery pool to solo unless overridden
 if [[ ${BREEZE_DEBUG_CELERY_WORKER} == "true" ]]; then
     export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
 fi
