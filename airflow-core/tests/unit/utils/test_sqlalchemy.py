@@ -52,6 +52,39 @@ pytestmark = pytest.mark.db_test
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
+class TestGetDialectName:
+    def test_returns_dialect_name_when_present(self, mocker):
+        mock_session = mocker.Mock()
+        mock_bind = mocker.Mock()
+        mock_bind.dialect.name = "postgresql"
+        mock_session.get_bind.return_value = mock_bind
+
+        from airflow.utils.sqlalchemy import get_dialect_name
+
+        assert get_dialect_name(mock_session) == "postgresql"
+
+    def test_raises_when_no_bind(self, mocker):
+        mock_session = mocker.Mock()
+        mock_session.get_bind.return_value = None
+
+        from airflow.utils.sqlalchemy import get_dialect_name
+
+        with pytest.raises(ValueError, match="No bind/engine is associated"):
+            get_dialect_name(mock_session)
+
+    def test_returns_none_when_dialect_has_no_name(self, mocker):
+        mock_session = mocker.Mock()
+        mock_bind = mocker.Mock()
+        # simulate dialect object without `name` attribute
+        mock_bind.dialect = mock.Mock()
+        delattr(mock_bind.dialect, "name") if hasattr(mock_bind.dialect, "name") else None
+        mock_session.get_bind.return_value = mock_bind
+
+        from airflow.utils.sqlalchemy import get_dialect_name
+
+        assert get_dialect_name(mock_session) is None
+
+
 class TestSqlAlchemyUtils:
     def setup_method(self):
         session = Session()
