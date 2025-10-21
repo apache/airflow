@@ -478,7 +478,7 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
-    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
         condition_scheduled = mock.MagicMock()
         condition_scheduled.type = "PodScheduled"
         condition_scheduled.status = "True"
@@ -501,17 +501,21 @@ class TestPodManager:
         schedule_timeout = 30
         startup_timeout = 60
         mock_pod = MagicMock()
-        await self.pod_manager.await_pod_start(
-            pod=mock_pod,
-            schedule_timeout=schedule_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-            startup_timeout=startup_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-            check_interval=startup_check_interval,
-        )
-        mock_time_sleep.assert_called_with(startup_check_interval)
-        assert mock_time_sleep.call_count == 3
-        assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
-        assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
-        assert self.pod_manager.stop_watching_events is True
+
+        with mock.patch.object(self.pod_manager.log, "info") as mock_log_info:
+            await self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=schedule_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+                startup_timeout=startup_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+                check_interval=startup_check_interval,
+            )
+            mock_time_sleep.assert_called_with(startup_check_interval)
+            assert self.pod_manager.stop_watching_events is True
+            assert mock_time_sleep.call_count == 3
+            mock_log_info.assert_any_call(
+                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            )
+            mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
@@ -766,7 +770,7 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
-    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
         condition_scheduled = mock.MagicMock()
         condition_scheduled.type = "PodScheduled"
         condition_scheduled.status = "True"
@@ -793,16 +797,21 @@ class TestAsyncPodManager:
         schedule_timeout = 30
         startup_timeout = 60
         mock_pod = mock.MagicMock()
-        await self.async_pod_manager.await_pod_start(
-            pod=mock_pod,
-            schedule_timeout=schedule_timeout,
-            startup_timeout=startup_timeout,
-            check_interval=startup_check_interval,
-        )
-        assert mock_time_sleep.call_count == 3
-        assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
-        assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
-        assert self.async_pod_manager.stop_watching_events is True
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=schedule_timeout,
+                startup_timeout=startup_timeout,
+                check_interval=startup_check_interval,
+            )
+            assert mock_time_sleep.call_count == 3
+            mock_log_info.assert_any_call(
+                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            )
+            mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
+            # assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
+            # assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
+            assert self.async_pod_manager.stop_watching_events is True
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
@@ -826,12 +835,12 @@ class TestAsyncPodManager:
 
         self.mock_async_hook.get_pod_events.side_effect = get_pod_events_side_effect
 
-        with mock.patch.object(type(self.async_pod_manager), "log", create=True) as log_mock:
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
             await self.async_pod_manager.watch_pod_events(pod=mock_pod, check_interval=startup_check_interval)
-            log_mock.info.assert_any_call(
+            mock_log_info.assert_any_call(
                 "The Pod has an Event: %s from %s", "test event 1", "object event 1"
             )
-            log_mock.info.assert_any_call(
+            mock_log_info.assert_any_call(
                 "The Pod has an Event: %s from %s", "test event 2", "object event 2"
             )
             mock_time_sleep.assert_called_once_with(startup_check_interval)

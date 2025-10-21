@@ -37,6 +37,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.container import (
@@ -67,35 +68,6 @@ def _load_body_to_dict(body: str) -> dict:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
 
-
-class PodOperatorHookProtocol(Protocol):
-    """
-    Protocol to define methods relied upon by KubernetesPodOperator.
-
-    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
-    hooks that don't extend KubernetesHook.  We use this protocol to document the
-    methods used by KPO and ensure that these methods exist on such other hooks.
-    """
-
-    @property
-    def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated client object."""
-
-    @property
-    def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
-
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Read pod object from kubernetes API."""
-
-    def get_namespace(self) -> str | None:
-        """Return the namespace that defined in the connection."""
-
-    def get_xcom_sidecar_container_image(self) -> str | None:
-        """Return the xcom sidecar image that defined in the connection."""
-
-    def get_xcom_sidecar_container_resources(self) -> str | None:
-        """Return the xcom sidecar resources that defined in the connection."""
 
 class PodOperatorHookProtocol(Protocol):
     """
@@ -915,7 +887,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
                 return pod
             except HTTPError as e:
-                raise AirflowException(f"There was an error reading the kubernetes API: {e}")
+                raise KubernetesApiError from e
 
     async def delete_pod(self, name: str, namespace: str):
         """
@@ -975,7 +947,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
                 return events
             except HTTPError as e:
-                raise AirflowException(f"There was an error reading the kubernetes API: {e}")
+                raise KubernetesApiError from e
 
     async def get_job_status(self, name: str, namespace: str) -> V1Job:
         """

@@ -338,7 +338,7 @@ class TestKubernetesPodTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_read_events_during_start(self, mock_hook, mock_method, trigger, caplog):
+    async def test_run_loop_read_events_during_start(self, mock_hook, mock_method, trigger):
         event1 = mock.AsyncMock()
         event1.message = "event 1"
         event1.involved_object.field_path = "object 1"
@@ -361,21 +361,19 @@ class TestKubernetesPodTrigger:
 
         mock_method.return_value = ContainerState.TERMINATED
 
-        caplog.set_level(logging.INFO)
+        with mock.patch.object(trigger.pod_manager.log, "info") as mock_log_info:
+            generator = trigger.run()
+            await generator.asend(None)
 
-        generator = trigger.run()
-        await generator.asend(None)
-
-        # Check that both events are present in the log output
-        assert "The Pod has an Event: event 1 from object 1" in caplog.text
-        assert "The Pod has an Event: event 2 from object 2" in caplog.text
+            mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "event 1", "object 1")
+            mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "event 2", "object 2")
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("container_state", [ContainerState.WAITING, ContainerState.UNDEFINED])
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_return_timeout_event(
-        self, mock_hook, mock_method, trigger, caplog, container_state, mock_time_fixture
+        self, mock_hook, mock_method, trigger, container_state, mock_time_fixture
     ):
         mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
@@ -385,8 +383,6 @@ class TestKubernetesPodTrigger:
             )
         )
         mock_method.return_value = container_state
-
-        caplog.set_level(logging.INFO)
 
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -406,7 +402,7 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_return_success_for_completed_pod_after_timeout(
-        self, mock_hook, mock_method, trigger, caplog, mock_time_fixture
+        self, mock_hook, mock_method, trigger, mock_time_fixture
     ):
         """
         Test that the trigger correctly recognizes the pod is not pending even after the timeout has been
@@ -421,8 +417,6 @@ class TestKubernetesPodTrigger:
             )
         )
         mock_method.return_value = ContainerState.TERMINATED
-
-        caplog.set_level(logging.INFO)
 
         generator = trigger.run()
         actual = await generator.asend(None)

@@ -94,7 +94,7 @@ class KubernetesPodTrigger(BaseTrigger):
         get_logs: bool = True,
         startup_timeout: int = 120,
         startup_check_interval: float = 5,
-        schedule_timeout: int | None = None,
+        schedule_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
@@ -113,8 +113,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
-        # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
-        self.schedule_timeout = schedule_timeout or startup_timeout
+        self.schedule_timeout = schedule_timeout
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
@@ -293,7 +292,7 @@ class KubernetesPodTrigger(BaseTrigger):
 
     @cached_property
     def pod_manager(self) -> AsyncPodManager:
-        return AsyncPodManager(async_hook=self.hook)  # , callbacks=self.callbacks)
+        return AsyncPodManager(async_hook=self.hook)
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses

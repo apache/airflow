@@ -101,51 +101,62 @@ def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
 
 
-async def generic_watch_pod_events(
-    self,
+async def watch_pod_events(
+    pod_manager: PodManager | AsyncPodManager,
     pod: V1Pod,
     check_interval: float = 1,
-    is_async: bool = True,
 ) -> None:
-    """Read pod events and writes into log."""
+    """
+    Read pod events and write them to the log.
+
+    This function supports both asynchronous and synchronous pod managers.
+
+    :param pod_manager: The pod manager instance (PodManager or AsyncPodManager).
+    :param pod: The pod object to monitor.
+    :param check_interval: Interval (in seconds) between checks.
+    """
     num_events = 0
-    while not self.stop_watching_events:
-        events = await self.read_pod_events(pod) if is_async else self.read_pod_events(pod)
+    is_async = isinstance(pod_manager, AsyncPodManager)
+    while not pod_manager.stop_watching_events:
+        events = await pod_manager.read_pod_events(pod) if is_async else pod_manager.read_pod_events(pod)
         for new_event in events.items[num_events:]:
             involved_object: V1ObjectReference = new_event.involved_object
-            self.log.info("The Pod has an Event: %s from %s", new_event.message, involved_object.field_path)
+            pod_manager.log.info(
+                "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
+            )
         num_events = len(events.items)
         await asyncio.sleep(check_interval)
 
 
-async def generic_await_pod_start(
-    self,
-    pod,
+async def await_pod_start(
+    pod_manager: PodManager | AsyncPodManager,
+    pod: V1Pod,
     schedule_timeout: int = 120,
     startup_timeout: int = 120,
     check_interval: float = 1,
-    is_async: bool = True,
 ):
     """
     Monitor the startup phase of a Kubernetes pod, waiting for it to leave the ``Pending`` state.
 
     This function is shared by both PodManager and AsyncPodManager to provide consistent pod startup tracking.
 
+    :param pod_manager: The pod manager instance (PodManager or AsyncPodManager).
     :param pod: The pod object to monitor.
     :param schedule_timeout: Maximum time (in seconds) to wait for the pod to be scheduled.
     :param startup_timeout: Maximum time (in seconds) to wait for the pod to start running after being scheduled.
     :param check_interval: Interval (in seconds) between status checks.
     :param is_async: Set to True if called in an async context; otherwise, False.
     """
-    self.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+    pod_manager.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
+    is_async = isinstance(pod_manager, AsyncPodManager)
     while True:
-        remote_pod = await self.read_pod(pod) if is_async else self.read_pod(pod)
+        remote_pod = await pod_manager.read_pod(pod) if is_async else pod_manager.read_pod(pod)
         pod_status = remote_pod.status
         if pod_status.phase != PodPhase.PENDING:
-            self.stop_watching_events = True
-            self.log.info("::endgroup::")
+            pod_manager.stop_watching_events = True
+            pod_manager.log.info("::endgroup::")
             break
 
         # Check for timeout
@@ -157,16 +168,16 @@ async def generic_await_pod_start(
                 # POD was initially scheduled update timeout for getting POD launched
                 pod_was_scheduled = True
                 start_check_time = time.time()
-                self.log.info("Waiting %ss to get the POD running...", startup_timeout)
+                pod_manager.log.info("Waiting %ss to get the POD running...", startup_timeout)
 
             if time.time() - start_check_time >= startup_timeout:
-                self.log.info("::endgroup::")
+                pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
                     f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
                 )
         else:
             if time.time() - start_check_time >= schedule_timeout:
-                self.log.info("::endgroup::")
+                pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
                     f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
                 )
@@ -178,7 +189,7 @@ async def generic_await_pod_start(
                 container_waiting: V1ContainerStateWaiting | None = container_state.waiting
                 if container_waiting:
                     if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
-                        self.log.info("::endgroup::")
+                        pod_manager.log.info("::endgroup::")
                         raise PodLaunchFailedException(
                             f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
                             f"\n{container_waiting.message}"
@@ -350,7 +361,7 @@ class PodManager(LoggingMixin):
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
         """Read pod events and writes into log."""
-        await generic_watch_pod_events(self, pod, check_interval, is_async=False)
+        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
@@ -366,13 +377,12 @@ class PodManager(LoggingMixin):
         :param check_interval: Interval (in seconds) between checks
         :return:
         """
-        await generic_await_pod_start(
-            self=self,
+        await await_pod_start(
+            pod_manager=self,
             pod=pod,
             schedule_timeout=schedule_timeout,
             startup_timeout=startup_timeout,
             check_interval=check_interval,
-            is_async=False,
         )
 
     def _log_message(
@@ -993,7 +1003,7 @@ class AsyncPodManager(LoggingMixin):
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: float = 1) -> None:
         """Read pod events and writes into log."""
-        await generic_watch_pod_events(self, pod, check_interval, is_async=True)
+        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1
@@ -1009,11 +1019,10 @@ class AsyncPodManager(LoggingMixin):
         :param check_interval: Interval (in seconds) between checks
         :return:
         """
-        await generic_await_pod_start(
-            self=self,
+        await await_pod_start(
+            pod_manager=self,
             pod=pod,
             schedule_timeout=schedule_timeout,
             startup_timeout=startup_timeout,
             check_interval=check_interval,
-            is_async=True,
         )
