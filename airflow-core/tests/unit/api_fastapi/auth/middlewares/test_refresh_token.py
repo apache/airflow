@@ -53,6 +53,20 @@ class TestJWTRefreshMiddleware:
         call_next.assert_called_once_with(mock_request)
         mock_refresh_user.assert_not_called()
 
+    @patch.object(
+        JWTRefreshMiddleware,
+        "_refresh_user",
+        side_effect=HTTPException(status_code=403, detail="Invalid JWT token"),
+    )
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_token(self, mock_refresh_user, middleware, mock_request):
+        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token"}
+        call_next = AsyncMock(return_value=Response())
+
+        response = await middleware.dispatch(mock_request, call_next)
+        assert response.status_code == 403
+        assert response.body == b'{"detail":"Invalid JWT token"}'
+
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
     @pytest.mark.asyncio
