@@ -136,6 +136,7 @@ class S3KeyTrigger(BaseTrigger):
                                             metadata[mk] = obj.get(mk, None)
                                 metadata['Key'] = f
                                 files.append(metadata)
+                            await asyncio.sleep(self.poke_interval)
                             yield TriggerEvent({"status": "running", "files": files})
                         else:
                             yield TriggerEvent({"status": "success"})
