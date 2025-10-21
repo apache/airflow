@@ -55,10 +55,10 @@ class TaskReschedule(Base):
         ForeignKey("task_instance.id", ondelete="CASCADE", name="task_reschedule_ti_fkey"),
         nullable=False,
     )
-    start_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
-    end_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    start_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+    end_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
-    reschedule_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    reschedule_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
 
     task_instance = relationship(
         "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
