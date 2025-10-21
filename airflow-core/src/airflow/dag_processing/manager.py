@@ -70,7 +70,7 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit
+from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
@@ -454,12 +454,7 @@ class DagFileProcessorManager(LoggingMixin):
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            # Apply row locking if enabled
-            if conf.getboolean("scheduler", "use_row_level_locking", fallback=True):
-                if session.bind is not None:
-                    dialect = session.bind.dialect
-                    if dialect.name != "mysql" or getattr(dialect, "supports_for_update_of", False):
-                        query = query.with_for_update(of=DbCallbackRequest, skip_locked=True)
+            query = with_row_locks(query, session=session, of=DbCallbackRequest, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:

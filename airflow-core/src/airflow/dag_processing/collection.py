@@ -60,6 +60,7 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -190,7 +191,6 @@ def _serialize_dag_capturing_errors(
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
     from airflow import settings
-    from airflow.configuration import conf
     from airflow.models.dagcode import DagCode
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -444,12 +444,7 @@ class DagModelOperation(NamedTuple):
             .options(joinedload(DagModel.schedule_asset_alias_references))
             .options(joinedload(DagModel.task_outlet_asset_references))
         )
-        # Apply row locking if enabled
-        if conf.getboolean("scheduler", "use_row_level_locking", fallback=True):
-            if session.bind is not None:
-                dialect = session.bind.dialect
-                if dialect.name != "mysql" or getattr(dialect, "supports_for_update_of", False):
-                    stmt = stmt.with_for_update(of=DagModel)
+        stmt = with_row_locks(stmt, session=session, of=DagModel)
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
@@ -471,8 +466,6 @@ class DagModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        from airflow.configuration import conf
-
         # we exclude backfill from active run counts since their concurrency is separate
         run_info = _RunInfo.calculate(dags=self.dags, session=session)
         for dag_id, dm in sorted(orm_dags.items()):
