@@ -34,7 +34,6 @@ import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
-from sqlalchemy.sql import Select, Subquery
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
