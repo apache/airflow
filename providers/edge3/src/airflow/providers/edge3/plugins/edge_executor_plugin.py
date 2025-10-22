@@ -253,7 +253,7 @@ class EdgeExecutorPlugin(AirflowPlugin):
             react_apps = [
                 {
                     "name": "Edge Executor",
-                    "bundle_url": "/edge_worker/static/main.umd.cjs",
+                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
                     "destination": "nav",
                     "url_route": "edge_executor",
                     "category": "admin",
