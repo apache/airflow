@@ -30,7 +30,6 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 
 from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import TaskInstanceState  # noqa: TC001
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerVersionException
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -41,6 +40,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
+from airflow.utils.state import TaskInstanceState  # noqa: TC001
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey

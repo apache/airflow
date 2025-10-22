@@ -66,8 +66,7 @@ else:
     from sqlalchemy import select
 
     from airflow.auth.managers.models.resource_details import AccessView
-    from airflow.models.taskinstance import TaskInstanceState
-    from airflow.utils.state import State
+    from airflow.utils.state import State, TaskInstanceState
     from airflow.utils.yaml import safe_load
     from airflow.www.auth import has_access_view
 
