@@ -20,8 +20,8 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     import datetime
