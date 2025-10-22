@@ -277,14 +277,8 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("retry_delay", SerializedBaseOperator.retry_delay)
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
-
-    @property
-    def retry_delay_multiplier(self) -> float:
-        return float(
-            self.partial_kwargs.get("retry_delay_multiplier", SerializedBaseOperator.retry_delay_multiplier)
-        )
+    def retry_exponential_backoff(self) -> float:
+        return float(self.partial_kwargs.get("retry_exponential_backoff", 0))
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
