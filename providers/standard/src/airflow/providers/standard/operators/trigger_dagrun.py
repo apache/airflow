@@ -65,17 +65,6 @@ class DagIsPaused(AirflowException):
         return f"Dag {self.dag_id} is paused"
 
 
-class FeatureNotAvailable(AirflowException):
-    """Raise when a feature is not available."""
-
-    def __init__(self, error_message) -> None:
-        super().__init__(error_message)
-        self.error_message = error_message
-
-    def __str__(self) -> str:
-        return self.error_message
-
-
 class TriggerDagRunLink(BaseOperatorLink):
     """
     Operator link for TriggerDagRunOperator.
@@ -201,7 +190,7 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
-            raise FeatureNotAvailable("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0")
+            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0")
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:

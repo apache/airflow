@@ -31,7 +31,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.trigger_dagrun import FeatureNotAvailable, TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -258,7 +258,7 @@ class TestDagRunOperator:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
         with pytest.raises(
-            FeatureNotAvailable, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0"
+            NotImplementedError, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0"
         ):
             TriggerDagRunOperator(
                 task_id="test_task",
