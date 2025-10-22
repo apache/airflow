@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-21T01:42:57.037230
+# This constraints file was automatically generated on 2025-10-22T02:18:36.658588
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -45,7 +45,7 @@ aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.1
 aioitertools==0.12.0
-aiomysql==0.2.0
+aiomysql==0.3.2
 aioresponses==0.7.8
 aiosignal==1.4.0
 aiosqlite==0.21.0
@@ -144,7 +144,7 @@ cohere==5.19.0
 colorama==0.4.6
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.0
+confluent-kafka==2.12.1
 coverage==7.11.0
 crcmod==1.7
 cron_descriptor==2.0.6
@@ -159,7 +159,7 @@ db-dtypes==1.4.3
 debugpy==1.8.17
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==1.2.0
+deltalake==1.2.1
 deprecation==2.1.0
 diagrams==0.24.4
 dill==0.3.1.1
@@ -209,7 +209,7 @@ google-api-python-client==2.185.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.41.1
-google-cloud-aiplatform==1.121.0
+google-cloud-aiplatform==1.122.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -253,7 +253,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.45.0
+google-genai==1.46.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.71.0
 graphql-core==3.2.6
@@ -265,7 +265,7 @@ grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.71.2
-grpcio==1.75.1
+grpcio==1.76.0
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
@@ -517,7 +517,7 @@ readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.7
 referencing==0.36.2
-regex==2025.10.22
+regex==2025.10.23
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -586,7 +586,7 @@ sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.17.0
+sqlalchemy-spanner==1.17.1
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0

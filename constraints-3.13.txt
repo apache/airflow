@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-21T01:46:23.514319
+# This constraints file was automatically generated on 2025-10-22T02:21:59.842242
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -65,7 +65,7 @@ aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.1
 aioitertools==0.12.0
-aiomysql==0.2.0
+aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.0.0
 aiosqlite==0.21.0
@@ -301,7 +301,7 @@ google-api-python-client==2.185.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.41.1
-google-cloud-aiplatform==1.121.0
+google-cloud-aiplatform==1.122.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -345,7 +345,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.45.0
+google-genai==1.46.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.71.0
 graphviz==0.21
@@ -355,8 +355,8 @@ gremlinpython==3.7.4
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.75.1
-grpcio==1.75.1
+grpcio-status==1.76.0
+grpcio==1.76.0
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
@@ -550,7 +550,7 @@ reactivex==4.0.4
 redis==5.2.1
 redshift-connector==2.1.9
 referencing==0.37.0
-regex==2025.10.22
+regex==2025.10.23
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -591,7 +591,7 @@ sortedcontainers==2.4.0
 soupsieve==2.8
 spython==0.3.14
 sqlalchemy-bigquery==1.15.0
-sqlalchemy-spanner==1.17.0
+sqlalchemy-spanner==1.17.1
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
 sshtunnel==0.4.0
@@ -633,7 +633,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.9.4
+uv==0.9.5
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
