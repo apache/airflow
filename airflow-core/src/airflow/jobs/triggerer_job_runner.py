@@ -650,6 +650,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
                 if not new_trigger_orm.task_instance.dag_version_id:
+                    # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
                     log.warning(
                         "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
                         ti_id=new_trigger_orm.task_instance.id,
