@@ -335,10 +335,8 @@ def get_task_instance_tries(
         return query
 
     # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = list(
-        session.scalars(_query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None))))
-    )
-    task_instances = list(session.scalars(_query(TIH))) + tis
+    tis = session.scalars(_query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None))))
+    task_instances = list(session.scalars(_query(TIH))) + list(tis)
 
     if not task_instances:
         raise HTTPException(
@@ -778,8 +776,7 @@ def post_clear_task_instances(
 
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
-        task_instances = list(
-            dag.clear(
+        task_instances = dag.clear(
                 dry_run=True,
                 task_ids=task_ids,
                 run_id=dag_run_id,
@@ -788,11 +785,9 @@ def post_clear_task_instances(
                 only_failed=body.only_failed,
                 only_running=body.only_running,
             )
-        )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
-        task_instances = list(
-            dag.clear(
+        task_instances = dag.clear(
                 dry_run=True,
                 task_ids=task_ids,
                 start_date=body.start_date,
@@ -802,7 +797,6 @@ def post_clear_task_instances(
                 only_failed=body.only_failed,
                 only_running=body.only_running,
             )
-        )
 
     if not dry_run:
         clear_task_instances(
