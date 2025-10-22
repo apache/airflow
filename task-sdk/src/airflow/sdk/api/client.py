@@ -818,34 +818,11 @@ API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
-    """Determine if an API request should be retrie based on the exception type."""
+    """Determine if an API request should be retried based on the exception type."""
     if isinstance(exception, httpx.HTTPStatusError):
-        status = exception.response.status_code
-        return status >= 500 or status == 429
+        return exception.response.status_code >= 500
 
-    # for all other httpx errors (network, timeout, connect, etc.), retry
-    if isinstance(exception, httpx.RequestError):
-        return True
-
-    return False
-
-
-def _get_retry_wait_time(retry_state) -> float:
-    """
-    Calculate wait time for retry, respecting Retry-After header on 429 responses.
-
-    For rate limit responses (429) with a Retry-After header, uses the value from the header.
-    Otherwise, fall bacsk to exponential backoff with jitter.
-    """
-    exception = retry_state.outcome.exception()
-
-    if isinstance(exception, httpx.HTTPStatusError):
-        if exception.response.status_code == 429:
-            retry_after = exception.response.headers.get("Retry-After")
-            if retry_after and retry_after.isdigit():
-                return float(retry_after)
-
-    return wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)(retry_state)
+    return isinstance(exception, httpx.RequestError)
 
 
 class Client(httpx.Client):
@@ -884,7 +861,7 @@ class Client(httpx.Client):
     @retry(
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
-        wait=_get_retry_wait_time,
+        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
         before_sleep=before_log(log, logging.WARNING),
         reraise=True,
     )

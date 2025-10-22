@@ -199,21 +199,6 @@ class TestClient:
             assert response.status_code == 200
             assert len(responses) == 1
 
-    def test_retry_handling_overload(self):
-        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            responses: list[httpx.Response] = [
-                httpx.Response(
-                    429, text="I am really busy atm, please back-off", headers={"Retry-After": "37"}
-                ),
-                httpx.Response(200, json={"detail": "Recovered from error"}),
-                httpx.Response(400, json={"detail": "Should not get here"}),
-            ]
-            client = make_client_w_responses(responses)
-
-            response = client.get("http://error")
-            assert response.status_code == 200
-            assert len(responses) == 1
-
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             responses: list[httpx.Response] = [
