@@ -87,7 +87,7 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
       </Link>
     ),
     enableSorting: false,
-    header: translate("xcom.columns.task_display_name"),
+    header: translate("common:task_one"),
   },
   {
     accessorKey: "map_index",
@@ -98,7 +98,7 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => new Date(original.timestamp).toLocaleString(),
     enableSorting: false,
-    header: translate("xcom.columns.timestamp"),
+    header: translate("dashboard:timestamp"),
   },
   {
     cell: ({ row: { original } }) => (
