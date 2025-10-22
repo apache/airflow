@@ -765,7 +765,7 @@ class TestKubernetesHook:
         with pytest.raises(ValueError, match="Exception occurred while checking for Deployment status."):
             KubernetesHook().check_kueue_deployment_running(name=DEPLOYMENT_NAME, namespace=NAMESPACE)
 
-        mock_log.exception.assert_called_once_with("Exception occurred while checking for Deployment status.")
+        mock_log.exception.assert_called_once_with("Exception occurred while checking for Deployment status")
 
     @mock.patch(f"{HOOK_MODULE}.yaml")
     @mock.patch(f"{HOOK_MODULE}.requests")
