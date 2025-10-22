@@ -162,7 +162,7 @@ def get_dags(
         session=session,
     )
 
-    dags = list(session.scalars(dags_select))
+    dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
         dags=dags,
@@ -331,7 +331,7 @@ def patch_dags(
         limit=limit,
         session=session,
     )
-    dags = list(session.scalars(dags_select))
+    dags = session.scalars(dags_select)
     dags_to_update = {dag.dag_id for dag in dags}
     session.execute(
         update(DagModel)

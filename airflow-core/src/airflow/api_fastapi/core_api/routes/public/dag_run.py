@@ -290,7 +290,7 @@ def clear_dag_run(
         )
 
         return TaskInstanceCollectionResponse(
-            task_instances=cast("list[TaskInstanceResponse]", task_instances),
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
             total_entries=len(task_instances),
         )
     if not dag:

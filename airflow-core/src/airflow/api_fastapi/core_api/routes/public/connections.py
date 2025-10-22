@@ -135,7 +135,7 @@ def get_connections(
         session=session,
     )
 
-    connections = list(session.scalars(connection_select))
+    connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
         connections=connections,

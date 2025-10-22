@@ -235,7 +235,7 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = list(session.scalars(task_instance_select))
+    task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
@@ -346,7 +346,7 @@ def get_task_instance_tries(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=cast("list[TaskInstanceHistoryResponse]", task_instances),
+        task_instances=task_instances,
         total_entries=len(task_instances),
     )
 
@@ -517,7 +517,7 @@ def get_task_instances(
         session=session,
     )
 
-    task_instances = list(session.scalars(task_instance_select))
+    task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
@@ -630,7 +630,7 @@ def get_task_instances_batch(
         joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
-    task_instances = list(session.scalars(task_instance_select))
+    task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
@@ -742,10 +742,10 @@ def post_clear_task_instances(
                 "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
             )
         body.start_date = (
-            cast("datetime | None", dag_run.logical_date) if dag_run.logical_date is not None else None
+            dag_run.logical_date if dag_run.logical_date is not None else None
         )
         body.end_date = (
-            cast("datetime | None", dag_run.logical_date) if dag_run.logical_date is not None else None
+            dag_run.logical_date if dag_run.logical_date is not None else None
         )
 
     if past:

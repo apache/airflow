@@ -156,7 +156,7 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = list(session.scalars(event_logs_select))
+    event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
         event_logs=event_logs,
