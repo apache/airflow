@@ -1312,14 +1312,17 @@ class SelectiveChecks:
             headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
 
         url = f"https://api.github.com/repos/{self._github_repository}/actions/workflows/{workflow_name}/runs"
-        params = {"event": event_type, "status": "completed", "per_page": 1, "branch": branch}
+        payload = {"event": event_type, "status": "completed", "branch": branch}
 
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=payload)
+        if response.status_code != 200:
+            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            return None
         get_console().print(f"[blue]Response received for workflow run {response.json()}.\n")
         runs = response.json().get("workflow_runs", [])
         if not runs:
             get_console().print(
-                f"[yellow]No runs information found for workflow {workflow_name}, params: {params}.\n"
+                f"[yellow]No runs information found for workflow {workflow_name}, params: {payload}.\n"
             )
             return None
         jobs_url = runs[0].get("jobs_url")
