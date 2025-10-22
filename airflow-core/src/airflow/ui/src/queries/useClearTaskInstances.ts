@@ -50,45 +50,32 @@ export const useClearTaskInstances = ({
   const { t: translate } = useTranslation("dags");
 
   const onError = (error: unknown) => {
+    let detail: string;
+    let description: string;
+
     // Narrow the type safely
     if (typeof error === "object" && error !== null) {
       const apiError = error as ApiError;
 
-      const detail = typeof apiError.detail === "string" ? apiError.detail : "";
-      const ifDetailIsIncluded =
-        typeof detail === "string" && detail.includes("AirflowClearRunningTaskException");
+      description = typeof apiError.message === "string" ? apiError.message : "";
+      detail = typeof apiError.detail === "string" ? apiError.detail : "";
 
-      if (detail !== "" && ifDetailIsIncluded === true) {
-        toaster.create({
-          description: detail,
-          title: translate("dags:runAndTaskActions.clear.error", {
-            type: translate("common:taskInstance_one"),
-          }),
-          type: "error",
-        });
-      } else {
-        const message =
-          typeof apiError.message === "string"
-            ? apiError.message : translate("common:error.defaultMessage");
-
-        toaster.create({
-          description: message,
-          title: translate("dags:runAndTaskActions.clear.error", {
-            type: translate("common:taskInstance_one"),
-          }),
-          type: "error",
-        });
+      if ( detail.includes("AirflowClearRunningTaskException") === true ) {
+        description = detail
       }
+
     } else {
       // Fallback for completely unknown errors
-      toaster.create({
-        description: translate("common:error.defaultMessage"),
-        title: translate("dags:runAndTaskActions.clear.error", {
-          type: translate("common:taskInstance_one"),
-        }),
-        type: "error",
-      });
+      description = translate("common:error.defaultMessage")
     }
+
+    toaster.create({
+          description: description,
+          title: translate("dags:runAndTaskActions.clear.error", {
+            type: translate("common:taskInstance_one"),
+          }),
+          type: "error",
+        });
   };
 
 

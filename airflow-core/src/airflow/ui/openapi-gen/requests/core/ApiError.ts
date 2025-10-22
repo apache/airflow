@@ -17,7 +17,7 @@ export class ApiError extends Error {
 		this.status = response.status;
 		this.statusText = response.statusText;
 		this.body = response.body;
-		this.detail = response.body.detail;
+		this.detail = typeof response.body.detail === 'string' ? response.body.detail : '';
 		this.request = request;
 	}
 }

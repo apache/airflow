@@ -60,7 +60,10 @@ const ClearTaskInstanceConfirmationDialog = ({
     onClose();
   }, [onConfirm, onClose]);
 
-  const taskCurrentState = data?.task_instances?.[0]?.state;
+  const taskCurrentState =
+  data && data.task_instances.length > 0
+    ? data.task_instances[0].state
+    : undefined;
 
   useEffect(() => {
     if (!isFetching && open && data) {
@@ -82,8 +85,8 @@ const ClearTaskInstanceConfirmationDialog = ({
           // Loading State — keeps the dialog mounted during fetch
           <VStack align="center" gap={3} justify="center" py={8}>
             <Spinner size="lg" />
-            <Text color="gray.600" fontSize="md">
-              {translate("common:loadingTaskDetails", "Loading task details…")}
+            <Text color="fg.solid" fontSize="md">
+              {translate("common:task.documentation")}
             </Text>
           </VStack>
         ) : isReady ? (
@@ -91,20 +94,25 @@ const ClearTaskInstanceConfirmationDialog = ({
             <Dialog.Header>
               <VStack align="start" gap={4}>
                 <Dialog.Title>
-                  <Icon color="tomato" size="md">
+                  <Icon color="tomato" size="lg" pr='2'>
                     <GoAlertFill />
                   </Icon>
                   {translate("dags:runAndTaskActions.confirmationDialog.title")}
                 </Dialog.Title>
                 <Dialog.Description>
-                  {data.task_instances?.[0] ? (
+                  {data.task_instances.length > 0 ? (
                     <>
                       {translate("dags:runAndTaskActions.confirmationDialog.description", {
                         state: taskCurrentState,
-                        time: data.task_instances[0].start_date
-                          ? getRelativeTime(data.task_instances[0].start_date)
-                          : undefined,
-                        user: data.task_instances[0].unixname ?? "unknown user",
+                        time:
+                          data.task_instances[0].start_date !== null
+                            ? getRelativeTime(data.task_instances[0].start_date)
+                            : undefined,
+                        user:
+                          data.task_instances[0].unixname !== null &&
+                          data.task_instances[0].unixname.trim() !== ""
+                            ? data.task_instances[0].unixname
+                            : "unknown user",
                       })}
                     </>
                   ) : null}
