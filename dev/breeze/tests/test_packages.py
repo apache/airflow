@@ -104,7 +104,11 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.10.0", "asana>=5.0.0"]
+    assert get_provider_requirements("asana") == [
+        "apache-airflow>=2.10.0",
+        "apache-airflow-providers-common-compat>=1.7.4",
+        "asana>=5.0.0",
+    ]
 
 
 def test_get_removed_providers():
