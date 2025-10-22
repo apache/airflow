@@ -1245,7 +1245,7 @@ class AirflowConfigParser(ConfigParser):
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
             raise AirflowConfigException(
-                f'Failed to parse value to list. Please check "{key}" key in "{section}" section. '
+                f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
 
