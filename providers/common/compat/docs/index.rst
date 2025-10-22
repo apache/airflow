@@ -62,7 +62,7 @@ apache-airflow-providers-common-compat package
 Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 
-Release: 1.7.4
+Release: 1.8.0
 
 Provider package
 ----------------
@@ -105,7 +105,6 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                               Extra
 ==============================================================================================================  ===============
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_        ``standard``
 ==============================================================================================================  ===============
 
 Downloading official packages
@@ -114,5 +113,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-compat 1.7.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-compat 1.7.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.7.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-compat 1.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-compat 1.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.8.0-py3-none-any.whl.sha512>`__)

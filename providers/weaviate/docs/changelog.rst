@@ -20,6 +20,23 @@
 Changelog
 ---------
 
+3.2.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate weaviate provider to ''common.compat'' (#57019)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable pt011 rule 1 (#55706)``
+
 3.2.3
 .....
 

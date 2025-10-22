@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: add async jira notifier (#56326)``
+
+Misc
+~~~~
+
+* ``Migrate atlassian-jira provider to ''common.compat'' (#57002)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Make jira provider notifier tests db independent (#54685)``
+   * ``Switch pre-commit to prek (#54258)``
+
 3.1.2
 .....
 

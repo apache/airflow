@@ -28,6 +28,29 @@
 Changelog
 ---------
 
+4.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add retry mechanism and error handling to DBT Hook (#56651)``
+
+Misc
+~~~~
+
+* ``Migrate dbt.cloud provider to ''common.compat'' (#56999)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56320)``
+   * ``nit: Bump required OL client for Openlineage provider (#56302)``
+
 4.4.3
 .....
 
