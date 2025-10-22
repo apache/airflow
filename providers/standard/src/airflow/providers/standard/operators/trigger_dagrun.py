@@ -190,7 +190,7 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
-            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.0")
+            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
