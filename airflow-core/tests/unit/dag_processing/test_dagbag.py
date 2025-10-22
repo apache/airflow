@@ -844,8 +844,8 @@ with airflow.DAG(
         assert dagbag.dagbag_stats[0].warning_num == 2
         assert dagbag.captured_warnings == {
             dag_file: (
-                f"{dag_file}:46: DeprecationWarning: Deprecated Parameter",
-                f"{dag_file}:48: UserWarning: Some Warning",
+                f"{dag_file}:47: airflow.utils.deprecation_tools.DeprecatedImportWarning: Deprecated Parameter",
+                f"{dag_file}:49: UserWarning: Some Warning",
             )
         }
 
@@ -877,8 +877,8 @@ with airflow.DAG(
         assert dagbag.dagbag_stats[0].warning_num == 2
         assert dagbag.captured_warnings == {
             warning_zipped_dag_path: (
-                f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
-                f"{in_zip_dag_file}:48: UserWarning: Some Warning",
+                f"{in_zip_dag_file}:47: airflow.utils.deprecation_tools.DeprecatedImportWarning: Deprecated Parameter",
+                f"{in_zip_dag_file}:49: UserWarning: Some Warning",
             )
         }
 
