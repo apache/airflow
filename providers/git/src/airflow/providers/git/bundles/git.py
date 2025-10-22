@@ -45,7 +45,7 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
-    :param remove_git_folder_from_versions: Remove .git folder from the versions after cloning.
+    :param prune_dotgit_folder: Remove .git folder from the versions after cloning.
 
         The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
         to share the object directory via hardlinks, but if you have a lot of current versions
@@ -62,7 +62,7 @@ class GitDagBundle(BaseDagBundle):
         subdir: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
-        remove_git_folder_from_versions: bool = True,
+        prune_dotgit_folder: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -75,7 +75,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
-        self.remove_git_folder_from_versions = remove_git_folder_from_versions
+        self.prune_dotgit_folder = prune_dotgit_folder
 
         self._log = log.bind(
             bundle_name=self.name,
@@ -123,7 +123,7 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
-                if self.remove_git_folder_from_versions:
+                if self.prune_dotgit_folder:
                     shutil.rmtree(self.repo_path / ".git")
             else:
                 self.refresh()

@@ -165,7 +165,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
-            remove_git_folder_from_versions=False,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
 
@@ -197,7 +197,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
-            remove_git_folder_from_versions=False,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -259,7 +259,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
-            remove_git_folder_from_versions=False,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
 
