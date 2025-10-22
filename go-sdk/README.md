@@ -49,7 +49,7 @@ Since Go is a compiled language (putting aside projects such as [YAEGI](https://
 
 - Configure the go edge worker, by editing `$AIRFLOW_HOME/go-sdk.yaml`:
 
-  These config values need tweaking, expecially the ports and secrets. The ports are the default assuming
+  These config values need tweaking, especially the ports and secrets. The ports are the default assuming
   airflow is running locally via `airflow standalone`.
 
   ```toml
