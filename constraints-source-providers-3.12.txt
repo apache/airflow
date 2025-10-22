@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-21T19:45:26.856841
+# This constraints file was automatically generated on 2025-10-22T02:21:06.074674
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -52,7 +52,7 @@ aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
 aiohttp==3.13.1
 aioitertools==0.12.0
-aiomysql==0.2.0
+aiomysql==0.3.2
 aioresponses==0.7.8
 aiosignal==1.4.0
 aiosmtplib==5.0.0
@@ -158,7 +158,7 @@ colorama==0.4.6
 colorful==0.5.7
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.0
+confluent-kafka==2.12.1
 connexion==2.14.2
 coverage==7.11.0
 crcmod==1.7
@@ -225,7 +225,7 @@ google-api-python-client==2.185.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.41.1
-google-cloud-aiplatform==1.121.0
+google-cloud-aiplatform==1.122.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -270,7 +270,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.45.0
+google-genai==1.46.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.71.0
 graphql-core==3.2.6
@@ -644,7 +644,6 @@ tiktoken==0.12.0
 time-machine==2.19.0
 tinycss2==1.4.0
 tokenizers==0.22.1
-tomli==2.3.0
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.2
