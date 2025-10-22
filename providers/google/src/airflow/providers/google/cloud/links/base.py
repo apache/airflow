@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
-from airflow.providers.common.compat.lazy_compat import BaseOperatorLink, BaseSensorOperator, XCom
+from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOperator, XCom
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:

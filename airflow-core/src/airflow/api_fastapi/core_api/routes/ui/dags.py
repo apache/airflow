@@ -264,7 +264,8 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
             status.HTTP_400_BAD_REQUEST,
             "`~` was supplied as dag_id, but querying multiple dags is not supported.",
         )
-    return session.execute(
+
+    latest_run_info_select = (
         select(
             DagRun.id,
             DagRun.dag_id,
@@ -278,4 +279,7 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
         .where(DagRun.dag_id == dag_id)
         .order_by(DagRun.run_after.desc())
         .limit(1)
-    ).one_or_none()
+    )
+    latest_run_info = session.execute(latest_run_info_select).one_or_none()
+
+    return DAGRunLightResponse(**latest_run_info._mapping) if latest_run_info else None

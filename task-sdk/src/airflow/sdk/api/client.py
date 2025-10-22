@@ -606,13 +606,32 @@ class AssetEventOperations:
         self.client = client
 
     def get(
-        self, name: str | None = None, uri: str | None = None, alias_name: str | None = None
+        self,
+        name: str | None = None,
+        uri: str | None = None,
+        alias_name: str | None = None,
+        after: datetime | None = None,
+        before: datetime | None = None,
+        ascending: bool = True,
+        limit: int | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
+        common_params: dict[str, Any] = {}
+        if after:
+            common_params["after"] = after.isoformat()
+        if before:
+            common_params["before"] = before.isoformat()
+        common_params["ascending"] = ascending
+        if limit:
+            common_params["limit"] = limit
         if name or uri:
-            resp = self.client.get("asset-events/by-asset", params={"name": name, "uri": uri})
+            resp = self.client.get(
+                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+            )
         elif alias_name:
-            resp = self.client.get("asset-events/by-asset-alias", params={"name": alias_name})
+            resp = self.client.get(
+                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+            )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 
@@ -810,6 +829,7 @@ API_RETRIES = conf.getint("workers", "execution_api_retries")
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
+API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 
 
 class Client(httpx.Client):
@@ -829,6 +849,10 @@ class Client(httpx.Client):
             if API_SSL_CERT_PATH:
                 ctx.load_verify_locations(API_SSL_CERT_PATH)
             kwargs["verify"] = ctx
+
+        # Set timeout if not explicitly provided
+        kwargs.setdefault("timeout", API_TIMEOUT)
+
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,

@@ -57,7 +57,7 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models import Connection  # type: ignore[assignment,attr-defined,no-redef]
 
-from airflow.providers.common.compat.lazy_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
 )

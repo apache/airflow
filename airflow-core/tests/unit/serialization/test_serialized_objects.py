@@ -207,7 +207,7 @@ TI_WITH_START_DAY = TaskInstance(
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
-TI_WITH_START_DAY.start_date = timezone.utcnow()
+TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",

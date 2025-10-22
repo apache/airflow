@@ -33,12 +33,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.models import DagRun
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class LatestOnlyOperator(BaseBranchOperator):

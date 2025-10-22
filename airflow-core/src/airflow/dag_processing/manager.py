@@ -31,7 +31,6 @@ import sys
 import time
 import zipfile
 from collections import defaultdict, deque
-from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -74,6 +73,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -320,7 +320,7 @@ class DagFileProcessorManager(LoggingMixin):
                 .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
-            deactivated = deactivated_dagmodel.rowcount
+            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
             if deactivated:
                 self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
@@ -511,7 +511,10 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
-                bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
+                bundle_model = session.get(DagBundleModel, bundle.name)
+                if bundle_model is None:
+                    self.log.warning("Bundle model not found for %s", bundle.name)
+                    continue
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()

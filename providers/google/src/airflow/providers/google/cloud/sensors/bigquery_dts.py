@@ -26,7 +26,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 

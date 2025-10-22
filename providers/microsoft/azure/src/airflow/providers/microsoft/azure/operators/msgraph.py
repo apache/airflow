@@ -27,12 +27,12 @@ from typing import (
 )
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO

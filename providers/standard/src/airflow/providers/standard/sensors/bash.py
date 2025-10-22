@@ -24,14 +24,10 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
-from airflow.providers.standard.version_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BashSensor(BaseSensorOperator):
