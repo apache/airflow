@@ -28,7 +28,7 @@ Longer term we will likely need to stabilize the Edge Executor API and add versi
 
 Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow Go to be interpreted), all tasks must:
 
-1. Be compiled into a binary ahead of time, and  
+1. Be compiled into a binary ahead of time, and
 2. Be registered inside the worker process in order to be executed.
 
 
@@ -95,16 +95,20 @@ You will need to create a python Dag and deploy it in to the Airflow
 ```python
 from airflow.sdk import dag, task
 
+
 @task.stub(queue="golang")
-def extract():...
+def extract(): ...
+
 
 @task.stub(queue="golang")
 def transform(): ...
+
 
 @dag()
 def simple_dag():
 
     extract() >> transform()
+
 
 multi_language()
 ```
