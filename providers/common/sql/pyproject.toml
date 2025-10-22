@@ -69,7 +69,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "common.compat" = [
-    "apache-airflow-providers-common-compat>=1.7.4",  # + TODO: bump to next version
+    "apache-airflow-providers-common-compat>=1.8.0",
 ]
 "pandas" = [
     'pandas[sql-other]>=2.1.2; python_version <"3.13"',
