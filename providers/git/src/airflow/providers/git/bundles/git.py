@@ -45,6 +45,7 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
+    :param remove_git_repo_on_versions: Remove .git folder from the versions after cloning
     """
 
     supports_versioning = True
@@ -56,6 +57,7 @@ class GitDagBundle(BaseDagBundle):
         subdir: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
+        remove_git_repo_on_versions: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,6 +70,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
+        self.remove_git_repo_on_versions = remove_git_repo_on_versions
 
         self._log = log.bind(
             bundle_name=self.name,
@@ -115,6 +118,8 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
+                if self.remove_git_repo_on_versions:
+                    shutil.rmtree(self.repo_path / ".git")
             else:
                 self.refresh()
             self.repo.close()
