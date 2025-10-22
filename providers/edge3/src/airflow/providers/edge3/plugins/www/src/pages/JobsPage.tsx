@@ -18,10 +18,10 @@
  */
 import { Box, Table, Text } from "@chakra-ui/react";
 import { useUiServiceJobs } from "openapi/queries";
+import { Link } from "react-router-dom";
 import TimeAgo from "react-timeago";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Link } from "src/components/InternalLink";
 import { StateBadge } from "src/components/StateBadge";
 import { autoRefreshInterval } from "src/utils";
 
@@ -90,9 +90,7 @@ export const JobsPage = () => {
                   {job.queued_dttm ? <TimeAgo date={job.queued_dttm} live={false} /> : undefined}
                 </Table.Cell>
                 <Table.Cell>
-                  <Link inPlugin={true} to={`../worker#${job.edge_worker}`}>
-                    {job.edge_worker}
-                  </Link>
+                  <Link to={`../worker#${job.edge_worker}`}>{job.edge_worker}</Link>
                 </Table.Cell>
                 <Table.Cell>
                   {job.last_update ? <TimeAgo date={job.last_update} live={false} /> : undefined}

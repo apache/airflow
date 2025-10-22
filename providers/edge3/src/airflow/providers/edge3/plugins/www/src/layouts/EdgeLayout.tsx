@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { JobsPage } from "src/pages/JobsPage";
 import { WorkerPage } from "src/pages/WorkerPage";
@@ -30,32 +30,14 @@ export const EdgeLayout = () => {
     { label: "Edge Jobs", value: "jobs" },
   ];
 
-  // Need to check whether ReactRouterDOM is available globally
-  // because in Airflow 3.1.0, the plugin system was missing this.
-  if ((globalThis as Record<string, unknown>).ReactRouterDOM) {
-    return (
-      <Box p={2} /* Compensate for parent padding from ExternalView */>
-        <NavTabs tabs={tabs} />
-        <Routes>
-          <Route index element={<Navigate to="worker" replace />} />
-          <Route path="worker" element={<WorkerPage />} />
-          <Route path="jobs" element={<JobsPage />} />
-        </Routes>
-      </Box>
-    );
-  } else {
-    // Fallback in 3.1.0, can be removed if we drop support for it
-    return (
-      <Box p={2} /* Compensate for parent padding from ExternalView */>
-        <NavTabs tabs={tabs} />
-        <BrowserRouter>
-          <Routes>
-            <Route index element={<Navigate to="worker" replace />} />
-            <Route path="worker" element={<WorkerPage />} />
-            <Route path="jobs" element={<JobsPage />} />
-          </Routes>
-        </BrowserRouter>
-      </Box>
-    );
-  }
+  return (
+    <Box p={2} /* Compensate for parent padding from ExternalView */>
+      <NavTabs tabs={tabs} />
+      <Routes>
+        <Route index element={<Navigate to="worker" replace />} />
+        <Route path="worker" element={<WorkerPage />} />
+        <Route path="jobs" element={<JobsPage />} />
+      </Routes>
+    </Box>
+  );
 };
