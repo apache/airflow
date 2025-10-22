@@ -19,8 +19,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
-from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 if TYPE_CHECKING:
     from typing import Literal
