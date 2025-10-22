@@ -26,7 +26,10 @@ The Task API however does not provide a means to get the `ExecuteTaskWorkload` t
 that we use the Edge Executor API.
 Longer term we will likely need to stabilize the Edge Executor API and add versioning to it.
 
-Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow go to be interpreted) all tasks must be a) compiled in to the binary, and b) "registered" inside the worker process in order to be executed.
+Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow Go to be interpreted), all tasks must:
+
+1. Be compiled into a binary ahead of time, and  
+2. Be registered inside the worker process in order to be executed.
 
 
 > [!NOTE]
@@ -36,7 +39,7 @@ Since Go is a compiled language (putting aside projects such as [YAEGI](https://
 
 - See [`example/bundle/main.go`](./example/bundle/main.go) for an example dag bundle where you can define your task functions
 
-- Compile this in to a binary:
+- Compile this into a binary:
 
   ```bash
   go build -o ./bin/sample-dag-bundle ./example/bundle
