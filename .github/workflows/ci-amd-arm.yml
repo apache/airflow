@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Tests AMD
+name: Tests AMD/ARM
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 1,3,7,9,13,15,19,21 * * *'
@@ -43,7 +43,7 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-amd-${{ github.event.pull_request.number || github.ref }}
+  group: ci-amd-arm-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -916,12 +916,12 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Failure Alert: Scheduled CI (AMD) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Failure Alert: Scheduled CI (AMD) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
 
   summarize-warnings:
@@ -972,7 +972,7 @@ jobs:
       - name: "Upload artifact for summarized warnings"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: test-summarized-amd-runner-warnings
+          name: "test-summarized-${{ needs.build-info.outputs.platform }}-runner-warnings"
           path: ./files/warn-summary-*.txt
           retention-days: 7
           if-no-files-found: ignore

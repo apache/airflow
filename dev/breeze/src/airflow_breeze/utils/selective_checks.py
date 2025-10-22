@@ -1306,7 +1306,7 @@ class SelectiveChecks:
         import requests
 
         job_name = "Basic tests"
-        workflow_name = "ci-amd.yml"
+        workflow_name = "ci-amd-arm.yml"
         headers = {"Accept": "application/vnd.github.v3+json"}
         if os.environ.get("GITHUB_TOKEN"):
             headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
