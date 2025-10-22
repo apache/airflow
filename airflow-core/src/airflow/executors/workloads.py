@@ -200,6 +200,8 @@ class RunTrigger(BaseModel):
 
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
 
+    dag: dict | None = None
+
 
 All = Annotated[
     ExecuteTask | RunTrigger,

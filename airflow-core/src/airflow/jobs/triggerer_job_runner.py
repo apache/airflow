@@ -72,13 +72,15 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -87,6 +89,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
 
@@ -603,7 +606,41 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the deques so the subprocess can actually mutate the running
         trigger set.
         """
+        from airflow.models.dagbag import DBDagBag
+
+        dag_bag = DBDagBag()
         render_log_fname = log_filename_template_renderer()
+
+        @provide_session
+        def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger:
+            if trigger.task_instance:
+                log_path = render_log_fname(ti=trigger.task_instance)
+                serialized_dag = dag_bag.get_dag_model(
+                    version_id=trigger.task_instance.dag_version_id,
+                    session=session,
+                )
+                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
+
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
+                return workloads.RunTrigger(
+                    classpath=trigger.classpath,
+                    id=new_id,
+                    encrypted_kwargs=trigger.encrypted_kwargs,
+                    ti=ser_ti,
+                    timeout_after=trigger.task_instance.trigger_timeout,
+                    dag=serialized_dag.data if serialized_dag else None,
+                )
+            return workloads.RunTrigger(
+                classpath=trigger.classpath,
+                id=new_id,
+                encrypted_kwargs=trigger.encrypted_kwargs,
+                ti=None,
+            )
 
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
@@ -614,57 +651,45 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
-        # Bulk-fetch new trigger records
-        new_triggers = Trigger.bulk_fetch(new_trigger_ids)
-        trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations()
-        to_create: list[workloads.RunTrigger] = []
-        # Add in new triggers
-        for new_id in new_trigger_ids:
-            # Check it didn't vanish in the meantime
-            if new_id not in new_triggers:
-                log.warning("Trigger disappeared before we could start it", id=new_id)
-                continue
 
-            new_trigger_orm = new_triggers[new_id]
-
-            # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
-            # row was updated by either Trigger.submit_event or Trigger.submit_failure
-            # and can happen when a single trigger Job is being run on multiple TriggerRunners
-            # in a High-Availability setup.
-            if new_trigger_orm.task_instance is None and new_id not in trigger_ids_with_non_task_associations:
-                log.info(
-                    (
-                        "TaskInstance Trigger is None. It was likely updated by another trigger job. "
-                        "Skipping trigger instantiation."
-                    ),
-                    id=new_id,
-                )
-                continue
-
-            workload = workloads.RunTrigger(
-                classpath=new_trigger_orm.classpath,
-                id=new_id,
-                encrypted_kwargs=new_trigger_orm.encrypted_kwargs,
-                ti=None,
+        with create_session() as session:
+            # Bulk-fetch new trigger records
+            new_triggers = Trigger.bulk_fetch(new_trigger_ids, session=session)
+            trigger_ids_with_non_task_associations = Trigger.fetch_trigger_ids_with_non_task_associations(
+                session=session
             )
-            if new_trigger_orm.task_instance:
-                log_path = render_log_fname(ti=new_trigger_orm.task_instance)
+            to_create: list[workloads.RunTrigger] = []
+            # Add in new triggers
+            for new_id in new_trigger_ids:
+                # Check it didn't vanish in the meantime
+                if new_id not in new_triggers:
+                    log.warning("Trigger disappeared before we could start it", id=new_id)
+                    continue
 
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log",
-                    ti=ser_ti,  # type: ignore
-                )
+                new_trigger_orm = new_triggers[new_id]
 
-                workload.ti = ser_ti
-                workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
+                # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
+                # row was updated by either Trigger.submit_event or Trigger.submit_failure
+                # and can happen when a single trigger Job is being run on multiple TriggerRunners
+                # in a High-Availability setup.
+                if (
+                    new_trigger_orm.task_instance is None
+                    and new_id not in trigger_ids_with_non_task_associations
+                ):
+                    log.info(
+                        (
+                            "TaskInstance Trigger is None. It was likely updated by another trigger job. "
+                            "Skipping trigger instantiation."
+                        ),
+                        id=new_id,
+                    )
+                    continue
 
-            to_create.append(workload)
+                workload = create_workload(new_trigger_orm, session=session)
 
-        self.creating_triggers.extend(to_create)
+                to_create.append(workload)
+
+            self.creating_triggers.extend(to_create)
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
@@ -909,6 +934,15 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
+        def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
+            task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
+
+            # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
+            return RuntimeTaskInstance.model_construct(
+                **workload.ti.model_dump(exclude_unset=True),
+                task=task,
+            )
+
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
             await asyncio.sleep(0)
@@ -939,24 +973,29 @@ class TriggerRunner:
                 # that could cause None values in collections.
                 kw = Trigger._decrypt_kwargs(workload.encrypted_kwargs)
                 deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
-                trigger_instance = trigger_class(**deserialised_kwargs)
+
+                if ti := workload.ti:
+                    runtime_ti = create_runtime_ti(workload.dag)
+                    context = runtime_ti.get_template_context()
+                    trigger_name = f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} (ID {trigger_id})"
+                    trigger_instance = trigger_class(**deserialised_kwargs)
+                    trigger_instance.task_instance = runtime_ti
+                else:
+                    context = None
+                    trigger_name = f"ID {trigger_id}"
+                    trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))
                 continue
+
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
-            trigger_instance.task_instance = ti = workload.ti
             trigger_instance.timeout_after = workload.timeout_after
 
-            trigger_name = (
-                f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} (ID {trigger_id})"
-                if ti
-                else f"ID {trigger_id}"
-            )
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, context=context), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1091,7 +1130,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id, trigger, context: Context | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
@@ -1103,6 +1142,9 @@ class TriggerRunner:
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
         try:
+            if context:
+                trigger.render_template_fields(context=context)
+
             async for event in trigger.run():
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
