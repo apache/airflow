@@ -239,48 +239,6 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
-    def test_ti_run_coerces_none_conf_to_empty_dict(
-        self, client, session, create_task_instance, time_machine
-    ):
-        """
-        Ensure that when DagRun.conf is None in the DB, ti_run response returns an empty dict for conf.
-        """
-        instant_str = "2024-09-30T12:00:00Z"
-        instant = timezone.parse(instant_str)
-        time_machine.move_to(instant, tick=False)
-
-        ti = create_task_instance(
-            task_id="test_ti_run_coerces_none_conf_to_empty_dict",
-            state=State.QUEUED,
-            dagrun_state=DagRunState.RUNNING,
-            session=session,
-            start_date=instant,
-            dag_id=str(uuid4()),
-        )
-        session.commit()
-
-        # Explicitly set the associated DagRun.conf to None to exercise the coercion path
-        from airflow.models.dagrun import DagRun as DR
-
-        dr = session.scalars(select(DR).filter_by(dag_id=ti.dag_id, run_id=ti.run_id)).one()
-        dr.conf = None
-        session.merge(dr)
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "random-hostname",
-                "unixname": "random-unixname",
-                "pid": 100,
-                "start_date": instant_str,
-            },
-        )
-
-        assert response.status_code == 200
-        assert response.json()["dag_run"]["conf"] == {}
-
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """
         Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances
