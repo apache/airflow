@@ -23,11 +23,15 @@ from unittest import mock
 
 import pytest
 import time_machine
+import uuid6
 from sentry_sdk import configure_scope
 from sentry_sdk.transport import Transport
 
 from airflow._shared.timezones import timezone
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
+from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbsResult
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
 
@@ -38,6 +42,7 @@ SCHEDULE_INTERVAL = datetime.timedelta(days=1)
 DATA_INTERVAL = (LOGICAL_DATE, LOGICAL_DATE + SCHEDULE_INTERVAL)
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
+RUN_ID = "test_run"
 OPERATOR = "PythonOperator"
 TRY_NUMBER = 0
 STATE = State.SUCCESS
@@ -77,20 +82,36 @@ class CustomTransport(Transport):
 
 class TestSentryHook:
     @pytest.fixture
-    def task_instance(self, dag_maker):
-        # Mock the Dag
-        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL, serialized=True):
-            task = PythonOperator(task_id=TASK_ID, python_callable=int)
+    def dag_run(self):
+        return DagRun.model_construct(
+            dag_id=DAG_ID,
+            run_id=RUN_ID,
+            logical_date=LOGICAL_DATE,
+            data_interval_start=DATA_INTERVAL[0],
+            data_interval_end=DATA_INTERVAL[1],
+            run_after=max(DATA_INTERVAL),
+            start_date=max(DATA_INTERVAL),
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
+            consumed_asset_events=[],
+        )
 
-        dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, logical_date=LOGICAL_DATE)
-        ti = dr.task_instances[0]
-        ti.state = STATE
-        ti.task = task
-        dag_maker.session.commit()
-
-        yield ti
-
-        dag_maker.session.rollback()
+    @pytest.fixture
+    def task_instance(self, dag_run):
+        ti_date = timezone.utcnow()
+        return RuntimeTaskInstance.model_construct(
+            id=uuid6.uuid7(),
+            task_id=TASK_ID,
+            dag_id=dag_run.dag_id,
+            run_id=dag_run.run_id,
+            try_number=TRY_NUMBER,
+            dag_version_id=uuid6.uuid7(),
+            task=PythonOperator(task_id=TASK_ID, python_callable=bool),
+            bundle_instance=mock.Mock(),
+            start_date=ti_date,
+            end_date=ti_date,
+            state=STATE,
+        )
 
     @pytest.fixture
     def sentry_sdk(self):
@@ -103,10 +124,10 @@ class TestSentryHook:
             {
                 ("sentry", "sentry_on"): "True",
                 ("sentry", "default_integrations"): "False",
-                ("sentry", "before_send"): "unit.core.test_sentry.before_send",
+                ("sentry", "before_send"): "task_sdk.execution_time.test_sentry.before_send",
             },
         ):
-            from airflow import sentry
+            from airflow.sdk.execution_time import sentry
 
             importlib.reload(sentry)
             yield sentry.Sentry
@@ -119,10 +140,10 @@ class TestSentryHook:
             {
                 ("sentry", "sentry_on"): "True",
                 ("sentry", "default_integrations"): "False",
-                ("sentry", "transport"): "unit.core.test_sentry.CustomTransport",
+                ("sentry", "transport"): "task_sdk.execution_time.test_sentry.CustomTransport",
             },
         ):
-            from airflow import sentry
+            from airflow.sdk.execution_time import sentry
 
             importlib.reload(sentry)
             yield sentry.Sentry
@@ -135,41 +156,38 @@ class TestSentryHook:
         Minimum sentry config
         """
         with conf_vars({("sentry", "sentry_on"): "True"}):
-            from airflow import sentry
+            from airflow.sdk.execution_time import sentry
 
             importlib.reload(sentry)
             yield sentry.Sentry
 
         importlib.reload(sentry)
 
-    @pytest.mark.db_test
-    def test_add_tagging(self, sentry, task_instance):
+    def test_add_tagging(self, sentry, dag_run, task_instance):
         """
         Test adding tags.
         """
-        sentry.add_tagging(task_instance=task_instance)
+        sentry.add_tagging(dag_run=dag_run, task_instance=task_instance)
         with configure_scope() as scope:
-            for key, value in scope._tags.items():
-                assert value == TEST_SCOPE[key]
+            assert scope._tags == TEST_SCOPE
 
-    @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
-    def test_add_breadcrumbs(self, sentry, task_instance):
+    def test_add_breadcrumbs(self, mock_supervisor_comms, sentry, dag_run, task_instance):
         """
         Test adding breadcrumbs.
         """
-        sentry.add_tagging(task_instance=task_instance)
-        sentry.add_breadcrumbs(task_instance=task_instance)
+        mock_supervisor_comms.send.return_value = TaskBreadcrumbsResult.model_construct(
+            breadcrumbs=[TASK_DATA],
+        )
 
+        sentry.add_breadcrumbs(task_instance=task_instance)
         with configure_scope() as scope:
-            test_crumb = scope._breadcrumbs.pop()
-            for item in CRUMB:
-                if item == "timestamp":
-                    pass
-                elif item == "state":
-                    assert str(CRUMB[item]) == str(test_crumb[item])
-                else:
-                    assert CRUMB[item] == test_crumb[item]
+            collected_crumb = scope._breadcrumbs.pop()
+        assert collected_crumb == CRUMB
+
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetTaskBreadcrumbs(dag_id=DAG_ID, run_id=RUN_ID)),
+        ]
 
     def test_before_send(self, sentry_sdk, sentry):
         """
@@ -177,7 +195,7 @@ class TestSentryHook:
         """
         assert sentry
         called = sentry_sdk.call_args.kwargs["before_send"]
-        expected = import_string("unit.core.test_sentry.before_send")
+        expected = import_string("task_sdk.execution_time.test_sentry.before_send")
         assert called == expected
 
     def test_custom_transport(self, sentry_sdk, sentry_custom_transport):
@@ -186,7 +204,7 @@ class TestSentryHook:
         """
         assert sentry_custom_transport
         called = sentry_sdk.call_args.kwargs["transport"]
-        expected = import_string("unit.core.test_sentry.CustomTransport")
+        expected = import_string("task_sdk.execution_time.test_sentry.CustomTransport")
         assert called == expected
 
     def test_minimum_config(self, sentry_sdk, sentry_minimum):

@@ -93,11 +93,14 @@ packages = []
 "otel" = [
     "apache-airflow-core[otel]"
 ]
-"sentry" = [
-    "apache-airflow-core[sentry]"
-]
 "statsd" = [
     "apache-airflow-core[statsd]"
+]
+"all-task-sdk" = [
+    "apache-airflow-task-sdk[all]"
+]
+"sentry" = [
+    "apache-airflow-task-sdk[sentry]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -1269,7 +1272,7 @@ dev = [
     "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
