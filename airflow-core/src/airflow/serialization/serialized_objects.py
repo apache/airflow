@@ -28,6 +28,7 @@ import itertools
 import logging
 import math
 import re
+import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from functools import cached_property, lru_cache
@@ -93,6 +94,7 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -923,8 +925,13 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return from_timestamp(var)
         elif type_ == DAT.POD:
-            if not _has_kubernetes():
-                raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
+            # Attempt to import kubernetes for deserialization. Using attempt_import=True allows
+            # lazy loading of kubernetes libraries only when actually needed for POD deserialization.
+            if not _has_kubernetes(attempt_import=True):
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries. "
+                    "Please install the cncf.kubernetes provider."
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
@@ -1028,16 +1035,14 @@ class BaseSerialization:
         }
 
     @classmethod
-    def _deserialize_param(cls, param_dict: dict):
+    def _deserialize_param(cls, param_dict: dict) -> SerializedParam:
         """
-        Workaround to serialize Param on older versions.
+        Deserialize an encoded Param to a server-side SerializedParam.
 
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
-        class_name = param_dict["__class"]
-        class_: type[Param] = import_string(class_name)
         attrs = ("default", "description", "schema")
         kwargs = {}
 
@@ -1054,7 +1059,12 @@ class BaseSerialization:
                 if is_serialized(val):
                     val = cls.deserialize(val)
                 kwargs[attr] = val
-        return class_(**kwargs)
+
+        return SerializedParam(
+            default=kwargs.get("default"),
+            description=kwargs.get("description"),
+            **(kwargs.get("schema") or {}),
+        )
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
@@ -1076,23 +1086,21 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
-        """Deserialize a DAG's Params dict."""
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> SerializedParamsDict:
+        """Deserialize an encoded ParamsDict to a server-side SerializedParamsDict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
         else:
             encoded_param_pairs = encoded_params
 
-        op_params = {}
-        for k, v in encoded_param_pairs:
-            if isinstance(v, dict) and "__class" in v:
-                op_params[k] = cls._deserialize_param(v)
-            else:
-                # Old style params, convert it
-                op_params[k] = Param(v)
+        def deserialized_param(v):
+            if not isinstance(v, dict) or "__class" not in v:
+                return SerializedParam(v)  # Old style param serialization format.
+            return cls._deserialize_param(v)
 
-        return ParamsDict(op_params)
+        op_params = {k: deserialized_param(v) for k, v in encoded_param_pairs}
+        return SerializedParamsDict(op_params)
 
     @classmethod
     @lru_cache(maxsize=4)  # Cache for "operator", "dag", and a few others
@@ -1284,6 +1292,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     outlets: Sequence = []
     owner: str = "airflow"
+    params: SerializedParamsDict = SerializedParamsDict()
     pool: str = "default_pool"
     pool_slots: int = 1
     priority_weight: int = 1
@@ -1317,18 +1326,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     is_mapped = False
 
-    def __init__(
-        self,
-        *,
-        task_id: str,
-        params: Mapping[str, Any] | None = None,
-        _airflow_from_mapped: bool = False,
-    ) -> None:
+    def __init__(self, *, task_id: str, _airflow_from_mapped: bool = False) -> None:
         super().__init__()
 
         self._BaseOperator__from_mapped = _airflow_from_mapped
         self.task_id = task_id
-        self.params = ParamsDict(params)
         # Move class attributes into object attributes.
         self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name: str | None = None
@@ -1603,9 +1605,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-                if op.params:  # Merge existing params if needed.
-                    v, new = op.params, v
-                    v.update(new)
             elif k == "partial_kwargs":
                 # Use unified deserializer that supports both encoded and non-encoded values
                 v = cls._deserialize_partial_kwargs(v, client_defaults)
@@ -2381,7 +2380,7 @@ class SerializedDAG(BaseSerialization):
     max_active_tasks: int
     max_consecutive_failed_dag_runs: int
     owner_links: dict[str, str]
-    params: ParamsDict  # TODO (GH-52141): Should use a scheduler-specific type.
+    params: SerializedParamsDict
     partial: bool
     render_template_as_native_obj: bool
     start_date: datetime.datetime | None
@@ -2416,7 +2415,7 @@ class SerializedDAG(BaseSerialization):
         self.max_active_tasks = 16  # Schema default
         self.max_consecutive_failed_dag_runs = 0  # Schema default
         self.owner_links = {}
-        self.params = ParamsDict()
+        self.params = SerializedParamsDict()
         self.partial = False
         self.render_template_as_native_obj = False
         self.start_date = None
@@ -2931,6 +2930,7 @@ class SerializedDAG(BaseSerialization):
         include_downstream: bool = False,
         include_upstream: bool = True,
         include_direct_upstream: bool = False,
+        exclude_original: bool = False,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 
@@ -2981,6 +2981,8 @@ class SerializedDAG(BaseSerialization):
             return copy.deepcopy(t, memo)
 
         # Compiling the unique list of tasks that made the cut
+        if exclude_original:
+            matched_tasks = []
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
@@ -3256,11 +3258,7 @@ class SerializedDAG(BaseSerialization):
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-
-        # create a copy of params before validating
-        copied_params = copy.deepcopy(self.params)
-        if conf:
-            copied_params.update(conf)
+        copied_params = self.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
@@ -3809,10 +3807,22 @@ class SerializedAssetWatcher(AssetWatcher):
     trigger: dict
 
 
-def _has_kubernetes() -> bool:
+def _has_kubernetes(attempt_import: bool = False) -> bool:
+    """
+    Check if kubernetes libraries are available.
+
+    :param attempt_import: If true, attempt to import kubernetes libraries if not already loaded. If
+        False, only check if already in sys.modules (avoids expensive import).
+    :return: True if kubernetes libraries are available, False otherwise.
+    """
     global HAS_KUBERNETES
     if "HAS_KUBERNETES" in globals():
         return HAS_KUBERNETES
+
+    # Check if kubernetes is already imported before triggering expensive import
+    if "kubernetes.client" not in sys.modules and not attempt_import:
+        HAS_KUBERNETES = False
+        return False
 
     # Loading kube modules is expensive, so delay it until the last moment
 
@@ -3870,6 +3880,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "jinja_environment_kwargs",
         "relative_fileloc",
         "disable_bundle_versioning",
+        "fail_fast",
         "last_loaded",
     }
 

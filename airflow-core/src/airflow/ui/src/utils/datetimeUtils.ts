@@ -31,9 +31,9 @@ export const renderDuration = (durationSeconds: number | null | undefined): stri
     return undefined;
   }
 
-  // If under 10 seconds, render as 9s
-  if (durationSeconds < 10) {
-    return `${durationSeconds.toFixed(2)}s`;
+  // If under 60 seconds, render milliseconds
+  if (durationSeconds < 60) {
+    return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
   }
 
   // If under 1 day, render as HH:mm:ss otherwise include the number of days

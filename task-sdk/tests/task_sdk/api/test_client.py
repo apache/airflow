@@ -30,7 +30,7 @@ from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
-from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
@@ -98,6 +98,23 @@ class TestClient:
             make_client(httpx.MockTransport(handle_request))
 
         assert isinstance(err.value, FileNotFoundError)
+
+    @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
+    def test_timeout_configuration(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        client = make_client(httpx.MockTransport(handle_request))
+        assert client.timeout == httpx.Timeout(60.0)
+
+    def test_timeout_can_be_overridden(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        client = Client(
+            base_url="test://server", token="", transport=httpx.MockTransport(handle_request), timeout=120.0
+        )
+        assert client.timeout == httpx.Timeout(120.0)
 
     def test_error_parsing(self):
         responses = [

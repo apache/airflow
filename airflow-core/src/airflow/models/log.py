@@ -17,14 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Index, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -36,18 +37,18 @@ class Log(Base):
 
     __tablename__ = "log"
 
-    id = Column(Integer, primary_key=True)
-    dttm = Column(UtcDateTime)
-    dag_id = Column(StringID())
-    task_id = Column(StringID())
-    map_index = Column(Integer)
-    event = Column(String(60))
-    logical_date = Column(UtcDateTime)
-    run_id = Column(StringID())
-    owner = Column(String(500))
-    owner_display_name = Column(String(500))
-    extra = Column(Text)
-    try_number = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dttm: Mapped[datetime] = mapped_column(UtcDateTime)
+    dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    event: Mapped[str] = mapped_column(String(60))
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    owner: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    owner_display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    extra: Mapped[str | None] = mapped_column(Text, nullable=True)
+    try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     dag_model = relationship(
         "DagModel",

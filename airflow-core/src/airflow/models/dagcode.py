@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import uuid6
-from sqlalchemy import Column, ForeignKey, String, Text, select
+from sqlalchemy import ForeignKey, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
@@ -33,7 +34,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -54,15 +55,17 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    fileloc = Column(String(2000), nullable=False)
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
+    fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
-    source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
-    source_code_hash = Column(String(32), nullable=False)
-    dag_version_id = Column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
+    source_code: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    source_code_hash: Mapped[str] = mapped_column(String(32), nullable=False)
+    dag_version_id: Mapped[str] = mapped_column(
         UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)

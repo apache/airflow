@@ -158,18 +158,27 @@ def reset_secrets_masker() -> None:
     _secrets_masker().reset_masker()
 
 
+def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
+    """Check if object is V1EnvVar, avoiding unnecessary imports."""
+    # Quick check: if k8s not imported, can't be a V1EnvVar instance
+    if "kubernetes.client" not in sys.modules:
+        return False
+
+    # K8s is loaded, safe to get/cache the type
+    v1_type = _get_v1_env_var_type_cached()
+    return isinstance(v, v1_type)
+
+
 @cache
-def _get_v1_env_var_type() -> type:
+def _get_v1_env_var_type_cached() -> type:
+    """Get V1EnvVar type (cached, only called when k8s is already loaded)."""
     try:
         from kubernetes.client import V1EnvVar
 
         return V1EnvVar
     except ImportError:
+        # Shouldn't happen since we check sys.modules first
         return type("V1EnvVar", (), {})
-
-
-def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
-    return isinstance(v, _get_v1_env_var_type())
 
 
 class SecretsMasker(logging.Filter):

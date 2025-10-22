@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
@@ -31,7 +32,6 @@ from airflow.providers.edge3.worker_api.routes.worker import (
     set_state,
     update_queues,
 )
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
