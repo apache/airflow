@@ -34,18 +34,18 @@ from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.docker.exceptions import (
     DockerContainerFailedException,
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
-from airflow.providers.docker.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from docker import APIClient
     from docker.types import DeviceRequest
 
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.types import Logger
 
 

@@ -27,10 +27,10 @@ from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError, DockerException
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.docker.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class DockerHook(BaseHook):
