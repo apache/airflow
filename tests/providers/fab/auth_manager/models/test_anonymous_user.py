@@ -28,7 +28,8 @@ class TestAnonymousUser:
         roles = {"role1"}
         user = AnonymousUser()
         user.roles = roles
-        assert user.roles == roles
+        # AnonymousUser.roles returns a list in flask-appbuilder 4.6.3
+        assert user.roles == list(roles)
 
     def test_perms(self):
         perms = {"perms1"}
