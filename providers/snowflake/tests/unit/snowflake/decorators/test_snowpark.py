@@ -26,9 +26,10 @@ import pytest
 pytest.importorskip("snowflake-snowpark-python")
 
 
+from airflow.providers.common.compat.sdk import task
 from airflow.utils import timezone
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from snowflake.snowpark import Session
