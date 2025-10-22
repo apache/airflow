@@ -118,7 +118,10 @@ async def watch_pod_events(
     num_events = 0
     is_async = isinstance(pod_manager, AsyncPodManager)
     while not pod_manager.stop_watching_events:
-        events = await pod_manager.read_pod_events(pod) if is_async else pod_manager.read_pod_events(pod)
+        if is_async:
+            events = await pod_manager.read_pod_events(pod)
+        else:
+            events = pod_manager.read_pod_events(pod)
         for new_event in events.items[num_events:]:
             involved_object: V1ObjectReference = new_event.involved_object
             pod_manager.log.info(
@@ -152,7 +155,10 @@ async def await_pod_start(
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)
     while True:
-        remote_pod = await pod_manager.read_pod(pod) if is_async else pod_manager.read_pod(pod)
+        if is_async:
+            remote_pod = await pod_manager.read_pod(pod)
+        else:
+            remote_pod = pod_manager.read_pod(pod)
         pod_status = remote_pod.status
         if pod_status.phase != PodPhase.PENDING:
             pod_manager.stop_watching_events = True

@@ -31,3 +31,7 @@ class PodReconciliationError(AirflowException):
 
 class KubernetesApiError(AirflowException):
     """Raised when an error is encountered while trying access Kubernetes API."""
+
+
+class KubernetesApiPermissionError(AirflowException):
+    """Raised when an error is encountered while trying access Kubernetes API."""

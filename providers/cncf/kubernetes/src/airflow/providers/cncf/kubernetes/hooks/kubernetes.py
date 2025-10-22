@@ -37,7 +37,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.container import (
@@ -887,6 +887,8 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
                 return pod
             except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise KubernetesApiError from e
 
     async def delete_pod(self, name: str, namespace: str):
@@ -947,6 +949,8 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
                 return events
             except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise KubernetesApiError from e
 
     async def get_job_status(self, name: str, namespace: str) -> V1Job:

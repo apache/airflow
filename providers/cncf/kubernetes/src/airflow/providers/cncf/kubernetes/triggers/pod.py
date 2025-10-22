@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
 
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
@@ -181,6 +182,22 @@ class KubernetesPodTrigger(BaseTrigger):
                     "name": self.pod_name,
                     "namespace": self.pod_namespace,
                     "status": "timeout",
+                    "message": message,
+                    **self.trigger_kwargs,
+                }
+            )
+            return
+        except KubernetesApiPermissionError as e:
+            message = (
+                "Kubernetes API permission error: The triggerer may not have sufficient permissions to monitor or delete pods. "
+                "Please ensure the triggerer's service account is included in the 'pod-launcher-role' as defined in the latest Airflow Helm chart. "
+                f"Original error: {e}"
+            )
+            yield TriggerEvent(
+                {
+                    "name": self.pod_name,
+                    "namespace": self.pod_namespace,
+                    "status": "error",
                     "message": message,
                     **self.trigger_kwargs,
                 }
