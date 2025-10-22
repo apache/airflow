@@ -45,7 +45,12 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
-    :param remove_git_repo_on_versions: Remove .git folder from the versions after cloning
+    :param remove_git_repo_on_versions: Remove .git folder from the versions after cloning.
+
+        The per-version clone is not a full "git" copy (it makes uses of git's `--local` ability
+        to share the object directory via hardlinks, but if you have a lot of current versions
+        running, or an especially large git repo setting this to False will save some disk space
+        at the expense of `git` operations not working in the bundle that Tasks run from.
     """
 
     supports_versioning = True
