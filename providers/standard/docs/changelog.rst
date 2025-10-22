@@ -35,6 +35,23 @@
 Changelog
 ---------
 
+1.9.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify version-specific imports in the Standard provider (#56867)``
+* ``Throw NotImplementedError error when fail_when_dag_is_paused is used in TriggerDagRunOperator with Airflow 3.x (#56965)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.9.0
 .....
 
