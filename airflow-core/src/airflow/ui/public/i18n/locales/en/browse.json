@@ -19,8 +19,6 @@
     "columns": {
       "dag": "Dag",
       "key": "Key",
-      "task_display_name": "Task",
-      "timestamp": "Timestamp",
       "value": "Value"
     },
     "title": "XCom"

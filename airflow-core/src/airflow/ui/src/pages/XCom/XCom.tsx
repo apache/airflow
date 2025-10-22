@@ -27,6 +27,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
+import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -82,12 +83,12 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
             taskId: original.task_id,
           })}
         >
-          <TruncatedText text={original.task_display_name || original.task_id} />
+          <TruncatedText text={original.task_display_name} />
         </RouterLink>
       </Link>
     ),
     enableSorting: false,
-    header: translate("xcom.columns.task_display_name"),
+    header: translate("common:task_one"),
   },
   {
     accessorKey: "map_index",
@@ -96,9 +97,9 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
   },
   {
     accessorKey: "timestamp",
-    cell: ({ row: { original } }) => new Date(original.timestamp).toLocaleString(),
+    cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
     enableSorting: false,
-    header: translate("xcom.columns.timestamp"),
+    header: translate("dashboard:timestamp"),
   },
   {
     cell: ({ row: { original } }) => (
