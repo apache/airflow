@@ -36,10 +36,11 @@ from collections.abc import Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from enum import Enum
 from io import StringIO
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 from packaging.version import parse as parse_version
@@ -1244,9 +1245,51 @@ class AirflowConfigParser(ConfigParser):
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
             raise AirflowConfigException(
-                f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
+                f'Failed to parse value to list. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
+
+    E = TypeVar("E", bound=Enum)
+
+    def getenum(self, section: str, key: str, enum_class: type[E], **kwargs) -> E:
+        val = self.get(section, key, **kwargs)
+        enum_names = [enum_item.name for enum_item in enum_class]
+
+        if val is None:
+            raise AirflowConfigException(
+                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
+            )
+
+        try:
+            return enum_class[val]
+        except KeyError:
+            if "fallback" in kwargs and kwargs["fallback"] in enum_names:
+                return enum_class[kwargs["fallback"]]
+            raise AirflowConfigException(
+                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
+            )
+
+    def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
+        string_list = self.getlist(section, key, delimiter, **kwargs)
+        enum_names = [enum_item.name for enum_item in enum_class]
+        enum_list = []
+
+        for val in string_list:
+            try:
+                enum_list.append(enum_class[val])
+            except KeyError:
+                log.warning(
+                    "Failed to convert value. Please check %s key in %s section. "
+                    "Current value: %s and it must be one of %s",
+                    key,
+                    section,
+                    val,
+                    ", ".join(enum_names),
+                )
+
+        return enum_list
 
     def getimport(self, section: str, key: str, **kwargs) -> Any:
         """
