@@ -20,6 +20,27 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update authentication to handle JWT token in backend (#56633)``
+* ``Add Werkzeug version check (#56398)``
+
+Misc
+~~~~
+
+* ``SQLA2/FAB: fix some type hints (#56928)``
+* ``FAB: reuse ORM type hints from common-compat (#56903)``
+* ``Bump eslint from 9.37.0 to 9.38.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#56847)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#56436)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.0
 .....
 

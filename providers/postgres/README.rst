@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-postgres``
 
-Release: ``6.3.0``
+Release: ``6.4.0``
 
 
 `PostgreSQL <https://www.postgresql.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``postgres`` provider. All classes for this provi
 are in ``airflow.providers.postgres`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.4.0/>`_.
 
 Installation
 ------------
@@ -73,13 +73,28 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-postgres[amazon]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-==============================================================================================================  ===============
+======================================================================================================================  ===================
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
+======================================================================================================================  ===================
+
+Optional dependencies
+----------------------
+
+===================  =====================================================================================
+Extra                Dependencies
+===================  =====================================================================================
+``amazon``           ``apache-airflow-providers-amazon>=2.6.0``
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
+``polars``           ``polars>=1.26.0``
+``psycopg``          ``psycopg[binary]>=3.2.9``
+===================  =====================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.4.0/changelog.html>`_.

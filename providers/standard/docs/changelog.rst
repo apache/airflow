@@ -35,6 +35,22 @@
 Changelog
 ---------
 
+1.9.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify version-specific imports in the Standard provider (#56867)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.9.0
 .....
 

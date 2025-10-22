@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-http``           ``>=5.1.0``
-``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``aiohttp``                                 ``>=3.9.2``
 ``asgiref``                                 ``>=2.3.0``
 ==========================================  ==================
