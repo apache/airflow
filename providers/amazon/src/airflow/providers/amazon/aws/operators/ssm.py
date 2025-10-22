@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
@@ -36,27 +35,35 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
     Executes the SSM Run Command to perform actions on managed instances.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this operator, take a look at the
+        guide:
         :ref:`howto/operator:SsmRunCommandOperator`
 
-    :param document_name: The name of the Amazon Web Services Systems Manager document (SSM document) to run.
-    :param run_command_kwargs: Optional parameters to pass to the send_command API.
+    :param document_name: The name of the Amazon Web Services Systems Manager
+        document (SSM document) to run.
+    :param run_command_kwargs: Optional parameters to pass to the send_command
+        API.
 
-    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
-    :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
-    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+    :param wait_for_completion: Whether to wait for cluster to stop.
+        (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks.
+        (default: 120)
+    :param waiter_max_attempts: Maximum number of attempts to check for job
+        completion. (default: 75)
+    :param deferrable: If True, the operator will wait asynchronously for the
+        cluster to stop. This implies waiting for completion. This mode
+        requires aiobotocore module to be installed. (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is ``None`` or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
+        If this is ``None`` or empty then the default boto3 behaviour is used.
+        If running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param region_name: AWS region_name. If not specified then the default
+        boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+    :param botocore_config: Configuration dictionary (key-values) for botocore
+        client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
@@ -74,7 +81,9 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -86,7 +95,9 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         self.document_name = document_name
         self.run_command_kwargs = run_command_kwargs or {}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -128,7 +139,10 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
                 waiter.wait(
                     CommandId=command_id,
                     InstanceId=instance_id,
-                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                    WaiterConfig={
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    },
                 )
 
         return command_id
@@ -138,30 +152,34 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
     """
     Retrieves the output and execution details of an SSM command invocation.
 
-    This operator allows you to fetch the standard output, standard error, execution status,
-    and other details from SSM commands. It can be used to retrieve output from commands
-    executed by SsmRunCommandOperator in previous tasks, or from commands executed outside
-    of Airflow entirely.
+    This operator allows you to fetch the standard output, standard error,
+    execution status, and other details from SSM commands. It can be used to
+    retrieve output from commands executed by SsmRunCommandOperator in previous
+    tasks, or from commands executed outside of Airflow entirely.
 
-    The operator returns structured data including stdout, stderr, execution times, and
-    status information for each instance that executed the command.
+    The operator returns structured data including stdout, stderr, execution
+    times, and status information for each instance that executed the command.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this operator, take a look at the
+        guide:
         :ref:`howto/operator:SsmGetCommandInvocationOperator`
 
     :param command_id: The ID of the SSM command to retrieve output for.
-    :param instance_id: The ID of the specific instance to retrieve output for.
-        If not provided, retrieves output from all instances that executed the command.
+    :param instance_id: The ID of the specific instance to retrieve output
+        for. If not provided, retrieves output from all instances that
+        executed the command.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is ``None`` or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
+        If this is ``None`` or empty then the default boto3 behaviour is used.
+        If running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param region_name: AWS region_name. If not specified then the default
+        boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+    :param botocore_config: Configuration dictionary (key-values) for botocore
+        client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
@@ -186,37 +204,68 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
         """Execute the operator to retrieve command invocation output."""
         if self.instance_id:
             self.log.info(
-                "Retrieving output for command %s on instance %s", self.command_id, self.instance_id
+                "Retrieving output for command %s on instance %s",
+                self.command_id,
+                self.instance_id,
             )
             invocations = [{"InstanceId": self.instance_id}]
         else:
-            self.log.info("Retrieving output for command %s from all instances", self.command_id)
-            response = self.hook.list_command_invocations(self.command_id)
+            self.log.info(
+                "Retrieving output for command %s from all instances",
+                self.command_id
+            )
+            response = self.hook.list_command_invocations(
+                self.command_id
+            )
             invocations = response.get("CommandInvocations", [])
 
-        # TBD: Do we return formatted or RAW API output? 
-        # My rationalle for going formatted: Raw AWS API response contains a lot of metadata that's typically not needed for downstream tasks.
-        output_data = {"command_id": self.command_id, "invocations": []}
+        # TBD: Do we return formatted or RAW API output?
+        # My rationalle for going formatted: Raw AWS API response
+        # contains
+        # a lot
+        # of metadata that's typically not needed for downstream tasks.
+        output_data: dict[str, Any] = {
+            "command_id": self.command_id,
+            "invocations": []
+        }
 
         for invocation in invocations:
             instance_id = invocation["InstanceId"]
             try:
-                invocation_details = self.hook.get_command_invocation(self.command_id, instance_id)
+                invocation_details = self.hook.get_command_invocation(
+                    self.command_id, instance_id
+                )
                 output_data["invocations"].append(
                     {
                         "instance_id": instance_id,
                         "status": invocation_details.get("Status", ""),
-                        "response_code": invocation_details.get("ResponseCode", ""),
-                        "standard_output": invocation_details.get("StandardOutputContent", ""),
-                        "standard_error": invocation_details.get("StandardErrorContent", ""),
-                        "execution_start_time": invocation_details.get("ExecutionStartDateTime", ""),
-                        "execution_end_time": invocation_details.get("ExecutionEndDateTime", ""),
-                        "document_name": invocation_details.get("DocumentName", ""),
+                        "response_code": invocation_details.get(
+                            "ResponseCode", ""
+                        ),
+                        "standard_output": invocation_details.get(
+                            "StandardOutputContent", ""
+                        ),
+                        "standard_error": invocation_details.get(
+                            "StandardErrorContent", ""
+                        ),
+                        "execution_start_time": invocation_details.get(
+                            "ExecutionStartDateTime", ""
+                        ),
+                        "execution_end_time": invocation_details.get(
+                            "ExecutionEndDateTime", ""
+                        ),
+                        "document_name": invocation_details.get(
+                            "DocumentName", ""
+                        ),
                         "comment": invocation_details.get("Comment", ""),
                     }
                 )
             except Exception as e:
-                self.log.warning("Failed to get output for instance %s: %s", instance_id, e)
-                output_data["invocations"].append({"instance_id": instance_id, "error": str(e)})
+                self.log.warning(
+                    "Failed to get output for instance %s: %s", instance_id, e
+                )
+                output_data["invocations"].append(
+                    {"instance_id": instance_id, "error": str(e)}
+                )
 
         return output_data

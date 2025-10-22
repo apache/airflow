@@ -38,7 +38,8 @@ class SsmHook(AwsBaseHook):
     """
     Interact with Amazon Systems Manager (SSM).
 
-    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -51,9 +52,13 @@ class SsmHook(AwsBaseHook):
         kwargs["client_type"] = "ssm"
         super().__init__(*args, **kwargs)
 
-    def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
+    def get_parameter_value(
+        self, parameter: str, default: str | ArgNotSet = NOTSET
+    ) -> str:
         """
-        Return the provided Parameter or an optional default; if it is encrypted, then decrypt and mask.
+        Return the provided Parameter or an optional default.
+
+        If it is encrypted, then decrypt and mask.
 
         .. seealso::
             - :external+boto3:py:meth:`SSM.Client.get_parameter`
@@ -62,7 +67,9 @@ class SsmHook(AwsBaseHook):
         :param default: Optional default value to return if none is found.
         """
         try:
-            param = self.conn.get_parameter(Name=parameter, WithDecryption=True)["Parameter"]
+            param = self.conn.get_parameter(
+                Name=parameter, WithDecryption=True
+            )["Parameter"]
             value = param["Value"]
             if param["Type"] == "SecureString":
                 mask_secret(value)
@@ -72,7 +79,9 @@ class SsmHook(AwsBaseHook):
                 raise
             return default
 
-    def get_command_invocation(self, command_id: str, instance_id: str) -> dict:
+    def get_command_invocation(
+        self, command_id: str, instance_id: str
+    ) -> dict:
         """
         Get the output of a command invocation for a specific instance.
 
@@ -83,7 +92,9 @@ class SsmHook(AwsBaseHook):
         :param instance_id: The ID of the instance.
         :return: The command invocation details including output.
         """
-        return self.conn.get_command_invocation(CommandId=command_id, InstanceId=instance_id)
+        return self.conn.get_command_invocation(
+            CommandId=command_id, InstanceId=instance_id
+        )
 
     def list_command_invocations(self, command_id: str) -> dict:
         """

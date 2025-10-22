@@ -105,7 +105,9 @@ class TestSsmHook:
 
         result = self.hook.get_command_invocation(command_id, instance_id)
 
-        mock_conn.return_value.get_command_invocation.assert_called_once_with(CommandId=command_id, InstanceId=instance_id)
+        mock_conn.return_value.get_command_invocation.assert_called_once_with(
+            CommandId=command_id, InstanceId=instance_id
+        )
         assert result == expected_response
 
     @mock.patch("airflow.providers.amazon.aws.hooks.ssm.SsmHook.conn", new_callable=mock.PropertyMock)

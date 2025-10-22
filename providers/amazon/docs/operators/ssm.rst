@@ -77,7 +77,7 @@ To retrieve output from all instances that executed a command:
 .. code-block:: python
 
     get_all_output = SsmGetCommandInvocationOperator(
-        task_id='get_command_output',
+        task_id="get_command_output",
         command_id='{{ ti.xcom_pull(task_ids="run_command") }}',  # From previous task
     )
 

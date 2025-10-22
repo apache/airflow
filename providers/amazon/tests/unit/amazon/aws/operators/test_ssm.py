@@ -85,12 +85,12 @@ class TestSsmRunCommandOperator:
 
         assert command_id == COMMAND_ID
         mock_conn.send_command.assert_called_once_with(DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS)
-        
+
         # Verify defer was called with correct trigger parameters
         self.operator.defer.assert_called_once()
         call_args = self.operator.defer.call_args
         trigger = call_args[1]["trigger"]  # Get the trigger from kwargs
-        
+
         # Verify the trigger has the correct parameters
         assert trigger.command_id == COMMAND_ID
         assert trigger.region_name == "us-west-2"
