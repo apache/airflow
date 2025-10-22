@@ -71,7 +71,7 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
     header: translate("common:runId"),
   },
   {
-    accessorKey: "task_id",
+    accessorKey: "task_display_name",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
@@ -82,17 +82,23 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
             taskId: original.task_id,
           })}
         >
-          <TruncatedText text={original.task_id} />
+          <TruncatedText text={original.task_display_name || original.task_id} />
         </RouterLink>
       </Link>
     ),
     enableSorting: false,
-    header: translate("common:taskId"),
+    header: translate("xcom.columns.task_display_name"),
   },
   {
     accessorKey: "map_index",
     enableSorting: false,
     header: translate("common:mapIndex"),
+  },
+  {
+    accessorKey: "timestamp",
+    cell: ({ row: { original } }) => new Date(original.timestamp).toLocaleString(),
+    enableSorting: false,
+    header: translate("xcom.columns.timestamp"),
   },
   {
     cell: ({ row: { original } }) => (
