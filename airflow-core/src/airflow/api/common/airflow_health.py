@@ -41,7 +41,8 @@ def get_airflow_health() -> dict[str, Any]:
         latest_scheduler_job = SchedulerJobRunner.most_recent_job()
 
         if latest_scheduler_job:
-            latest_scheduler_heartbeat = latest_scheduler_job.latest_heartbeat.isoformat()
+            if latest_scheduler_job.latest_heartbeat:
+                latest_scheduler_heartbeat = latest_scheduler_job.latest_heartbeat.isoformat()
             if latest_scheduler_job.is_alive():
                 scheduler_status = HEALTHY
     except Exception:
@@ -51,7 +52,8 @@ def get_airflow_health() -> dict[str, Any]:
         latest_triggerer_job = TriggererJobRunner.most_recent_job()
 
         if latest_triggerer_job:
-            latest_triggerer_heartbeat = latest_triggerer_job.latest_heartbeat.isoformat()
+            if latest_triggerer_job.latest_heartbeat:
+                latest_triggerer_heartbeat = latest_triggerer_job.latest_heartbeat.isoformat()
             if latest_triggerer_job.is_alive():
                 triggerer_status = HEALTHY
         else:
@@ -63,7 +65,8 @@ def get_airflow_health() -> dict[str, Any]:
         latest_dag_processor_job = DagProcessorJobRunner.most_recent_job()
 
         if latest_dag_processor_job:
-            latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
+            if latest_dag_processor_job.latest_heartbeat:
+                latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
             if latest_dag_processor_job.is_alive():
                 dag_processor_status = HEALTHY
         else:
