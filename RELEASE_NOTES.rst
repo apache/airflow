@@ -111,7 +111,6 @@ Miscellaneous
 - UI: Avoid using rem for icons for Safari compatibility (#56304)
 - UI: Add ANSI support to log viewer (#56721)
 - UI: Support Dynamic UI Alerts (#56259)
-- UI: Default checkPendingRuns to false (#56307)
 - UI: Disable Gantt view by default (#56242)
 - UI: Use welcome on dashboard instead of airflow (#56074)
 - UI: Improve clipboard button visibility with hover effect (#56484)
