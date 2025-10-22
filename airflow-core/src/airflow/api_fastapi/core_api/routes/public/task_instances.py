@@ -538,9 +538,9 @@ def get_task_instances_batch(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(cast("ColumnElement", TI.dag_id), body.dag_ids, FilterOptionEnum.IN)
-    dag_run_ids = FilterParam(cast("ColumnElement", TI.run_id), body.dag_run_ids, FilterOptionEnum.IN)
-    task_ids = FilterParam(cast("ColumnElement", TI.task_id), body.task_ids, FilterOptionEnum.IN)
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -548,7 +548,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=cast("ColumnElement", TI.run_after),
+        attribute=TI.run_after,
     )
     logical_date = RangeFilter(
         Range(
@@ -557,7 +557,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=cast("ColumnElement", TI.logical_date),
+        attribute=TI.logical_date,
     )
     start_date = RangeFilter(
         Range(
@@ -566,7 +566,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=cast("ColumnElement", TI.start_date),
+        attribute=TI.start_date,
     )
     end_date = RangeFilter(
         Range(
@@ -575,7 +575,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=cast("ColumnElement", TI.end_date),
+        attribute=TI.end_date,
     )
     duration = RangeFilter(
         Range(
@@ -584,12 +584,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=cast("ColumnElement", TI.duration),
+        attribute=TI.duration,
     )
-    state = FilterParam(cast("ColumnElement", TI.state), body.state, FilterOptionEnum.ANY_EQUAL)
-    pool = FilterParam(cast("ColumnElement", TI.pool), body.pool, FilterOptionEnum.ANY_EQUAL)
-    queue = FilterParam(cast("ColumnElement", TI.queue), body.queue, FilterOptionEnum.ANY_EQUAL)
-    executor = FilterParam(cast("ColumnElement", TI.executor), body.executor, FilterOptionEnum.ANY_EQUAL)
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
