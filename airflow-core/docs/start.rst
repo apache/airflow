@@ -79,7 +79,43 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       uv pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-4. Run Airflow Standalone:
+4. Install Airflow on Windows, using WSL2:
+
+   In Powershell, run the following commands to create WSL@ environment on UBuntu.
+   .. code-block:: bash
+   
+     wsl --install
+     # Restart computer, then in WSL Ubuntu terminal:
+     sudo apt update
+     sudo apt install python3-pip python3-venv
+     python3 -m venv airflow_venv
+     source airflow_venv/bin/activate
+     pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.12.txt"
+     
+     bash# Go to Linux home directory (not Windows mount)
+     cd ~
+
+     # Create airflow directory
+     mkdir -p ~/airflow
+     cd ~/airflow
+
+     # Create virtual environment
+     python3 -m venv airflow_venv
+
+     # Activate
+     source airflow_venv/bin/activate
+
+     # Upgrade pip
+     pip install --upgrade pip
+
+     # Install Airflow with correct Python version constraints
+     pip install "apache-airflow[celery]==3.1.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.12.txt"
+
+     # Verify installation
+     airflow version
+
+
+5. Run Airflow Standalone:
 
    The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
 
@@ -87,7 +123,9 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       airflow standalone
 
-5. Access the Airflow UI:
+   For accessing admin account details for Airflow installation on WSL2, use contents in simple_auth_manager_passwords.json.generated to login to Airflow UI.
+
+6. Access the Airflow UI:
 
    Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` Dag in the home page.
 
