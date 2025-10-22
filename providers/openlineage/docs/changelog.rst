@@ -26,6 +26,32 @@
 Changelog
 ---------
 
+2.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix openlineage dag state event emit on timed out dag (#56542)``
+* ``Only import OpenLineage plugin listeners/hooks if plugin is enabled (#56266)``
+
+Misc
+~~~~
+
+* ``nit: Bump required OL client for Openlineage provider (#56302)``
+* ``chore: safeguard external call in OL sqlparser (#55692)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore: add sleep in ol test operator (#54807)``
+   * ``Fix DagBag imports in 3.2+ (#56109)``
+
 2.7.2
 .....
 
