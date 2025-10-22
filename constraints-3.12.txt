@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-22T02:21:03.200914
+# This constraints file was automatically generated on 2025-10-22T09:10:46.057595
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -468,7 +468,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy_extensions==1.1.0
-mysql-connector-python==9.4.0
+mysql-connector-python==9.5.0
 mysqlclient==2.2.7
 natsort==8.4.0
 nbclient==0.10.2
