@@ -25,7 +25,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
-from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.version import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     try:

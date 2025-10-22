@@ -34,7 +34,7 @@ from requests.structures import CaseInsensitiveDict
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook
-from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if AIRFLOW_V_3_0_PLUS:
