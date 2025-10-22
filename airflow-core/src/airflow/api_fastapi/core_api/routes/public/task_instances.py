@@ -17,14 +17,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -280,11 +278,6 @@ def get_task_instance_dependencies(
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
-        if dag_run is None:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                f"DagRun with dag_id: `{ti.dag_id}` and run_id: `{ti.run_id}` was not found",
-            )
         dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
         if dag:
@@ -335,8 +328,10 @@ def get_task_instance_tries(
         return query
 
     # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
-    tis = session.scalars(_query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None))))
-    task_instances = list(session.scalars(_query(TIH))) + list(tis)
+    tis = session.scalars(
+        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
+    ).all()
+    task_instances = session.scalars(_query(TIH)).all() + tis
 
     if not task_instances:
         raise HTTPException(
@@ -344,7 +339,7 @@ def get_task_instance_tries(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=task_instances,
+        task_instances=cast("list[TaskInstanceHistoryResponse]", task_instances),
         total_entries=len(task_instances),
     )
 
@@ -739,12 +734,8 @@ def post_clear_task_instances(
                 status.HTTP_400_BAD_REQUEST,
                 "Cannot use include_past or include_future with no logical_date(e.g. manually or asset-triggered).",
             )
-        body.start_date = (
-            dag_run.logical_date if dag_run.logical_date is not None else None
-        )
-        body.end_date = (
-            dag_run.logical_date if dag_run.logical_date is not None else None
-        )
+        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
 
     if past:
         body.start_date = None
@@ -765,7 +756,6 @@ def post_clear_task_instances(
                 task_ids=unmapped_task_ids | mapped_task_ids,
                 include_downstream=downstream,
                 include_upstream=upstream,
-                exclude_original=True,
             )
             unmapped_task_ids = unmapped_task_ids | set(relatives.task_dict.keys())
 
@@ -774,29 +764,29 @@ def post_clear_task_instances(
         ]
         task_ids = mapped_tasks_list + list(unmapped_task_ids)
 
+    # Prepare common parameters
+    common_params = {
+        "dry_run": True,
+        "task_ids": task_ids,
+        "session": session,
+        "run_on_latest_version": body.run_on_latest_version,
+        "only_failed": body.only_failed,
+        "only_running": body.only_running,
+    }
+
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = dag.clear(
-                dry_run=True,
-                task_ids=task_ids,
-                run_id=dag_run_id,
-                session=session,
-                run_on_latest_version=body.run_on_latest_version,
-                only_failed=body.only_failed,
-                only_running=body.only_running,
-            )
+            **common_params,
+            run_id=dag_run_id,
+        )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
         task_instances = dag.clear(
-                dry_run=True,
-                task_ids=task_ids,
-                start_date=body.start_date,
-                end_date=body.end_date,
-                session=session,
-                run_on_latest_version=body.run_on_latest_version,
-                only_failed=body.only_failed,
-                only_running=body.only_running,
-            )
+            **common_params,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
 
     if not dry_run:
         clear_task_instances(
@@ -805,12 +795,9 @@ def post_clear_task_instances(
             DagRunState.QUEUED if reset_dag_runs else False,
             run_on_latest_version=body.run_on_latest_version,
         )
-        # Refresh task instances to get updated state after clearing
-        for ti in task_instances:
-            session.refresh(ti)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
+        task_instances=task_instances,
         total_entries=len(task_instances),
     )
 
