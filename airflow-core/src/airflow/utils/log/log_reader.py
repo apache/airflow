@@ -22,7 +22,7 @@ import time
 from collections.abc import Generator, Iterator
 from datetime import datetime, timezone
 from functools import cached_property
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
@@ -70,7 +70,7 @@ class TaskLogReader:
         )
         yield StructuredLogMessage(timestamp=None, event="::endgroup::")
         yield StructuredLogMessage(
-            timestamp=cast("datetime | None", ti.updated_at) or datetime.now(timezone.utc),
+            timestamp=ti.updated_at or datetime.now(timezone.utc),
             event=msg,
         )
 
