@@ -33,6 +33,7 @@ from starlette.templating import Jinja2Templates
 from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 log = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ def init_flask_plugins(app: FastAPI) -> None:
     warnings.warn(
         "You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI,"
         "and is now deprecated. Please update your plugin to be compatible with the Airflow 3 UI.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 
