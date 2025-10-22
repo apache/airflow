@@ -177,7 +177,6 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  // Add auto-refresh functionality
   const baseRefetchInterval = useAutoRefresh({});
 
   const bodySearch = searchParams.get(BODY_SEARCH) ?? undefined;
@@ -219,7 +218,7 @@ export const HITLTaskInstances = () => {
     refetchInterval: (query) => {
       const hasDeferredWithoutResponse = Boolean(
         query.state.data?.hitl_details.some(
-          (detail: HITLDetail) => detail.responded_at == undefined && detail.task_instance.state === "deferred",
+          (detail: HITLDetail) => detail.responded_at === undefined && detail.task_instance.state === "deferred",
         ),
       );
 
