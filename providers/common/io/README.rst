@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-io``
 
-Release: ``1.6.3``
+Release: ``1.6.4``
 
 
 Common IO Provider
@@ -36,7 +36,7 @@ This is a provider package for ``common.io`` provider. All classes for this prov
 are in ``airflow.providers.common.io`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.4/>`_.
 
 Installation
 ------------
@@ -87,4 +87,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.4/changelog.html>`_.

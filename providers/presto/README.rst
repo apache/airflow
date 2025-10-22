@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-presto``
 
-Release: ``5.9.2``
+Release: ``5.9.3``
 
 
 `Presto <https://prestodb.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``presto`` provider. All classes for this provide
 are in ``airflow.providers.presto`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3/>`_.
 
 Installation
 ------------
@@ -80,5 +80,14 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_          ``google``
 ============================================================================================================  ==============
 
+Optional dependencies
+----------------------
+
+==========  ===================================
+Extra       Dependencies
+==========  ===================================
+``google``  ``apache-airflow-providers-google``
+==========  ===================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3/changelog.html>`_.
