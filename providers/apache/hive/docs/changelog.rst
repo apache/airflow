@@ -36,10 +36,10 @@ Bug Fixes
 * ``FIX: incorrect access of logical_date in google bigquery operator and google workflow operator (#55110)``
 * ``Replace sasl with pyhive.get_installed_sasl for pure-sasl compatibility (#55772)``
 
-Doc-only
-~~~~~~~~
+Misc
+~~~~
 
-* ``Remove placeholder Release Date in changelog and index files (#56056)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -49,6 +49,7 @@ Doc-only
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
    * ``Make term Dag consistent in providers docs (#55101)``
    * ``Switch pre-commit to prek (#54258)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
 
 9.1.2
 .....

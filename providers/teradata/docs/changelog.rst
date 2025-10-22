@@ -34,6 +34,7 @@ Misc
 * ``Fix mypy type errors in Teradata provider for SQLAlchemy 2 upgrade (#56861)``
 * ``Improve error messages in Teradata provider (#56367)``
 * ``Build correct SQLAlchemy URI in TeradataHook (#56305)``
+* ``Migrate tableau, telegram, trino, teradata providers to ''common.compat'' (#57013)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

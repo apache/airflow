@@ -99,13 +99,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.27.0``
-``elasticsearch``                        ``>=8.10,<9``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.7.4``
+``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``elasticsearch``                           ``>=8.10,<9``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------

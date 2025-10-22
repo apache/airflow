@@ -86,6 +86,7 @@ Extra                 Dependencies
 ====================  ====================================================
 ``google``            ``apache-airflow-providers-google``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+``common.compat``     ``apache-airflow-providers-common-compat``
 ====================  ====================================================
 
 The changelog for the provider package can be found in the

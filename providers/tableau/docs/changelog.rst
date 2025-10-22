@@ -33,7 +33,8 @@ Changelog
 Misc
 ~~~~
 
-* ``Added deatiled log for Tableau datasources or workbooks extract refreshes (#56513)``
+* ``Added detailed log for Tableau datasources or workbooks extract refreshes (#56513)``
+* ``Migrate tableau, telegram, trino, teradata providers to ''common.compat'' (#57013)``
 
 Doc-only
 ~~~~~~~~

@@ -40,6 +40,7 @@ Misc
 
 * ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
 * ``Simplify version-specific imports in the Google provider (#56793)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
 
 Doc-only
 ~~~~~~~~

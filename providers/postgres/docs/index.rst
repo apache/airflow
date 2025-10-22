@@ -98,15 +98,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
 
-=======================================  ======================================
-PIP package                              Version required
-=======================================  ======================================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.23.0``
-``psycopg2-binary``                      ``>=2.9.9; python_version < "3.13"``
-``psycopg2-binary``                      ``>=2.9.10; python_version >= "3.13"``
-``asyncpg``                              ``>=0.30.0``
-=======================================  ======================================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-sql``     ``>=1.23.0``
+``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
+``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
+``asyncpg``                                 ``>=0.30.0``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -125,6 +126,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``

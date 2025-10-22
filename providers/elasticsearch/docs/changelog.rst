@@ -34,6 +34,7 @@ Misc
 ~~~~
 
 * ``fix mypy type errors in elasticsearch provider for sqlalchemy 2 upgrade (#56818)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
 
 Doc-only
 ~~~~~~~~

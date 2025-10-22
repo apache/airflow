@@ -36,11 +36,7 @@ Misc
 ~~~~
 
 * ``Use ValueError instead of RuntimeError when resolving SparkSubmitHook connection (#56631)``
-
-Doc-only
-~~~~~~~~
-
-* ``Remove placeholder Release Date in changelog and index files (#56056)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -52,6 +48,8 @@ Doc-only
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
+   * ``Enable PT011 rule to provider tests (#56578)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
 
 5.3.2
 .....

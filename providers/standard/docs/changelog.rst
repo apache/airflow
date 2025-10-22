@@ -42,6 +42,7 @@ Misc
 ~~~~
 
 * ``Simplify version-specific imports in the Standard provider (#56867)``
+* ``Throw NotImplementedError error when fail_when_dag_is_paused is used in TriggerDagRunOperator with Airflow 3.x (#56965)``
 
 Doc-only
 ~~~~~~~~

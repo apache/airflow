@@ -39,6 +39,7 @@ Misc
 ~~~~
 
 * ``fix mypy type errors in common/sql provider for sqlalchemy 2 upgrade (#56824)``
+* ``Migrate postgres provider to ''common.compat'' (#57022)``
 
 Doc-only
 ~~~~~~~~
