@@ -101,8 +101,6 @@
   },
   "filter": "Φίλτρο",
   "filters": {
-    "durationFrom": "Διάρκεια Από",
-    "durationTo": "Διάρκεια Έως",
     "logicalDateFrom": "Λογική Ημερομηνία Από",
     "logicalDateTo": "Λογική Ημερομηνία Έως",
     "runAfterFrom": "Εκτέλεση Μετά Από",
@@ -163,7 +161,6 @@
     },
     "tooltip": "Πατήστε {{hotkey}} για κύλιση προς τα {{direction}}"
   },
-  "seconds": "{{count}}δ",
   "security": {
     "actions": "Ενέργειες",
     "permissions": "Δικαιώματα",
