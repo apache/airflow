@@ -28,10 +28,8 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 
-try:
-    from airflow.sdk.execution_time.timeout import timeout
-except ImportError:
-    from airflow.utils.timeout import timeout  # type: ignore[assignment,attr-defined,no-redef]
+# timeout is now imported from common.compat.sdk
+from airflow.providers.common.compat.sdk import timeout
 
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "timeout"]
