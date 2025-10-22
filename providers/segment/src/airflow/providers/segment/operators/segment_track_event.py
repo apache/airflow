@@ -21,10 +21,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.segment.hooks.segment import SegmentHook
-from airflow.providers.segment.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.segment.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SegmentTrackEventOperator(BaseOperator):

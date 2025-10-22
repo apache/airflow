@@ -63,11 +63,17 @@ dependencies = [
     "segment-analytics-python>=2.3.0",
 ]
 
+[project.optional-dependencies]
+"common.compat" = [
+    "apache-airflow-providers-common-compat>=1.7.4",  # + TODO: bump to next version
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
