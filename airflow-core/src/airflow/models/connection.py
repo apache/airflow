@@ -566,7 +566,7 @@ class Connection(Base, LoggingMixin):
             warnings.warn(
                 "Using Connection.from_json from `airflow.models` is deprecated."
                 "Please use `from_json` on Connection from sdk(airflow.sdk.Connection) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
 
