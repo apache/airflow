@@ -24,8 +24,8 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Literal
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
-from airflow.providers.amazon.version_compat import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
