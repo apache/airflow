@@ -227,12 +227,8 @@ export const PanelButtons = ({
       <Flex justifyContent="space-between" pl={2}>
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
-            _hover={{
-              bg: "brand.500",
-              color: "white",
-            }}
             aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            bg={dagView === "grid" ? "brand.500" : "var(--chakra-colors-bg-subtle)"}
+            bg={dagView === "grid" ? "brand.500" : "bg.subtle"}
             color={dagView === "grid" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
@@ -246,12 +242,8 @@ export const PanelButtons = ({
             <FiGrid />
           </IconButton>
           <IconButton
-            _hover={{
-              bg: "brand.500",
-              color: "white",
-            }}
             aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            bg={dagView === "graph" ? "brand.500" : "var(--chakra-colors-bg-subtle)"}
+            bg={dagView === "graph" ? "brand.500" : "bg.subtle"}
             color={dagView === "graph" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
@@ -270,13 +262,7 @@ export const PanelButtons = ({
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <Button
-                _hover={{ bg: "brand.500", color: "white" }}
-                bg="var(--chakra-colors-bg-subtle)"
-                color="fg.default"
-                size="sm"
-                variant="outline"
-              >
+              <Button bg="bg.subtle" color="fg.default" size="sm" variant="outline">
                 {translate("dag:panel.buttons.options")}
                 <FiChevronDown size={8} />
               </Button>
