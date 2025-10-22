@@ -28,7 +28,7 @@ kind: Ingress
 metadata:
   name: {{ $fullname }}-flower-ingress
   labels:
-    tier: airflow
+    
     component: flower-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

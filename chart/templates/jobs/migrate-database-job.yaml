@@ -33,7 +33,7 @@ kind: Job
 metadata:
   name: {{ include "airflow.fullname" . }}-run-airflow-migrations
   labels:
-    tier: airflow
+    
     component: run-airflow-migrations
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -57,7 +57,7 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: run-airflow-migrations
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.migrateDatabaseJob.labels) }}

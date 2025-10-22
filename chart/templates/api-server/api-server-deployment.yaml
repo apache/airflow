@@ -35,7 +35,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server
   labels:
-    tier: airflow
+    app.kubernetes.io/part-of: airflow
     component: api-server
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -69,13 +69,13 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      app.kubernetes.io/part-of: airflow
       component: api-server
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
+        app.kubernetes.io/part-of: airflow
         component: api-server
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.apiServer.labels) }}

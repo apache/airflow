@@ -36,7 +36,7 @@ metadata:
   name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-scc-rolebinding
   {{- end }}
   labels:
-    tier: airflow
+    
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}

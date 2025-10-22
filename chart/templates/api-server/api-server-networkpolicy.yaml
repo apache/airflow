@@ -27,7 +27,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server-policy
   labels:
-    tier: airflow
+    app.kubernetes.io/part-of: airflow
     component: airflow-api-server-policy
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -38,7 +38,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
+      app.kubernetes.io/part-of: airflow
       component: api-server
       release: {{ .Release.Name }}
   policyTypes:

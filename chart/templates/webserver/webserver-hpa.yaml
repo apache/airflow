@@ -27,7 +27,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver
   labels:
-    tier: airflow
+    
     component: webserver-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

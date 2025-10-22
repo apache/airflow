@@ -27,7 +27,7 @@ kind: Ingress
 metadata:
   name: {{ $fullname }}-pgbouncer-ingress
   labels:
-    tier: airflow
+    
     component: pgbouncer-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

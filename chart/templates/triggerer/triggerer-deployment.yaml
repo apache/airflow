@@ -41,7 +41,7 @@ kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer
   labels:
-    tier: airflow
+    
     component: triggerer
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -64,7 +64,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: triggerer
       release: {{ .Release.Name }}
   {{- if and $persistence .Values.triggerer.updateStrategy }}
@@ -79,7 +79,7 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: triggerer
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.triggerer.labels) }}

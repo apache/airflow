@@ -26,7 +26,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ template "airflow_logs_volume_claim" . }}
   labels:
-    tier: airflow
+    
     component: logs-pvc
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

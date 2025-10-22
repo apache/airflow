@@ -26,7 +26,7 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-pgbouncer
   labels:
-    tier: airflow
+    
     component: pgbouncer
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -46,7 +46,7 @@ spec:
   clusterIP: {{ .Values.pgbouncer.service.clusterIp }}
   {{- end }}
   selector:
-    tier: airflow
+    
     component: pgbouncer
     release: {{ .Release.Name }}
   ports:

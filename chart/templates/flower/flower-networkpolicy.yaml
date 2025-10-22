@@ -29,7 +29,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-flower-policy
   labels:
-    tier: airflow
+    
     component: airflow-flower-policy
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -40,7 +40,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
+      
       component: flower
       release: {{ .Release.Name }}
   policyTypes:

@@ -28,7 +28,7 @@ kind: Ingress
 metadata:
   name: {{ $fullname }}-ingress
   labels:
-    tier: airflow
+    app.kubernetes.io/part-of: airflow
     component: airflow-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

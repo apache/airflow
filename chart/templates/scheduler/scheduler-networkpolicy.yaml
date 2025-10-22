@@ -27,7 +27,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler-policy
   labels:
-    tier: airflow
+    
     component: airflow-scheduler-policy
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -38,7 +38,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
+      
       component: scheduler
       release: {{ .Release.Name }}
   policyTypes:
@@ -48,7 +48,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
+          
           component: webserver
           release: {{ .Release.Name }}
     ports:

@@ -59,7 +59,7 @@ As an example, let's say you want to set ``priorityClassName`` on your workers:
     metadata:
       name: placeholder-name
       labels:
-        tier: airflow
+        
         component: worker
         release: {{ .Release.Name }}
     spec:

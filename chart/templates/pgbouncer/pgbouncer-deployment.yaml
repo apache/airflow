@@ -36,7 +36,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-pgbouncer
   labels:
-    tier: airflow
+    
     component: pgbouncer
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -58,13 +58,13 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      tier: airflow
+      
       component: pgbouncer
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: pgbouncer
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}

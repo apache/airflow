@@ -38,7 +38,7 @@ metadata:
   name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding
   {{- end }}
   labels:
-    tier: airflow
+    
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}

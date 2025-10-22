@@ -27,7 +27,7 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-flower
   labels:
-    tier: airflow
+    
     component: flower
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -41,7 +41,7 @@ metadata:
 spec:
   type: {{ .Values.flower.service.type }}
   selector:
-    tier: airflow
+    
     component: flower
     release: {{ .Release.Name }}
   ports:

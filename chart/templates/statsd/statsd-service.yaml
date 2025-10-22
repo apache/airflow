@@ -26,7 +26,7 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd
   labels:
-    tier: airflow
+    
     component: statsd
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -43,7 +43,7 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    tier: airflow
+    
     component: statsd
     release: {{ .Release.Name }}
   ports:

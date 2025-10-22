@@ -46,7 +46,7 @@ kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-worker
   labels:
-    tier: airflow
+    
     component: worker
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -72,7 +72,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: worker
       release: {{ .Release.Name }}
   {{- if and $persistence .Values.workers.podManagementPolicy }}
@@ -87,7 +87,7 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: worker
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}

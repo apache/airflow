@@ -41,7 +41,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-dag-processor
   labels:
-    tier: airflow
+    
     component: dag-processor
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -59,7 +59,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: dag-processor
       release: {{ .Release.Name }}
   {{- if .Values.dagProcessor.strategy }}
@@ -68,7 +68,7 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: dag-processor
         release: {{ .Release.Name }}
         {{- with .Values.labels }}

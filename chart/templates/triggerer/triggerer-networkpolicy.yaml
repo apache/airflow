@@ -29,7 +29,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer-policy
   labels:
-    tier: airflow
+    
     component: airflow-triggerer-policy
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -40,7 +40,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
+      
       component: triggerer
       release: {{ .Release.Name }}
   policyTypes:
@@ -49,7 +49,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
+          
           release: {{ .Release.Name }}
           component: webserver
     ports:

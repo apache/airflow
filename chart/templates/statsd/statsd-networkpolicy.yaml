@@ -26,7 +26,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd-policy
   labels:
-    tier: airflow
+    
     component: statsd-policy
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -37,7 +37,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
+      
       component: statsd
       release: {{ .Release.Name }}
   policyTypes:
@@ -46,7 +46,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
+          
           release: {{ .Release.Name }}
     {{- if .Values.statsd.extraNetworkPolicies }}
       {{- toYaml .Values.statsd.extraNetworkPolicies | nindent 4 }}

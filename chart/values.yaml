@@ -2971,7 +2971,7 @@ podTemplate: ~
 #   metadata:
 #     name: placeholder-name
 #     labels:
-#       tier: airflow
+#       app.kubernetes.io/part-of: airflow
 #       component: worker
 #       release: {{ .Release.Name }}
 #   spec:

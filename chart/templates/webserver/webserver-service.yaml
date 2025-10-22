@@ -26,7 +26,7 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver
   labels:
-    tier: airflow
+    
     component: webserver
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -40,7 +40,7 @@ metadata:
 spec:
   type: {{ .Values.webserver.service.type }}
   selector:
-    tier: airflow
+    
     component: webserver
     release: {{ .Release.Name }}
   ports:

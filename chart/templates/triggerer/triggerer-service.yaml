@@ -28,7 +28,7 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer
   labels:
-    tier: airflow
+    
     component: triggerer
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -39,7 +39,7 @@ metadata:
 spec:
   clusterIP: None
   selector:
-    tier: airflow
+    
     component: triggerer
     release: {{ .Release.Name }}
   ports:

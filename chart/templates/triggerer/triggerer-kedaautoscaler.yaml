@@ -27,7 +27,7 @@ kind: ScaledObject
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer
   labels:
-    tier: airflow
+    
     component: triggerer-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

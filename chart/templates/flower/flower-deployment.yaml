@@ -35,7 +35,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-flower
   labels:
-    tier: airflow
+    
     component: flower
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -53,13 +53,13 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: flower
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: flower
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.flower.labels) }}

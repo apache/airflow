@@ -34,7 +34,7 @@ kind: Pod
 metadata:
   name: placeholder-name
   labels:
-    tier: airflow
+    
     component: worker
     release: {{ .Release.Name }}
     {{- if or (.Values.labels) (.Values.workers.labels) }}

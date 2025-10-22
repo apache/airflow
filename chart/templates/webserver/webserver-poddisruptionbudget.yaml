@@ -27,7 +27,7 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver-pdb
   labels:
-    tier: airflow
+    
     component: webserver
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -38,7 +38,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      tier: airflow
+      
       component: webserver
       release: {{ .Release.Name }}
   {{- toYaml .Values.webserver.podDisruptionBudget.config | nindent 2 }}

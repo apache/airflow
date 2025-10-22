@@ -35,7 +35,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver
   labels:
-    tier: airflow
+    
     component: webserver
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -75,13 +75,13 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: webserver
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: webserver
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.webserver.labels) }}

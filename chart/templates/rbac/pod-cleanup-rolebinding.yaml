@@ -26,7 +26,7 @@ kind: RoleBinding
 metadata:
   name: {{ include "airflow.fullname" . }}-cleanup-rolebinding
   labels:
-    tier: airflow
+    
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}

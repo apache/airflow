@@ -25,7 +25,7 @@ kind: ConfigMap
 metadata:
   name: {{ template "airflow_config" . }}
   labels:
-    tier: airflow
+    
     component: config
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

@@ -33,7 +33,7 @@ kind: Job
 metadata:
   name: {{ include "airflow.fullname" . }}-create-user
   labels:
-    tier: airflow
+    
     component: create-user-job
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -57,7 +57,7 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: create-user-job
         release: {{ .Release.Name }}
         {{- if or (.Values.labels) (.Values.createUserJob.labels) }}

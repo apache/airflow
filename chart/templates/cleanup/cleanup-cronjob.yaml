@@ -32,7 +32,7 @@ kind: CronJob
 metadata:
   name: {{ include "airflow.fullname" . }}-cleanup
   labels:
-    tier: airflow
+    app.kubernetes.io/part-of: airflow
     component: airflow-cleanup-pods
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -59,7 +59,7 @@ spec:
       template:
         metadata:
           labels:
-            tier: airflow
+            app.kubernetes.io/part-of: airflow
             component: airflow-cleanup-pods
             release: {{ .Release.Name }}
             {{- if or (.Values.labels) (.Values.cleanup.labels) }}

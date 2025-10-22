@@ -34,7 +34,7 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd
   labels:
-    tier: airflow
+    
     component: statsd
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -52,13 +52,13 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
+      
       component: statsd
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
+        
         component: statsd
         release: {{ .Release.Name }}
         {{- with .Values.labels }}

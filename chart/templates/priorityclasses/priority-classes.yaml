@@ -28,7 +28,7 @@ kind: PriorityClass
 metadata:
   name: {{ $Global.Release.Name }}-{{ $e.name }}
   labels:
-    tier: airflow
+    
     release: {{ $Global.Release.Name }}
     chart: "{{ $Global.Chart.Name }}-{{ $Global.Chart.Version }}"
     heritage: {{ $Global.Release.Service }}

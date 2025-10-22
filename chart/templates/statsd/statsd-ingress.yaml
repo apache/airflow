@@ -27,7 +27,7 @@ kind: Ingress
 metadata:
   name: {{ $fullname }}-statsd-ingress
   labels:
-    tier: airflow
+    
     component: statsd-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

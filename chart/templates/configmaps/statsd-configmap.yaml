@@ -26,7 +26,7 @@ kind: ConfigMap
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd
   labels:
-    tier: airflow
+    
     component: config
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

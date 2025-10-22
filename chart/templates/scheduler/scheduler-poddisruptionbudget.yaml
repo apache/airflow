@@ -27,7 +27,7 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler-pdb
   labels:
-    tier: airflow
+    
     component: scheduler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -38,7 +38,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      tier: airflow
+      
       component: scheduler
       release: {{ .Release.Name }}
   {{- toYaml .Values.scheduler.podDisruptionBudget.config | nindent 2 }}
