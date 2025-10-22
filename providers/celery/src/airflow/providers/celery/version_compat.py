@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.providers.common.compat.sdk import timeout
+
 
 def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     from packaging.version import Version
@@ -27,9 +29,5 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
-
-# timeout is now imported from common.compat.sdk
-from airflow.providers.common.compat.sdk import timeout
-
 
 __all__ = ["AIRFLOW_V_3_0_PLUS", "timeout"]
