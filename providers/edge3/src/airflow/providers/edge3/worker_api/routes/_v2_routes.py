@@ -46,7 +46,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
-    from airflow.providers.common.compat.sdk import TaskInstanceState
+    from airflow.utils.state import TaskInstanceState
 
 
 log = logging.getLogger(__name__)

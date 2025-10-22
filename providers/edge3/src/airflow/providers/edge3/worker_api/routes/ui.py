@@ -27,7 +27,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_view
-from airflow.providers.common.compat.sdk import TaskInstanceState
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
@@ -46,6 +45,7 @@ from airflow.providers.edge3.worker_api.datamodels_ui import (
     Worker,
     WorkerCollectionResponse,
 )
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import ScalarResult

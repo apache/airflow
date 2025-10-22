@@ -21,10 +21,10 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.common.compat.sdk import TaskInstanceState
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.routes.jobs import state
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

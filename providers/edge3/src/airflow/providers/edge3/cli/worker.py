@@ -34,7 +34,7 @@ from requests import HTTPError
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import TaskInstanceState, timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
@@ -54,6 +54,7 @@ from airflow.providers.edge3.cli.signalling import (
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.net import getfqdn
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
