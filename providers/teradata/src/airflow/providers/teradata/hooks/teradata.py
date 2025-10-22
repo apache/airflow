@@ -206,18 +206,14 @@ class TeradataHook(DbApiHook):
         connection = self.get_connection(self.get_conn_id())
         # Adding only teradatasqlalchemy supported connection parameters.
         # https://pypi.org/project/teradatasqlalchemy/#ConnectionParameters
-        url_kwargs = {
-            "drivername": "teradatasql",
-            "username": connection.login,
-            "password": connection.password,
-            "host": connection.host,
-            "port": connection.port,
-        }
-
-        if connection.schema:  # Only include database if it's not None or empty
-            url_kwargs["database"] = connection.schema
-
-        return URL.create(**url_kwargs)
+        return URL.create(
+            drivername="teradatasql",
+            username=connection.login,
+            password=connection.password,
+            host=connection.host,
+            port=connection.port,
+            database=connection.schema if connection.schema else None,
+        )
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""

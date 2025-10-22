@@ -32,6 +32,7 @@ from requests import HTTPError, Response
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
 from airflow.providers.edge3.cli.worker import EdgeWorker
@@ -40,7 +41,6 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.version_compat import timezone
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,

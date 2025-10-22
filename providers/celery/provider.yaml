@@ -169,8 +169,8 @@ config:
         default: "true"
       broker_url:
         description: |
-          The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
-          a sqlalchemy database. Refer to the Celery documentation for more information.
+          The Celery broker URL. Celery supports multiple broker types. See:
+          https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
         version_added: ~
         type: string
         sensitive: true

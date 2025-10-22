@@ -158,7 +158,6 @@ EXPECTED_JSON_LEGACY = {
 EXPECTED_JSON = {
     "children": [
         {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
-        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
         {
             "children": [
                 {
@@ -197,6 +196,7 @@ EXPECTED_JSON = {
             "tooltip": "",
             "type": "task",
         },
+        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
     ],
     "id": None,
     "is_mapped": False,
@@ -277,7 +277,6 @@ def test_task_group_to_dict_with_prefix(dag_maker):
     expected_node_id = {
         "children": [
             {"id": "task1", "label": "task1"},
-            {"id": "task5", "label": "task5"},
             {
                 "id": "group234",
                 "label": "group234",
@@ -299,6 +298,7 @@ def test_task_group_to_dict_with_prefix(dag_maker):
                     {"id": "group234.upstream_join_id", "label": ""},
                 ],
             },
+            {"id": "task5", "label": "task5"},
         ],
         "id": None,
         "label": "",
@@ -347,7 +347,6 @@ def test_task_group_to_dict_with_task_decorator(dag_maker):
         "id": None,
         "children": [
             {"id": "task_1"},
-            {"id": "task_5"},
             {
                 "id": "group234",
                 "children": [
@@ -358,6 +357,7 @@ def test_task_group_to_dict_with_task_decorator(dag_maker):
                     {"id": "group234.downstream_join_id"},
                 ],
             },
+            {"id": "task_5"},
         ],
     }
 
@@ -403,7 +403,6 @@ def test_task_group_to_dict_sub_dag(dag_maker):
         "id": None,
         "children": [
             {"id": "task1"},
-            {"id": "task5"},
             {
                 "id": "group234",
                 "children": [
@@ -418,6 +417,7 @@ def test_task_group_to_dict_sub_dag(dag_maker):
                     {"id": "group234.upstream_join_id"},
                 ],
             },
+            {"id": "task5"},
         ],
     }
 
@@ -479,16 +479,6 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
         "id": None,
         "children": [
             {
-                "id": "group_c",
-                "children": [
-                    {"id": "group_c.task6"},
-                    {"id": "group_c.task7"},
-                    {"id": "group_c.task8"},
-                    {"id": "group_c.upstream_join_id"},
-                    {"id": "group_c.downstream_join_id"},
-                ],
-            },
-            {
                 "id": "group_d",
                 "children": [
                     {"id": "group_d.task11"},
@@ -497,8 +487,6 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
                 ],
             },
             {"id": "task1"},
-            {"id": "task10"},
-            {"id": "task9"},
             {
                 "id": "group_a",
                 "children": [
@@ -516,6 +504,18 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
                     {"id": "group_a.downstream_join_id"},
                 ],
             },
+            {
+                "id": "group_c",
+                "children": [
+                    {"id": "group_c.task6"},
+                    {"id": "group_c.task7"},
+                    {"id": "group_c.task8"},
+                    {"id": "group_c.upstream_join_id"},
+                    {"id": "group_c.downstream_join_id"},
+                ],
+            },
+            {"id": "task10"},
+            {"id": "task9"},
         ],
     }
 
@@ -784,7 +784,6 @@ def test_task_group_context_mix(dag_maker):
     node_ids = {
         "id": None,
         "children": [
-            {"id": "task_end"},
             {"id": "task_start"},
             {
                 "id": "section_1",
@@ -804,6 +803,7 @@ def test_task_group_context_mix(dag_maker):
                     {"id": "section_1.downstream_join_id"},
                 ],
             },
+            {"id": "task_end"},
         ],
     }
 

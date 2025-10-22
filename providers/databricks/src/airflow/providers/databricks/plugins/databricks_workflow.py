@@ -25,8 +25,9 @@ from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import BaseOperatorLink, TaskGroup, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink, TaskGroup, XCom
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -34,9 +35,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models import BaseOperator
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
     from airflow.sdk.types import Logger
-    from airflow.utils.context import Context
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)

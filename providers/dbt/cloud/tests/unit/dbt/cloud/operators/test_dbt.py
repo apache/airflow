@@ -24,6 +24,7 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
@@ -31,7 +32,6 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.utils import timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

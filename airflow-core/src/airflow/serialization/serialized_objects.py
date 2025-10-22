@@ -2930,6 +2930,7 @@ class SerializedDAG(BaseSerialization):
         include_downstream: bool = False,
         include_upstream: bool = True,
         include_direct_upstream: bool = False,
+        exclude_original: bool = False,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 
@@ -2980,6 +2981,8 @@ class SerializedDAG(BaseSerialization):
             return copy.deepcopy(t, memo)
 
         # Compiling the unique list of tasks that made the cut
+        if exclude_original:
+            matched_tasks = []
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)

@@ -1007,6 +1007,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/task-sdk/tests",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
@@ -1263,6 +1264,7 @@ dev = [
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1304,6 +1306,7 @@ apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
+apache-airflow-ctl-tests = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
@@ -1423,6 +1426,7 @@ members = [
     "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
+    "airflow-ctl-tests",
     "dev",
     "devel-common",
     "docker-tests",

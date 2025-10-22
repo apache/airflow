@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Index, Integer, String, Text
@@ -37,12 +38,12 @@ class Log(Base):
     __tablename__ = "log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
+    dttm: Mapped[datetime] = mapped_column(UtcDateTime)
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     event: Mapped[str] = mapped_column(String(60))
-    logical_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     owner: Mapped[str | None] = mapped_column(String(500), nullable=True)
     owner_display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)

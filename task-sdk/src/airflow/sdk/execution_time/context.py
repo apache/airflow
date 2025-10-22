@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import functools
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
@@ -60,6 +62,7 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.typing_compat import Self
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -555,9 +558,105 @@ class OutletEventAccessors(
 
 
 @attrs.define(init=False)
+class InletEventsAccessor(Sequence["AssetEventResult"]):
+    _after: str | datetime | None
+    _before: str | datetime | None
+    _ascending: bool
+    _limit: int | None
+    _asset_name: str | None
+    _asset_uri: str | None
+    _alias_name: str | None
+
+    def __init__(
+        self, asset_name: str | None = None, asset_uri: str | None = None, alias_name: str | None = None
+    ):
+        self._asset_name = asset_name
+        self._asset_uri = asset_uri
+        self._alias_name = alias_name
+        self._after = None
+        self._before = None
+        self._ascending = True
+        self._limit = None
+
+    def after(self, after: str) -> Self:
+        self._after = after
+        self._reset_cache()
+        return self
+
+    def before(self, before: str) -> Self:
+        self._before = before
+        self._reset_cache()
+        return self
+
+    def ascending(self, ascending: bool = True) -> Self:
+        self._ascending = ascending
+        self._reset_cache()
+        return self
+
+    def limit(self, limit: int) -> Self:
+        self._limit = limit
+        self._reset_cache()
+        return self
+
+    @functools.cached_property
+    def _asset_events(self) -> list[AssetEventResult]:
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
+            ToSupervisor,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        query_dict: dict[str, Any] = {
+            "after": self._after,
+            "before": self._before,
+            "ascending": self._ascending,
+            "limit": self._limit,
+        }
+
+        msg: ToSupervisor
+        if self._alias_name is not None:
+            msg = GetAssetEventByAssetAlias(alias_name=self._alias_name, **query_dict)
+        else:
+            if self._asset_name is None and self._asset_uri is None:
+                raise ValueError("Either asset_name or asset_uri must be provided")
+            msg = GetAssetEventByAsset(name=self._asset_name, uri=self._asset_uri, **query_dict)
+        resp = SUPERVISOR_COMMS.send(msg)
+        if isinstance(resp, ErrorResponse):
+            raise AirflowRuntimeError(resp)
+
+        if TYPE_CHECKING:
+            assert isinstance(resp, AssetEventsResult)
+
+        return list(resp.iter_asset_event_results())
+
+    def _reset_cache(self) -> None:
+        try:
+            del self._asset_events
+        except AttributeError:
+            pass
+
+    def __iter__(self) -> Iterator[AssetEventResult]:
+        return iter(self._asset_events)
+
+    def __len__(self) -> int:
+        return len(self._asset_events)
+
+    @overload
+    def __getitem__(self, key: int) -> AssetEventResult: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[AssetEventResult]: ...
+
+    def __getitem__(self, key: int | slice) -> AssetEventResult | Sequence[AssetEventResult]:
+        return self._asset_events[key]
+
+
+@attrs.define(init=False)
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
-    _AssetEventAccessorsMixin[list["AssetEventResult"]],
+    _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
 ):
     """Lazy mapping of inlet asset event accessors."""
 
@@ -588,17 +687,12 @@ class InletEventsAccessors(
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
+    def __getitem__(
+        self,
+        key: int | Asset | AssetAlias | AssetRef,
+    ) -> InletEventsAccessor:
         from airflow.sdk.definitions.asset import Asset
-        from airflow.sdk.execution_time.comms import (
-            ErrorResponse,
-            GetAssetEventByAsset,
-            GetAssetEventByAssetAlias,
-            ToSupervisor,
-        )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg: ToSupervisor
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
@@ -608,33 +702,23 @@ class InletEventsAccessors(
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri)
-        elif isinstance(obj, AssetNameRef):
+            return InletEventsAccessor(asset_name=asset.name, asset_uri=asset.uri)
+        if isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=asset.name, uri=None)
-        elif isinstance(obj, AssetUriRef):
+            return InletEventsAccessor(asset_name=asset.name)
+        if isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=None, uri=asset.uri)
-        elif isinstance(obj, AssetAlias):
+            return InletEventsAccessor(asset_uri=asset.uri)
+        if isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name)
-        else:
-            raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
-
-        resp = SUPERVISOR_COMMS.send(msg)
-        if isinstance(resp, ErrorResponse):
-            raise AirflowRuntimeError(resp)
-
-        if TYPE_CHECKING:
-            assert isinstance(resp, AssetEventsResult)
-
-        return list(resp.iter_asset_event_results())
+            return InletEventsAccessor(alias_name=asset_alias.name)
+        raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
 
 
 @attrs.define

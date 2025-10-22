@@ -17,7 +17,12 @@
 
 from __future__ import annotations
 
-# Re-export from lazy_compat for backward compatibility
-from airflow.providers.common.compat.lazy_compat import TimeDeltaTrigger
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-__all__ = ["TimeDeltaTrigger"]
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    "TimeDeltaTrigger": ("airflow.providers.standard.triggers.temporal", "airflow.triggers.temporal"),
+}
+
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
+
+__all__ = sorted(_IMPORT_MAP.keys())

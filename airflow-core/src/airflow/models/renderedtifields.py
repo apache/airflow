@@ -205,7 +205,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session = None):
+    def write(self, session: Session):
         """
         Write instance to database.
 

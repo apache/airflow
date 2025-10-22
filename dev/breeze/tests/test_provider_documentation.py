@@ -197,7 +197,7 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
 Latest change: 2023-01-01
 
 =============================================  ===========  ==================================
-Commit                                         Committed    Subject
+Commit                                          Committed   Subject
 =============================================  ===========  ==================================
 `SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' no pr``
 `SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' pr (#12345)``
@@ -215,8 +215,8 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
 
 """,
             """
-| Commit                                     | Committed   | Subject                          |
-|:-------------------------------------------|:------------|:---------------------------------|
+| Commit                                     |  Committed  | Subject                          |
+|:-------------------------------------------|:-----------:|:---------------------------------|
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' no pr`       |
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' pr (#12345)` |
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' pr (#12346)` |

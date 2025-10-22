@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.lazy_compat import Asset
+from airflow.providers.common.compat.sdk import Asset
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
 if TYPE_CHECKING:

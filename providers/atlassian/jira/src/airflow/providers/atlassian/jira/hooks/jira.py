@@ -15,16 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for JIRA."""
+"""
+Hook for JIRA.
+
+.. spelling:word-list::
+
+    ClientResponse
+    aiohttp
+    reqrep
+"""
 
 from __future__ import annotations
 
-from typing import Any, cast
+import json
+from typing import TYPE_CHECKING, Any, cast
 
+import aiohttp
 from atlassian import Jira
 
 from airflow.exceptions import AirflowException
-from airflow.providers.atlassian.jira.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.http.hooks.http import HttpAsyncHook
+
+if TYPE_CHECKING:
+    from aiohttp.client_reqrep import ClientResponse
 
 
 class JiraHook(BaseHook):
@@ -32,6 +46,9 @@ class JiraHook(BaseHook):
     Jira interaction hook, a Wrapper around Atlassian Jira Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
+    :param proxies: Proxies to make the Jira REST API call. Optional
+    :param api_root: root for the api requests. Optional
+    :param api_version: Jira api version to use. Optional
     """
 
     default_conn_name = "jira_default"
@@ -39,10 +56,18 @@ class JiraHook(BaseHook):
     conn_name_attr = "jira_conn_id"
     hook_name = "JIRA"
 
-    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Any | None = None) -> None:
+    def __init__(
+        self,
+        jira_conn_id: str = default_conn_name,
+        proxies: Any | None = None,
+        api_root: str = "rest/api",
+        api_version: str | int = "2",
+    ) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
+        self.api_root = api_root
+        self.api_version = api_version
         self.client: Jira | None = None
         self.get_conn()
 
@@ -67,6 +92,8 @@ class JiraHook(BaseHook):
                 password=conn.password,
                 verify_ssl=verify,
                 proxies=self.proxies,
+                api_version=self.api_version,
+                api_root=self.api_root,
             )
 
         return self.client
@@ -88,3 +115,77 @@ class JiraHook(BaseHook):
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},
         }
+
+
+class JiraAsyncHook(HttpAsyncHook):
+    """
+    Async Jira interaction hook, interacts with Jira with HTTP.
+
+    :param jira_conn_id: reference to a pre-defined Jira Connection
+    :param api_root: root for the api requests
+    :param api_version: api version to use
+    :param proxies: Specify proxies to use. Defaults to None.
+
+    """
+
+    default_headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    default_conn_name = "jira_default"
+    conn_type = "jira"
+    conn_name_attr = "jira_conn_id"
+    hook_name = "Async HTTP JIRA"
+
+    def __init__(
+        self,
+        jira_conn_id: str = default_conn_name,
+        api_root: str = "rest/api",
+        api_version: str | int = "2",
+        proxies: Any | None = None,
+    ) -> None:
+        super().__init__()
+        self.method = "POST"
+        self.api_root = api_root
+        self.api_version = api_version
+        self.http_conn_id = jira_conn_id
+        self.proxies = proxies
+
+    def get_resource_url(
+        self, resource: str, api_root: str | None = None, api_version: str | int | None = None
+    ) -> str:
+        """
+        Create the resource url.
+
+        :param resource: Jira resource
+        :param api_root: root for the api requests
+        :param api_version: request payload
+        :return: resource URL
+
+        """
+        if api_root is None:
+            api_root = self.api_root
+        if api_version is None:
+            api_version = self.api_version
+        return "/".join(str(s).strip("/") for s in [api_root, api_version, resource] if s is not None)
+
+    async def create_issue(self, fields: str | dict) -> ClientResponse:
+        """
+        Create an issue or a sub-task from a JSON representation.
+
+        :param fields: JSON data. mandatory keys are issue type, summary and project
+        :return: client response
+        """
+        path = self.get_resource_url("issue")
+
+        session_kwargs: dict[str, Any] = {}
+        if self.proxies:
+            session_kwargs["proxy"] = self.proxies
+
+        async with aiohttp.ClientSession(**session_kwargs) as session:
+            return await super().run(
+                session=session,
+                endpoint=path,
+                data=json.dumps({"fields": fields}),
+                headers=self.default_headers,
+            )

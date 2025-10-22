@@ -256,7 +256,7 @@ def worker(args):
         options.extend(["--pool", pool])
         # Celery pools of type eventlet and gevent use greenlets, which
         # requires monkey patching the app:
-        # https://eventlet.net/doc/patching.html#monkey-patch
+        # https://eventlet.readthedocs.io/en/latest/patching.html#monkeypatching-the-standard-library
         # Otherwise task instances hang on the workers and are never
         # executed.
         maybe_patch_concurrency(["-P", pool])

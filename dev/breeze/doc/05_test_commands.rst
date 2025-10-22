@@ -197,6 +197,25 @@ Here is the detailed set of options for the ``breeze testing airflow-ctl-tests``
   :width: 100%
   :alt: Breeze testing airflow-ctl-tests
 
+Running airflowctl integration tests
+..................................
+
+You can use Breeze to run the airflowctl integration tests. Those tests are run using Production image by default
+and the tests are running with the docker-compose we have for airflowctl tests.
+
+.. image:: ./images/output_testing_airflow-ctl-integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-integration-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-ctl-integration-tests
+
+You can also iterate over those tests with pytest command but unlike regular unit tests, they need to be run in
+a local venv. You can build the prod image with breeze and that will be used by default if present to run the tests.
+
+You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
+``breeze testing airflow-ctl-integration-tests`` command.
+
+The airflowctl tests are in ``airflow-ctl-tests/`` folder in the main repo.
+
 Running integration core tests
 ...............................
 
@@ -323,7 +342,7 @@ Running task-sdk integration tests
 You can use Breeze to run the task sdk integration tests. Those tests are run using Production image by default
 and the tests are running with the docker-compose we have for task-sdk tests.
 
-.. image:: ./images/output_testing_docker-compose-tests.svg
+.. image:: ./images/output_testing_task-sdk-integration-tests.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_task-sdk-integration-tests.svg
   :width: 100%
   :alt: Breeze testing task-sdk-integration-tests

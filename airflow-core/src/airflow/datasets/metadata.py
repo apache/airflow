@@ -20,13 +20,14 @@ from __future__ import annotations
 import warnings
 
 from airflow.sdk import Metadata
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 # TODO: Remove this module in Airflow 3.2
 
 warnings.warn(
     "Import from the airflow.datasets.metadata module is deprecated and will "
     "be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecationWarning,
+    DeprecatedImportWarning,
     stacklevel=2,
 )
 

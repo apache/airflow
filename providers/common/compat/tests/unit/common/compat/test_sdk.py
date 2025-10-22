@@ -28,13 +28,13 @@ def test_all_compat_imports_work():
     For each item, validates that at least one of the specified import paths works,
     ensuring the fallback mechanism is functional.
     """
-    from airflow.providers.common.compat import lazy_compat
+    from airflow.providers.common.compat import sdk
 
     failed_imports = []
 
-    for name in lazy_compat.__all__:
+    for name in sdk.__all__:
         try:
-            obj = getattr(lazy_compat, name)
+            obj = getattr(sdk, name)
             assert obj is not None, f"{name} imported as None"
         except (ImportError, AttributeError) as e:
             failed_imports.append((name, str(e)))
@@ -48,7 +48,7 @@ def test_all_compat_imports_work():
 
 def test_invalid_import_raises_attribute_error():
     """Test that importing non-existent attribute raises AttributeError."""
-    from airflow.providers.common.compat import lazy_compat
+    from airflow.providers.common.compat import sdk
 
     with pytest.raises(AttributeError, match="has no attribute 'NonExistentClass'"):
-        _ = lazy_compat.NonExistentClass
+        _ = sdk.NonExistentClass

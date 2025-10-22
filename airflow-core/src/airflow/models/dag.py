@@ -322,12 +322,12 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
     # Last time the scheduler started
-    last_parsed_time: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
     last_parse_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_expired: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
@@ -375,14 +375,14 @@ class DagModel(Base):
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    next_dagrun_data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
@@ -750,10 +750,12 @@ def __getattr__(name: str):
 
     import warnings
 
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     warnings.warn(
         f"Import {name!r} directly from the airflow module is deprecated and "
         f"will be removed in the future. Please import it from 'airflow.sdk'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 

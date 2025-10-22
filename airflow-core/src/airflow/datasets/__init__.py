@@ -27,6 +27,8 @@ from __future__ import annotations
 import importlib
 import warnings
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 # TODO: Remove this module in Airflow 3.2
 
 _names_moved = {
@@ -47,7 +49,7 @@ def __getattr__(name: str):
     warnings.warn(
         f"Import 'airflow.datasets.{name}' is deprecated and "
         f"will be removed in Airflow 3.2. Please import it from '{module_path}.{new_name}'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
     mod = importlib.import_module(module_path, __name__)

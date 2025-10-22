@@ -384,8 +384,8 @@ class TaskInstance(Base, LoggingMixin):
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
 
-    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     try_number: Mapped[int] = mapped_column(Integer, default=0)
@@ -398,15 +398,15 @@ class TaskInstance(Base, LoggingMixin):
     priority_weight: Mapped[int] = mapped_column(Integer)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str] = mapped_column(String(1000))
-    queued_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    scheduled_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    last_heartbeat_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_heartbeat_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     executor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     executor_config: Mapped[dict] = mapped_column(ExecutorConfigType(pickler=dill))
-    updated_at: Mapped[UtcDateTime | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
@@ -421,7 +421,7 @@ class TaskInstance(Base, LoggingMixin):
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Optional timeout utcdatetime for the trigger (past this, we'll fail)
-    trigger_timeout: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    trigger_timeout: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
@@ -2215,8 +2215,8 @@ class TaskInstanceNote(Base):
     )
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     content: Mapped[str | None] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 

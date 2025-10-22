@@ -34,7 +34,7 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.exceptions import AirflowException
-from airflow.providers.ssh.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
 

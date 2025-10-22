@@ -46,7 +46,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not is_pydantic_model(o):
         return "", "", 0, False
 
-    data = o.model_dump()  # type: ignore
+    data = o.model_dump(mode="json")  # type: ignore
 
     return data, qualname(o), __version__, True
 
