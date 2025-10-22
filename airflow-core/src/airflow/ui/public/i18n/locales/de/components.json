@@ -101,8 +101,8 @@
     "location": "Zeile {{line}} in {{name}}"
   },
   "reparseDag": "Dag neu parsen",
-  "sortedAscending": "aufsteigend sortier",
-  "sortedDescending": "absteigend sortier",
+  "sortedAscending": "aufsteigend sortiert",
+  "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
   "toggleCardView": "Kachelansicht anzeigen",
