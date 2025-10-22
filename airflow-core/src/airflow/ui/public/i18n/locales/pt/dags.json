@@ -20,8 +20,7 @@
       "all": "Todos",
       "paused": "Pausado"
     },
-    "runIdPatternFilter": "Pesquisar Execuções de DAG",
-    "triggeringUserNameFilter": "Pesquisar por Usuário que Disparou"
+    "runIdPatternFilter": "Pesquisar Execuções de DAG"
   },
   "ownerLink": "Link do Proprietário para {{owner}}",
   "runAndTaskActions": {

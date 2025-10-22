@@ -21,7 +21,7 @@ from typing import Any, cast
 import requests
 from requests import HTTPError
 
-from airflow.providers.apache.iceberg.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 TOKENS_ENDPOINT = "oauth/tokens"
 

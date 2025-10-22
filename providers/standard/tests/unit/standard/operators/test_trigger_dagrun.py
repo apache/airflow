@@ -31,7 +31,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused, TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -253,6 +253,18 @@ class TestDagRunOperator:
                     "airflow.providers.standard.triggers.external_task.DagStateTrigger",
                     {"run_ids": ["run_id_1"], "run_id_1": "failed"},
                 ),
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
+        with pytest.raises(
+            NotImplementedError, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x"
+        ):
+            TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "bar"},
+                fail_when_dag_is_paused=True,
             )
 
 
@@ -771,9 +783,5 @@ class TestDagRunOperatorAF2:
                 fail_when_dag_is_paused=True,
             )
         dag_maker.create_dagrun()
-        if AIRFLOW_V_3_0_PLUS:
-            error = DagIsPaused
-        else:
-            error = AirflowException
-        with pytest.raises(error, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
+        with pytest.raises(AirflowException, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

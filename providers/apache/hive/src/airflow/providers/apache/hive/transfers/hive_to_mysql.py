@@ -24,11 +24,11 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-from airflow.providers.apache.hive.version_compat import BaseOperator, context_to_airflow_vars
+from airflow.providers.common.compat.sdk import BaseOperator, context_to_airflow_vars
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HiveToMySqlOperator(BaseOperator):

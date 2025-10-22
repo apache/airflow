@@ -20,8 +20,7 @@
       "all": "الكل",
       "paused": "متوقف"
     },
-    "runIdPatternFilter": "بحث تشغيلات الDag",
-    "triggeringUserNameFilter": "البحث حسب المستخدم صاحب الاطلاق"
+    "runIdPatternFilter": "بحث تشغيلات الDag"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {

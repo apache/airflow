@@ -26,7 +26,7 @@ from urllib.parse import quote_plus
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.pinot.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
