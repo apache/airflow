@@ -958,8 +958,8 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
-        if self.task.retry_exponential_backoff:
-            multiplier = getattr(self.task, "retry_delay_multiplier", 2.0)
+        multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
+        if multiplier != 1.0:
             try:
                 # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
                 # we must round up prior to converting to an int, otherwise a divide by zero error

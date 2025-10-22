@@ -607,7 +607,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -649,7 +649,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -675,7 +675,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -694,8 +694,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
-                retry_delay_multiplier=5.0,
+                retry_exponential_backoff=5.0,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
         ti.task = task

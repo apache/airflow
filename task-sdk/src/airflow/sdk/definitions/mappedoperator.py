@@ -38,7 +38,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
-    DEFAULT_RETRY_DELAY_MULTIPLIER,
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
@@ -536,20 +535,12 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_delay"] = value
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        return float(self.partial_kwargs.get("retry_exponential_backoff", 0))
 
     @retry_exponential_backoff.setter
-    def retry_exponential_backoff(self, value: bool) -> None:
+    def retry_exponential_backoff(self, value: float) -> None:
         self.partial_kwargs["retry_exponential_backoff"] = value
-
-    @property
-    def retry_delay_multiplier(self) -> float:
-        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
-
-    @retry_delay_multiplier.setter
-    def retry_delay_multiplier(self, value: float) -> None:
-        self.partial_kwargs["retry_delay_multiplier"] = value
 
     @property
     def priority_weight(self) -> int:
