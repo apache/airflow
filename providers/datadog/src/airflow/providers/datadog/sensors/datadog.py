@@ -24,10 +24,10 @@ from datadog import api
 
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
-from airflow.providers.datadog.version_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.datadog.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DatadogSensor(BaseSensorOperator):
