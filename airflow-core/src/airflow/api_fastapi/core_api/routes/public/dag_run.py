@@ -206,26 +206,13 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
-            dag_run_pk: int = dag_run.id
-            dag_run = session.get(DagRun, dag_run_pk)
-            if dag_run is None:
-                raise HTTPException(
-                    status.HTTP_404_NOT_FOUND,
-                    f"DagRun with id: `{dag_run_pk}` was not found",
-                )
             if dag_run.dag_run_note is None:
                 dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
                 dag_run.dag_run_note.user_id = user.get_id()
 
-    dag_run_pk_final: int = dag_run.id
-    dag_run = session.get(DagRun, dag_run_pk_final)
-    if dag_run is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"DagRun with id: `{dag_run_pk_final}` was not found",
-        )
+    # dag_run is already available from the query at line 167
 
     return dag_run
 
@@ -416,7 +403,7 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = list(session.scalars(dag_run_select))
+    dag_runs = session.scalars(dag_run_select).all()
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
@@ -646,7 +633,7 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = list(session.scalars(dag_runs_select))
+    dag_runs = session.scalars(dag_runs_select).all()
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
