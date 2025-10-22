@@ -33,10 +33,10 @@ if TYPE_CHECKING:
 
 class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
     """
-    Poll the state of an AWS SSM Run Command until all instance jobs reach a
-    terminal state.
+    Poll the state of an AWS SSM Run Command until completion.
 
-    Fails if any instance job ends in a failed state.
+    Waits until all instance jobs reach a terminal state. Fails if any
+    instance job ends in a failed state.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the
@@ -44,13 +44,12 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         :ref:`howto/sensor:SsmRunCommandCompletedSensor`
 
     :param command_id: The ID of the AWS SSM Run Command.
-
     :param deferrable: If True, the sensor will operate in deferrable mode.
         This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting
         default_deferrable to True)
     :param poke_interval: Polling period in seconds to check for the status
-    of the job. (default: 120)
+        of the job. (default: 120)
     :param max_retries: Number of times before returning the current state.
         (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -68,7 +67,10 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
     """
 
     INTERMEDIATE_STATES: tuple[str, ...] = (
-        "Pending", "Delayed", "InProgress", "Cancelling"
+        "Pending",
+        "Delayed",
+        "InProgress",
+        "Cancelling",
     )
     FAILURE_STATES: tuple[str, ...] = ("Cancelled", "TimedOut", "Failed")
     SUCCESS_STATES: tuple[str, ...] = ("Success",)
@@ -104,8 +106,8 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
 
         if not command_invocations:
             self.log.info(
-                "No command invocations found for command_id=%s yet, "
-                "waiting...",
+                "No command invocations found",
+                "command_id=%s yet, waiting...",
                 self.command_id,
             )
             return False
@@ -137,7 +139,9 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
             super().execute(context=context)
 
     def execute_complete(
-        self, context: Context, event: dict[str, Any] | None = None
+        self,
+        context: Context,
+        event: dict[str, Any] | None = None
     ) -> None:
         event = validate_execute_complete_event(event)
 
