@@ -43,7 +43,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
