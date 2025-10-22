@@ -235,7 +235,7 @@ def test_commands(login_command, date_param):
     # Define test commands to run with actual running API server
     return [
         login_command,
-        "backfill list",
+        "backfills list",
         "config get --section core --option executor",
         "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
         "connections list",
