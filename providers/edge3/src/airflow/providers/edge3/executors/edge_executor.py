@@ -351,7 +351,7 @@ class EdgeExecutor(BaseExecutor):
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
-                    self.last_reported_state[job.key] = job.state
+                    self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
