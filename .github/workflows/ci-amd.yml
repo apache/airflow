@@ -170,6 +170,7 @@ jobs:
     name: "Run pin-versions hook"
     needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    if: needs.build-info.outputs.platform == 'linux/amd64'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -439,7 +440,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
 
   tests-mysql-providers:
     name: "MySQL tests: providers"
@@ -468,7 +469,7 @@ jobs:
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
 
 
   tests-sqlite-core:
