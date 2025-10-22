@@ -756,7 +756,6 @@ def post_clear_task_instances(
                 task_ids=unmapped_task_ids | mapped_task_ids,
                 include_downstream=downstream,
                 include_upstream=upstream,
-                exclude_original=True,
             )
             unmapped_task_ids = unmapped_task_ids | set(relatives.task_dict.keys())
 
