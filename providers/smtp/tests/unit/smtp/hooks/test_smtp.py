@@ -36,7 +36,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import Connection
 else:
-    from airflow.models.connection import Connection  # type: ignore[assignment]
+    from airflow.models.connection import Connection
 
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
