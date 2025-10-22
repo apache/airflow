@@ -90,7 +90,6 @@
   "limitedList.clickToInteract": "点击标签以筛选 DAGs",
   "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
-  "limitedList.showingItems": "显示 {{count}} 项",
   "logs": {
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
