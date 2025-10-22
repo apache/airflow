@@ -460,7 +460,7 @@ class TestPodTemplateFile:
                             "maxSkew": 1,
                             "topologyKey": "foo",
                             "whenUnsatisfiable": "ScheduleAnyway",
-                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                            "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
                         }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
@@ -523,7 +523,7 @@ class TestPodTemplateFile:
             "maxSkew": 1,
             "topologyKey": "foo",
             "whenUnsatisfiable": "ScheduleAnyway",
-            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+            "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
         }
         docs = render_chart(
             values={
@@ -557,7 +557,7 @@ class TestPodTemplateFile:
                         "maxSkew": 1,
                         "topologyKey": "not-me",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "not-me"},
@@ -826,7 +826,7 @@ class TestPodTemplateFile:
             "label2": "value2",
             "release": "release-name",
             "component": "worker",
-            "tier": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
         }
 
     def test_should_add_extraEnvs(self):

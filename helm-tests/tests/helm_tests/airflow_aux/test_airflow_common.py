@@ -250,7 +250,7 @@ class TestAirflowCommon:
                         "maxSkew": 1,
                         "topologyKey": "foo",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "user-node"},

@@ -481,7 +481,7 @@ class TestBaseChartTest:
             expected_labels = {
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
                 "release": release_name,
                 "heritage": "Helm",
                 "chart": mock.ANY,
@@ -527,7 +527,7 @@ class TestBaseChartTest:
             expected_labels = {
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
                 "release": release_name,
                 "component": component,
             }

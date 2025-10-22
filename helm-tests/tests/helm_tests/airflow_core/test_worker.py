@@ -389,7 +389,7 @@ class TestWorker:
             "maxSkew": 1,
             "topologyKey": "foo",
             "whenUnsatisfiable": "ScheduleAnyway",
-            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+            "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
         }
         docs = render_chart(
             values={
@@ -423,7 +423,7 @@ class TestWorker:
                         "maxSkew": 1,
                         "topologyKey": "not-me",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        "labelSelector": {"matchLabels": {"app.kubernetes.io/part-of": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "not-me"},

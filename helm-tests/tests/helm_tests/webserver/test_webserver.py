@@ -519,7 +519,7 @@ class TestWebserverDeployment:
             "maxSkew": 1,
             "topologyKey": "foo",
             "whenUnsatisfiable": "ScheduleAnyway",
-            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+            "labelSelector": {"matchLabels": {"app.kubernetes.io/part-ofkubernetes.io/part-of": "airflow"}},
         }
         docs = render_chart(
             values={
@@ -554,7 +554,7 @@ class TestWebserverDeployment:
                         "maxSkew": 1,
                         "topologyKey": "not-me",
                         "whenUnsatisfiable": "ScheduleAnyway",
-                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        "labelSelector": {"matchLabels": {"app.kubernetes.io/part-ofkubernetes.io/part-of": "airflow"}},
                     }
                 ],
                 "nodeSelector": {"type": "not-me"},
@@ -973,7 +973,7 @@ class TestWebserverService:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-webserver"
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert jmespath.search("spec.selector", docs[0]) == {
-            "tier": "airflow",
+            "app.kubernetes.io/part-ofkubernetes.io/part-of": "airflow",
             "component": "webserver",
             "release": "release-name",
         }

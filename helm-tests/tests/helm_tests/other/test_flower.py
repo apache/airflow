@@ -493,7 +493,7 @@ class TestFlowerService:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-flower"
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert jmespath.search("spec.selector", docs[0]) == {
-            "tier": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
             "component": "flower",
             "release": "release-name",
         }
