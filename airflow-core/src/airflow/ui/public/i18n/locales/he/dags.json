@@ -20,8 +20,7 @@
       "all": "הכל",
       "paused": "מושהה"
     },
-    "runIdPatternFilter": "חפש הרצת Dag",
-    "triggeringUserNameFilter": "חפש לפי שם המשתמש המפעיל"
+    "runIdPatternFilter": "חפש הרצת Dag"
   },
   "ownerLink": "קישור בעלים ל-{{owner}}",
   "runAndTaskActions": {

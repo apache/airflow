@@ -34,7 +34,7 @@ import aiohttp
 from atlassian import Jira
 
 from airflow.exceptions import AirflowException
-from airflow.providers.atlassian.jira.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.http.hooks.http import HttpAsyncHook
 
 if TYPE_CHECKING:

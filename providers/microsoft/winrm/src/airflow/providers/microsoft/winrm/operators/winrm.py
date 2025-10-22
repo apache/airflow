@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.providers.microsoft.winrm.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -458,7 +458,13 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     default=False,
     help="Add missing translations for all languages except English, prefixed with 'TODO: translate:'.",
 )
-def cli(language: str | None = None, add_missing: bool = False):
+@click.option(
+    "--remove-extra",
+    is_flag=True,
+    default=False,
+    help="Remove extra translations that are present in the language but missing in English.",
+)
+def cli(language: str | None = None, add_missing: bool = False, remove_extra: bool = False):
     locale_files = get_locale_files()
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
@@ -480,6 +486,22 @@ def cli(language: str | None = None, add_missing: bool = False):
                 )
             add_missing_translations(lf.locale, filtered_summary, console)
         # After adding, re-run the summary for all languages
+        summary, missing_counts = compare_keys(get_locale_files(), console)
+    if remove_extra and language != "en":
+        # Loop through all languages except 'en' and remove extra translations
+        if language:
+            language_files = [lf for lf in locale_files if lf.locale == language]
+        else:
+            language_files = [lf for lf in locale_files if lf.locale != "en"]
+        for lf in language_files:
+            filtered_summary = {}
+            for filename, diff in summary.items():
+                filtered_summary[filename] = LocaleSummary(
+                    missing_keys={lf.locale: diff.missing_keys.get(lf.locale, [])},
+                    extra_keys={lf.locale: diff.extra_keys.get(lf.locale, [])},
+                )
+            remove_extra_translations(lf.locale, filtered_summary, console)
+        # After removing, re-run the summary for all languages
         summary, missing_counts = compare_keys(get_locale_files(), console)
     if language:
         locales = [lf.locale for lf in locale_files]
@@ -592,6 +614,52 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
             json.dump(lang_data, f, ensure_ascii=False, indent=2)
             f.write("\n")  # Ensure newline at the end of the file
         console.print(f"[green]Added missing translations to {lang_path}[/green]")
+
+
+def remove_extra_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
+    """
+    Remove extra translations for the selected language.
+
+    Removes keys that are present in the language file but missing in the English file.
+    """
+    for filename, diff in summary.items():
+        extra_keys = set(diff.extra_keys.get(language, []))
+        if not extra_keys:
+            continue
+        lang_path = LOCALES_DIR / language / filename
+        try:
+            lang_data = load_json(lang_path)
+        except Exception as e:
+            console.print(f"[yellow]Failed to load {language} file {lang_path}: {e}[/yellow]")
+            continue
+
+        # Helper to recursively remove extra keys
+        def remove_keys(dst, prefix=""):
+            keys_to_remove = []
+            for k, v in list(dst.items()):
+                full_key = f"{prefix}.{k}" if prefix else k
+                if full_key in extra_keys:
+                    keys_to_remove.append(k)
+                elif isinstance(v, dict):
+                    remove_keys(v, full_key)
+                    # Remove empty dictionaries after recursion
+                    if not v:
+                        keys_to_remove.append(k)
+            for k in keys_to_remove:
+                del dst[k]
+
+        remove_keys(lang_data)
+
+        def natural_key_sort(obj):
+            if isinstance(obj, dict):
+                return {k: natural_key_sort(obj[k]) for k in sorted(obj)}
+            return obj
+
+        lang_data = natural_key_sort(lang_data)
+        with open(lang_path, "w", encoding="utf-8") as f:
+            json.dump(lang_data, f, ensure_ascii=False, indent=2)
+            f.write("\n")  # Ensure newline at the end of the file
+        console.print(f"[green]Removed {len(extra_keys)} extra translations from {lang_path}[/green]")
 
 
 if __name__ == "__main__":

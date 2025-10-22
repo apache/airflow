@@ -77,7 +77,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
-    from airflow.sdk.execution_time.context import context_to_airflow_vars as context_to_airflow_vars
+    from airflow.sdk.execution_time.context import (
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+        context_to_airflow_vars as context_to_airflow_vars,
+    )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
 
@@ -182,6 +185,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "Context": ("airflow.sdk", "airflow.utils.context"),
     "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
     "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
+    "AIRFLOW_VAR_NAME_FORMAT_MAPPING": (
+        "airflow.sdk.execution_time.context",
+        "airflow.utils.operator_helpers",
+    ),
     "get_current_context": ("airflow.sdk", "airflow.operators.python"),
     "get_parsing_context": ("airflow.sdk", "airflow.utils.dag_parsing_context"),
     # ============================================================================

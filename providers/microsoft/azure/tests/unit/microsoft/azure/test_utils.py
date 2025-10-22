@@ -29,6 +29,7 @@ from httpx import Headers, Response
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
@@ -38,7 +39,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 MODULE = "airflow.providers.microsoft.azure.utils"
 

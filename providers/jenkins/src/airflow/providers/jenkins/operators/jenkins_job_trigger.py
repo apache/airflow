@@ -30,8 +30,8 @@ from jenkins import Jenkins, JenkinsException
 from requests import Request
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.version_compat import BaseOperator
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = str | dict | list | None

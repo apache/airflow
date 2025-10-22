@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from airflow.providers.alibaba.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class AccessKeyCredentials(NamedTuple):

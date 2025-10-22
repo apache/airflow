@@ -43,7 +43,7 @@ from airflow.exceptions import (
     RemovedInAirflow4Warning,
     TaskNotFound,
 )
-from airflow.sdk import TriggerRule
+from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -85,6 +85,15 @@ __all__ = [
     "dag",
 ]
 
+FINISHED_STATES = frozenset(
+    [
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.REMOVED,
+    ]
+)
 
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
@@ -1166,10 +1175,9 @@ class DAG:
         from airflow import settings
         from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
-        from airflow.sdk import DagRunState, TaskInstanceState, timezone
+        from airflow.sdk import DagRunState, timezone
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
-        from airflow.utils.state import State
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         exit_stack = ExitStack()
@@ -1291,7 +1299,7 @@ class DAG:
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
+                ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
                 if not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
@@ -1331,7 +1339,7 @@ class DAG:
                         # Run the task locally
                         try:
                             if mark_success:
-                                ti.set_state(State.SUCCESS)
+                                ti.set_state(TaskInstanceState.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
                                 _run_task(ti=ti, task=task, run_triggerer=True)
@@ -1363,7 +1371,6 @@ def _run_task(
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
     from airflow.sdk.module_loading import import_string
-    from airflow.utils.state import State
 
     taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
@@ -1378,7 +1385,7 @@ def _run_task(
 
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
-            ti.set_state(State.QUEUED)
+            ti.set_state(TaskInstanceState.QUEUED)
             task_sdk_ti = TaskInstanceSDK(
                 id=ti.id,
                 task_id=ti.task_id,
@@ -1394,12 +1401,12 @@ def _run_task(
             ti.set_state(taskrun_result.ti.state)
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
-            if ti.state == State.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+            if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 from airflow.utils.session import create_session
 
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
-                ti.set_state(State.QUEUED)
+                ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
                 trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
@@ -1410,15 +1417,15 @@ def _run_task(
 
                 # Set the state to SCHEDULED so that the task can be resumed.
                 with create_session() as session:
-                    ti.state = State.SCHEDULED
+                    ti.state = TaskInstanceState.SCHEDULED
                     session.add(ti)
                 continue
 
             break
         except Exception:
             log.exception("[DAG TEST] Error running task %s", ti)
-            if ti.state not in State.finished:
-                ti.set_state(State.FAILED)
+            if ti.state not in FINISHED_STATES:
+                ti.set_state(TaskInstanceState.FAILED)
                 taskrun_result = None
                 break
             raise

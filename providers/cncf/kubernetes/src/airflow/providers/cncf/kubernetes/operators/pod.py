@@ -81,7 +81,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator

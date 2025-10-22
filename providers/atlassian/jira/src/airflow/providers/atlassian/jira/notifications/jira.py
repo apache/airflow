@@ -22,7 +22,7 @@ from typing import Any
 
 from airflow.providers.atlassian.jira.hooks.jira import JiraAsyncHook, JiraHook
 from airflow.providers.atlassian.jira.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.sdk import BaseNotifier
 
 
 class JiraNotifier(BaseNotifier):

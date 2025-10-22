@@ -106,7 +106,6 @@
   "limitedList.clickToInteract": "Fai clic su un'etichetta per filtrare i Dag",
   "limitedList.clickToOpenFull": "Fai clic su \"+{{count}} altro\" per visualizzare tutto",
   "limitedList.copyPasteText": "Puoi copiare e incollare il testo sopra",
-  "limitedList.showingItems": "Visualizzazione di {{count}} elementi",
   "logs": {
     "file": "File",
     "location": "linea {{line}} in {{name}}"

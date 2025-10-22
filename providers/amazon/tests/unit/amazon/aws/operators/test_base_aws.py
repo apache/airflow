@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 try:
     from airflow.sdk import timezone

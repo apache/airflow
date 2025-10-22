@@ -34,18 +34,6 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, BaseOperatorLink, TaskGroup
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import BaseOperator, XCom
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
-    "BaseOperator",
-    "BaseOperatorLink",
-    "TaskGroup",
-    "XCom",
 ]

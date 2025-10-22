@@ -25,14 +25,14 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.apache.hive.version_compat import (
+from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     BaseOperator,
     context_to_airflow_vars,
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HiveOperator(BaseOperator):
