@@ -39,16 +39,14 @@ from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
 )
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
-from airflow.providers.sftp.version_compat import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
     from paramiko.sftp_attr import SFTPAttributes
     from paramiko.sftp_client import SFTPClient
-
-    from airflow.models.connection import Connection
 
 
 def handle_connection_management(func: Callable) -> Callable:
