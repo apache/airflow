@@ -67,7 +67,7 @@ class ImpalaHook(DbApiHook):
             host=str(conn.host),
             port=conn.port or 21050,
             database=conn.schema,
-            query=query,
+            query=query
         )
         
     def get_uri(self) -> str:
