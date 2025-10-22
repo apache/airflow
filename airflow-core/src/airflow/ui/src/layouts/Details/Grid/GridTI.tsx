@@ -85,7 +85,11 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
+  // Remove try_number query param when navigating to reset to the
+  // latest try of the task instance and avoid issues with invalid try numbers:
+  // https://github.com/apache/airflow/issues/56977
   searchParams.delete("try_number");
+  const redirectionSearch = searchParams.toString();
 
   return (
     <Flex
@@ -108,7 +112,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
         replace
         to={{
           pathname: getTaskUrl(),
-          search: searchParams.toString(),
+          search: redirectionSearch,
         }}
       >
         <Tooltip
