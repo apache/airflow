@@ -42,6 +42,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
@@ -849,8 +850,8 @@ with airflow.DAG(
         }
 
         with warnings.catch_warnings():
-            # Disable capture DeprecationWarning, and it should be reflected in captured warnings
-            warnings.simplefilter("ignore", DeprecationWarning)
+            # Disable capture DeprecatedImportWarning, and it should be reflected in captured warnings
+            warnings.simplefilter("ignore", DeprecatedImportWarning)
             dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
             assert dag_file in dagbag.captured_warnings
             assert len(dagbag.captured_warnings[dag_file]) == 1
