@@ -2577,7 +2577,7 @@ profiling:
         memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
         ```
         This is an expensive operation and generally should not be used except for debugging purposes.
-      version_added: 3.1.1
+      version_added: 3.1.2
       type: boolean
       example: ~
       default: "False"
