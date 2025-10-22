@@ -356,14 +356,19 @@ def with_row_locks(
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    if session.bind is None:
+    try:
+        dialect_name = get_dialect_name(session)
+    except ValueError:
         return query
-    dialect = session.bind.dialect
+    if not dialect_name:
+        return query
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
-    if dialect.name == "mysql" and not getattr(dialect, "supports_for_update_of", False):
+    if dialect_name == "mysql" and not getattr(
+        session.bind.dialect if session.bind else None, "supports_for_update_of", False
+    ):
         return query
     if nowait:
         kwargs["nowait"] = True

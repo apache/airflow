@@ -59,6 +59,7 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 USE_PSYCOPG3: bool
@@ -1351,9 +1352,9 @@ def create_global_lock(
         conn = bind.connect()
     else:
         conn = bind
-    dialect = conn.dialect
+    dialect_name = get_dialect_name(session)
     try:
-        if dialect.name == "postgresql":
+        if dialect_name == "postgresql":
             if USE_PSYCOPG3:
                 # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
                 # The timeout value must be passed as a string of milliseconds.
@@ -1366,13 +1367,15 @@ def create_global_lock(
                 conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
                 conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif (
-            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
         ):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
-        if dialect.name == "postgresql":
+        if dialect_name == "postgresql":
             if USE_PSYCOPG3:
                 # Use set_config() to reset the timeout to its default (0 = off/wait forever).
                 conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
@@ -1385,7 +1388,9 @@ def create_global_lock(
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
         elif (
-            dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
         ):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
