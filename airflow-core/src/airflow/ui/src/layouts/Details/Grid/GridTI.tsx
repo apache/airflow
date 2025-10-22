@@ -20,7 +20,7 @@ import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
@@ -58,15 +58,16 @@ type Props = {
   readonly label: string;
   readonly onClick?: () => void;
   readonly runId: string;
-  readonly search: string;
   readonly taskId: string;
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
+
+  const [searchParams] = useSearchParams();
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
@@ -83,6 +84,8 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       }),
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
+
+  searchParams.delete("try_number");
 
   return (
     <Flex
@@ -105,7 +108,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
         replace
         to={{
           pathname: getTaskUrl(),
-          search,
+          search: searchParams.toString(),
         }}
       >
         <Tooltip
