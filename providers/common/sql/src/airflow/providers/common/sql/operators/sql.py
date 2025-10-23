@@ -34,8 +34,8 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 def _convert_to_float_if_possible(s: str) -> float | str:
