@@ -26,8 +26,8 @@ import pagerduty
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.http.hooks.http import HttpAsyncHook
-from airflow.providers.pagerduty.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from datetime import datetime
