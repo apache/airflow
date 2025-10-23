@@ -104,7 +104,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``presto-python-client``                 ``>=0.8.4``
-``pandas[postgres]``                     ``>=2.1.2; python_version < "3.13"``
+``pandas[postgresql]``                   ``>=2.1.2; python_version < "3.13"``
 ``pandas``                               ``>=2.2.3; python_version >= "3.13"``
 =======================================  =====================================
 
