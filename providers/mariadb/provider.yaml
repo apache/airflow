@@ -1,0 +1,32 @@
+name: MariaDB
+package-name: apache-airflow-providers-mariadb
+description: |
+  Provider for MariaDB database integration with Apache Airflow.
+  Includes support for native MariaDB connector, ColumnStore engine,
+  bulk data loading with cpimport utility, and S3 integration.
+versions:
+  - 1.0.0
+dependencies:
+  - apache-airflow>=2.5.0
+  - mariadb>=1.1.0
+  - boto3>=1.26.0
+integrations:
+  - integration-name: MariaDB
+    external-doc-url: https://mariadb.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-mariadb/operators.rst
+    logo: /integration-logos/mariadb/MariaDB.png
+    tags: [database, sql, mariadb, columnstore]
+operators:
+  - integration-name: MariaDB
+    python-modules:
+      - airflow.providers.mariadb.operators.mariadb
+      - airflow.providers.mariadb.operators.cpimport
+      - airflow.providers.mariadb.operators.s3
+hooks:
+  - integration-name: MariaDB
+    python-modules:
+      - airflow.providers.mariadb.hooks.mariadb
+connection-types:
+  - connection-type: mariadb
+    hook-class-name: airflow.providers.mariadb.hooks.mariadb.MariaDBHook
