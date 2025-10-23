@@ -492,30 +492,21 @@ def compile_ui_assets(installation_spec: InstallationSpec, ui_directory: Path, h
             return
 
     # ensure dependencies for UI assets compilation
-    need_node = shutil.which("node") is None
-    need_yarn = shutil.which("yarn") is None
     need_pnpm = shutil.which("pnpm") is None
-
-    if need_node:
-        console.print("[bright_blue]Installing Node.js directly from official setup script")
+    if need_pnpm:
+        console.print("[bright_blue]Installing pnpm directly from official setup script")
         run_command(
             [
                 "bash",
                 "-c",
-                "curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs",
+                'wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -',
             ],
             github_actions=False,
             shell=False,
             check=True,
         )
     else:
-        console.print("[bright_blue]Node.js already installed")
-
-    if need_yarn or need_pnpm:
-        console.print("[bright_blue]Installing Yarn and PNPM globally via npm")
-        run_command(["npm", "install", "-g", "yarn", "pnpm"], github_actions=False, shell=False, check=True)
-    else:
-        console.print("[bright_blue]Yarn and PNPM already installed")
+        console.print("[bright_blue]pnpm already installed")
 
     # install UI assets compilation dependencies
     env = os.environ.copy()
