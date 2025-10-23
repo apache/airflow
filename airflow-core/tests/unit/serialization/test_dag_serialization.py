@@ -1064,8 +1064,6 @@ class TestStringifiedDAGs:
             },
         }
         SerializedDAG.validate_schema(serialized)
-        with pytest.raises(ValueError) as ctx:
-            SerializedDAG.from_dict(serialized)
         message = (
             "Timetable class "
             "'tests_common.test_utils.timetables.CustomSerializationTimetable' "
@@ -1073,7 +1071,8 @@ class TestStringifiedDAGs:
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-        assert str(ctx.value) == message
+        with pytest.raises(ValueError, match=message):
+            SerializedDAG.from_dict(serialized)
 
     @pytest.mark.parametrize(
         "val, expected",
