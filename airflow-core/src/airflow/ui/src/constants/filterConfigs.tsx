@@ -251,20 +251,6 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
-    [SearchParamsKeys.TASK_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("common:state"),
-      options: taskInstanceStateOptions.items.map((option) => ({
-        label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
-            <StateBadge state={option.value as TaskInstanceState }>{translate(option.label)}</StateBadge>
-          ),
-        value: option.value,
-      })),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.SUBJECT_SEARCH]: {
       icon: <MdSearch />,
       label: translate("hitl:subject"),
@@ -281,6 +267,20 @@ export const useFilterConfigs = () => {
       icon: <TaskIcon />,
       label: translate("common:taskId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TASK_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: taskInstanceStateOptions.items.map((option) => ({
+        label:
+          option.value === "all" ? (
+            translate(option.label)
+          ) : (
+            <StateBadge state={option.value as TaskInstanceState }>{translate(option.label)}</StateBadge>
+          ),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

@@ -219,7 +219,7 @@ const taskInstanceColumns = ({
   },
 ];
 
-//filter for operator_name, since the frontend show operator_name, instead of operator for user
+// filter for operator_name, since the frontend show operator_name, instead of operator for user
 const filterTaskInstances = ({
   instances,
   operatorNames,
@@ -229,7 +229,7 @@ const filterTaskInstances = ({
 }) =>
   instances.filter(
     (instance) =>
-      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) 
+      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string))
   );
 
 export const TaskInstances = () => {
@@ -287,10 +287,10 @@ export const TaskInstances = () => {
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      pool: hasFilteredPool ? pool : undefined,
+      queue: hasFilteredQueue ? queue : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      queue: hasFilteredQueue ? queue : undefined,
-      pool: hasFilteredPool ? pool : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
