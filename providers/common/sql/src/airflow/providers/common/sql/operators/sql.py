@@ -26,9 +26,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 from airflow import XComArg
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import SkipMixin
+from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:

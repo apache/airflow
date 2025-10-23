@@ -22,9 +22,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
-from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import jinja2
