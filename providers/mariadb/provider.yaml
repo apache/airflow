@@ -4,10 +4,18 @@ description: |
   Provider for MariaDB database integration with Apache Airflow.
   Includes support for native MariaDB connector, ColumnStore engine,
   bulk data loading with cpimport utility, and S3 integration.
+
+state: ready
+source-date-epoch: 1756877094
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
 versions:
   - 1.0.0
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.10.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - mariadb>=1.1.0
   - boto3>=1.26.0
 integrations:
