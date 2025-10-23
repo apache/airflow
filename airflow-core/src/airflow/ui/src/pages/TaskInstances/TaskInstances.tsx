@@ -59,7 +59,7 @@ const {
   POOL: POOL_PARAM,
   QUEUE: QUEUE_PARAM,
   START_DATE: START_DATE_PARAM,
-  STATE: STATE_PARAM,
+  TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
@@ -222,19 +222,13 @@ const taskInstanceColumns = ({
 const filterTaskInstances = ({
   instances,
   operatorNames,
-  poolNames,
-  queueNames,
 }: {
   instances: Array<TaskInstanceResponse>;
   operatorNames: Array<string>;
-  poolNames: Array<string>;
-  queueNames: Array<string>;
 }) =>
   instances.filter(
     (instance) =>
-      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) &&
-      (queueNames.length === 0 || queueNames.includes(instance.queue as string)) &&
-      (poolNames.length === 0 || poolNames.includes(instance.pool)),
+      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string)) 
   );
 
 export const TaskInstances = () => {
@@ -270,6 +264,8 @@ export const TaskInstances = () => {
   const operator = searchParams.getAll(OPERATOR_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
+  const hasFilteredPool = pool.length > 0;
+  const hasFilteredQueue = queue.length > 0;
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
@@ -292,6 +288,8 @@ export const TaskInstances = () => {
       orderBy,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
+      queue: hasFilteredPool ? queue : undefined,
+      pool: hasFilteredPool ? pool : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
@@ -305,17 +303,14 @@ export const TaskInstances = () => {
     },
   );
 
-  const filteredInstances = filterTaskInstances({
-    instances: data?.task_instances ?? [],
+   const filteredInstances = filterTaskInstances({
+    instances: data? data.task_instances : [],
     operatorNames: operator,
-    poolNames: pool,
-    queueNames: queue,
   });
 
   return (
     <>
       <TaskInstancesFilter
-        instances={data}
         setTaskDisplayNamePattern={setTaskDisplayNamePattern}
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
@@ -326,7 +321,7 @@ export const TaskInstances = () => {
           taskId: Boolean(groupId) ? undefined : taskId,
           translate,
         })}
-        data={filteredInstances ?? []}
+        data={filteredInstances}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}

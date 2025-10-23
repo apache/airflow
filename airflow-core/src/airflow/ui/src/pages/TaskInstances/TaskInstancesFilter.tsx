@@ -16,21 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import { HStack, VStack } from "@chakra-ui/react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, useParams } from "react-router-dom";
 
-import type { TaskInstanceCollectionResponse } from "openapi/requests";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
 import { SearchBar } from "src/components/SearchBar";
-import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-import { AttrSelectFilterMulti } from "./AttrSelectFilterMulti";
-import { StateFilter } from "./StateFilter";
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -47,18 +43,16 @@ const {
   QUEUE: QUEUE_PARAM,
   RUN_ID: RUN_ID_PARAM,
   START_DATE: START_DATE_PARAM,
-  STATE: STATE_PARAM,
+  TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type Props = {
-  readonly instances?: TaskInstanceCollectionResponse | undefined;
   readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly taskDisplayNamePattern: string | undefined;
 };
 
 export const TaskInstancesFilter = ({
-  instances,
   setTaskDisplayNamePattern,
   taskDisplayNamePattern,
 }: Props) => {
@@ -74,6 +68,10 @@ export const TaskInstancesFilter = ({
       TRY_NUMBER_PARAM as FilterableSearchParamsKeys,
       MAP_INDEX_PARAM as FilterableSearchParamsKeys,
       DAG_VERSION_PARAM as FilterableSearchParamsKeys,
+      OPERATOR_PARAM as FilterableSearchParamsKeys,
+      POOL_PARAM as FilterableSearchParamsKeys,
+      QUEUE_PARAM as FilterableSearchParamsKeys,
+      STATE_PARAM as FilterableSearchParamsKeys,
     ];
 
     if (runId === undefined) {
@@ -90,76 +88,10 @@ export const TaskInstancesFilter = ({
 
   const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
 
-  const uniq = (xs: Array<string | null | undefined>) => [
-    ...new Set(xs.filter((x): x is string => x !== null && x !== undefined && x !== "")),
-  ];
 
-  const resetPagination = useCallback(() => {
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-  }, [pagination, sorting, setTableURLState]);
 
-  const setMultiParam = useCallback(
-    (key: string, values: Array<string>) => {
-      resetPagination();
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-
-        next.delete(key);
-        values.forEach((val) => next.append(key, val));
-
-        return next;
-      });
-    },
-    [resetPagination, setSearchParams],
-  );
-
-  const allOperatorNames: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.operator_name as string | null | undefined) ?? [],
-  );
-  const allQueueValues: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.queue as string | null | undefined) ?? [],
-  );
-  const allPoolValues: Array<string> = uniq(
-    instances?.task_instances.map((ti) => ti.pool as string | null | undefined) ?? [],
-  );
-
-  const filteredState = searchParams.getAll(STATE_PARAM);
-
-  const selectedOperators = searchParams.getAll(OPERATOR_PARAM);
-  const selectedQueues = searchParams.getAll(QUEUE_PARAM);
-  const selectedPools = searchParams.getAll(POOL_PARAM);
 
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const hasFilteredState = filteredState.length > 0;
-
-  const handleStateChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
-
-      if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(STATE_PARAM);
-      } else {
-        searchParams.delete(STATE_PARAM);
-        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleSelectedOperators = (value: Array<string> | undefined) =>
-    setMultiParam(OPERATOR_PARAM, value ?? []);
-
-  const handleSelectedQueues = (value: Array<string> | undefined) => setMultiParam(QUEUE_PARAM, value ?? []);
-
-  const handleSelectedPools = (value: Array<string> | undefined) => setMultiParam(POOL_PARAM, value ?? []);
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -191,19 +123,6 @@ export const TaskInstancesFilter = ({
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const onClearFilters = useCallback(() => {
-    resetPagination();
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-
-      next.delete(STATE_PARAM);
-      next.delete(OPERATOR_PARAM);
-      next.delete(QUEUE_PARAM);
-      next.delete(POOL_PARAM);
-
-      return next;
-    });
-  }, [setSearchParams, resetPagination]);
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
@@ -225,15 +144,10 @@ export const TaskInstancesFilter = ({
     return values;
   }, [searchParams, filterConfigs]);
 
-  const taskFilterCount =
-    (searchParams.getAll(STATE_PARAM).length > 0 ? 1 : 0) +
-    (searchParams.getAll(OPERATOR_PARAM).length > 0 ? 1 : 0) +
-    (searchParams.getAll(QUEUE_PARAM).length > 0 ? 1 : 0) +
-    (searchParams.getAll(POOL_PARAM).length > 0 ? 1 : 0);
 
   return (
     <VStack align="start" justifyContent="space-between">
-      <HStack alignItems="start" paddingY="4px" minWidth="100%">
+      <HStack alignItems="start" minWidth="100%" paddingY="4px">
         {dagId === undefined && (
           <SearchBar
             buttonProps={{ disabled: true }}
@@ -252,37 +166,6 @@ export const TaskInstancesFilter = ({
           onChange={handleSearchChange}
           placeHolder={translate("dags:search.tasks")}
         />
-        <StateFilter
-          onChange={handleStateChange}
-          translate={translate}
-          value={hasFilteredState ? filteredState : ["all"]}
-        />
-      </HStack>
-      <HStack>
-        <AttrSelectFilterMulti
-          displayPrefix={undefined}
-          handleSelect={handleSelectedOperators}
-          placeholderText={translate("selectOperator")}
-          selectedValues={selectedOperators}
-          values={allOperatorNames}
-        />
-        <AttrSelectFilterMulti
-          displayPrefix={undefined}
-          handleSelect={handleSelectedQueues}
-          placeholderText={translate("selectQueues")}
-          selectedValues={selectedQueues}
-          values={allQueueValues}
-        />
-        <AttrSelectFilterMulti
-          displayPrefix={undefined}
-          handleSelect={handleSelectedPools}
-          placeholderText={translate("selectPools")}
-          selectedValues={selectedPools}
-          values={allPoolValues}
-        />
-        <Box>
-          <ResetButton filterCount={taskFilterCount} onClearFilters={onClearFilters} />
-        </Box>
       </HStack>
       <VStack alignItems="flex-start" gap={1}>
         <FilterBar
