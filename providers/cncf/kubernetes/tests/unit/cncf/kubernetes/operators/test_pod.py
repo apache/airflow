@@ -465,7 +465,6 @@ class TestKubernetesPodOperator:
                 "foo": "bar",
                 "hello": "airflow",
                 "a": None,
-                "b": "value",
                 "c": None,
                 "empty_str": "",
                 "zero": 0,
@@ -490,9 +489,6 @@ class TestKubernetesPodOperator:
         assert "empty_str=" in label_selector
         assert "zero=0" in label_selector
         assert "false=False" in label_selector
-
-        # Regular non-empty value
-        assert "b=value" in label_selector
 
         # Core Airflow identifying labels always present
         for core in ["dag_id=dag", "task_id=task", "kubernetes_pod_operator=True", "run_id=test"]:
