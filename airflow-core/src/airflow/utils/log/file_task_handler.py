@@ -935,7 +935,7 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        if stream_method := getattr(remote_io, "stream"):
+        if hasattr(remote_io, "stream") and (stream_method := getattr(remote_io, "stream")):
             # Use .stream interface if provider's RemoteIO supports it
             sources, logs = stream_method(path, ti)
             return sources, logs or []
