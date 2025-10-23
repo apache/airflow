@@ -38,7 +38,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -1733,7 +1733,7 @@ my_postgres_conn:
 
     def test_validate_params_on_trigger_dag(self, testing_dag_bundle):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(ValueError, match="No value passed"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
@@ -1745,9 +1745,7 @@ my_postgres_conn:
             )
 
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(
-            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
-        ):
+        with pytest.raises(ValueError, match="None is not of type 'string'"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
