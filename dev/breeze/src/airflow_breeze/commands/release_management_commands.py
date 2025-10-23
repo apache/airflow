@@ -2554,10 +2554,8 @@ def generate_issue_content_providers(
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
-                    body_without_code_blocks = remove_code_blocks(body)
                     linked_issue_numbers = {
-                        int(issue_match.group(1))
-                        for issue_match in ISSUE_MATCH_IN_BODY.finditer(body_without_code_blocks)
+                        int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                     }
                     for linked_issue_number in linked_issue_numbers:
                         try:
@@ -3205,7 +3203,7 @@ FILES_TO_COPY_TO_CLIENT_REPO = [
 ]
 
 
-def _get_python_client_version(version_suffix):
+def _get_python_client_version(version_suffix=None):
     from packaging.version import Version
 
     python_client_version = VERSION_FILE.read_text().strip()
@@ -3219,7 +3217,8 @@ def _get_python_client_version(version_suffix):
                     f"suffix in the version ({version})[/]"
                 )
                 sys.exit(1)
-    return version.base_version + version_suffix
+        return version.base_version + version_suffix
+    return python_client_version
 
 
 def _generate_python_client_sources(python_client_version: str) -> None:
@@ -3438,7 +3437,6 @@ def prepare_python_client(
     for scheme in security_schemes.split(","):
         security.append({scheme: []})
     openapi_yaml["security"] = security
-    python_client_version = _get_python_client_version(version_suffix)
     TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
 
     def patch_trigger_dag_run_post_body():
@@ -3492,7 +3490,7 @@ def prepare_python_client(
         ast.fix_missing_locations(tree)
         TRIGGER_MODEL_PATH.write_text(ast.unparse(tree), encoding="utf-8")
 
-    _generate_python_client_sources(python_client_version=python_client_version)
+    _generate_python_client_sources(python_client_version=_get_python_client_version())
 
     # Call this after codegen and before packaging
     try:
