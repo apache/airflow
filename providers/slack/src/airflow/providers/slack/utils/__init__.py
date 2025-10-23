@@ -22,7 +22,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.slack.version_compat import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 from airflow.utils.types import NOTSET
 
 
