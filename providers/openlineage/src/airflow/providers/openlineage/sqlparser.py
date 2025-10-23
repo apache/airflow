@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet
     from sqlalchemy.engine import Engine
 
+    from airflow.providers.common.compat.sdk import BaseHook
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.sdk import BaseHook
 
 log = logging.getLogger(__name__)
 
