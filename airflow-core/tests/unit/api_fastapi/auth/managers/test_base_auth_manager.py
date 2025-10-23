@@ -29,6 +29,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagDetails,
     PoolDetails,
+    TeamDetails,
     VariableDetails,
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
@@ -176,6 +177,12 @@ class TestBaseAuthManager:
 
     def test_get_db_manager_return_none(self, auth_manager):
         assert auth_manager.get_db_manager() is None
+
+    def test_is_authorized_team(self, auth_manager):
+        with pytest.raises(
+            NotImplementedError, match="The auth manager you are using is not compatible with multi-team"
+        ):
+            auth_manager.is_authorized_team(method="GET", user=BaseAuthManagerUserTest(name="test"))
 
     @patch.object(EmptyAuthManager, "filter_authorized_menu_items")
     def test_get_authorized_menu_items(self, mock_filter_authorized_menu_items, auth_manager):
@@ -439,6 +446,41 @@ class TestBaseAuthManager:
         session = Mock()
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_connections(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "access_per_team, rows, expected",
+        [
+            # No access to any team
+            (
+                {},
+                [("1", "team1"), ("2", "team2")],
+                set(),
+            ),
+            # Access to specific teams
+            (
+                {"team1": True},
+                [("1", "team1"), ("2", "team2")],
+                {"team1"},
+            ),
+        ],
+    )
+    def test_get_authorized_teams(self, auth_manager, access_per_team: dict, rows: list, expected: set):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: TeamDetails | None = None,
+        ):
+            if not details:
+                return False
+            return access_per_team.get(details.name, False)
+
+        auth_manager.is_authorized_team = MagicMock(side_effect=side_effect_func)
+        user = Mock()
+        session = Mock()
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_teams(user=user, session=session)
         assert result == expected
 
     @pytest.mark.parametrize(
