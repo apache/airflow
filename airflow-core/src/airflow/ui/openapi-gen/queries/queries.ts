@@ -1093,7 +1093,7 @@ export const useTaskInstanceServiceGetHitlDetail = <TData = Common.TaskInstanceS
   taskId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
-* Get Hitl Detail Try
+* Get Hitl Detail Try Detail
 * Get a Human-in-the-loop detail of a specific task instance.
 * @param data The data for the request.
 * @param data.dagId
@@ -1104,13 +1104,13 @@ export const useTaskInstanceServiceGetHitlDetail = <TData = Common.TaskInstanceS
 * @returns HITLDetailHisotry Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetailTry = <TData = Common.TaskInstanceServiceGetHitlDetailTryDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.TaskInstanceServiceGetHitlDetailTryDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
   tryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getHitlDetailTry({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.

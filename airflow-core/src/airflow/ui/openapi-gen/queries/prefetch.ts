@@ -1093,7 +1093,7 @@ export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryCl
   taskId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
 /**
-* Get Hitl Detail Try
+* Get Hitl Detail Try Detail
 * Get a Human-in-the-loop detail of a specific task instance.
 * @param data The data for the request.
 * @param data.dagId
@@ -1104,13 +1104,13 @@ export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryCl
 * @returns HITLDetailHisotry Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetHitlDetailTry = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
   tryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getHitlDetailTry({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.

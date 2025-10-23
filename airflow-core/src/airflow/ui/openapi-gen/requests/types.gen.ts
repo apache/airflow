@@ -1008,7 +1008,7 @@ export type HITLDetailCollection = {
 /**
  * Schema for Human-in-the-loop detail history.
  */
-export type HITLDetailHistory = {
+export type HITLDetailHisotry = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -1387,10 +1387,6 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-<<<<<<< HEAD
-    hitl_detail: HITLDetailHistory | null;
-=======
->>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
 };
 
 /**
@@ -3058,7 +3054,7 @@ export type GetHitlDetailData = {
 
 export type GetHitlDetailResponse = HITLDetail;
 
-export type GetHitlDetailTryData = {
+export type GetHitlDetailTryDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
@@ -3066,7 +3062,7 @@ export type GetHitlDetailTryData = {
     tryNumber: number;
 };
 
-export type GetHitlDetailTryResponse = HITLDetailHisotry;
+export type GetHitlDetailTryDetailResponse = HITLDetailHisotry;
 
 export type GetHitlDetailsData = {
     /**
@@ -5702,7 +5698,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}': {
         get: {
-            req: GetHitlDetailTryData;
+            req: GetHitlDetailTryDetailData;
             res: {
                 /**
                  * Successful Response

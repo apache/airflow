@@ -8446,9 +8446,9 @@ paths:
     get:
       tags:
       - Task Instance
-      summary: Get Hitl Detail Try
+      summary: Get Hitl Detail Try Detail
       description: Get a Human-in-the-loop detail of a specific task instance.
-      operationId: get_hitl_detail_try
+      operationId: get_hitl_detail_try_detail
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []

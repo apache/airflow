@@ -222,7 +222,7 @@ def get_hitl_detail(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
-def get_hitl_detail_try(
+def get_hitl_detail_try_detail(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
