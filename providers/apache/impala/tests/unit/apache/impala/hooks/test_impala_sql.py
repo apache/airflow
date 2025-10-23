@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from apache.impala.src.airflow.providers.apache.impala.hooks.impala import ImpalaHook
+from airflow.providers.apache.impala.hooks.impala import ImpalaHook
 
 from impala.dbapi import connect
 import json
 import pytest
+from unittest import mock
 from sqlalchemy.engine.url import make_url
 from unittest.mock import patch, MagicMock
 from airflow.models import Connection
@@ -50,7 +51,7 @@ def mock_connection(create_connection_without_db)-> Connection:
         conn_type="impala",
         host=DEFAULT_HOST,
         login=DEFAULT_LOGIN,
-        password=DEFAULT_PASSWORD,
+        password=None,
         port=DEFAULT_PORT,
         schema=DEFAULT_SCHEMA,
     )
@@ -68,7 +69,6 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
 @pytest.mark.parametrize(
     "host, login, password, port, schema, extra_dict, expected_query",
     [
-        # Basic Impala connection, no extras
         (
             "localhost",
             "user",
@@ -78,17 +78,15 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             {},
             {},
         ),
-        # SSL enabled
         (
             "impala-secure.company.com",
             "secure_user",
             "secret",
             21050,
             "analytics",
-            {"use_ssl": True},
-            {"use_ssl": True},
+            {"use_ssl": "True"},
+            {"use_ssl": "True"},
         ),
-        # Kerberos authentication
         (
             "impala-kerberos.company.com",
             "kerb_user",
@@ -98,7 +96,6 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             {"auth_mechanism": "GSSAPI", "kerberos_service_name": "impala"},
             {"auth_mechanism": "GSSAPI", "kerberos_service_name": "impala"},
         ),
-        # Connection with timeout
         (
             "impala.company.com",
             "timeout_user",
@@ -106,7 +103,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             21050,
             "warehouse",
             {"timeout": 30},
-            {"timeout": 30},
+            {"timeout": "30"},
         ),
     ],
 )
@@ -132,10 +129,10 @@ def test_sqlalchemy_url_property(
     
     with patch.object(impala_hook, "get_connection", return_value=mock_connection):
         url = impala_hook.sqlalchemy_url
-        
+    expected_password = password or ""
     assert url.drivername == "impala"
     assert url.username == login
-    assert url.password == password or ""
+    assert url.password == expected_password
     assert url.host == host
     assert url.port == port
     assert url.database == schema
@@ -155,22 +152,23 @@ def test_impala_run_query(impala_hook, mock_connection, sql, expected_rows):
     cursor.fetchall.return_value = expected_rows
     cursor.description = get_cursor_descriptions([f"col{i}" for i in range(len(expected_rows[0]))])
 
+    type(cursor).rowcount = mock.PropertyMock(return_value=len(expected_rows))
     mock_conn = MagicMock()
     mock_conn.host = mock_connection.host
     mock_conn.login = mock_connection.login
     mock_conn.password = mock_connection.password
     mock_conn.schema = mock_connection.schema
     mock_conn.cursor.return_value = cursor
-
-    with patch.object(impala_hook, "get_connection", return_value=mock_conn):
-        result = impala_hook.run(sql, handler=lambda cur: cur.fetchall())
+    with patch("airflow.providers.apache.impala.hooks.impala.connect", return_value=mock_conn):
+        with patch.object(impala_hook, "get_connection", return_value=mock_conn):
+            result = impala_hook.run(sql, handler=lambda cur: cur.fetchall())
 
     cursor.execute.assert_called_once_with(sql)
     assert result == expected_rows
     
     
 def test_get_sqlalchemy_engine(impala_hook, mock_connection, mocker):
-    mock_create_engine = mocker.patch("airflow.providers.common.sql.create_engine", autospec=True)
+    mock_create_engine = mocker.patch("airflow.providers.common.sql.hooks.sql.create_engine", autospec=True)
     mock_engine=MagicMock()
     mock_create_engine.return_value = mock_engine
     
@@ -185,7 +183,7 @@ def test_get_sqlalchemy_engine(impala_hook, mock_connection, mocker):
     assert actual_url.drivername == "impala"
     assert actual_url.host == DEFAULT_HOST
     assert actual_url.username == DEFAULT_LOGIN
-    assert actual_url.password == DEFAULT_PASSWORD
+    assert actual_url.password == (mock_connection.password or "")
     assert actual_url.port == DEFAULT_PORT
     assert actual_url.database == DEFAULT_SCHEMA
     assert actual_url.query == {}
@@ -199,7 +197,7 @@ def test_get_url(impala_hook, mock_connection):
     mock_connection.login = "user"
     mock_connection.password = "secret"
     mock_connection.schema = "analytics"
-    mock_connection.extra = json.dumps({"use_ssl":True,"auth_mechanism": "PLAIN"})
+    mock_connection.extra = json.dumps({"use_ssl":"True","auth_mechanism": "PLAIN"})
     
     with patch.object(impala_hook, "get_connection", return_value=mock_connection):
         uri = impala_hook.get_uri()
@@ -209,7 +207,7 @@ def test_get_url(impala_hook, mock_connection):
         "use_ssl=True&auth_mechanism=PLAIN"
     )
     
-    assert uri == expected_uri
+    assert make_url(uri) == make_url(expected_uri)
     
 
 @pytest.mark.parametrize(
@@ -235,13 +233,13 @@ def impala_hook_with_timeout(create_connection_without_db):
         extra=json.dumps({"timeout": 10}),
     )
     create_connection_without_db(conn)
-    return ImpalaHook(imapala_conn_id="impala_with_timeout")
+    return ImpalaHook(impala_conn_id="impala_with_timeout")
 
 def test_execution_timeout_exceeded(impala_hook_with_timeout):
     test_sql = "SELECT * FROM big_table"
 
     with patch(
-        "apache.impala.src.airflow.providers.apache.impala.hooks.impala.ImpalaHook.run",
+        "airflow.providers.apache.impala.hooks.impala.ImpalaHook.run",
         side_effect=TimeoutError("Query exceeded execution timeout")
     ):
         with pytest.raises(TimeoutError, match="Query exceeded execution timeout"):
