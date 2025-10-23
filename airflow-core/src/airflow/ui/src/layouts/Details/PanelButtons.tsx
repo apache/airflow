@@ -223,11 +223,13 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box position="absolute" ref={containerRef} top={1} width="100%" zIndex={1}>
-      <Flex justifyContent="space-between">
+    <Box position="absolute" px={2} ref={containerRef} top={1} width="100%" zIndex={1}>
+      <Flex justifyContent="space-between" pl={2}>
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
             aria-label={translate("dag:panel.buttons.showGridShortcut")}
+            bg={dagView === "grid" ? "brand.500" : "bg.subtle"}
+            color={dagView === "grid" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
               setDagView("grid");
@@ -236,12 +238,13 @@ export const PanelButtons = ({
               }
             }}
             title={translate("dag:panel.buttons.showGridShortcut")}
-            variant={dagView === "grid" ? "solid" : "outline"}
           >
             <FiGrid />
           </IconButton>
           <IconButton
             aria-label={translate("dag:panel.buttons.showGraphShortcut")}
+            bg={dagView === "graph" ? "brand.500" : "bg.subtle"}
+            color={dagView === "graph" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
               setDagView("graph");
@@ -250,17 +253,16 @@ export const PanelButtons = ({
               }
             }}
             title={translate("dag:panel.buttons.showGraphShortcut")}
-            variant={dagView === "graph" ? "solid" : "outline"}
           >
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex gap={1}>
+        <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <Button size="sm" variant="outline">
+              <Button bg="bg.subtle" color="fg.default" size="sm" variant="outline">
                 {translate("dag:panel.buttons.options")}
                 <FiChevronDown size={8} />
               </Button>

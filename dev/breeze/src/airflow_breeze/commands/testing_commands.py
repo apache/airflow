@@ -832,6 +832,62 @@ def task_sdk_integration_tests(
 
 
 @group_for_testing.command(
+    name="airflow-ctl-integration-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@click.option(
+    "--airflow-ctl-version",
+    help="Version of airflowctl to test",
+    default="1.0.0",
+    show_default=True,
+    envvar="AIRFLOW_CTL_VERSION",
+)
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def airflowctl_integration_tests(
+    python: str,
+    image_name: str | None,
+    skip_docker_compose_deletion: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    airflow_ctl_version: str,
+    extra_pytest_args: tuple,
+):
+    """Run airflowctl integration tests."""
+    # Export the AIRFLOW_CTL_VERSION environment variable for the test
+    import os
+
+    perform_environment_checks()
+
+    os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
+    image_name = image_name or os.environ.get("DOCKER_IMAGE")
+
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        test_type="airflow-ctl-integration",
+    )
+    sys.exit(return_code)
+
+
+@group_for_testing.command(
     name="airflow-ctl-tests",
     help="Run airflow-ctl tests - all airflowctl tests are non-DB bound tests.",
     context_settings=dict(

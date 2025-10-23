@@ -163,7 +163,6 @@
     },
     "tooltip": "Πατήστε {{hotkey}} για κύλιση προς τα {{direction}}"
   },
-  "seconds": "{{count}}δ",
   "security": {
     "actions": "Ενέργειες",
     "permissions": "Δικαιώματα",

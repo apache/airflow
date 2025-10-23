@@ -31,7 +31,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
 )
-from airflow.providers.cncf.kubernetes.version_compat import (
+from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
     task_decorator_factory,

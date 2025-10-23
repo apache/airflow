@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for Google Vertex AI Generative Model prompting.
+Example Airflow DAG for Google Gen AI Generative Model prompting.
 """
 
 from __future__ import annotations
@@ -26,7 +26,6 @@ import os
 from datetime import datetime
 
 import requests
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 try:
@@ -34,20 +33,28 @@ try:
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+from google.genai.types import (
+    Content,
+    CreateCachedContentConfig,
+    GenerateContentConfig,
+    GoogleSearch,
+    Part,
+    Tool,
+)
+
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gen_ai import (
+    GenAICountTokensOperator,
+    GenAICreateCachedContentOperator,
+    GenAIGenerateContentOperator,
+    GenAIGenerateEmbeddingsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.experiment_service import (
     CreateExperimentOperator,
     DeleteExperimentOperator,
     DeleteExperimentRunOperator,
 )
-from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
-    CountTokensOperator,
-    CreateCachedContentOperator,
-    GenerateFromCachedContentOperator,
-    GenerativeModelGenerateContentOperator,
-    RunEvaluationOperator,
-    TextEmbeddingModelGetEmbeddingsOperator,
-)
+from airflow.providers.google.cloud.operators.vertex_ai.generative_model import RunEvaluationOperator
 from airflow.providers.google.common.utils.get_secret import get_secret
 
 
@@ -73,9 +80,6 @@ def _get_actual_models(key) -> dict[str, str]:
         try:
             model_name = model["name"].split("/")[-1]
             splited_model_name = model_name.split("-")
-            if not splited_model_name[-1].isdigit():
-                # We are not using model aliases because sometimes it is not guaranteed to work
-                continue
             if not models["text-embedding"] and ("text" in model_name and "embedding" in model_name):
                 models["text-embedding"] = model_name
             elif (
@@ -129,7 +133,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GEMINI_API_KEY = "api_key"
 MODELS = "{{ task_instance.xcom_pull('get_actual_models') }}"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_generative_model_dag"
+DAG_ID = "gen_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
@@ -137,15 +141,14 @@ TEXT_EMBEDDING_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['text-em
 MULTIMODAL_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['multimodal'] }}"
 MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 MIME_TYPE = "image/jpeg"
-TOOLS = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
+TOOLS = [Tool(google_search=GoogleSearch())]
+GENERATION_CONFIG_CREATE_CONTENT = GenerateContentConfig(
+    max_output_tokens=256,
+    top_p=0.95,
+    temperature=0.0,
+    tools=TOOLS,  # type: ignore[union-attr,arg-type]
+)
 
-GENERATION_CONFIG = {"max_output_tokens": 256, "top_p": 0.95, "temperature": 0.0}
-SAFETY_SETTINGS = {
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-}
 EVAL_DATASET = {
     "context": [
         "To make a classic spaghetti carbonara, start by bringing a large pot of salted water to a boil. While the water is heating up, cook pancetta or guanciale in a skillet with olive oil over medium heat until it's crispy and golden brown. Once the pancetta is done, remove it from the skillet and set it aside. In the same skillet, whisk together eggs, grated Parmesan cheese, and black pepper to make the sauce. When the pasta is cooked al dente, drain it and immediately toss it in the skillet with the egg mixture, adding a splash of the pasta cooking water to create a creamy sauce.",
@@ -183,17 +186,26 @@ CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.
 """
-
-CACHED_CONTENTS = [
-    Part.from_uri(
-        "gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
-        mime_type="application/pdf",
-    ),
-    Part.from_uri(
-        "gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
-        mime_type="application/pdf",
-    ),
-]
+CACHED_CONTENT_CONFIG = CreateCachedContentConfig(
+    contents=[
+        Content(
+            role="user",
+            parts=[
+                Part.from_uri(
+                    file_uri="gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+                    mime_type="application/pdf",
+                ),
+                Part.from_uri(
+                    file_uri="gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+                    mime_type="application/pdf",
+                ),
+            ],
+        )
+    ],
+    system_instruction=CACHED_SYSTEM_INSTRUCTION,
+    display_name="test-cache",
+    ttl="3600s",
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -201,7 +213,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["example", "vertex_ai", "generative_model"],
+    tags=["example", "gen_ai", "generative_model"],
     render_template_as_native_obj=True,
 ) as dag:
 
@@ -217,38 +229,36 @@ with DAG(
 
     get_actual_models_task = get_actual_models(get_gemini_api_key_task)
 
-    # [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
-    generate_embeddings_task = TextEmbeddingModelGetEmbeddingsOperator(
+    # [START how_to_cloud_gen_ai_generate_embeddings_task]
+    generate_embeddings_task = GenAIGenerateEmbeddingsOperator(
         task_id="generate_embeddings_task",
         project_id=PROJECT_ID,
         location=REGION,
-        prompt=PROMPT,
-        pretrained_model=TEXT_EMBEDDING_MODEL,
+        contents=CONTENTS,
+        model=TEXT_EMBEDDING_MODEL,
     )
-    # [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+    # [END how_to_cloud_gen_ai_generate_embeddings_task]
 
-    # [START how_to_cloud_vertex_ai_count_tokens_operator]
-    count_tokens_task = CountTokensOperator(
+    # [START how_to_cloud_gen_ai_count_tokens_operator]
+    count_tokens_task = GenAICountTokensOperator(
         task_id="count_tokens_task",
         project_id=PROJECT_ID,
         contents=CONTENTS,
         location=REGION,
-        pretrained_model=MULTIMODAL_MODEL,
+        model=MULTIMODAL_MODEL,
     )
-    # [END how_to_cloud_vertex_ai_count_tokens_operator]
+    # [END how_to_cloud_gen_ai_count_tokens_operator]
 
-    # [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
-    generate_content_task = GenerativeModelGenerateContentOperator(
+    # [START how_to_cloud_gen_ai_generate_content_operator]
+    generate_content_task = GenAIGenerateContentOperator(
         task_id="generate_content_task",
         project_id=PROJECT_ID,
         contents=CONTENTS,
-        tools=TOOLS,
         location=REGION,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
-        pretrained_model=MULTIMODAL_MODEL,
+        generation_config=GENERATION_CONFIG_CREATE_CONTENT,
+        model=MULTIMODAL_MODEL,
     )
-    # [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+    # [END how_to_cloud_gen_ai_generate_content_operator]
 
     create_experiment_task = CreateExperimentOperator(
         task_id="create_experiment_task",
@@ -286,30 +296,28 @@ with DAG(
         experiment_run_name=EXPERIMENT_RUN_NAME,
     )
 
-    # [START how_to_cloud_vertex_ai_create_cached_content_operator]
-    create_cached_content_task = CreateCachedContentOperator(
+    # [START how_to_cloud_gen_ai_create_cached_content_operator]
+    create_cached_content_task = GenAICreateCachedContentOperator(
         task_id="create_cached_content_task",
         project_id=PROJECT_ID,
         location=REGION,
-        model_name=CACHED_MODEL,
-        system_instruction=CACHED_SYSTEM_INSTRUCTION,
-        contents=CACHED_CONTENTS,
-        ttl_hours=1,
-        display_name="example-cache",
+        model=CACHED_MODEL,
+        cached_content_config=CACHED_CONTENT_CONFIG,
     )
-    # [END how_to_cloud_vertex_ai_create_cached_content_operator]
+    # [END how_to_cloud_gen_ai_create_cached_content_operator]
 
-    # [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
-    generate_from_cached_content_task = GenerateFromCachedContentOperator(
+    # [START how_to_cloud_gen_ai_generate_from_cached_content_operator]
+    generate_from_cached_content_task = GenAIGenerateContentOperator(
         task_id="generate_from_cached_content_task",
         project_id=PROJECT_ID,
         location=REGION,
-        cached_content_name="{{ task_instance.xcom_pull(task_ids='create_cached_content_task', key='return_value') }}",
         contents=["What are the papers about?"],
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
+        generation_config={
+            "cached_content": create_cached_content_task.output,
+        },
+        model=CACHED_MODEL,
     )
-    # [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    # [END how_to_cloud_gen_ai_generate_from_cached_content_operator]
     get_gemini_api_key_task >> get_actual_models_task
     get_actual_models_task >> [generate_embeddings_task, count_tokens_task, generate_content_task]
     get_actual_models_task >> create_cached_content_task >> generate_from_cached_content_task

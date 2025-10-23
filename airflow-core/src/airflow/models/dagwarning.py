@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -46,7 +47,7 @@ class DagWarning(Base):
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
     warning_type: Mapped[str] = mapped_column(String(50), primary_key=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    timestamp: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
 

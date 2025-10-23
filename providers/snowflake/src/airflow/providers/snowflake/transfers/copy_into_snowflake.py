@@ -22,9 +22,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.common import enclose_param
-from airflow.providers.snowflake.version_compat import BaseOperator
 
 
 def _validate_parameter(param_name: str, value: str | None) -> str | None:

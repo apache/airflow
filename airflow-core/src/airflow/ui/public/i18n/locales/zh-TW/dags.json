@@ -20,8 +20,7 @@
       "all": "全部",
       "paused": "暫停"
     },
-    "runIdPatternFilter": "搜尋 Dag 執行",
-    "triggeringUserNameFilter": "搜尋觸發使用者名稱"
+    "runIdPatternFilter": "搜尋 Dag 執行"
   },
   "ownerLink": "擁有者 {{owner}} 的連結",
   "runAndTaskActions": {
