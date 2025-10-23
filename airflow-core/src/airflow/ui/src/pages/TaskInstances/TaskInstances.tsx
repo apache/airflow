@@ -21,7 +21,6 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -48,6 +47,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
+  RUN_ID: RUN_ID_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
@@ -264,12 +264,12 @@ export const TaskInstances = () => {
   const queue = searchParams.getAll(QUEUE_PARAM);
   const operator = searchParams.getAll(OPERATOR_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredRunId = searchParams.get(RUN_ID_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
   const hasFilteredQueue = queue.length > 0;
-  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const taskDisplayNamePattern= searchParams.get(NAME_PATTERN_PARAM);
+  
 
   const refetchInterval = useAutoRefresh({});
 
@@ -277,7 +277,7 @@ export const TaskInstances = () => {
     {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
-      dagRunId: runId ?? "~",
+      dagRunId: runId ?? filteredRunId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
@@ -311,10 +311,7 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <TaskInstancesFilter
-        setTaskDisplayNamePattern={setTaskDisplayNamePattern}
-        taskDisplayNamePattern={taskDisplayNamePattern}
-      />
+      <TaskInstancesFilter/>
       <DataTable
         columns={taskInstanceColumns({
           dagId,

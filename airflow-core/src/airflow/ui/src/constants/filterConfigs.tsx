@@ -268,6 +268,12 @@ export const useFilterConfigs = () => {
       label: translate("common:taskId"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.TASK_STATE]: {
       icon: <MdCheckCircle />,
       label: translate("common:state"),

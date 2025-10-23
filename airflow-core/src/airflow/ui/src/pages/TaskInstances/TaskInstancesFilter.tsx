@@ -47,18 +47,13 @@ const {
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-type Props = {
-  readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
-  readonly taskDisplayNamePattern: string | undefined;
-};
 
-export const TaskInstancesFilter = ({
-  setTaskDisplayNamePattern,
-  taskDisplayNamePattern,
-}: Props) => {
-  const { dagId, runId } = useParams();
+
+export const TaskInstancesFilter = ({}:{}) => {
+  const {dagId, runId } = useParams();
   const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
+      NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
       LOGICAL_DATE_GTE_PARAM as FilterableSearchParamsKeys,
       LOGICAL_DATE_LTE_PARAM as FilterableSearchParamsKeys,
       START_DATE_PARAM as FilterableSearchParamsKeys,
@@ -75,54 +70,24 @@ export const TaskInstancesFilter = ({
     ];
 
     if (runId === undefined) {
-      keys.splice(1, 0, RUN_ID_PARAM as FilterableSearchParamsKeys);
+       keys.unshift(RUN_ID_PARAM as FilterableSearchParamsKeys);
+    }
+
+    if (dagId === undefined) {
+       keys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
     }
 
     return keys;
-  }, [runId]);
+  }, [dagId, runId]);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
-  const { t: translate } = useTranslation();
+  const [searchParams] = useSearchParams();
+
+
+
 
   const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
 
-
-
-
-  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
-    } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
-    }
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    setTaskDisplayNamePattern(value);
-    setSearchParams(searchParams);
-  };
-
-  const handleDagIdPatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(DAG_ID_PATTERN_PARAM);
-      } else {
-        searchParams.set(DAG_ID_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
+ 
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
@@ -147,26 +112,7 @@ export const TaskInstancesFilter = ({
 
   return (
     <VStack align="start" justifyContent="space-between">
-      <HStack alignItems="start" minWidth="100%" paddingY="4px">
-        {dagId === undefined && (
-          <SearchBar
-            buttonProps={{ disabled: true }}
-            defaultValue={filteredDagIdPattern ?? ""}
-            hideAdvanced
-            hotkeyDisabled={true}
-            onChange={handleDagIdPatternChange}
-            placeHolder={translate("dags:search.dags")}
-          />
-        )}
-        <SearchBar
-          buttonProps={{ disabled: true }}
-          defaultValue={taskDisplayNamePattern ?? ""}
-          hideAdvanced
-          hotkeyDisabled={Boolean(runId)}
-          onChange={handleSearchChange}
-          placeHolder={translate("dags:search.tasks")}
-        />
-      </HStack>
+      
       <VStack alignItems="flex-start" gap={1}>
         <FilterBar
           configs={filterConfigs}
