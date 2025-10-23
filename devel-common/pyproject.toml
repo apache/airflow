@@ -35,11 +35,12 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.13.1",
+    "ruff==0.14.1",
     "semver>=3.0.2",
     "time-machine>=2.15.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
+    "python-on-whales>=0.70.0",
     "apache-airflow-devel-common[basic]"
 ]
 
@@ -67,7 +68,8 @@ dependencies = [
     "twine>=4.0.2",
 ]
 "docs" = [
-    "astroid>=3",
+    # Astroid 4 released 5 Oct 2025 breaks autoapi https://github.com/apache/airflow/issues/56420
+    "astroid>=3,<4",
     "checksumdir>=1.2.0",
     "rich-click>=1.7.1",
     "click>=8.1.8",
@@ -94,7 +96,7 @@ dependencies = [
 ]
 "docs-gen" = [
     "diagrams>=0.23.4",
-    "eralchemy2>=1.3.8",
+    "eralchemy>=1.5",
 ]
 "mypy" = [
     # Mypy dependencies

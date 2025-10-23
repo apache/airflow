@@ -27,11 +27,27 @@
 Changelog
 ---------
 
+1.10.5
+......
+
+Misc
+~~~~
+
+* ``Make 'AwaitMessageTrigger' inherit 'BaseEventTrigger' (#56741)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+Doc-only
+~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest collection failure for classes decorated with context managers (#55915)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 1.10.4
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
@@ -44,8 +60,6 @@ Bug Fixes
 1.10.3
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Misc
 ~~~~

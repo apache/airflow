@@ -25,8 +25,8 @@ from jinja2.nativetypes import NativeEnvironment
 from pypsrp.serializer import TaggedValue
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
-from airflow.providers.microsoft.psrp.version_compat import BaseOperator
 from airflow.settings import json
 from airflow.utils.helpers import exactly_one
 

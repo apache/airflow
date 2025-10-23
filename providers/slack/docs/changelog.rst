@@ -27,11 +27,27 @@
 Changelog
 ---------
 
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: async slack notifier (#56685)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+
 9.3.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
@@ -45,8 +61,6 @@ Features
 9.2.0
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

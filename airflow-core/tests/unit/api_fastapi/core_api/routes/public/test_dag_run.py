@@ -33,6 +33,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -50,8 +51,43 @@ from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
+    from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
+
+
+class CustomTimetable(CronDataIntervalTimetable):
+    """Custom timetable that generates custom run IDs."""
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        run_after,
+        data_interval: DataInterval | None,
+        **kwargs,
+    ) -> str:
+        if data_interval:
+            return f"custom_{data_interval.start.strftime('%Y%m%d%H%M%S')}"
+        return f"custom_manual_{run_after.strftime('%Y%m%d%H%M%S')}"
+
+
+@pytest.fixture
+def custom_timetable_plugin(monkeypatch):
+    """Fixture to register CustomTimetable for serialization."""
+    from airflow import plugins_manager
+    from airflow.utils.module_loading import qualname
+
+    timetable_class_name = qualname(CustomTimetable)
+    existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
+
+    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
+    monkeypatch.setattr(
+        plugins_manager,
+        "timetable_classes",
+        {**existing_timetables, timetable_class_name: CustomTimetable},
+    )
+
 
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "test_dag1"
@@ -113,6 +149,10 @@ def setup(request, dag_maker, session=None):
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
+    # Set end_date for testing duration filter
+    dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
+    # Set conf for testing conf_contains filter (values ordered for predictable sorting)
+    dag_run1.conf = {"env": "development", "version": "1.0"}
 
     for i, task in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -130,6 +170,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run2.triggering_user_name = "bob_service"
+    # Set end_date for testing duration filter
+    dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
+    # Set conf for testing conf_contains filter
+    dag_run2.conf = {"env": "production", "debug": True}
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -151,6 +195,10 @@ def setup(request, dag_maker, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set end_date for testing duration filter
+    dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
+    # Set conf for testing conf_contains filter
+    dag_run3.conf = {"env": "staging", "test_mode": True}
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -161,6 +209,10 @@ def setup(request, dag_maker, session=None):
     )
     # Leave triggering_user_name as None for testing
     dag_run4.triggering_user_name = None
+    # Set end_date for testing duration filter
+    dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
+    # Set conf for testing conf_contains filter
+    dag_run4.conf = {"env": "testing", "mode": "ci"}
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -188,7 +240,7 @@ def get_dag_run_dict(run: DagRun):
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
         "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu(run.end_date),
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
         "duration": run.duration,
         "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
         "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
@@ -450,26 +502,30 @@ class TestGetDagRuns:
             (
                 DAG1_ID,
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": START_DATE2.isoformat(),
+                    "end_date_gt": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                # DAG1 runs have end_date based on START_DATE1 (2024-01-15), so all < 2024-04-15
+                [],
             ),
             (
                 DAG1_ID,
                 {
-                    "end_date_gt": (START_DATE2 - timedelta(days=1)).isoformat(),
+                    "end_date_gt": (
+                        START_DATE1 + timedelta(seconds=50)
+                    ).isoformat(),  # Between the two end dates
                     "end_date_lt": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],  # Both should match as their end_date > start + 50s
             ),
             (
                 DAG1_ID,
@@ -629,6 +685,23 @@ class TestGetDagRuns:
                 {"dag_version": [1, 999]},
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Multiple versions, only existing ones match
+            # Test duration filters
+            ("~", {"duration_gte": 200}, [DAG1_RUN2_ID]),  # Test >= 200 seconds
+            ("~", {"duration_lt": 100}, [DAG2_RUN1_ID]),  # Test < 100 seconds
+            (
+                "~",
+                {"duration_gte": 100, "duration_lte": 150},
+                [DAG1_RUN1_ID, DAG2_RUN2_ID],
+            ),  # Test between 100 and 150 (inclusive)
+            # Test conf_contains filter
+            ("~", {"conf_contains": "development"}, [DAG1_RUN1_ID]),  # Test for "development" env
+            (
+                "~",
+                {"conf_contains": "debug"},
+                [DAG1_RUN2_ID],
+            ),  # Test for debug key
+            ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
+            ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -907,10 +980,12 @@ class TestListDagRunsBatch:
             ),
             (
                 {
-                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_gte": START_DATE2.isoformat(),  # 2024-04-15
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                # Only DAG2 runs match: their start_date is 2024-04-15, so end_date >= 2024-04-15
+                # DAG1 runs have start_date 2024-01-15, so end_date < 2024-04-15
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
             (
                 {
@@ -1787,6 +1862,44 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
         }
+
+    @time_machine.travel("2025-10-02 12:00:00", tick=False)
+    @pytest.mark.usefixtures("custom_timetable_plugin")
+    def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
+        """Test that custom timetable's generate_run_id is used for manual triggers (issue #55908)."""
+        custom_dag_id = "test_custom_timetable_dag"
+        with dag_maker(
+            dag_id=custom_dag_id,
+            schedule=CustomTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        logical_date = datetime(2025, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": logical_date.isoformat()},
+        )
+        assert response.status_code == 200
+        run_id_with_logical_date = response.json()["dag_run_id"]
+        assert run_id_with_logical_date.startswith("custom_")
+
+        run = session.query(DagRun).filter(DagRun.run_id == run_id_with_logical_date).one()
+        assert run.dag_id == custom_dag_id
+
+        response = test_client.post(
+            f"/dags/{custom_dag_id}/dagRuns",
+            json={"logical_date": None},
+        )
+        assert response.status_code == 200
+        run_id_without_logical_date = response.json()["dag_run_id"]
+        assert run_id_without_logical_date.startswith("custom_manual_")
+
+        run = session.query(DagRun).filter(DagRun.run_id == run_id_without_logical_date).one()
+        assert run.dag_id == custom_dag_id
 
 
 class TestWaitDagRun:

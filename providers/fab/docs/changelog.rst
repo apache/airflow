@@ -20,6 +20,56 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update authentication to handle JWT token in backend (#56633)``
+* ``Add Werkzeug version check (#56398)``
+
+Misc
+~~~~
+
+* ``SQLA2/FAB: fix some type hints (#56928)``
+* ``FAB: reuse ORM type hints from common-compat (#56903)``
+* ``Bump eslint from 9.37.0 to 9.38.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#56847)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#56436)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Migrated to Flask-appbuilder 5 which removed the authentication type ``AUTH_OID``.
+Using the authentication type ``AUTH_OID`` in fab provider is no longer possible.
+Applications using ``AUTH_TYPE = AUTH_OID`` must migrate to ``AUTH_OAUTH``.
+
+* ``Upgrade flask-appbuilder to version 5 (#50960)``
+
+Features
+~~~~~~~~
+
+* ``Support nested groups resolution for LDAP authentication in Fab auth manager``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'if_not_exists=True' to FAB migration (#56100)``
+* ``Add if_not_exists to index creation in migrations (#56328)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix static check error resulting from not rebased change in FAB5 (#56178)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare fab and amazon providers to release (September 2025) (#56241)``
+
 2.4.4
 .....
 
@@ -47,8 +97,6 @@ Doc-only
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
-
 Bug Fixes
 ~~~~~~~~~
 
@@ -68,8 +116,6 @@ Misc
 2.4.2
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

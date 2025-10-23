@@ -472,6 +472,12 @@ def get_provider_info():
                 ],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "external-doc-url": "https://cloud.google.com/generative-ai-studio",
+                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/gen_ai.rst"],
+                "tags": ["gcp"],
+            },
         ],
         "operators": [
             {
@@ -692,6 +698,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Logging Sink",
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_logging_sink"],
+            },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.operators.gen_ai"],
             },
         ],
         "sensors": [
@@ -1057,6 +1067,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Logging",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_logging"],
             },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.hooks.gen_ai"],
+            },
         ],
         "triggers": [
             {
@@ -1408,6 +1422,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
+            "airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",

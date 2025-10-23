@@ -92,7 +92,7 @@ export const Dag = () => {
   );
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval: isStatePending(latestRun?.state) ? refetchInterval : false,
+    refetchInterval,
   });
 
   const displayTabs = processedTabs.filter((tab) => {
@@ -108,7 +108,9 @@ export const Dag = () => {
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
         <Header
           dag={dag}
-          isRefreshing={Boolean(isStatePending(latestRun?.state) && Boolean(refetchInterval))}
+          isRefreshing={
+            latestRun ? Boolean(isStatePending(latestRun.state) && Boolean(refetchInterval)) : false
+          }
           latestRunInfo={latestRun ?? undefined}
         />
       </DetailsLayout>

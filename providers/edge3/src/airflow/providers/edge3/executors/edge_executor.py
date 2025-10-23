@@ -31,13 +31,13 @@ from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
-from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -352,7 +352,7 @@ class EdgeExecutor(BaseExecutor):
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
-                    self.last_reported_state[job.key] = job.state
+                    self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
@@ -398,6 +398,35 @@ class EdgeExecutor(BaseExecutor):
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
+
+    @provide_session
+    def revoke_task(self, *, ti: TaskInstance, session: Session = NEW_SESSION):
+        """
+        Revoke a task instance from the executor.
+
+        This method removes the task from the executor's internal state and deletes
+        the corresponding EdgeJobModel record to prevent edge workers from picking it up.
+
+        :param ti: Task instance to revoke
+        :param session: Database session
+        """
+        # Remove from executor's internal state
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
+        if ti.key in self.last_reported_state:
+            del self.last_reported_state[ti.key]
+
+        # Delete the job from the database to prevent edge workers from picking it up
+        session.execute(
+            delete(EdgeJobModel).where(
+                EdgeJobModel.dag_id == ti.dag_id,
+                EdgeJobModel.task_id == ti.task_id,
+                EdgeJobModel.run_id == ti.run_id,
+                EdgeJobModel.map_index == ti.map_index,
+                EdgeJobModel.try_number == ti.try_number,
+            )
+        )
+        self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
 import sys
 import textwrap
 from collections.abc import Callable
@@ -140,40 +139,29 @@ def api_server(args: Namespace):
     if args.dev:
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
+        from fastapi_cli.cli import _run
 
-        run_args = [
-            "fastapi",
-            "dev",
-            "airflow-core/src/airflow/api_fastapi/main.py",
-            "--port",
-            str(args.port),
-            "--host",
-            str(args.host),
-        ]
-
-        if args.proxy_headers:
-            run_args.append("--proxy-headers")
-
-        if args.log_config and args.log_config != "-":
-            run_args.extend(["--log-config", args.log_config])
-
-        with subprocess.Popen(
-            run_args,
-            close_fds=True,
-        ) as process:
-            process.wait()
-    else:
-        run_command_with_daemon_option(
-            args=args,
-            process_name="api_server",
-            callback=lambda: _run_api_server(
-                args=args,
-                apps=apps,
-                num_workers=num_workers,
-                worker_timeout=worker_timeout,
-                proxy_headers=proxy_headers,
-            ),
+        _run(
+            entrypoint="airflow.api_fastapi.main:app",
+            port=args.port,
+            host=args.host,
+            reload=True,
+            proxy_headers=args.proxy_headers,
+            command="dev",
         )
+        return
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name="api_server",
+        callback=lambda: _run_api_server(
+            args=args,
+            apps=apps,
+            num_workers=num_workers,
+            worker_timeout=worker_timeout,
+            proxy_headers=proxy_headers,
+        ),
+    )
 
 
 def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | None]:

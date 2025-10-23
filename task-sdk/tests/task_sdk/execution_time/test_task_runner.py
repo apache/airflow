@@ -22,6 +22,7 @@ import functools
 import json
 import os
 import textwrap
+import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    AirflowTaskTimeout,
     DownstreamTasksSkipped,
 )
 from airflow.listeners import hookimpl
@@ -65,7 +67,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
-from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -114,6 +116,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _execute_task,
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
@@ -497,6 +500,24 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
 
     # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
+
+
+def test_execution_timeout(create_runtime_ti):
+    def sleep_and_catch_other_exceptions():
+        with contextlib.suppress(Exception):
+            # Catching Exception should NOT catch AirflowTaskTimeout
+            time.sleep(5)
+
+    op = PythonOperator(
+        task_id="test_timeout",
+        execution_timeout=timedelta(seconds=1),
+        python_callable=sleep_and_catch_other_exceptions,
+    )
+
+    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
+
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
@@ -1052,14 +1073,14 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     inlet_events = ti.get_template_context()["inlet_events"]
 
     # access the asset events of Asset(name="test", uri="test://uri")
-    assert inlet_events[0] == [asset_event_resp]
-    assert inlet_events[-2] == [asset_event_resp]
-    assert inlet_events[Asset(name="test", uri="test://uri")] == [asset_event_resp]
+    assert list(inlet_events[0]) == [asset_event_resp]
+    assert list(inlet_events[-2]) == [asset_event_resp]
+    assert list(inlet_events[Asset(name="test", uri="test://uri")]) == [asset_event_resp]
 
     # access the asset events of AssetAlias(name="alias-name")
-    assert inlet_events[1] == [asset_event_resp]
-    assert inlet_events[-1] == [asset_event_resp]
-    assert inlet_events[AssetAlias(name="alias-name")] == [asset_event_resp]
+    assert list(inlet_events[1]) == [asset_event_resp]
+    assert list(inlet_events[-1]) == [asset_event_resp]
+    assert list(inlet_events[AssetAlias(name="alias-name")]) == [asset_event_resp]
 
     # access with invalid index
     with pytest.raises(IndexError):
@@ -1384,7 +1405,7 @@ class TestRuntimeTaskInstance:
         # Access the variable from the context
         var_from_context = context["var"][accessor_type].test_key
 
-        mock_supervisor_comms.send.assert_called_once_with(GetVariable(key="test_key"))
+        mock_supervisor_comms.send.assert_any_call(GetVariable(key="test_key"))
 
         assert var_from_context == expected_value
 
@@ -2482,6 +2503,32 @@ class TestTaskRunnerCallsListeners:
         def before_stopping(self, component):
             self.component = component
 
+    class CustomOutletEventsListener:
+        def __init__(self):
+            self.outlet_events = []
+            self.error = None
+
+        def _add_outlet_events(self, context):
+            outlets = context["outlets"]
+            for outlet in outlets:
+                self.outlet_events.append(context["outlet_events"][outlet])
+
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance):
+            context = task_instance.get_template_context()
+            self._add_outlet_events(context)
+
+        @hookimpl
+        def on_task_instance_success(self, previous_state, task_instance):
+            context = task_instance.get_template_context()
+            self._add_outlet_events(context)
+
+        @hookimpl
+        def on_task_instance_failed(self, previous_state, task_instance, error):
+            context = task_instance.get_template_context()
+            self._add_outlet_events(context)
+            self.error = error
+
     @pytest.fixture(autouse=True)
     def clean_listener_manager(self):
         lm = get_listener_manager()
@@ -2599,6 +2646,118 @@ class TestTaskRunnerCallsListeners:
         finalize(runtime_ti, state, context, log, error)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+        assert listener.error == error
+
+    def test_listener_access_outlet_event_on_running_and_success(self, mocked_parse, mock_supervisor_comms):
+        """Test listener can access outlet events through invoking get_template_context() while task running and success"""
+        listener = self.CustomOutletEventsListener()
+        get_listener_manager().add_listener(listener)
+
+        test_asset = Asset("test-asset")
+        test_key = AssetUniqueKey(name="test-asset", uri="test-asset")
+        test_extra = {"name1": "value1", "nested_obj": {"name2": "value2"}}
+
+        class Producer(BaseOperator):
+            def execute(self, context):
+                outlet_events = context["outlet_events"]
+                outlet_events[test_asset].extra = test_extra
+
+        task = Producer(
+            task_id="test_listener_access_outlet_event_on_running_and_success", outlets=[test_asset]
+        )
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._validate_task_inlets_and_outlets"
+        ) as validate_mock:
+            state, _, _ = run(runtime_ti, context, log)
+
+        validate_mock.assert_called_once()
+
+        outlet_event_accessor = listener.outlet_events.pop()
+        assert outlet_event_accessor.key == test_key
+        assert outlet_event_accessor.extra == test_extra
+
+        finalize(runtime_ti, state, context, log)
+
+        outlet_event_accessor = listener.outlet_events.pop()
+        assert outlet_event_accessor.key == test_key
+        assert outlet_event_accessor.extra == test_extra
+
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            ValueError("oops"),
+            SystemExit("oops"),
+            AirflowException("oops"),
+        ],
+        ids=["ValueError", "SystemExit", "AirflowException"],
+    )
+    def test_listener_access_outlet_event_on_failed(self, mocked_parse, mock_supervisor_comms, exception):
+        """Test listener can access outlet events through invoking get_template_context() while task failed"""
+        listener = self.CustomOutletEventsListener()
+        get_listener_manager().add_listener(listener)
+
+        test_asset = Asset("test-asset")
+        test_key = AssetUniqueKey(name="test-asset", uri="test-asset")
+        test_extra = {"name1": "value1", "nested_obj": {"name2": "value2"}}
+
+        class Producer(BaseOperator):
+            def execute(self, context):
+                outlet_events = context["outlet_events"]
+                outlet_events[test_asset].extra = test_extra
+                raise exception
+
+        task = Producer(task_id="test_listener_access_outlet_event_on_failed", outlets=[test_asset])
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._validate_task_inlets_and_outlets"
+        ) as validate_mock:
+            state, _, error = run(runtime_ti, context, log)
+
+        validate_mock.assert_called_once()
+
+        outlet_event_accessor = listener.outlet_events.pop()
+        assert outlet_event_accessor.key == test_key
+        assert outlet_event_accessor.extra == test_extra
+
+        finalize(runtime_ti, state, context, log, error)
+
+        outlet_event_accessor = listener.outlet_events.pop()
+        assert outlet_event_accessor.key == test_key
+        assert outlet_event_accessor.extra == test_extra
+
         assert listener.error == error
 
 

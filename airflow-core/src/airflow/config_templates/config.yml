@@ -509,6 +509,15 @@ core:
       type: string
       example: ~
       default: ~
+    multi_team:
+      description: |
+        Whether to run the Airflow environment in multi-team mode.
+        In this mode, different teams can have scoped access to their own resources while still sharing the
+        same underlying deployment.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 database:
   description: ~
   options:
@@ -1609,6 +1618,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    execution_api_timeout:
+      description: |
+        The timeout (in seconds) for HTTP requests from workers to the Execution API server.
+        This controls how long a worker will wait for a response from the API server before
+        timing out. Increase this value if you experience timeout errors under high load.
+      version_added: 3.1.1
+      type: float
+      example: ~
+      default: "5.0"
     socket_cleanup_timeout:
       description: |
         Number of seconds to wait after a task process exits before forcibly closing any

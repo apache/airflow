@@ -20,14 +20,9 @@ from __future__ import annotations
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import chain, dag, task
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 
 @dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])

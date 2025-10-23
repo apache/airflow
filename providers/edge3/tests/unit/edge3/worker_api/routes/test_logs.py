@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody
 from airflow.providers.edge3.worker_api.routes.logs import logfile_path, push_logs
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:

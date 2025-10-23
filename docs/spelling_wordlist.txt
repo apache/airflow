@@ -66,6 +66,7 @@ AnExampleDisplayName
 AnnotateTextResponse
 AnotherExampleDisplayName
 ans
+anser
 Ansible
 anyOf
 apache
@@ -272,6 +273,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -476,6 +478,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -1577,6 +1580,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1611,6 +1615,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
@@ -1970,6 +1975,7 @@ Utils
 utils
 uuid
 uv
+uvicorn
 V1JobList
 validator
 validators

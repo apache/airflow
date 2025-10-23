@@ -69,7 +69,6 @@ version = "3.2.0"
 dependencies = [
     "apache-airflow-task-sdk<1.3.0,>=1.1.0",
     "apache-airflow-core==3.2.0",
-    "natsort>=8.4.0",
 ]
 
 packages = []
@@ -535,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.22",
+    "uv>=0.9.4",
 ]
 
 
@@ -623,12 +622,12 @@ extend-select = [
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
-    "D102", # TODO: Missing docstring in public method
-    "D103", # TODO: Missing docstring in public function
+    "D102", # Unwanted; Missing docstring in public method
+    "D103", # Unwanted; Missing docstring in public function
     "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
     "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
     "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
-    "D203",
+    "D203", # Conflicts with D211.  Both can not be enabled.
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
     "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
@@ -872,7 +871,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions"]
+exempt-modules = ["typing", "typing_extensions", "sqlalchemy.orm.Mapped"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
@@ -1008,6 +1007,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/task-sdk/tests",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
@@ -1264,6 +1264,7 @@ dev = [
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1305,6 +1306,7 @@ apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
+apache-airflow-ctl-tests = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
@@ -1424,6 +1426,7 @@ members = [
     "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
+    "airflow-ctl-tests",
     "dev",
     "devel-common",
     "docker-tests",

@@ -86,8 +86,6 @@ apache-airflow-providers-ftp package
 
 Release: 3.13.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

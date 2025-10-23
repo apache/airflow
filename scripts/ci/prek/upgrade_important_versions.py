@@ -59,6 +59,8 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
         AIRFLOW_ROOT_PATH
@@ -72,18 +74,26 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     ),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
     (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
+
+PREK_DIR_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek"
+for file in PREK_DIR_PATH.rglob("*"):
+    if file.is_file() and file.name != "upgrade_important_versions.py" and not file.suffix == ".pyc":
+        FILES_TO_UPDATE.append((file, False))
 
 
 def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
@@ -406,6 +416,16 @@ if __name__ == "__main__":
                 f'HATCH_VERSION="{hatch_version}"',
                 new_content,
             )
+            new_content = re.sub(
+                r"(hatch==)([0-9.abrc]+)",
+                f"hatch=={hatch_version}",
+                new_content,
+            )
+            new_content = re.sub(
+                r"(hatch>=)([0-9.abrc]+)",
+                f"hatch>={hatch_version}",
+                new_content,
+            )
         if UPGRADE_PYYAML:
             new_content = re.sub(
                 r"(PYYAML_VERSION = )(\"[0-9.abrc]+\")",
@@ -415,6 +435,16 @@ if __name__ == "__main__":
             new_content = re.sub(
                 r"(PYYAML_VERSION=)(\"[0-9.abrc]+\")",
                 f'PYYAML_VERSION="{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(pyyaml>=)(\"[0-9.abrc]+\")",
+                f'pyyaml>="{pyyaml_version}"',
+                new_content,
+            )
+            new_content = re.sub(
+                r"(pyyaml>=)([0-9.abrc]+)",
+                f"pyyaml>={pyyaml_version}",
                 new_content,
             )
         if UPGRADE_GITPYTHON:
@@ -468,7 +498,7 @@ if __name__ == "__main__":
         copy_env = os.environ.copy()
         del copy_env["VIRTUAL_ENV"]
         subprocess.run(
-            ["uv", "sync", "--resolution", "highest"],
+            ["uv", "sync", "--resolution", "highest", "--upgrade"],
             check=True,
             cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
             env=copy_env,

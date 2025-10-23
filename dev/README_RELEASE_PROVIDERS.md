@@ -22,6 +22,7 @@
 
 - [What the provider distributions are](#what-the-provider-distributions-are)
 - [Provider distributions](#provider-distributions)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider distributions versioning](#provider-distributions-versioning)
@@ -80,6 +81,14 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
 
 # Bump min Airflow version for providers
 
@@ -677,7 +686,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
+$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "[VOTE]" || echo "[ACCELERATED VOTE]") Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
 EOF
 ```
 
@@ -1147,15 +1156,18 @@ the next RC candidates:
 Email subject:
 
 ```
-[RESULT][VOTE] Airflow Providers - release of ${PREPARE_RELEASE_DATE}
+cat <<EOF
+[RESULT][VOTE] Airflow Providers - release of ${RELEASE_DATE}
+EOF
 ```
 
 Email content:
 
 ```
+cat <<EOF
 Hello,
 
-Apache Airflow Providers prepared on ${PREPARE_RELEASE_DATE} have been accepted.
+Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
 - FIRST LAST NAME (binding)
@@ -1176,7 +1188,8 @@ Vote thread: https://lists.apache.org/thread/cs6mcvpn2lk9w2p4oz43t20z3fg5nl7l
 I'll continue with the release process, and the release announcement will follow shortly.
 
 Cheers,
-<your name>
+${RELEASE_MANAGER_NAME}
+EOF
 ```
 
 ## Publish release to SVN
@@ -1335,12 +1348,14 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
+  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> all-providers
 ```
 
 Or if you just want to publish a few selected providers, you can run:
 
 ```shell script
+  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> PACKAGE1 PACKAGE2 ..
 ```
 
