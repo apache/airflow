@@ -49,11 +49,21 @@ class TestEnableMemrayTrackDecorator:
     def teardown_method(self):
         self.memray_patcher.stop()
 
-    def test_memray_not_used_when_tracking_disabled(self):
+    @conf_vars({("profiling", "memray_trace_components"): "api,dag_processor"})
+    def test_memray_config(self):
+        _memray_trace_components = conf.getenumlist(
+            "profiling", "memray_trace_components", MemrayTraceComponents
+        )
+
+        assert _memray_trace_components == [
+            MemrayTraceComponents.api,
+            MemrayTraceComponents.dag_processor,
+        ]
+
+    def test_memray_not_used_when_default_trace_component(self):
         """
-        Verify that memray is not imported or used when enable_memray_trace is False.
+        Verify that memray is not imported or used when memray_trace_components is default (blank).
         """
-        # Track import attempts
         import builtins
 
         original_import = builtins.__import__
@@ -76,22 +86,33 @@ class TestEnableMemrayTrackDecorator:
         self.mock_function.assert_called_once_with("arg1", kwarg="value")
         assert result == "test_result"
 
-    @conf_vars({("profiling", "memray_trace_enabled"): "true"})
-    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
-    def test_memray_config(self):
-        _enable_memray_trace = conf.getboolean("profiling", "memray_trace_enabled")
-        _memray_trace_components = conf.getenumlist(
-            "profiling", "memray_trace_components", MemrayTraceComponents
-        )
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,dag_processor"})
+    def test_memray_not_used_when_not_in_trace_component(self):
+        """
+        Verify that memray is not imported or used when the component is not in memray_trace_components.
+        """
+        import builtins
 
-        assert _enable_memray_trace
-        assert _memray_trace_components == [
-            MemrayTraceComponents.scheduler,
-            MemrayTraceComponents.api,
-            MemrayTraceComponents.dag_processor,
-        ]
+        original_import = builtins.__import__
+        import_attempts = []
 
-    @conf_vars({("profiling", "memray_trace_enabled"): "true"})
+        def track_imports(name, *args, **kwargs):
+            import_attempts.append(name)
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=track_imports):
+            decorated_function = enable_memray_trace(MemrayTraceComponents.api)(self.mock_function)
+            result = decorated_function("arg1", kwarg="value")
+
+        assert "memray" not in import_attempts, "memray should not be imported when tracking is disabled"
+
+        self.mock_memray_module.Tracker.assert_not_called()
+        self.mock_tracker.__enter__.assert_not_called()
+        self.mock_tracker.__exit__.assert_not_called()
+
+        self.mock_function.assert_called_once_with("arg1", kwarg="value")
+        assert result == "test_result"
+
     @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
     def test_memray_tracker_activated_when_enabled(self):
         """
@@ -107,7 +128,6 @@ class TestEnableMemrayTrackDecorator:
         self.mock_tracker.__exit__.assert_called_once()
         assert result == "test_result"
 
-    @conf_vars({("profiling", "memray_trace_enabled"): "true"})
     @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
     def test_function_metadata_preserved_after_decoration(self):
         """
@@ -133,7 +153,6 @@ class TestEnableMemrayTrackErrorHandling:
         self.mock_function = Mock(return_value="test_result")
         self.mock_function.__name__ = "mock_function"
 
-    @conf_vars({("profiling", "memray_trace_enabled"): "true"})
     @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
     def test_graceful_fallback_on_memray_import_error(self):
         """
