@@ -51,16 +51,8 @@ export const HITLResponse = () => {
     },
   );
 
-  if (!taskInstance) {
-    return (
-      <Box flexGrow={1}>
-        <ProgressBar />
-      </Box>
-    );
-  }
-
   const onSelectTryNumber = (newTryNumber: number) => {
-    if (newTryNumber === taskInstance.try_number) {
+    if (newTryNumber === taskInstance?.try_number) {
       searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
       searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
@@ -76,10 +68,18 @@ export const HITLResponse = () => {
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,
       taskId: taskId ?? "",
-      tryNumber
+      tryNumber,
     },
     undefined,
   );
+
+  if (!taskInstance) {
+    return (
+      <Box flexGrow={1}>
+        <ProgressBar />
+      </Box>
+    );
+  }
 
   if (!hitlDetail) {
     return (
@@ -88,7 +88,6 @@ export const HITLResponse = () => {
       </Box>
     );
   }
-
 
   return (
     <Box px={4}>
@@ -102,4 +101,27 @@ export const HITLResponse = () => {
       <HITLResponseForm hitlDetail={hitlDetail} />
     </Box>
   );
+  // const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetail(
+  //   {
+  //     dagId: dagId ?? "",
+  //     dagRunId: runId ?? "",
+  //     mapIndex: Number(mapIndex ?? -1),
+  //     taskId: taskId ?? "",
+  //   },
+  //   undefined,
+  // );
+  //
+  // if (!hitlDetail?.task_instance) {
+  //   return (
+  //     <Box flexGrow={1}>
+  //       <ProgressBar />
+  //     </Box>
+  //   );
+  // }
+  //
+  // return (
+  //   <Box px={4}>
+  //     <HITLResponseForm hitlDetail={hitlDetail} />
+  //   </Box>
+  // );
 };
