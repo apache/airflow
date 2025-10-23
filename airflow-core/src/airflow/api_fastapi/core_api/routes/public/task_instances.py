@@ -669,16 +669,12 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = (
-            select(orm_object)
-            .where(
-                orm_object.dag_id == dag_id,
-                orm_object.run_id == dag_run_id,
-                orm_object.task_id == task_id,
-                orm_object.try_number == task_try_number,
-                orm_object.map_index == map_index,
-            )
-            .options(joinedload(orm_object.hitl_detail))
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
         )
 
         task_instance = session.scalar(query)
