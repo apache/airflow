@@ -38,7 +38,7 @@
 airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
 airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina
 airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
-airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol
+airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol @xBis7
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
@@ -52,8 +52,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @vict
 airflow-core/src/airflow/ui/public/i18n/locales/th/ @potiuk # + @zkan @blackbass64 @lifnaja @Aphinan-Th @chonla @Srabasti
 airflow-core/src/airflow/ui/public/i18n/locales/tr/ @bugraoz93 # +@hasancatalgol
 airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/ @potiuk # + @Fortytwoo @gyli
-airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
-
+airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan404ming # + @RoyLee1224
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck

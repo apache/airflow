@@ -467,6 +467,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator",
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator",
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator",
     }
 
     BASE_CLASSES = {

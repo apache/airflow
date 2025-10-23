@@ -41,9 +41,11 @@ try:
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+from google.genai.types import TuningDataset
+
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
-    SupervisedFineTuningTrainOperator,
+from airflow.providers.google.cloud.operators.gen_ai import (
+    GenAISupervisedFineTuningTrainOperator,
 )
 from airflow.providers.google.common.utils.get_secret import get_secret
 
@@ -87,18 +89,22 @@ def _get_actual_model(key) -> str:
 
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_generative_model_tuning_dag"
+DAG_ID = "gen_ai_generative_model_tuning_dag"
 REGION = "us-central1"
 GEMINI_API_KEY = "api_key"
 SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
-TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/gemini-2_0/text/sft_train_data.jsonl"
+TRAIN_DATASET = TuningDataset(
+    gcs_uri="gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_train_data.jsonl",
+)
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
+TUNING_JOB_CONFIG = {"tuned_model_display_name": TUNED_MODEL_DISPLAY_NAME}
+TUNED_VIDEO_MODEL_DISPLAY_NAME = "my_tuned_gemini_video_model"
+TUNING_JOB_VIDEO_MODEL_CONFIG = {"tuned_model_display_name": TUNED_VIDEO_MODEL_DISPLAY_NAME}
 
 BUCKET_NAME = f"bucket_tuning_dag_{PROJECT_ID}"
 FILE_NAME = "video_tuning_dataset.jsonl"
 UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
-TRAIN_VIDEO_DATASET = f"gs://{BUCKET_NAME}/{FILE_NAME}"
-TUNED_VIDEO_MODEL_DISPLAY_NAME = "my_tuned_gemini_video_model"
+TRAIN_VIDEO_DATASET = TuningDataset(gcs_uri=f"gs://{BUCKET_NAME}/{FILE_NAME}")
 
 
 with DAG(
@@ -138,27 +144,27 @@ with DAG(
 
     delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_NAME)
 
-    # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
-    sft_train_task = SupervisedFineTuningTrainOperator(
+    # [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
+    sft_train_task = GenAISupervisedFineTuningTrainOperator(
         task_id="sft_train_task",
         project_id=PROJECT_ID,
         location=REGION,
         source_model=SOURCE_MODEL,
-        train_dataset=TRAIN_DATASET,
-        tuned_model_display_name=TUNED_MODEL_DISPLAY_NAME,
+        training_dataset=TRAIN_DATASET,
+        tuning_job_config=TUNING_JOB_CONFIG,
     )
-    # [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    # [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator]
 
-    # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
-    sft_video_task = SupervisedFineTuningTrainOperator(
+    # [START how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
+    sft_video_task = GenAISupervisedFineTuningTrainOperator(
         task_id="sft_train_video_task",
         project_id=PROJECT_ID,
         location=REGION,
         source_model=SOURCE_MODEL,
-        train_dataset=TRAIN_VIDEO_DATASET,
-        tuned_model_display_name=TUNED_VIDEO_MODEL_DISPLAY_NAME,
+        training_dataset=TRAIN_VIDEO_DATASET,
+        tuning_job_config=TUNING_JOB_VIDEO_MODEL_CONFIG,
     )
-    # [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator_for_video]
+    # [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
 
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 

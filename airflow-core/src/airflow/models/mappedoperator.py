@@ -281,6 +281,10 @@ class MappedOperator(DAGNode):
         return bool(self.partial_kwargs.get("retry_exponential_backoff"))
 
     @property
+    def max_retry_delay(self) -> datetime.timedelta | None:
+        return self.partial_kwargs.get("max_retry_delay")
+
+    @property
     def weight_rule(self) -> PriorityWeightStrategy:
         return validate_and_load_priority_weight_strategy(
             self.partial_kwargs.get("weight_rule", SerializedBaseOperator._weight_rule)

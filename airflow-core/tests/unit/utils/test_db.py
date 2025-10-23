@@ -519,7 +519,7 @@ class TestAutocommitEngineForMySQL:
             assert settings.prepare_engine_args != original_prepare
 
             # Now check that ValueError is raised
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Test exception"):
                 raise ValueError("Test exception")
 
         # Verify cleanup still happened despite exception

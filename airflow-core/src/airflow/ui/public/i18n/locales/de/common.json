@@ -78,6 +78,11 @@
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "download": {
+    "download": "Herunterladen",
+    "hotkey": "d",
+    "tooltip": "Drücken Sie {{hotkey}}, um Protokolle herunterzuladen"
+  },
   "duration": "Laufzeit",
   "endDate": "Enddatum",
   "error": {

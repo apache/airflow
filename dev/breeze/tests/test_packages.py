@@ -104,7 +104,11 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.10.0", "asana>=5.0.0"]
+    assert get_provider_requirements("asana") == [
+        "apache-airflow>=2.10.0",
+        "apache-airflow-providers-common-compat>=1.8.0",
+        "asana>=5.0.0",
+    ]
 
 
 def test_get_removed_providers():
@@ -261,11 +265,12 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
 
 def test_convert_cross_package_dependencies_to_table():
     EXPECTED = """
-| Dependent package                                                                   | Extra         |
-|:------------------------------------------------------------------------------------|:--------------|
-| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)   | `common.sql`  |
-| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)           | `google`      |
-| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage) | `openlineage` |
+| Dependent package                                                                       | Extra           |
+|:----------------------------------------------------------------------------------------|:----------------|
+| [apache-airflow-providers-common-compat](https://airflow.apache.org/docs/common-compat) | `common.compat` |
+| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)       | `common.sql`    |
+| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)               | `google`        |
+| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage)     | `openlineage`   |
 """
     assert (
         convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()

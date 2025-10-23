@@ -57,16 +57,16 @@ class TestVertexAITextEmbeddingModelGetEmbeddingsOperator:
     def test_execute(self, mock_hook):
         prompt = "In 10 words or less, what is Apache Airflow?"
         pretrained_model = "textembedding-gecko"
-
-        op = TextEmbeddingModelGetEmbeddingsOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=prompt,
-            pretrained_model=pretrained_model,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = TextEmbeddingModelGetEmbeddingsOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=prompt,
+                pretrained_model=pretrained_model,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -94,20 +94,20 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
         }
         generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
         system_instruction = "be concise."
-
-        op = GenerativeModelGenerateContentOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            contents=contents,
-            tools=tools,
-            generation_config=generation_config,
-            safety_settings=safety_settings,
-            pretrained_model=pretrained_model,
-            system_instruction=system_instruction,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = GenerativeModelGenerateContentOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                contents=contents,
+                tools=tools,
+                generation_config=generation_config,
+                safety_settings=safety_settings,
+                pretrained_model=pretrained_model,
+                system_instruction=system_instruction,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -135,16 +135,16 @@ class TestVertexAISupervisedFineTuningTrainOperator:
     ):
         source_model = "gemini-1.0-pro-002"
         train_dataset = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
-
-        op = SupervisedFineTuningTrainOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            source_model=source_model,
-            train_dataset=train_dataset,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = SupervisedFineTuningTrainOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                source_model=source_model,
+                train_dataset=train_dataset,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -169,16 +169,16 @@ class TestVertexAICountTokensOperator:
     def test_execute(self, to_dict_mock, mock_hook):
         contents = ["In 10 words or less, what is Apache Airflow?"]
         pretrained_model = "gemini-pro"
-
-        op = CountTokensOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            contents=contents,
-            pretrained_model=pretrained_model,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CountTokensOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                contents=contents,
+                pretrained_model=pretrained_model,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -300,19 +300,19 @@ class TestVertexAICreateCachedContentOperator:
         ]
         ttl_hours = 1
         display_name = "test-example-cache"
-
-        op = CreateCachedContentOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            model_name=model_name,
-            system_instruction=system_instruction,
-            contents=contents,
-            ttl_hours=ttl_hours,
-            display_name=display_name,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CreateCachedContentOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                model_name=model_name,
+                system_instruction=system_instruction,
+                contents=contents,
+                ttl_hours=ttl_hours,
+                display_name=display_name,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -334,16 +334,16 @@ class TestVertexAIGenerateFromCachedContentOperator:
     def test_execute(self, mock_hook):
         cached_content_name = "test"
         contents = ["what are in these papers"]
-
-        op = GenerateFromCachedContentOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            cached_content_name=cached_content_name,
-            contents=contents,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = GenerateFromCachedContentOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                cached_content_name=cached_content_name,
+                contents=contents,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

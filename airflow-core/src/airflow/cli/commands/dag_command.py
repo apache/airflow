@@ -27,7 +27,7 @@ import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
@@ -139,7 +139,7 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
 
     query = query.where(DagModel.is_paused != is_paused)
 
-    matched_dags: list[DagModel] = session.scalars(query).all()
+    matched_dags = list(session.scalars(query).all())
     if not matched_dags:
         print(f"No {'un' if is_paused else ''}paused DAGs were found")
         return
@@ -385,11 +385,11 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        dags_list.extend(sm.dag for sm in session.scalars(select(SerializedDagModel)))
+        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
         pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
             pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
-        dagbag_import_errors = session.scalar(pie_stmt)
+        dagbag_import_errors = session.scalar(pie_stmt) or 0
 
     if dagbag_import_errors > 0:
         from rich import print as rich_print
@@ -492,9 +492,9 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
         for import_error in dagbag_import_errors:
             data.append(
                 {
-                    "bundle_name": import_error.bundle_name,
-                    "filepath": import_error.filename,
-                    "error": import_error.stacktrace,
+                    "bundle_name": import_error.bundle_name or "",
+                    "filepath": import_error.filename or "",
+                    "error": import_error.stacktrace or "",
                 }
             )
     AirflowConsole().print_as(
@@ -655,7 +655,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             )
         ).all()
 
-        dot_graph = render_dag(dag, tis=tis)
+        dot_graph = render_dag(dag, tis=list(tis))
         print()
         if filename:
             _save_dot_to_file(dot_graph, filename)

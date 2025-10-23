@@ -163,6 +163,8 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            # Even though dag_id is filtered in base_query,
+            # adding this line here can improve the performance of this endpoint
             SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.id != latest_serdag.id,
             SerializedDagModel.dag_version_id.in_(
@@ -294,7 +296,7 @@ def get_grid_runs(
         filters=[run_after, run_type, state, triggering_user],
         limit=limit,
     )
-    return session.execute(dag_runs_select_filter)
+    return [GridRunsResponse(**row._mapping) for row in session.execute(dag_runs_select_filter)]
 
 
 @grid_router.get(

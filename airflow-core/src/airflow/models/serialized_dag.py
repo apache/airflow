@@ -49,7 +49,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -461,6 +461,15 @@ class SerializedDagModel(Base):
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
+        from airflow.settings import engine
+
+        if engine.dialect.name == "mysql":
+            # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
+            # Details in https://github.com/apache/airflow/pull/55589
+            latest_item_id = (
+                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+            )
+            return select(cls).where(cls.id == latest_item_id)
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
@@ -591,12 +600,13 @@ class SerializedDagModel(Base):
         """
         load_json: Callable | None
         if COMPRESS_SERIALIZED_DAGS is False:
-            if session.bind.dialect.name in ["sqlite", "mysql"]:
+            dialect = get_dialect_name(session)
+            if dialect in ["sqlite", "mysql"]:
                 data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
-            elif session.bind.dialect.name == "postgresql":
+            elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
                 data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))

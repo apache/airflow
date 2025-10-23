@@ -32,14 +32,11 @@ from airflow.providers.teradata.utils.constants import Constants
 if TYPE_CHECKING:
     from paramiko import SSHClient
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.bteq import BteqHook
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.version_compat import BaseOperator
 
 
 def contains_template(parameter_value):

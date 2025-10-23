@@ -21,15 +21,11 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.branch import BaseBranchOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):

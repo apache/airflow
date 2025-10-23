@@ -17,7 +17,7 @@
 
 // Package bundlev1 defines the interfaces and types need to be an Airflow Dag Bundle
 //
-// The main entrypoint should call [bundlev1server/Serve].
+// The main entry point should call [bundlev1server/Serve].
 package bundlev1
 
 // We call this package `.../bundle/bundlev1` (duplicating "bundle") so that the uses of it in code are by

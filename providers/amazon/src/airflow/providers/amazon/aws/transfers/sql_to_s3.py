@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd

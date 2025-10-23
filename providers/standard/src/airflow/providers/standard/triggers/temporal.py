@@ -23,12 +23,8 @@ from typing import Any
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 
 class DateTimeTrigger(BaseTrigger):

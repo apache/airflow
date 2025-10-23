@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -231,7 +231,7 @@ class Trigger(Base):
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
         )
-        if session.bind.dialect.name == "mysql":
+        if get_dialect_name(session) == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
             ids = session.scalars(ids).all()
         session.execute(

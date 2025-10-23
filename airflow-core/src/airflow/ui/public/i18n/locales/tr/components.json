@@ -92,7 +92,6 @@
   "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
   "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
   "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
-  "limitedList.showingItems": "{{count}} öğe gösteriliyor",
   "logs": {
     "file": "Dosya",
     "location": "{{name}} içinde satır {{line}}"
