@@ -22,12 +22,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.cohere.hooks.cohere import CohereHook
-from airflow.providers.cohere.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions
 
-    from airflow.providers.cohere.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CohereEmbeddingOperator(BaseOperator):

@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+9.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Separate Firehose and Kinesis hooks (#56276)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed incorrect path in EMR notebook waiter (#56584)``
+* ``Add poke_mode_only to version_compat to fix the incorrect deprecation warning (#56435)``
+* ``Refactor: deprecate wait_policy in EmrCreateJobFlowOperator in favor of wait_for_completion (#56158)``
+
+Misc
+~~~~
+
+* ``Migrate amazon provider to ''common.compat'' (#56994)``
+* ``Fix mypy errors for sqla2 in aws hooks (#56751)``
+* ``Update authentication to handle JWT token in backend (#56633)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix main. Fix 'test_athena_sql.py' (#56974)``
+   * ``Update example dms system tests for sqla 2 (#56744)``
+   * ``Enable PT011 rule to prvoider tests (#56698)``
+   * ``Enable PT011 rule to prvoider tests (#56642)``
+   * ``Enable PT011 rule to prvoider tests (#56608)``
+   * ``[AWS System Tests] Add task retries to deletion of EKS resources (#56308)``
+
 9.15.0
 ......
 

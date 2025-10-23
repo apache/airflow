@@ -28,6 +28,24 @@
 Changelog
 ---------
 
+4.4.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix(livy): replace connection type (#55984)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to provider tests (#56578)``
+
 4.4.3
 .....
 

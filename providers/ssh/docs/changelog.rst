@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+4.1.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass required remote_host arg to SSHHook (#55664)``
+
+Misc
+~~~~
+
+* ``Migrate ssh provider to ''common.compat'' (#57004)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+
 4.1.4
 .....
 
