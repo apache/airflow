@@ -20,8 +20,10 @@ from airflow.sdk.api.datamodels._generated import (
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     TaskStatesResponse,
+    TerminalStateNonSuccess,
 )
 from airflow.sdk.execution_time.comms import TICount
+from airflow.sdk.timezone import utcnow
 from task_sdk_tests import console
 
 
@@ -104,9 +106,6 @@ def test_ti_finish_failed(sdk_client, task_instance_id):
     It must run after all other tests that need the task to be running.
     """
     console.print("[yellow]Finishing task instance as FAILED...")
-
-    from airflow.sdk.api.datamodels._generated import TerminalStateNonSuccess
-    from airflow.sdk.timezone import utcnow
 
     # Finish the task with failed state
     sdk_client.task_instances.finish(
