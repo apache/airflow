@@ -1,4 +1,21 @@
-
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import { useEffect, useState, useCallback } from "react";
 import { VStack, Icon, Text, Spinner } from "@chakra-ui/react";
 import { GoAlertFill } from "react-icons/go";
@@ -60,10 +77,9 @@ const ClearTaskInstanceConfirmationDialog = ({
     onClose();
   }, [onConfirm, onClose]);
 
-  const taskCurrentState =
-  data && data.task_instances.length > 0
-    ? data.task_instances[0].state
-    : undefined;
+  const taskInstances = data?.task_instances ?? [];
+  const [firstInstance] = taskInstances;
+  const taskCurrentState = firstInstance?.state;
 
   useEffect(() => {
     if (!isFetching && open && data) {
@@ -82,7 +98,6 @@ const ClearTaskInstanceConfirmationDialog = ({
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         {isFetching ? (
-          // Loading State — keeps the dialog mounted during fetch
           <VStack align="center" gap={3} justify="center" py={8}>
             <Spinner size="lg" />
             <Text color="fg.solid" fontSize="md">
@@ -94,28 +109,30 @@ const ClearTaskInstanceConfirmationDialog = ({
             <Dialog.Header>
               <VStack align="start" gap={4}>
                 <Dialog.Title>
-                  <Icon color="tomato" size="lg" pr='2'>
+                  <Icon color="tomato" size="lg" pr="2">
                     <GoAlertFill />
                   </Icon>
                   {translate("dags:runAndTaskActions.confirmationDialog.title")}
                 </Dialog.Title>
                 <Dialog.Description>
-                  {data.task_instances.length > 0 ? (
+                  {taskInstances.length > 0 && (
                     <>
-                      {translate("dags:runAndTaskActions.confirmationDialog.description", {
-                        state: taskCurrentState,
-                        time:
-                          data.task_instances[0].start_date !== null
-                            ? getRelativeTime(data.task_instances[0].start_date)
-                            : undefined,
-                        user:
-                          data.task_instances[0].unixname !== null &&
-                          data.task_instances[0].unixname.trim() !== ""
-                            ? data.task_instances[0].unixname
-                            : "unknown user",
-                      })}
+                      {translate(
+                        "dags:runAndTaskActions.confirmationDialog.description",
+                        {
+                          state: taskCurrentState,
+                          time:
+                            firstInstance?.start_date !== null && firstInstance?.start_date !== undefined
+                              ? getRelativeTime(firstInstance.start_date)
+                              : undefined,
+                          user:
+                            (firstInstance?.unixname?.trim().length ?? 0) > 0
+                              ? firstInstance?.unixname
+                              : "unknown user",
+                        }
+                      )}
                     </>
-                  ) : null}
+                  )}
                 </Dialog.Description>
               </VStack>
             </Dialog.Header>

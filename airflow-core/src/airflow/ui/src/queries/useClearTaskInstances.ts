@@ -18,7 +18,6 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Dialog } from "src/components/ui";
 
 
 import {
@@ -58,9 +57,10 @@ export const useClearTaskInstances = ({
       const apiError = error as ApiError;
 
       description = typeof apiError.message === "string" ? apiError.message : "";
+      const apiErrorWithDetail = apiError as unknown as { detail?: unknown };
       detail =
-        typeof (apiError as { detail?: unknown }).detail === "string"
-          ? (apiError as { detail: string }).detail
+        typeof apiErrorWithDetail.detail === "string"
+          ? apiErrorWithDetail.detail
           : "";
 
       if ( detail.includes("AirflowClearRunningTaskException") === true ) {
