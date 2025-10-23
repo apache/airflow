@@ -46,20 +46,20 @@ class ImpalaHook(DbApiHook):
             database=connection.schema,
             **connection.extra_dejson,
         )
-        
+
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
-        
+
         required_attrs = ["host", "login"]
         for attr in required_attrs:
             if getattr(conn, attr) is None:
                 raise ValueError(f"Impala Connection Error: '{attr}' is missing in the connection")
-        
+
         query = {k: str(v) for k, v in extra.items() if v is not None and k not in ["__extra__"]}
-        
+
         return URL.create(
             drivername="impala",
             username=conn.login,
@@ -67,14 +67,9 @@ class ImpalaHook(DbApiHook):
             host=str(conn.host),
             port=conn.port or 21050,
             database=conn.schema,
-            query=query
+            query=query,
         )
-        
+
     def get_uri(self) -> str:
         """Return a SQLAlchemy engine URL as a string."""
         return self.sqlalchemy_url.render_as_string(hide_password=False)
-
-
-        
-        
-        
