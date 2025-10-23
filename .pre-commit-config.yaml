@@ -543,7 +543,6 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
-            ^providers/fab/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
@@ -560,10 +559,9 @@ repos:
         files: >
           (?x)
           ^scripts/ci/prek/version_heads_map\.py$|
-          ^airflow-core/src/airflow/migrations/versions/.*$|^airflow-core/src/airflow/migrations/versions|
-          ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
-          ^airflow-core/src/airflow/utils/db\.py$|
-          ^providers/fab/src/airflow/providers/fab/auth_manager/models/db\.py$
+          ^airflow-core/src/airflow/migrations/versions/.*$|
+          ^airflow-core/src/airflow/migrations/versions|
+          ^airflow-core/src/airflow/utils/db\.py$
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/prek/update_versions.py
@@ -943,13 +941,6 @@ repos:
         entry: ./scripts/ci/prek/compile_ui_assets.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
-      - id: compile-fab-assets
-        name: Compile FAB provider assets
-        language: node
-        files: ^providers/fab/.*/www/
-        entry: ./scripts/ci/prek/compile_provider_assets.py fab
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         language: node
@@ -1258,7 +1249,7 @@ repos:
           # W0133: "Exception statement has no effect"
           # see: https://github.com/astral-sh/ruff/issues/10145
           - "--enable=W0133"
-      - id: check-fab-migrations
+      - id: check-no-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table
         description: >
@@ -1414,14 +1405,8 @@ repos:
         language: python
         entry: ./scripts/ci/prek/generate_openapi_spec.py
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
-      - id: generate-openapi-spec-fab
-        name: Generate the FastAPI API spec for FAB
-        language: python
-        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
-        pass_filenames: false
-        files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
