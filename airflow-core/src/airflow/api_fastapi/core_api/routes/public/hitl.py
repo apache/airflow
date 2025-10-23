@@ -47,10 +47,10 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetail,
     HITLDetailCollection,
+    HITLDetailHisotry,
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instance_history import HITLDetailHisotry
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,

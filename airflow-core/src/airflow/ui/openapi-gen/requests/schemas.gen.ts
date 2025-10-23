@@ -4019,11 +4019,19 @@ export const $HITLDetailHistory = {
             type: 'boolean',
             title: 'Response Received',
             default: false
+        },
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceHistoryResponse'
         }
     },
     type: 'object',
+<<<<<<< HEAD
     required: ['options', 'subject', 'created_at'],
     title: 'HITLDetailHistory',
+=======
+    required: ['options', 'subject', 'created_at', 'task_instance'],
+    title: 'HITLDetailHisotry',
+>>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 
@@ -5307,6 +5315,7 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+<<<<<<< HEAD
         },
         hitl_detail: {
             anyOf: [
@@ -5317,10 +5326,12 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+=======
+>>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'hitl_detail'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
