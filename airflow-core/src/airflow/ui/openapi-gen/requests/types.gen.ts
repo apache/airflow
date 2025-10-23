@@ -1021,6 +1021,7 @@ export type HITLDetailHistory = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceHistoryResponse;
 };
 
 /**
@@ -1380,7 +1381,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+<<<<<<< HEAD
     hitl_detail: HITLDetailHistory | null;
+=======
+>>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
 };
 
 /**
