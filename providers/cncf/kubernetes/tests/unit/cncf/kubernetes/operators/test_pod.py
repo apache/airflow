@@ -1656,31 +1656,23 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
-    def test_normalize_labels_dict_empty(self):
-        """normalize_labels_dict should return empty dict unchanged"""
-        from airflow.providers.cncf.kubernetes.operators.pod import normalize_labels_dict
-
-        labels = {}
-        assert normalize_labels_dict(labels) == {}
-
-    def test_normalize_labels_dict_with_none(self):
-        """normalize_labels_dict should convert None values to empty strings"""
-        from airflow.providers.cncf.kubernetes.operators.pod import normalize_labels_dict
-
-        labels = {"a": None, "b": "value", "c": None}
-        normalized = normalize_labels_dict(labels)
-        assert normalized == {"a": "", "b": "value", "c": ""}
-
-    def test_normalize_labels_dict_preserve_other_values(self):
-        """normalize_labels_dict should preserve falsy but non-None values"""
-        from airflow.providers.cncf.kubernetes.operators.pod import normalize_labels_dict
-
-        labels = {"empty_str": "", "zero": 0, "false": False, "none": None}
-        normalized = normalize_labels_dict(labels)
-        assert normalized["empty_str"] == ""
-        assert normalized["zero"] == 0
-        assert normalized["false"] is False
-        assert normalized["none"] == ""
+    @pytest.mark.parametrize(
+        "labels,expected",
+        [
+            pytest.param({}, {}, id="empty"),
+            pytest.param({"a": None, "b": "value", "c": None}, {"a": "", "b": "value", "c": ""}, id="with-none"),
+            pytest.param(
+                {"empty_str": "", "zero": 0, "false": False, "none": None},
+                {"empty_str": "", "zero": 0, "false": False, "none": ""},
+                id="preserve-other-values",
+            ),
+        ],
+    )
+    def test_normalize_labels_dict(self, labels, expected):
+        """normalize_labels_dict should transform only None values to empty strings and preserve others"""
+        from airflow.providers.cncf.kubernetes.operators.pod import _normalize_labels_dict
+        normalized = _normalize_labels_dict(labels)
+        assert normalized == expected
 
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
