@@ -22,7 +22,7 @@ from typing import Any
 import requests
 
 from airflow.exceptions import AirflowException
-from airflow.providers.openfaas.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 OK_STATUS_CODE = 202
 
