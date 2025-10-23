@@ -23,6 +23,6 @@ repos:
       - id: check-common-compat-sdk-imports-in-sync
         name: Check common.compat sdk TYPE_CHECKING matches runtime maps
         language: python
-        files: ^providers/common/compat/src/airflow/providers/common/compat/sdk\.py$
+        files: ^src/airflow/providers/common/compat/sdk\.py$
         pass_filenames: false
         entry: ../../scripts/ci/prek/check_common_compat_lazy_imports.py
