@@ -268,19 +268,17 @@ class SnowflakeHook(DbApiHook):
             azure_conn = Connection.get(azure_conn_id)
         except AttributeError:
             azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
-        azure_base_hook: AzureBaseHook = azure_conn.get_hook()
-        scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
         try:
-            token = azure_base_hook.get_token(scope).token
-        except AttributeError as e:
-            if e.name == "get_token" and e.obj == azure_base_hook:
-                raise AttributeError(
-                    "'AzureBaseHook' object has no attribute 'get_token'. "
-                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0",
-                    name=e.name,
-                    obj=e.obj,
+            azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        except TypeError as e:
+            if "required positional argument: 'sdk_client'" in str(e):
+                raise TypeError(
+                    "Getting azure token is not supported by current version of 'AzureBaseHook'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
                 ) from e
             raise
+        scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
         return token
 
     @cached_property
