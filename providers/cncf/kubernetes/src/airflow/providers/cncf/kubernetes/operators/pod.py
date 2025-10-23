@@ -1439,6 +1439,7 @@ class _optionally_suppress(AbstractContextManager):
             logger.exception(excinst)
         return True
 
+
 def _normalize_labels_dict(labels: dict) -> dict:
     """Return a copy of the labels dict with all None values replaced by empty strings."""
     return {k: ("" if v is None else v) for k, v in labels.items()}

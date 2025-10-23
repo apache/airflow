@@ -462,15 +462,15 @@ class TestKubernetesPodOperator:
         """
         k = KubernetesPodOperator(
             labels={
-                "foo": "bar",           
-                "hello": "airflow",     
-                "a": None,              
-                "b": "value",          
-                "c": None,              
-                "empty_str": "",        
-                "zero": 0,              
-                "false": False,          
-                "none": None,          
+                "foo": "bar",
+                "hello": "airflow",
+                "a": None,
+                "b": "value",
+                "c": None,
+                "empty_str": "",
+                "zero": 0,
+                "false": False,
+                "none": None,
             },
             name="test",
             task_id="task",
@@ -1707,7 +1707,9 @@ class TestKubernetesPodOperator:
         "labels,expected",
         [
             pytest.param({}, {}, id="empty"),
-            pytest.param({"a": None, "b": "value", "c": None}, {"a": "", "b": "value", "c": ""}, id="with-none"),
+            pytest.param(
+                {"a": None, "b": "value", "c": None}, {"a": "", "b": "value", "c": ""}, id="with-none"
+            ),
             pytest.param(
                 {"empty_str": "", "zero": 0, "false": False, "none": None},
                 {"empty_str": "", "zero": 0, "false": False, "none": ""},
@@ -1718,6 +1720,7 @@ class TestKubernetesPodOperator:
     def test_normalize_labels_dict(self, labels, expected):
         """normalize_labels_dict should transform only None values to empty strings and preserve others"""
         from airflow.providers.cncf.kubernetes.operators.pod import _normalize_labels_dict
+
         normalized = _normalize_labels_dict(labels)
         assert normalized == expected
 
