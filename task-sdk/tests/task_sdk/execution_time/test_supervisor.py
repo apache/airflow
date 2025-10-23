@@ -69,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     CreateHITLDetailPayload,
     DagRunStateResult,
+    DagStateResult,
     DeferTask,
     DeleteVariable,
     DeleteXCom,
@@ -80,6 +81,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDagState,
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
@@ -2287,6 +2289,16 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="skip_downstream_tasks",
+    ),
+    RequestTestCase(
+        message=GetDagState(dag_id="test_dag"),
+        expected_body={"is_paused": False, "type": "DagStateResult"},
+        client_mock=ClientMock(
+            method_path="dags.get_state",
+            args=("test_dag",),
+            response=DagStateResult(is_paused=False),
+        ),
+        test_id="get_dag_run_state",
     ),
 ]
 
