@@ -50,11 +50,7 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
 
     def decorator(func: Callable[PS, RT]) -> Callable[PS, RT]:
         @wraps(func)
-        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:
-            _enable_memray_trace = conf.getboolean("profiling", "memray_trace_enabled")
-            if not _enable_memray_trace:
-                return func(*args, **kwargs)
-
+        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:  # type: ignore[return]
             _memray_trace_components = conf.getenumlist(
                 "profiling", "memray_trace_components", MemrayTraceComponents
             )
@@ -64,19 +60,23 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
             try:
                 import memray
 
-                airflow_component_name = component.value
-                profile_path = f"{AIRFLOW_HOME}/{airflow_component_name}_memory.bin"
+                profile_path = f"{AIRFLOW_HOME}/{component.value}_memory.bin"
                 log.info("enable_memray_trace is on. so memory state is tracked by memray")
                 with memray.Tracker(
                     profile_path,
                 ):
-                    log.info(
-                        "Memray tracing enabled for %s. Output: %s", airflow_component_name, profile_path
-                    )
+                    log.info("Memray tracing enabled for %s. Output: %s", component.value, profile_path)
                     return func(*args, **kwargs)
             except ImportError as error:
                 # Silently fall back to running without tracking
-                log.warning("ImportError memray.Tracker: %s", error.msg)
+                log.warning(
+                    "ImportError memray.Tracker: %s in %s, please check the memray is installed",
+                    error.msg,
+                    component.value,
+                )
+                return func(*args, **kwargs)
+            except Exception as exception:
+                log.warning("Fail to apply memray.Tracker in %s, error: %s", component.value, exception)
                 return func(*args, **kwargs)
 
         return wrapper

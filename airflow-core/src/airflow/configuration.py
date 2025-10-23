@@ -1268,7 +1268,7 @@ class AirflowConfigParser(ConfigParser):
                 return enum_class[kwargs["fallback"]]
             raise AirflowConfigException(
                 f'Failed to convert value. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
+                f"the value must be one of {', '.join(enum_names)}"
             )
 
     def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
@@ -1282,10 +1282,9 @@ class AirflowConfigParser(ConfigParser):
             except KeyError:
                 log.warning(
                     "Failed to convert value. Please check %s key in %s section. "
-                    "Current value: %s and it must be one of %s",
+                    "it must be one of %s, if not the value is ignored",
                     key,
                     section,
-                    val,
                     ", ".join(enum_names),
                 )
 
