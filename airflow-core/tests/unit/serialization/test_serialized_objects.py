@@ -207,7 +207,7 @@ TI_WITH_START_DAY = TaskInstance(
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
-TI_WITH_START_DAY.start_date = timezone.utcnow()
+TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
@@ -694,7 +694,7 @@ def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 
     assert encode_timezone(FixedTimezone(0)) == "UTC"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
 
 

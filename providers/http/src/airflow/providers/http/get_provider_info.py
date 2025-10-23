@@ -53,6 +53,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.http.hooks.http"],
             }
         ],
+        "notifications": ["airflow.providers.http.notifications.HttpNotifier"],
         "triggers": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",

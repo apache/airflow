@@ -94,7 +94,7 @@ def _make_airflow_structlogger(min_level):
             if not args:
                 return self._proxy_to_logger(name, event, **kw)
 
-            # See for reason https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326
+            # See https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326 for reason
             if args and len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
                 args = args[0]
             return self._proxy_to_logger(name, event % args, **kw)
@@ -201,7 +201,7 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
     return event_dict
 
 
-# `eyJ` is `{"` in base64 encoding -- and any value that starts like that is in high likely hood a JWT
+# `eyJ` is `{"` in base64 encoding -- and any value that starts like that is very likely a JWT
 # token. Better safe than sorry
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
@@ -235,7 +235,7 @@ def structlog_processors(
 
     Return value is a tuple of three elements:
 
-    1. A list of processors shared for structlgo and stblib
+    1. A list of processors shared for structlog and stdlib
     2. The final processor/renderer (one that outputs a string) for use with structlog.stdlib.ProcessorFormatter
 
 
@@ -332,7 +332,7 @@ def structlog_processors(
         return shared_processors, json_processor, json
 
     if os.getenv("DEV", "") != "":
-        # Only use Rich in dev -- optherwise for "production" deployments it makes the logs harder to read as
+        # Only use Rich in dev -- otherwise for "production" deployments it makes the logs harder to read as
         # it uses lots of ANSI escapes and non ASCII characters. Simpler is better for non-dev non-JSON
         exc_formatter = structlog.dev.RichTracebackFormatter(
             # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
@@ -400,7 +400,7 @@ def configure_logging(
     :param json_output: Set to true to write all logs as JSON (one per line)
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
-    :param output: Where to write the logs too. If ``json_output`` is true this must be a binary stream
+    :param output: Where to write the logs to. If ``json_output`` is true this must be a binary stream
     :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
         an interactive session), unless overridden by environment variables described below.
         Please note that disabling colors also disables all styling, including bold and italics.
@@ -465,13 +465,13 @@ def configure_logging(
     shared_pre_chain += list(extra_processors)
     pre_chain: list[structlog.typing.Processor] = [structlog.stdlib.add_logger_name] + shared_pre_chain
 
-    # Don't cache the loggers during tests, it make it hard to capture them
+    # Don't cache the loggers during tests, it makes it hard to capture them
     if "PYTEST_VERSION" in os.environ:
         cache_logger_on_first_use = False
 
     std_lib_formatter: list[Processor] = [
         # TODO: Don't include this if we are using PercentFormatter -- it'll delete something we
-        # just have to recerated!
+        # just have to recreated!
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
         for_stdlib,

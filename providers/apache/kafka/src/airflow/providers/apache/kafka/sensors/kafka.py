@@ -20,7 +20,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
-from airflow.providers.apache.kafka.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 

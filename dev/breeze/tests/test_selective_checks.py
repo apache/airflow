@@ -105,56 +105,40 @@ ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
 )
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
-ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
-)
+ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity"
 
-ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
-)
-ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk"
-)
+ALL_SKIPPED_COMMITS_IF_NO_UI = "identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = "identity,lint-helm-chart"
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "identity,lint-helm-chart,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,identity,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "check-provider-yaml-valid,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
@@ -163,8 +147,7 @@ All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
     "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,"
     "check-extra-packages-references,check-provider-yaml-valid,"
     "compile-fab-assets,generate-openapi-spec-fab,identity,"
-    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
-    "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"
+    "lint-helm-chart,validate-operators-init"
 )
 
 
@@ -644,7 +627,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql google "
                     "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -667,7 +650,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.sql,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -687,7 +670,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -708,7 +691,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -719,6 +702,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
+                                "description": "atlassian.jir...common.compat",
+                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
+                            },
+                            {
                                 "description": "dbt.cloud...dingding",
                                 "test_types": "Providers[dbt.cloud] Providers[dingding]",
                             },
@@ -726,8 +713,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "description": "discord...google",
                                 "test_types": "Providers[discord] Providers[google]",
                             },
-                            {"description": "http", "test_types": "Providers[http]"},
-                            {"description": "pagerduty", "test_types": "Providers[pagerduty]"},
+                            {
+                                "description": "http...pagerduty",
+                                "test_types": "Providers[http] Providers[pagerduty]",
+                            },
                         ]
                     ),
                     "run-mypy": "true",
@@ -745,7 +734,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/airbyte/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "airbyte",
+                    "selected-providers-list-as-string": "airbyte common.compat",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -763,7 +752,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [{"description": "Always", "test_types": "Always"}]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                        [
+                            {
+                                "description": "airbyte,common.compat",
+                                "test_types": "Providers[airbyte,common.compat]",
+                            }
+                        ]
                     ),
                 },
                 id="Helm tests, airbyte providers, kubernetes tests and "
@@ -871,7 +865,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/airbyte/tests/airbyte/__init__.py",),
             {
-                "selected-providers-list-as-string": "airbyte",
+                "selected-providers-list-as-string": "airbyte common.compat",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -889,7 +883,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [{"description": "Always", "test_types": "Always"}]
                 ),
                 "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                    [
+                        {
+                            "description": "airbyte,common.compat",
+                            "test_types": "Providers[airbyte,common.compat]",
+                        }
+                    ]
                 ),
                 "run-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
@@ -1112,7 +1111,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
+                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -2139,14 +2138,14 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst",),
             {
-                "docs-list-as-string": "airbyte",
+                "docs-list-as-string": "airbyte common.compat",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte",
+                "docs-list-as-string": "apache-airflow airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -2157,7 +2156,7 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),

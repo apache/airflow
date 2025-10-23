@@ -262,7 +262,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = None):
+    def get_dag(self, dag_id, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 

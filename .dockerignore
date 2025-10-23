@@ -47,6 +47,7 @@
 !helm-tests
 !kubernetes-tests
 !task-sdk-tests
+!airflow-ctl-tests
 !shared/
 !airflow-e2e-tests
 
