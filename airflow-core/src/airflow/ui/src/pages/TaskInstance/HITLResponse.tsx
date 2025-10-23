@@ -29,10 +29,12 @@ import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
+  const refetchInterval = useAutoRefresh({ dagId });
   const [searchParams, setSearchParams] = useSearchParams();
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
 
@@ -48,6 +50,7 @@ export const HITLResponse = () => {
     undefined,
     {
       enabled: !isNaN(parsedMapIndex),
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
 
@@ -101,27 +104,4 @@ export const HITLResponse = () => {
       <HITLResponseForm hitlDetail={hitlDetail} />
     </Box>
   );
-  // const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetail(
-  //   {
-  //     dagId: dagId ?? "",
-  //     dagRunId: runId ?? "",
-  //     mapIndex: Number(mapIndex ?? -1),
-  //     taskId: taskId ?? "",
-  //   },
-  //   undefined,
-  // );
-  //
-  // if (!hitlDetail?.task_instance) {
-  //   return (
-  //     <Box flexGrow={1}>
-  //       <ProgressBar />
-  //     </Box>
-  //   );
-  // }
-  //
-  // return (
-  //   <Box px={4}>
-  //     <HITLResponseForm hitlDetail={hitlDetail} />
-  //   </Box>
-  // );
 };
