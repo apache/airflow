@@ -1016,6 +1016,7 @@ export type HITLDetailHisotry = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceHistoryResponse;
 };
 
 /**
@@ -1375,7 +1376,6 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHisotry | null;
 };
 
 /**
@@ -2885,7 +2885,7 @@ export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 export type GetMappedTaskInstanceTryDetailsData = {
     dagId: string;
     dagRunId: string;
-    mapIndex: number | null;
+    mapIndex: number;
     taskId: string;
     taskTryNumber: number;
 };
@@ -2968,7 +2968,7 @@ export type GetHitlDetailTryData = {
     dagRunId: string;
     mapIndex: number;
     taskId: string;
-    tryNumber: number | null;
+    tryNumber: number;
 };
 
 export type GetHitlDetailTryResponse = HITLDetailHisotry;
