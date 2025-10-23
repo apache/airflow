@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.dingding.hooks.dingding import DingdingHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
