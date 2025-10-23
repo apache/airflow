@@ -160,7 +160,7 @@ class TestCloudRemoteLogIO:
                 f"Reading remote log from Cloudwatch log_group: log_group_name log_stream: {stream_name}"
             ]
             assert logs == [
-                '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}'
+                '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
 
