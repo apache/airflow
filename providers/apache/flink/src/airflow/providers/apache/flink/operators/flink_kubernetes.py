@@ -21,13 +21,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.providers.apache.flink.version_compat import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from kubernetes.client import CoreV1Api
 
-    from airflow.providers.apache.flink.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class FlinkKubernetesOperator(BaseOperator):

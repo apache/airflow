@@ -189,6 +189,9 @@ class TriggerDagRunOperator(BaseOperator):
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
+        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
+            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
             # If no logical_date is provided we will set utcnow()
@@ -218,8 +221,9 @@ class TriggerDagRunOperator(BaseOperator):
         if self.fail_when_dag_is_paused:
             dag_model = DagModel.get_current(self.trigger_dag_id)
             if dag_model.is_paused:
-                if AIRFLOW_V_3_0_PLUS:
-                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                # TODO: enable this when dag state endpoint available from task sdk
+                # if AIRFLOW_V_3_0_PLUS:
+                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
                 raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:

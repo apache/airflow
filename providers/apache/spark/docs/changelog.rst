@@ -29,6 +29,28 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Use ValueError instead of RuntimeError when resolving SparkSubmitHook connection (#56631)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Enable PT011 rule to provider tests (#56578)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 5.3.2
 .....
 
