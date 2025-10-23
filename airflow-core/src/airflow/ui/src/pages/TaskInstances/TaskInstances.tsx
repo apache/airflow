@@ -269,7 +269,7 @@ export const TaskInstances = () => {
   const hasFilteredPool = pool.length > 0;
   const hasFilteredQueue = queue.length > 0;
   const taskDisplayNamePattern= searchParams.get(NAME_PATTERN_PARAM);
-  
+
 
   const refetchInterval = useAutoRefresh({});
 

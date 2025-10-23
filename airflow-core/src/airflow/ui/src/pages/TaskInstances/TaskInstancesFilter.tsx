@@ -87,7 +87,7 @@ export const TaskInstancesFilter = ({}:{}) => {
 
   const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
 
- 
+
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
@@ -112,7 +112,7 @@ export const TaskInstancesFilter = ({}:{}) => {
 
   return (
     <VStack align="start" justifyContent="space-between">
-      
+
       <VStack alignItems="flex-start" gap={1}>
         <FilterBar
           configs={filterConfigs}
