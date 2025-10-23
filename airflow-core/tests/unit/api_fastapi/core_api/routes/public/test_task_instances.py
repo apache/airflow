@@ -36,7 +36,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
-from airflow.models.hitl import HITLDetail
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
@@ -54,9 +53,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
-
-if TYPE_CHECKING:
-    from tests_common.pytest_plugin import CreateTaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -2012,7 +2008,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": mock.ANY,
-            "hitl_detail": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2050,7 +2045,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": mock.ANY,
-            "hitl_detail": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2119,7 +2113,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "dag_version": mock.ANY,
-                "hitl_detail": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
@@ -2184,7 +2177,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": mock.ANY,
-            "hitl_detail": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -2223,77 +2215,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": mock.ANY,
-            "hitl_detail": None,
-        }
-
-    def test_should_respond_200_with_hitl(
-        self, test_client, create_task_instance: CreateTaskInstance, session
-    ):
-        ti = create_task_instance(dag_id="test_hitl_dag", task_id="sample_task_hitl")
-        ti.try_number = 1
-        session.add(ti)
-        hitl_detail = HITLDetail(
-            ti_id=ti.id,
-            options=["Approve", "Reject"],
-            subject="This is subject",
-            body="this is body",
-            defaults=["Approve"],
-            multiple=False,
-            params={"input_1": 1},
-            assignees=None,
-        )
-        session.add(hitl_detail)
-        session.commit()
-        # Record the TaskInstanceHistory
-        TaskInstanceHistory.record_ti(ti, session=session)
-        session.flush()
-
-        response = test_client.get(
-            f"/dags/{ti.dag_id}/dagRuns/{ti.run_id}/taskInstances/{ti.task_id}/tries/1",
-        )
-        assert response.status_code == 200
-        assert response.json() == {
-            "dag_id": "test_hitl_dag",
-            "dag_display_name": "test_hitl_dag",
-            "duration": None,
-            "end_date": mock.ANY,
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "operator": "EmptyOperator",
-            "operator_name": "EmptyOperator",
-            "pid": None,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 1,
-            "queue": "default",
-            "queued_when": None,
-            "scheduled_when": None,
-            "start_date": None,
-            "state": None,
-            "task_id": "sample_task_hitl",
-            "task_display_name": "sample_task_hitl",
-            "try_number": 1,
-            "unixname": getuser(),
-            "dag_run_id": "test",
-            "dag_version": mock.ANY,
-            "hitl_detail": {
-                "assigned_users": [],
-                "body": "this is body",
-                "chosen_options": None,
-                "created_at": mock.ANY,
-                "defaults": ["Approve"],
-                "multiple": False,
-                "options": ["Approve", "Reject"],
-                "params": {"input_1": {"value": 1, "description": None, "schema": {}}},
-                "params_input": {},
-                "responded_at": None,
-                "responded_by_user": None,
-                "response_received": False,
-                "subject": "This is subject",
-            },
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2373,7 +2294,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "hitl_detail": None,
         }
 
     @pytest.mark.parametrize(
@@ -2428,7 +2348,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "hitl_detail": None,
         }
 
     def test_should_not_return_duplicate_runs(self, test_client, session):
@@ -3490,7 +3409,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": mock.ANY,
-                    "hitl_detail": None,
                 },
                 {
                     "dag_id": "example_python_operator",
@@ -3519,86 +3437,9 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": mock.ANY,
-                    "hitl_detail": None,
                 },
             ],
             "total_entries": 2,
-        }
-
-    def test_should_respond_200_with_hitl(
-        self, test_client, create_task_instance: CreateTaskInstance, session
-    ):
-        ti = create_task_instance(dag_id="test_hitl_dag", task_id="sample_task_hitl")
-        ti.try_number = 1
-        session.add(ti)
-        hitl_detail = HITLDetail(
-            ti_id=ti.id,
-            options=["Approve", "Reject"],
-            subject="This is subject",
-            body="this is body",
-            defaults=["Approve"],
-            multiple=False,
-            params={"input_1": 1},
-            assignees=None,
-        )
-        session.add(hitl_detail)
-        session.commit()
-        # Record the TaskInstanceHistory
-        TaskInstanceHistory.record_ti(ti, session=session)
-        session.flush()
-
-        with assert_queries_count(3):
-            response = test_client.get(
-                f"/dags/{ti.dag_id}/dagRuns/{ti.run_id}/taskInstances/{ti.task_id}/tries",
-            )
-        assert response.status_code == 200
-        assert response.json() == {
-            "task_instances": [
-                {
-                    "dag_id": "test_hitl_dag",
-                    "dag_display_name": "test_hitl_dag",
-                    "duration": None,
-                    "end_date": mock.ANY,
-                    "executor": None,
-                    "executor_config": "{}",
-                    "hostname": "",
-                    "map_index": -1,
-                    "max_tries": 0,
-                    "operator": "EmptyOperator",
-                    "operator_name": "EmptyOperator",
-                    "pid": None,
-                    "pool": "default_pool",
-                    "pool_slots": 1,
-                    "priority_weight": 1,
-                    "queue": "default",
-                    "queued_when": None,
-                    "scheduled_when": None,
-                    "start_date": None,
-                    "state": None,
-                    "task_id": "sample_task_hitl",
-                    "task_display_name": "sample_task_hitl",
-                    "try_number": 1,
-                    "unixname": getuser(),
-                    "dag_run_id": "test",
-                    "dag_version": mock.ANY,
-                    "hitl_detail": {
-                        "assigned_users": [],
-                        "body": "this is body",
-                        "chosen_options": None,
-                        "created_at": mock.ANY,
-                        "defaults": ["Approve"],
-                        "multiple": False,
-                        "options": ["Approve", "Reject"],
-                        "params": {"input_1": {"value": 1, "description": None, "schema": {}}},
-                        "params_input": {},
-                        "responded_at": None,
-                        "responded_by_user": None,
-                        "response_received": False,
-                        "subject": "This is subject",
-                    },
-                },
-            ],
-            "total_entries": 1,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -3657,7 +3498,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": mock.ANY,
-                    "hitl_detail": None,
                 },
             ],
             "total_entries": 1,
@@ -3731,7 +3571,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": mock.ANY,
-                        "hitl_detail": None,
                     },
                     {
                         "dag_id": "example_python_operator",
@@ -3760,7 +3599,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": mock.ANY,
-                        "hitl_detail": None,
                     },
                 ],
                 "total_entries": 2,
@@ -3832,7 +3670,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "hitl_detail": None,
         }
 
     @pytest.mark.parametrize(
@@ -3888,7 +3725,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "hitl_detail": None,
         }
 
 

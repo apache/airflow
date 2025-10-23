@@ -3863,7 +3863,7 @@ export const $HITLDetailCollection = {
     description: 'Schema for a collection of Human-in-the-loop details.'
 } as const;
 
-export const $HITLDetailHistory = {
+export const $HITLDetailHisotry = {
     properties: {
         options: {
             items: {
@@ -3975,13 +3975,8 @@ export const $HITLDetailHistory = {
         }
     },
     type: 'object',
-<<<<<<< HEAD
-    required: ['options', 'subject', 'created_at'],
-    title: 'HITLDetailHistory',
-=======
     required: ['options', 'subject', 'created_at', 'task_instance'],
     title: 'HITLDetailHisotry',
->>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 
@@ -5254,19 +5249,6 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
-<<<<<<< HEAD
-        },
-        hitl_detail: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/HITLDetailHistory'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-=======
->>>>>>> accf09b17d (fix(hitl): remove hitl from task_instance_history but create a separate hitl_try endpoint instead)
         }
     },
     type: 'object',

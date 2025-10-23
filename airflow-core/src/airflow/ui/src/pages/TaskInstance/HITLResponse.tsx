@@ -21,15 +21,15 @@ import { useParams } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 
 import {
-  useTaskInstanceServiceGetHitlDetailTry,
+  useTaskInstanceServiceGetHitlDetailTryDetail,
   useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
-import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
@@ -65,7 +65,7 @@ export const HITLResponse = () => {
 
   const tryNumber = tryNumberParam === null ? -1 : parseInt(tryNumberParam, 10);
 
-  const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTry(
+  const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTryDetail(
     {
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
@@ -76,15 +76,7 @@ export const HITLResponse = () => {
     undefined,
   );
 
-  if (!taskInstance) {
-    return (
-      <Box flexGrow={1}>
-        <ProgressBar />
-      </Box>
-    );
-  }
-
-  if (!hitlDetail) {
+  if (!taskInstance || !hitlDetail) {
     return (
       <Box flexGrow={1}>
         <ProgressBar />
