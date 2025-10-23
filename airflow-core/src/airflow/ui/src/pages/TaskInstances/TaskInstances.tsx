@@ -219,6 +219,7 @@ const taskInstanceColumns = ({
   },
 ];
 
+//filter for operator_name, since the frontend show operator_name, instead of operator for user
 const filterTaskInstances = ({
   instances,
   operatorNames,
@@ -288,7 +289,7 @@ export const TaskInstances = () => {
       orderBy,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      queue: hasFilteredPool ? queue : undefined,
+      queue: hasFilteredQueue ? queue : undefined,
       pool: hasFilteredPool ? pool : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
