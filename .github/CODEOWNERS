@@ -52,8 +52,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @vict
 airflow-core/src/airflow/ui/public/i18n/locales/th/ @potiuk # + @zkan @blackbass64 @lifnaja @Aphinan-Th @chonla @Srabasti
 airflow-core/src/airflow/ui/public/i18n/locales/tr/ @bugraoz93 # +@hasancatalgol
 airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/ @potiuk # + @Fortytwoo @gyli
-airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 # + @RoyLee1224 @guan404ming
-
+airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan404ming # + @RoyLee1224
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
