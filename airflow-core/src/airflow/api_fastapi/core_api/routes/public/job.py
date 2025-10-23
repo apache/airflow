@@ -124,7 +124,7 @@ def get_jobs(
         session=session,
         return_total_entries=True,
     )
-    jobs = session.scalars(jobs_select)
+    jobs = session.scalars(jobs_select).all()
 
     if is_alive is not None:
         jobs = [job for job in jobs if job.is_alive()]

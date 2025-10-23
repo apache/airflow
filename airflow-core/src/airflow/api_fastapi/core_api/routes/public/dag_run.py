@@ -27,7 +27,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import ColumnElement
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -206,13 +205,14 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
+            dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
                 dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
                 dag_run.dag_run_note.user_id = user.get_id()
 
-    # dag_run is already available from the query at line 167
+    dag_run = session.get(DagRun, dag_run.id)
 
     return dag_run
 
@@ -290,7 +290,7 @@ def clear_dag_run(
         )
 
         return TaskInstanceCollectionResponse(
-            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
+            task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
     if not dag:
@@ -303,11 +303,6 @@ def clear_dag_run(
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-    if dag_run_cleared is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"DagRun with id: `{dag_run.id}` was not found after clearing",
-        )
     return dag_run_cleared
 
 
@@ -403,7 +398,7 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = session.scalars(dag_run_select).all()
+    dag_runs = session.scalars(dag_run_select)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
@@ -588,9 +583,7 @@ def get_list_dag_runs_batch(
         ),
         attribute=DagRun.duration,
     )
-    conf_contains = FilterParam(
-        DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS
-    )
+    conf_contains = FilterParam(DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS)
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
@@ -633,7 +626,7 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = session.scalars(dag_runs_select).all()
+    dag_runs = session.scalars(dag_runs_select)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,

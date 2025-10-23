@@ -68,8 +68,7 @@ def delete_pool(
     if pool_name == "default_pool":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
-    result = session.execute(delete(Pool).where(Pool.pool == pool_name))
-    affected_count = getattr(result, "rowcount", 0)
+    affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
 
     if affected_count == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
