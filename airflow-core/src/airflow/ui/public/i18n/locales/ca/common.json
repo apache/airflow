@@ -40,7 +40,7 @@
     "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
     "lastExpired": "Últim caducat",
     "lastParseDuration": "Duració de l'últim anàlisi",
-    "lastParsed": "Últim anàlitzat",
+    "lastParsed": "Últim analitzat",
     "latestDagVersion": "Última versió del Dag",
     "latestRun": "Última execució",
     "maxActiveRuns": "Màxim d'execucions actives",
@@ -78,6 +78,11 @@
     "githubRepo": "Repositori de GitHub",
     "restApiReference": "Referència de l'API REST"
   },
+  "download": {
+    "download": "Descarregar",
+    "hotkey": "d",
+    "tooltip": "Prem {{hotkey}} per a descarregar els registres"
+  },
   "duration": "Duració",
   "endDate": "Data de finalització",
   "error": {
@@ -101,6 +106,8 @@
   },
   "filter": "Filtre",
   "filters": {
+    "durationFrom": "Duració Des de",
+    "durationTo": "Duració Fins a",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
     "runAfterFrom": "Executar Després de",

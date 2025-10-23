@@ -24,10 +24,10 @@ import json
 import math
 import time
 from collections.abc import Callable, Generator, Iterable
-from contextlib import closing, suppress
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 import tenacity
@@ -40,6 +40,13 @@ from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_completed,
+    container_is_running,
+    container_is_terminated,
+    container_is_wait,
+    get_container_status,
+)
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -48,7 +55,6 @@ if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_state import V1ContainerState
     from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
-    from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_object_reference import V1ObjectReference
     from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
@@ -87,131 +93,6 @@ class PodPhase:
     SUCCEEDED = "Succeeded"
 
     terminal_states = {FAILED, SUCCEEDED}
-
-
-class PodOperatorHookProtocol(Protocol):
-    """
-    Protocol to define methods relied upon by KubernetesPodOperator.
-
-    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
-    hooks that don't extend KubernetesHook.  We use this protocol to document the
-    methods used by KPO and ensure that these methods exist on such other hooks.
-    """
-
-    @property
-    def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated client object."""
-
-    @property
-    def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
-
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Read pod object from kubernetes API."""
-
-    def get_namespace(self) -> str | None:
-        """Return the namespace that defined in the connection."""
-
-    def get_xcom_sidecar_container_image(self) -> str | None:
-        """Return the xcom sidecar image that defined in the connection."""
-
-    def get_xcom_sidecar_container_resources(self) -> str | None:
-        """Return the xcom sidecar resources that defined in the connection."""
-
-
-def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
-    """Retrieve container status."""
-    if pod and pod.status:
-        container_statuses = []
-        if pod.status.container_statuses:
-            container_statuses.extend(pod.status.container_statuses)
-        if pod.status.init_container_statuses:
-            container_statuses.extend(pod.status.init_container_statuses)
-
-    else:
-        container_statuses = None
-
-    if container_statuses:
-        # In general the variable container_statuses can store multiple items matching different containers.
-        # The following generator expression yields all items that have name equal to the container_name.
-        # The function next() here calls the generator to get only the first value. If there's nothing found
-        # then None is returned.
-        return next((x for x in container_statuses if x.name == container_name), None)
-    return None
-
-
-def container_is_running(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is running.
-
-    If that container is present and running, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.running is not None
-
-
-def container_is_completed(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is completed.
-
-    If that container is present and completed, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.terminated is not None
-
-
-def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
-
-    If that container is present and completed and succeeded, returns True.  Returns False otherwise.
-    """
-    if not container_is_completed(pod, container_name):
-        return False
-
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.terminated.exit_code == 0
-
-
-def container_is_wait(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is waiting.
-
-    If that container is present and waiting, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-
-    return container_status.state.waiting is not None
-
-
-def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is terminated.
-
-    If that container is present and terminated, returns True.  Returns False otherwise.
-    """
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
-        return False
-    container_status = next((x for x in container_statuses if x.name == container_name), None)
-    if not container_status:
-        return False
-    return container_status.state.terminated is not None
-
-
-def get_container_termination_message(pod: V1Pod, container_name: str):
-    with suppress(AttributeError, TypeError):
-        container_statuses = pod.status.container_statuses
-        container_status = next((x for x in container_statuses if x.name == container_name), None)
-        return container_status.state.terminated.message if container_status else None
 
 
 def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):

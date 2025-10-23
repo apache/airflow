@@ -78,7 +78,7 @@ apache-airflow-providers-presto package
 `Presto <https://prestodb.io/>`__
 
 
-Release: 5.9.2
+Release: 5.9.3
 
 Provider package
 ----------------
@@ -134,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-presto 5.9.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-presto 5.9.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-presto 5.9.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-presto 5.9.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl.sha512>`__)

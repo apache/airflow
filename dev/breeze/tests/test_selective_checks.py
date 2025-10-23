@@ -627,7 +627,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql google "
                     "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -650,7 +650,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.sql,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -670,7 +670,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -691,7 +691,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -702,18 +702,21 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
-                                "description": "atlassian.jir...dbt.cloud",
-                                "test_types": "Providers[atlassian.jira] Providers[dbt.cloud]",
+                                "description": "atlassian.jir...common.compat",
+                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
                             },
                             {
-                                "description": "dingding...discord",
-                                "test_types": "Providers[dingding] Providers[discord]",
+                                "description": "dbt.cloud...dingding",
+                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
                             },
                             {
-                                "description": "google...http",
-                                "test_types": "Providers[google] Providers[http]",
+                                "description": "discord...google",
+                                "test_types": "Providers[discord] Providers[google]",
                             },
-                            {"description": "pagerduty", "test_types": "Providers[pagerduty]"},
+                            {
+                                "description": "http...pagerduty",
+                                "test_types": "Providers[http] Providers[pagerduty]",
+                            },
                         ]
                     ),
                     "run-mypy": "true",
@@ -731,7 +734,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/airbyte/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "airbyte",
+                    "selected-providers-list-as-string": "airbyte common.compat",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -749,7 +752,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [{"description": "Always", "test_types": "Always"}]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                        [
+                            {
+                                "description": "airbyte,common.compat",
+                                "test_types": "Providers[airbyte,common.compat]",
+                            }
+                        ]
                     ),
                 },
                 id="Helm tests, airbyte providers, kubernetes tests and "
@@ -857,7 +865,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/airbyte/tests/airbyte/__init__.py",),
             {
-                "selected-providers-list-as-string": "airbyte",
+                "selected-providers-list-as-string": "airbyte common.compat",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -875,7 +883,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [{"description": "Always", "test_types": "Always"}]
                 ),
                 "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                    [
+                        {
+                            "description": "airbyte,common.compat",
+                            "test_types": "Providers[airbyte,common.compat]",
+                        }
+                    ]
                 ),
                 "run-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
@@ -2125,14 +2138,14 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst",),
             {
-                "docs-list-as-string": "airbyte",
+                "docs-list-as-string": "airbyte common.compat",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte",
+                "docs-list-as-string": "apache-airflow airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -2143,7 +2156,7 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),

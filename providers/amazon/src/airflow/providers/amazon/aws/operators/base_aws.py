@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.utils.mixins import (
     AwsHookType,
     aws_template_fields,
 )
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.utils.types import NOTSET, ArgNotSet
 
 
