@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFin
 if TYPE_CHECKING:
     from google.api_core import operation
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):

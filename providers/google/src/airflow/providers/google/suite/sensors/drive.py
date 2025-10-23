@@ -26,7 +26,7 @@ from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GoogleDriveFileExistenceSensor(BaseSensorOperator):

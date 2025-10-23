@@ -21,8 +21,8 @@ import tempfile
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.version_compat import BaseOperator
 
 try:
     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -32,7 +32,7 @@ except ModuleNotFoundError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AzureBlobStorageToGCSOperator(BaseOperator):

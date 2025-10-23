@@ -57,7 +57,7 @@ except ImportError:
     from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class S3ToGCSOperator(S3ListOperator):

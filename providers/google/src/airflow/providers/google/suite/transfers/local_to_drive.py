@@ -24,11 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class LocalFilesystemToGoogleDriveOperator(BaseOperator):

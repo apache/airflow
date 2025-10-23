@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from google.api_core import operation
     from google.cloud.run_v2.types import Execution
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):

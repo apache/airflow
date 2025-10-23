@@ -23,8 +23,8 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.providers.google.version_compat import BaseOperator
 
 try:
     from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
@@ -34,7 +34,7 @@ except ModuleNotFoundError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AzureFileShareToGCSOperator(BaseOperator):

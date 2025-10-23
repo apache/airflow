@@ -19,8 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-from airflow.providers.google.version_compat import BaseOperator
 
 
 class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):

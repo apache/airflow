@@ -23,7 +23,7 @@ from typing import Any
 
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.providers.google.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 
 class GoogleCloudBaseOperator(BaseOperator):
