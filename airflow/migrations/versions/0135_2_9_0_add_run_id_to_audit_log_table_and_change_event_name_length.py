@@ -58,9 +58,11 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("log") as batch_op:
+            batch_op.execute(sa.text("UPDATE log SET event = '' WHERE event IS NULL"))
             batch_op.drop_index("idx_log_event")
             batch_op.alter_column("event", type_=sa.String(30), nullable=False)
             batch_op.create_index("idx_log_event", ["event"])
     else:
         with op.batch_alter_table("log") as batch_op:
+            batch_op.execute(sa.text("UPDATE log SET event = '' WHERE event IS NULL"))
             batch_op.alter_column("event", type_=sa.String(30), nullable=False)
