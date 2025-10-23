@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.yandex.version_compat import BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.yandex.version_compat import BaseOperator, Context
+    from airflow.providers.common.compat.sdk import BaseOperator, Context
 
 XCOM_WEBLINK_KEY = "web_link"
 
