@@ -27,9 +27,9 @@ import {
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
-import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
