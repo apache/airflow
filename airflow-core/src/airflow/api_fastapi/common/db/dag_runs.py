@@ -17,10 +17,7 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from sqlalchemy import func, select
-from sqlalchemy.sql import ColumnElement
 
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
@@ -29,8 +26,8 @@ dagruns_select_with_state_count = (
     select(
         DagRun.dag_id,
         DagRun.state,
-        cast("ColumnElement", DagModel.dag_display_name),
-        func.count(DagRun.state).label("count"),
+        DagModel.dag_display_name,
+        func.count(DagRun.state),
     )
     .join(DagModel, DagRun.dag_id == DagModel.dag_id)
     .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
