@@ -47,5 +47,5 @@ repos:
         name: Prevent deprecated sqlalchemy usage
         entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
         language: python
-        files: ^providers/fab/.*\.py$
+        files: ^.*\.py$
         pass_filenames: true
