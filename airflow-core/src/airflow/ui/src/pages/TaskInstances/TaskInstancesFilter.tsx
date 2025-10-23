@@ -49,7 +49,7 @@ const {
 
 
 
-export const TaskInstancesFilter = ({}:{}) => {
+export const TaskInstancesFilter = () => {
   const {dagId, runId } = useParams();
   const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [

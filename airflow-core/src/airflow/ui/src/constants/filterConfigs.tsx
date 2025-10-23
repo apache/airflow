@@ -153,6 +153,12 @@ export const useFilterConfigs = () => {
       min: -1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.OPERATOR]: {
       hotkeyDisabled: true,
       icon: <MdBuild />,
@@ -263,12 +269,6 @@ export const useFilterConfigs = () => {
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TASK_ID_PATTERN]: {
-      hotkeyDisabled: true,
-      icon: <TaskIcon />,
-      label: translate("common:taskId"),
-      type: FilterTypes.TEXT,
-    },
-    [SearchParamsKeys.NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
       label: translate("common:taskId"),
