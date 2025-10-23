@@ -40,9 +40,9 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|
-          ^providers/fab/src/airflow/providers/fab/migrations/versions|
-          ^providers/fab/src/airflow/providers/fab/auth_manager/models/db\.py$
+          ^src/airflow/providers/fab/migrations/versions/.*$|
+          ^src/airflow/providers/fab/migrations/versions|
+          ^src/airflow/providers/fab/auth_manager/models/db\.py$
       - id: prevent-deprecated-sqlalchemy-usage-fab
         name: Prevent deprecated sqlalchemy usage
         entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
