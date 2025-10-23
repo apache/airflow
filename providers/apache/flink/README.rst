@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-flink``
 
-Release: ``1.7.2``
+Release: ``1.7.3``
 
 
 `Apache Flink <https://flink.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.flink`` provider. All classes for this p
 are in ``airflow.providers.apache.flink`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.3/>`_.
 
 Installation
 ------------
@@ -77,5 +77,14 @@ Dependent package                                                               
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
 ======================================================================================================================  ===================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.3/changelog.html>`_.

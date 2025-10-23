@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce generic Callbacks to support running callbacks on executors (#54796)``
+* ``Add revoke_task implementation to EdgeExecutor for task queued timeout support (#56240)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix/remove airflow utils deprecations in edge (#56568)``
+* ``Fix Edge3 provider navigation with webserver base_url configuration (#56189)``
+
+Misc
+~~~~
+
+* ``Migrate edge3 provider to ''common.compat'' (#56998)``
+* ``SQLA2: Partially fix type hints in the edge3 provider (#56873)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Revise details of edge documentation after Airflow 3.1 release (#56166)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
+   * ``Enable PT011 rule to prvoider tests (#56277)``
+
 1.3.1
 .....
 
