@@ -31,7 +31,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse, BackfillResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
@@ -71,7 +71,10 @@ def list_backfills_ui(
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
+    backfills = [
+        BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row
+        for row in session.scalars(select_stmt)
+    ]
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,

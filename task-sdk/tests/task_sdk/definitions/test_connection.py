@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 
@@ -265,7 +265,7 @@ class TestConnectionsFromSecrets:
         mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")
 
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        assert len(backends) == 2
+        assert len(backends) == 3
         backend_classes = [backend.__class__.__name__ for backend in backends]
         assert "LocalFilesystemBackend" in backend_classes
 

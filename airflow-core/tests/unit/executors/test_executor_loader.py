@@ -239,7 +239,7 @@ class TestExecutorLoader:
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
             mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
         ):
-            with conf_vars({("core", "executor"): executor_config}):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
 
@@ -391,10 +391,11 @@ class TestExecutorLoader:
     def test_get_executor_names_set_module_variables(self):
         with conf_vars(
             {
+                ("core", "multi_team"): "True",
                 (
                     "core",
                     "executor",
-                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor"
+                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor",
             }
         ):
             celery_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
@@ -488,7 +489,7 @@ class TestExecutorLoader:
     def test_duplicate_team_names_should_fail(self, executor_config):
         """Test that duplicate team names in executor configuration raise an exception."""
         with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
-            with conf_vars({("core", "executor"): executor_config}):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 with pytest.raises(
                     AirflowConfigException,
                     match=r"Team '.+' appears more than once in executor configuration",
@@ -529,7 +530,7 @@ class TestExecutorLoader:
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
             mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
         ):
-            with conf_vars({("core", "executor"): executor_config}):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 configs = executor_loader.ExecutorLoader._get_team_executor_configs()
                 assert configs == expected_configs
 
@@ -586,7 +587,10 @@ class TestExecutorLoader:
             mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
         ):
             with conf_vars(
-                {("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor"}
+                {
+                    ("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
+                    ("core", "multi_team"): "True",
+                }
             ):
                 configs = executor_loader.ExecutorLoader._get_team_executor_configs()
 
@@ -608,7 +612,8 @@ class TestExecutorLoader:
                     (
                         "core",
                         "executor",
-                    ): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor;team_c=KubernetesExecutor"
+                    ): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor;team_c=KubernetesExecutor",
+                    ("core", "multi_team"): "True",
                 }
             ):
                 with pytest.raises(AirflowConfigException):

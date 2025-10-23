@@ -106,9 +106,8 @@ class TestBatchWaiters:
         assert waiters == ["JobComplete", "JobExists", "JobRunning"]
 
         # test errors when requesting a waiter with the wrong name
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Waiter does not exist: JobExist"):
             model.get_waiter("JobExist")
-        assert "Waiter does not exist: JobExist" in str(ctx.value)
 
         # test some default waiter properties
         waiter = model.get_waiter("JobExists")

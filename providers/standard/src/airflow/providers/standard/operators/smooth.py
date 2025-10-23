@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from airflow.providers.standard.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SmoothOperator(BaseOperator):

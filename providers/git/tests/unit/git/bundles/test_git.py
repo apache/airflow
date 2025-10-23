@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 import pytest
 from git import Repo
-from git.exc import GitCommandError, NoSuchPathError
+from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.exceptions import AirflowException
@@ -653,7 +653,7 @@ class TestGitDagBundle:
             mock_clone.side_effect = GitCommandError("clone", "Simulated error")
             bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
             with pytest.raises(
-                AirflowException,
+                RuntimeError,
                 match=re.escape("Error cloning repository"),
             ):
                 bundle.initialize()
@@ -745,3 +745,65 @@ class TestGitDagBundle:
             bundle._clone_bare_repo_if_required()
             _, kwargs = mock_gitRepo.clone_from.call_args
             assert kwargs["env"] == EXPECTED_ENV
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    def test_clone_bare_repo_invalid_repository_error_retry(self, mock_exists, mock_rmtree, mock_githook):
+        """Test that InvalidGitRepositoryError triggers cleanup and retry."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        # Set up exists to return True for the bare repo path (simulating corrupted repo exists)
+        mock_exists.return_value = True
+
+        with mock.patch("airflow.providers.git.bundles.git.Repo") as mock_repo_class:
+            # First call to Repo() raises InvalidGitRepositoryError, second call succeeds
+            mock_repo_class.side_effect = [
+                InvalidGitRepositoryError("Invalid git repository"),
+                mock.MagicMock(),  # Second attempt succeeds
+            ]
+
+            # Mock successful clone_from for the retry attempt
+            mock_repo_class.clone_from = mock.MagicMock()
+
+            bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
+
+            # This should not raise an exception due to retry logic
+            bundle._clone_bare_repo_if_required()
+
+            # Verify cleanup was called
+            mock_rmtree.assert_called_once_with(bundle.bare_repo_path)
+
+            # Verify Repo was called twice (failed attempt + retry)
+            assert mock_repo_class.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    def test_clone_bare_repo_invalid_repository_error_retry_fails(
+        self, mock_exists, mock_rmtree, mock_githook
+    ):
+        """Test that InvalidGitRepositoryError after retry is re-raised (wrapped in AirflowException by caller)."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        # Set up exists to return True for the bare repo path
+        mock_exists.return_value = True
+
+        with mock.patch("airflow.providers.git.bundles.git.Repo") as mock_repo_class:
+            # Both calls to Repo() raise InvalidGitRepositoryError
+            mock_repo_class.side_effect = InvalidGitRepositoryError("Invalid git repository")
+
+            bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
+
+            # The raw exception is raised by the method itself, but wrapped by _initialize
+            with pytest.raises(InvalidGitRepositoryError, match="Invalid git repository"):
+                bundle._clone_bare_repo_if_required()
+
+            # Verify cleanup was called twice (once for each failed attempt)
+            assert mock_rmtree.call_count == 2
+            mock_rmtree.assert_called_with(bundle.bare_repo_path)
+
+            # Verify Repo was called twice (failed attempt + failed retry)
+            assert mock_repo_class.call_count == 2

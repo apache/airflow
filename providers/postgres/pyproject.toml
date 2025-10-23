@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-postgres"
-version = "6.3.0"
+version = "6.4.0"
 description = "Provider package apache-airflow-providers-postgres for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -58,6 +58,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
+    "apache-airflow-providers-common-compat>=1.8.0",
     "apache-airflow-providers-common-sql>=1.23.0",
     "psycopg2-binary>=2.9.9; python_version < '3.13'",
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
@@ -69,6 +70,9 @@ dependencies = [
 [project.optional-dependencies]
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
+]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure"
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
@@ -90,7 +94,9 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
@@ -124,8 +130,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.4.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.4.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

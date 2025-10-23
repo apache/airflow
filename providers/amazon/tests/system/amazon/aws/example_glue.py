@@ -34,16 +34,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, chain, task
-else:
-    # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
-    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+from airflow.providers.common.compat.sdk import DAG, chain, task
 
 try:
     from airflow.sdk import TriggerRule

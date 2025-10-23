@@ -428,7 +428,9 @@ class TestRedshiftToS3Transfer:
             dag=None,
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="Please specify either a table or `select_query` to fetch the data."
+        ):
             op.execute(None)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])

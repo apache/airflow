@@ -491,7 +491,7 @@ class TestS3KeysUnchangedSensor:
         )
 
     def test_reschedule_mode_not_allowed(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             S3KeysUnchangedSensor(
                 task_id="sensor_2",
                 bucket_name="test-bucket",

@@ -66,7 +66,7 @@ class _AssetMainOperator(PythonOperator):
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
-            definition_name=definition._function.__name__,
+            definition_name=definition.name,
         )
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
@@ -137,6 +137,7 @@ class MultiAssetDefinition(BaseAsset):
     :meta private:
     """
 
+    name: str
     _function: Callable
     _source: asset.multi
 
@@ -231,7 +232,7 @@ class asset(_DAGFactory):
                 raise ValueError("nested function not supported")
             if not self.outlets:
                 raise ValueError("no outlets provided")
-            return MultiAssetDefinition(function=f, source=self)
+            return MultiAssetDefinition(function=f, source=self, name=f.__name__)
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if f.__name__ != f.__qualname__:

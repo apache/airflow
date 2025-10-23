@@ -131,6 +131,26 @@ try:
                 "openlineage/CloudStorageTransferRunFacet.json"
             )
 
+    @define
+    class DataFusionRunFacet(RunFacet):
+        """
+        Facet that represents relevant details of a Cloud Data Fusion pipeline run.
+
+        :param runId: The pipeline execution id.
+        :param runtimeArgs: Runtime arguments passed to the pipeline.
+        """
+
+        runId: str | None = field(default=None)
+        runtimeArgs: dict[str, str] | None = field(default=None)
+
+        @staticmethod
+        def _get_schema() -> str:
+            return (
+                "https://raw.githubusercontent.com/apache/airflow/"
+                f"providers-google/{provider_version}/airflow/providers/google/"
+                "openlineage/DataFusionRunFacet.json"
+            )
+
 except ImportError:  # OpenLineage is not available
 
     def create_no_op(*_, **__) -> None:
@@ -145,3 +165,4 @@ except ImportError:  # OpenLineage is not available
     BigQueryJobRunFacet = create_no_op  # type: ignore[misc, assignment]
     CloudStorageTransferJobFacet = create_no_op  # type: ignore[misc, assignment]
     CloudStorageTransferRunFacet = create_no_op  # type: ignore[misc, assignment]
+    DataFusionRunFacet = create_no_op  # type: ignore[misc, assignment]

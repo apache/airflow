@@ -69,7 +69,7 @@ apache-airflow-providers-pagerduty package
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 5.0.2
+Release: 5.1.0
 
 Provider package
 ----------------
@@ -93,7 +93,8 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-http``
 ``pagerduty``                               ``>=2.3.0``
 ==========================================  ==================
 
@@ -114,6 +115,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                   Extra
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
 ==================================================================================================================  =================
 
 Downloading official packages
@@ -122,5 +124,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-pagerduty 5.0.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-pagerduty 5.0.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.0.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-pagerduty 5.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-pagerduty 5.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pagerduty-5.1.0-py3-none-any.whl.sha512>`__)

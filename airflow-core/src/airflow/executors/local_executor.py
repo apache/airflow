@@ -150,8 +150,8 @@ class LocalExecutor(BaseExecutor):
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
-    def __init__(self, parallelism: int = PARALLELISM):
-        super().__init__(parallelism=parallelism)
+    def __init__(self, parallelism: int = PARALLELISM, **kwargs) -> None:
+        super().__init__(parallelism=parallelism, **kwargs)
         if self.parallelism < 0:
             raise ValueError("parallelism must be greater than or equal to 0")
 

@@ -3050,7 +3050,7 @@ dags:
     # sshKeySecret: airflow-ssh-secret
     #
     # Or set sshKeySecret with your key
-    # sshKey: |-
+    # sshKey: |
     #   -----BEGIN {OPENSSH PRIVATE KEY}-----
     #   ...
     #   -----END {OPENSSH PRIVATE KEY}-----

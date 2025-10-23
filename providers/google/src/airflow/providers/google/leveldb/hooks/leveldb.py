@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.providers.google.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 try:
     import plyvel

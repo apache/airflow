@@ -22,7 +22,6 @@ from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.storage import S3
 from diagrams.custom import Custom
 from diagrams.onprem.client import User, Users
-from diagrams.onprem.network import Apache
 from rich.console import Console
 
 MY_DIR = Path(__file__).parent
@@ -32,6 +31,7 @@ MY_FILENAME = Path(__file__).with_suffix("").name
 console = Console(width=400, color_system="standard")
 
 GITHUB_LOGO = MY_DIR / "logos" / "github.png"
+ASF_LOGO = MY_DIR / "logos" / "asf_logo_wide.png"
 
 graph_attr = {
     "concentrate": "false",
@@ -85,7 +85,7 @@ def generate_documentation_architecture_diagram():
         with Cluster("Live Docs", graph_attr={"margin": "80"}):
             live_bucket = S3("live-docs-airflow-apache-org")
             apache_airflow_site_archive_repo = Custom("apache-airflow-site-archive", GITHUB_LOGO.as_posix())
-            apache_live_webserver = Apache("https://airflow.apache.org")
+            apache_live_webserver = Custom("https://airflow.apache.org", ASF_LOGO.as_posix())
 
             release_manager >> Edge(color="black", style="solid", label="Publish package docs") >> live_bucket
             (

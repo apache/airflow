@@ -40,7 +40,7 @@ from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,6 +25,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from airflow.models import DagRun
+from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
@@ -55,7 +55,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID, DAG4_ID, DAG5_ID]:
             dag_runs_count = 5 if dag_id in [DAG1_ID, DAG2_ID] else 2
             for i in range(dag_runs_count):
-                start_date = datetime(2021 + i, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+                start_date = pendulum.datetime(2021 + i, 1, 1, 0, 0, 0, tz="UTC")
                 dag_run = DagRun(
                     dag_id=dag_id,
                     run_id=f"run_id_{i + 1}",
@@ -66,7 +66,8 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
-                dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
+                if dag_run.start_date is not None:
+                    dag_run.end_date = dag_run.start_date.add(hours=1)
                 session.add(dag_run)
         session.commit()
 
@@ -278,3 +279,38 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_dag_count
         assert len(body["dags"]) == expected_dag_count
+
+    def test_is_favorite_field_with_multiple_favorites(self, test_client, session):
+        """Test is_favorite field with multiple DAGs marked as favorites."""
+        # Mark both DAG1 and DAG2 as favorites
+        session.add(DagFavorite(user_id="test", dag_id=DAG1_ID))
+        session.add(DagFavorite(user_id="test", dag_id=DAG2_ID))
+        session.commit()
+
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Count favorites in response
+        favorite_count = sum(1 for dag in body["dags"] if dag["is_favorite"])
+        assert favorite_count == 2
+
+        # Verify specific DAGs are marked as favorites
+        dag_favorites = {dag["dag_id"]: dag["is_favorite"] for dag in body["dags"]}
+        assert dag_favorites[DAG1_ID] is True
+        assert dag_favorites[DAG2_ID] is True
+
+    def test_is_favorite_field_user_specific(self, test_client, session):
+        """Test that is_favorite field is user-specific."""
+        # Mark DAG1 as favorite for a different user
+        session.add(DagFavorite(user_id="other_user", dag_id=DAG1_ID))
+        session.commit()
+
+        # Request as the test user (not other_user)
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify that DAG1 is not marked as favorite for the test user
+        dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
+        assert dag1_data["is_favorite"] is False

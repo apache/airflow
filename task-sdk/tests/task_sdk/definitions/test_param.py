@@ -22,6 +22,7 @@ import pytest
 
 from airflow.exceptions import ParamValidationError
 from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
 
 
@@ -231,7 +232,7 @@ class TestParam:
         restored_param: Param = serializer.deserialize(serialized_param)
 
         assert restored_param.value == param.value
-        assert isinstance(restored_param, Param)
+        assert isinstance(restored_param, SerializedParam)
         assert restored_param.description == param.description
         assert restored_param.schema == param.schema
 

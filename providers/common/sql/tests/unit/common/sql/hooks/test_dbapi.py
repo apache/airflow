@@ -577,9 +577,8 @@ class TestDbApiHook:
         assert result == [obj, obj]
 
     def test_run_no_queries(self):
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_run_and_log_db_messages(self):
         statement = "SQL"

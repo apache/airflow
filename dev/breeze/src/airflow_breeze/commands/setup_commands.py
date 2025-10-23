@@ -57,7 +57,6 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     get_installation_airflow_sources,
     get_installation_sources_config_metadata_hash,
-    get_package_setup_metadata_hash,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
 )
@@ -180,9 +179,6 @@ def version():
         )
         get_console().print(
             f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
-        )
-        get_console().print(
-            f"[info]Package config hash              : {(get_package_setup_metadata_hash())}[/]\n"
         )
 
 

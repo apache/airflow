@@ -53,7 +53,7 @@ from airflow.exceptions import (
     AirflowNotFoundException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-    from airflow.providers.microsoft.azure.version_compat import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class DefaultResponseHandler(ResponseHandler):

@@ -32,7 +32,7 @@ from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
-    EmailNotificationRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
@@ -314,9 +314,9 @@ class TestDagCallbackRequestWithContext:
         assert result.context_from_server.last_ti.task_id == "test_task"
 
 
-class TestEmailNotificationRequest:
+class TestEmailRequest:
     def test_email_notification_request_serialization(self):
-        """Test EmailNotificationRequest can be serialized and used in CallbackRequest union."""
+        """Test EmailRequest can be serialized and used in CallbackRequest union."""
         ti_data = TIDataModel(
             id=str(uuid.uuid4()),
             task_id="test_task",
@@ -331,8 +331,8 @@ class TestEmailNotificationRequest:
 
         current_time = timezone.utcnow()
 
-        # Create EmailNotificationRequest
-        email_request = EmailNotificationRequest(
+        # Create EmailRequest
+        email_request = EmailRequest(
             filepath="/path/to/dag.py",
             bundle_name="test_bundle",
             bundle_version="1.0.0",
@@ -359,17 +359,17 @@ class TestEmailNotificationRequest:
 
         # Test serialization
         json_str = email_request.to_json()
-        assert "EmailNotificationRequest" in json_str
+        assert "EmailRequest" in json_str
         assert "failure" in json_str
 
         # Test deserialization
-        result = EmailNotificationRequest.from_json(json_str)
+        result = EmailRequest.from_json(json_str)
         assert result == email_request
         assert result.email_type == "failure"
         assert result.ti.task_id == "test_task"
 
     def test_callback_request_union_with_email_notification(self):
-        """Test EmailNotificationRequest works in CallbackRequest union type."""
+        """Test EmailRequest works in CallbackRequest union type."""
         ti_data = TIDataModel(
             id=str(uuid.uuid4()),
             task_id="test_task",
@@ -402,7 +402,7 @@ class TestEmailNotificationRequest:
         )
 
         email_data = {
-            "type": "EmailNotificationRequest",
+            "type": "EmailRequest",
             "filepath": "/path/to/dag.py",
             "bundle_name": "test_bundle",
             "bundle_version": "1.0.0",
@@ -416,7 +416,7 @@ class TestEmailNotificationRequest:
         adapter = TypeAdapter(CallbackRequest)
         callback_request = adapter.validate_python(email_data)
 
-        # Verify it's correctly identified as EmailNotificationRequest
-        assert isinstance(callback_request, EmailNotificationRequest)
+        # Verify it's correctly identified as EmailRequest
+        assert isinstance(callback_request, EmailRequest)
         assert callback_request.email_type == "retry"
         assert callback_request.ti.task_id == "test_task"

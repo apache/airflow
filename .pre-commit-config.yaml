@@ -305,7 +305,7 @@ repos:
           ^.*reproducible_build\.yaml$|
           ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '97be693bf18bc2f050667dd282d243e2824b81e2'  # frozen: 1.0.6
+    rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -341,7 +341,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 3c10df247c55cf21f75003105b879f145096bd4a  # frozen: v1.14.2
+    rev: 122d24ec728f140b38330ae8b04e3c5fe8b774c5  # frozen: v1.15.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -412,7 +412,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.13.3']
+        additional_dependencies: ['ruff==0.14.1']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -465,6 +465,12 @@ repos:
         entry: ./scripts/ci/prek/check_airflow_imports.py
           --pattern '^openlineage\.client\.(facet|run)'
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
+      - id: check-common-compat-sdk-imports-in-sync
+        name: Check common.compat sdk TYPE_CHECKING matches runtime maps
+        language: python
+        files: ^providers/common/compat/src/airflow/providers/common/compat/sdk\.py$
+        pass_filenames: false
+        entry: ./scripts/ci/prek/check_common_compat_lazy_imports.py
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
@@ -944,13 +950,6 @@ repos:
         entry: ./scripts/ci/prek/compile_provider_assets.py fab
         pass_filenames: false
         additional_dependencies: ['yarn@1.22.21']
-      - id: compile-edge-assets
-        name: Compile Edge provider assets
-        language: node
-        files: ^providers/edge3/.*/www/
-        entry: ./scripts/ci/prek/compile_provider_assets.py edge
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         language: node
@@ -974,13 +973,6 @@ repos:
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests\.rst$
         require_serial: true
         pass_filenames: false
-      - id: update-breeze-readme-config-hash
-        name: Update Breeze README.md with config files hash
-        language: python
-        entry: ./scripts/ci/prek/update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
-        pass_filenames: false
-        require_serial: true
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -1324,25 +1316,10 @@ repos:
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: true
         require_serial: true
-      - id: ts-compile-lint-edge-ui
-        name: Compile / format / lint edge UI
-        description: TS types generation / ESLint / Prettier new UI files in Edge Provider
-        language: node
-        files: |
-          (?x)
-          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
-          ^providers/edge3/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
-        exclude: |
-          (?x)
-          ^providers/edge3/src/airflow/providers/edge3/plugins/www/node-modules/.*|
-          ^providers/edge3/src/airflow/providers/edge3/plugins/www/.pnpm-store
-        entry: ./scripts/ci/prek/ts_compile_lint_edge.py
-        additional_dependencies: ['pnpm@9.7.1']
-        pass_filenames: true
-        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
+        stages: ['pre-push']
         name: Run mypy for dev
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1357,6 +1334,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-airflow-core
+        stages: ['pre-push']
         name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1371,6 +1349,7 @@ repos:
         files: ^airflow-core/.*\.py$
         require_serial: true
       - id: mypy-providers
+        stages: ['pre-push']
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1385,6 +1364,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-task-sdk
+        stages: ['pre-push']
         name: Run mypy for task-sdk
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1399,6 +1379,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-devel-common
+        stages: ['pre-push']
         name: Run mypy for devel-common
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1413,6 +1394,7 @@ repos:
         files: ^.*\.py$
         require_serial: true
       - id: mypy-airflow-ctl
+        stages: ['pre-push']
         name: Run mypy for airflow-ctl
         language: python
         entry: ./scripts/ci/prek/mypy.py
@@ -1440,12 +1422,6 @@ repos:
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-      - id: generate-openapi-spec-edge
-        name: Generate the FastAPI API spec for Edge
-        language: python
-        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py edge
-        pass_filenames: false
-        files: ^providers/edge3/src/airflow/providers/edge3/worker_api/.*\.py$
       - id: generate-openapi-spec-keycloak
         name: Generate the FastAPI API spec for Keycloak
         language: python
@@ -1592,6 +1568,7 @@ repos:
           ^airflow-core/src/airflow/models/__init__\.py$|
           ^airflow-core/src/airflow/models/asset\.py$|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
+          ^airflow-core/src/airflow/models/callback\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
@@ -1613,6 +1590,7 @@ repos:
           ^airflow-core/src/airflow/operators/subdag\.py$|
           ^airflow-core/src/airflow/plugins_manager\.py$|
           ^airflow-core/src/airflow/providers_manager\.py$|
+          ^airflow-core/src/airflow/secrets/__init__.py$|
           ^airflow-core/src/airflow/serialization/definitions/[_a-z]+\.py$|
           ^airflow-core/src/airflow/serialization/enums\.py$|
           ^airflow-core/src/airflow/serialization/helpers\.py$|

@@ -23,7 +23,7 @@ import tempfile
 from collections.abc import Generator
 from functools import cached_property
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import aiofiles
 import requests
@@ -39,12 +39,11 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
-from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodOperatorHookProtocol,
+from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -67,6 +66,36 @@ def _load_body_to_dict(body: str) -> dict:
     except yaml.YAMLError as e:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
+
+
+class PodOperatorHookProtocol(Protocol):
+    """
+    Protocol to define methods relied upon by KubernetesPodOperator.
+
+    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
+    hooks that don't extend KubernetesHook.  We use this protocol to document the
+    methods used by KPO and ensure that these methods exist on such other hooks.
+    """
+
+    @property
+    def core_v1_client(self) -> client.CoreV1Api:
+        """Get authenticated client object."""
+
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
+
+    def get_namespace(self) -> str | None:
+        """Return the namespace that defined in the connection."""
+
+    def get_xcom_sidecar_container_image(self) -> str | None:
+        """Return the xcom sidecar image that defined in the connection."""
+
+    def get_xcom_sidecar_container_resources(self) -> str | None:
+        """Return the xcom sidecar resources that defined in the connection."""
 
 
 class KubernetesHook(BaseHook, PodOperatorHookProtocol):
@@ -692,8 +721,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             try:
                 deployment = self.get_deployment_status(name=name, namespace=namespace)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
+                msg = "Exception occurred while checking for Deployment status."
+                self.log.exception(msg)
+                raise ValueError(msg) from e
 
             deployment_status = V1Deployment.to_dict(deployment)["status"]
             replicas = deployment_status["replicas"]

@@ -131,7 +131,7 @@ class TestS3KeysUnchangedTrigger:
         """
         Test if the S3KeysUnchangedTrigger raises Value error for negative inactivity_period.
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="inactivity_period must be non-negative"):
             S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test", inactivity_period=-100)
 
     @pytest.mark.asyncio

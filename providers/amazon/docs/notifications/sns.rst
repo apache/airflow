@@ -32,7 +32,7 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.amazon.aws.notifications.sns import send_sns_notification
 
@@ -49,7 +49,7 @@ Example Code:
         target_arn="arn:aws:sns:us-west-2:123456789098:AnotherTopicName",
     )
 
-    with Dag(
+    with DAG(
         dag_id="mydag",
         schedule="@once",
         start_date=datetime(2023, 1, 1),

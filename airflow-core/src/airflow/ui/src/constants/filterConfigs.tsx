@@ -61,11 +61,27 @@ export const useFilterConfigs = () => {
       label: translate("common:table.to"),
       type: FilterTypes.DATE,
     },
+    [SearchParamsKeys.BODY_SEARCH]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("hitl:filters.body"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.CONF_CONTAINS]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
       label: translate("common:dagRun.conf"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.CREATED_AT_GTE]: {
+      icon: <MdDateRange />,
+      label: translate("hitl:filters.createdAtFrom"),
+      type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.CREATED_AT_LTE]: {
+      icon: <MdDateRange />,
+      label: translate("hitl:filters.createdAtTo"),
+      type: FilterTypes.DATE,
     },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
@@ -133,6 +149,12 @@ export const useFilterConfigs = () => {
       label: translate("common:mapIndex"),
       min: -1,
       type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
+      hotkeyDisabled: true,
+      icon: <FiUser />,
+      label: translate("hitl:response.responded_by_user_name"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RESPONSE_RECEIVED]: {
       icon: <FiUser />,
@@ -207,6 +229,11 @@ export const useFilterConfigs = () => {
         value: option.value,
       })),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.SUBJECT_SEARCH]: {
+      icon: <MdSearch />,
+      label: translate("hitl:subject"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TASK_ID]: {
       hotkeyDisabled: true,

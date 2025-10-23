@@ -44,7 +44,6 @@ class Variable:
     value: Any | None = None
     description: str | None = None
 
-    # TODO: Extend this definition for reading/writing variables without context
     @classmethod
     def get(cls, key: str, default: Any = NOTSET, deserialize_json: bool = False):
         from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType

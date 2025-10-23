@@ -64,7 +64,8 @@ export const useAutoRefresh = ({
     },
   );
 
-  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length > 1 : true;
+  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length >= 1 : true;
+
   const paused = Boolean(dagId) ? dag?.is_paused : false;
 
   const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;

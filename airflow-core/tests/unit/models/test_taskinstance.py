@@ -22,7 +22,7 @@ import datetime
 import operator
 import os
 import pathlib
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -44,6 +44,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.hitl_history import HITLDetailHistory
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -59,6 +60,9 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.hitl import (
+    HITLBranchOperator,
+)
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk import DAG, BaseOperator, BaseSensorOperator, Metadata, task, task_group
@@ -87,6 +91,11 @@ from tests_common.test_utils import db
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
 
@@ -2686,6 +2695,40 @@ class TestTaskInstance:
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
+
+    def test_task_instance_history_with_hitl_history_is_created_when_ti_goes_for_retry(
+        self, dag_maker: DagMaker, session: Session
+    ):
+        with dag_maker(serialized=True):
+            task = HITLBranchOperator(
+                task_id="hitl_test",
+                subject="This is subject",
+                body="This is body",
+                options=["1", "2", "3", "4", "5"],
+                params={"input": 1},
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=2),
+                notifiers=[None],
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        try_id = ti.id
+        with pytest.raises(TypeError):
+            ti.run()
+        ti = session.query(TaskInstance).one()
+        # the ti.id should be different from the previous one
+        assert ti.id != try_id
+        assert ti.state == State.UP_FOR_RETRY
+        assert session.query(TaskInstance).count() == 1
+        tih = session.query(TaskInstanceHistory).all()
+        assert len(tih) == 1
+        # the new try_id should be different from what's recorded in tih
+        assert str(tih[0].task_instance_id) == try_id
+        hitl_histories = session.query(HITLDetailHistory).all()
+        assert len(hitl_histories) == 1
+        assert str(hitl_histories[0].task_instance.id) == try_id
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

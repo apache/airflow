@@ -86,6 +86,14 @@
     "taskGroup": "작업 그룹"
   },
   "limitedList": "+{{count}}개 더 보기",
+  "limitedList.allItems": "모든 {{count}}개 항목:",
+  "limitedList.allTags_one": "모든 태그 (1)",
+  "limitedList.allTags_other": "모든 태그 ({{count}})",
+  "limitedList.clickToInteract": "태그를 클릭하여 Dag를 필터링하세요",
+  "limitedList.clickToOpenFull": "\"+{{count}}개 더 보기\"를 클릭하여 전체 보기 열기",
+  "limitedList.copyPasteText": "위의 텍스트를 복사하여 붙여넣을 수 있습니다",
+  "limitedList.showingItems_one": "1개 항목 표시 중",
+  "limitedList.showingItems_other": "{{count}}개 항목 표시 중",
   "logs": {
     "file": "파일",
     "location": "{{name}}의 {{line}}번째 줄"

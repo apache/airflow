@@ -52,6 +52,7 @@ dependencies = [
     "apache-airflow-core<3.3.0,>=3.2.0",
     "asgiref>=2.3.0",
     "attrs>=24.2.0, !=25.2.0",
+    "babel>=2.17.0",
     "fsspec>=2023.10.0",
     "httpx>=0.27.0",
     "jinja2>=3.1.5",
@@ -60,11 +61,7 @@ dependencies = [
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=25.4.0",
-    "retryhttp>=1.2.0,!=1.3.0",
     "greenback>=1.2.1",
-    # Requests is known to introduce breaking changes, so we pin it to a specific range
-    "requests>=2.31.0,<3",
-    "types-requests>=2.31.0",
     "tenacity>=8.3.0",
     # Start of shared timezones dependencies
     "pendulum>=3.1.0",
@@ -154,7 +151,7 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]==0.32.0",
+    "datamodel-code-generator[http]==0.33.0",
     "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
     "rich>=13.6.0",

@@ -31,7 +31,7 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime, timezone
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.slack.notifications.slack_webhook import send_slack_webhook_notification
 
@@ -43,7 +43,7 @@ Example Code:
         text="The task {{ ti.task_id }} failed",
     )
 
-    with Dag(
+    with DAG(
         dag_id="mydag",
         schedule="@once",
         start_date=datetime(2023, 1, 1, tzinfo=timezone.utc),

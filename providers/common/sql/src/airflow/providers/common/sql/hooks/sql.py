@@ -316,7 +316,7 @@ class DbApiHook(BaseHook):
             engine_kwargs = {}
 
         try:
-            url = self.sqlalchemy_url
+            url: URL | str = self.sqlalchemy_url
         except NotImplementedError:
             url = self.get_uri()
 

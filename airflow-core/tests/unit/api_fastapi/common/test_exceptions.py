@@ -337,6 +337,9 @@ class TestDagErrorHandler:
             EmptyOperator(task_id="task_1")
 
         s_dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+        assert s_dag_model is not None
+        assert s_dag_model.data is not None
+
         data = s_dag_model.data
         del data["dag"]["dag_id"]
         session.execute(

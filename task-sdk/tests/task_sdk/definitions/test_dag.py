@@ -470,6 +470,21 @@ def test_create_dag_while_active_context():
         # No asserts needed, it just needs to not fail
 
 
+@pytest.mark.parametrize("max_active_runs", [0, 1])
+def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
+    from airflow.timetables.simple import ContinuousTimetable
+
+    dag = DAG(dag_id="continuous", schedule="@continuous", max_active_runs=max_active_runs)
+    assert isinstance(dag.timetable, ContinuousTimetable)
+    assert dag.max_active_runs == max_active_runs
+
+
+def test_continuous_schedule_interval_limits_max_active_runs_error():
+    with pytest.raises(ValueError) as ctx:
+        DAG(dag_id="continuous", schedule="@continuous", max_active_runs=2)
+    assert str(ctx.value) == "Invalid max_active_runs: ContinuousTimetable requires max_active_runs <= 1"
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",

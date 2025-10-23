@@ -68,12 +68,14 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     SerializedBaseOperator,
     SerializedDAG,
+    SerializedParam,
     XComOperatorLink,
 )
 from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
@@ -504,8 +506,6 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         with warnings.catch_warnings():
             dags, import_errors = collect_dags()
         serialized_dags = {}
@@ -1185,9 +1185,14 @@ class TestStringifiedDAGs:
 
         assert dag.params.get_param("my_param").value == param.value
         observed_param = dag.params.get_param("my_param")
-        assert isinstance(observed_param, Param)
+        assert isinstance(observed_param, SerializedParam)
         assert observed_param.description == param.description
         assert observed_param.schema == param.schema
+        assert observed_param.dump() == {
+            "value": None if param.value is NOTSET else param.value,
+            "schema": param.schema,
+            "description": param.description,
+        }
 
     @pytest.mark.parametrize(
         "val, expected_val",
@@ -2335,7 +2340,8 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None
-        assert isinstance(dag.params.get_param("none"), Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(dag.params.get_param("none"), SerializedParam)
         assert dag.params["str"] == "str"
 
     def test_params_serialization_from_dict_upgrade(self):
@@ -2361,7 +2367,8 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         param = dag.params.get_param("my_param")
-        assert isinstance(param, Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(param, SerializedParam)
         assert param.value == "str"
 
     def test_params_serialize_default_2_2_0(self):
@@ -2383,7 +2390,8 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert isinstance(dag.params.get_param("str"), Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(dag.params.get_param("str"), SerializedParam)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default(self):
@@ -2412,7 +2420,8 @@ class TestStringifiedDAGs:
 
         assert dag.params["my_param"] == "a string value"
         param = dag.params.get_param("my_param")
-        assert isinstance(param, Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(param, SerializedParam)
         assert param.description == "hello"
         assert param.schema == {"type": "string"}
 
@@ -2528,7 +2537,7 @@ class TestStringifiedDAGs:
 
 
 def test_kubernetes_optional():
-    """Serialisation / deserialisation continues to work without kubernetes installed"""
+    """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
 
     def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
         if level == 0 and name.partition(".")[0] == "kubernetes":
@@ -2555,7 +2564,8 @@ def test_kubernetes_optional():
             "__var": PodGenerator.serialize_pod(executor_config_pod),
         }
 
-        with pytest.raises(RuntimeError):
+        # we should error if attempting to deserialize POD without kubernetes installed
+        with pytest.raises(RuntimeError, match="Cannot deserialize POD objects without kubernetes"):
             module.BaseSerialization.from_dict(pod_override)
 
         # basic serialization should succeed

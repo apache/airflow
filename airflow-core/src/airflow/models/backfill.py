@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
-    Column,
     ForeignKeyConstraint,
     Integer,
     String,
@@ -40,7 +39,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import Mapped, relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
 from airflow._shared.timezones import timezone
@@ -48,7 +47,7 @@ from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -99,6 +98,17 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class UnknownActiveBackfills(AirflowException):
+    """
+    Raised when the quantity of active backfills cannot be determined.
+
+    :meta private:
+    """
+
+    def __init__(self, dag_id: str):
+        super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -116,23 +126,27 @@ class Backfill(Base):
 
     __tablename__ = "backfill"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    dag_id = Column(StringID(), nullable=False)
-    from_date = Column(UtcDateTime, nullable=False)
-    to_date = Column(UtcDateTime, nullable=False)
-    dag_run_conf = Column(JSONField(json=json), nullable=False, default={})
-    is_paused = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    from_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    to_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    dag_run_conf: Mapped[JSONField] = mapped_column(JSONField(json=json), nullable=False, default={})
+    is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
     Controls whether new dag runs will be created for this backfill.
 
     Does not pause existing dag runs.
     """
-    reprocess_behavior = Column(StringID(), nullable=False, default=ReprocessBehavior.NONE)
-    max_active_runs = Column(Integer, default=10, nullable=False)
-    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    completed_at = Column(UtcDateTime, nullable=True)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
-    triggering_user_name = Column(
+    reprocess_behavior: Mapped[str] = mapped_column(
+        StringID(), nullable=False, default=ReprocessBehavior.NONE
+    )
+    max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
+    triggering_user_name: Mapped[str | None] = mapped_column(
         String(512),
         nullable=True,
     )  # The user that triggered the Backfill, if applicable
@@ -166,12 +180,12 @@ class BackfillDagRun(Base):
     """Mapping table between backfill run and dag run."""
 
     __tablename__ = "backfill_dag_run"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    backfill_id = Column(Integer, nullable=False)
-    dag_run_id = Column(Integer, nullable=True)
-    exception_reason = Column(StringID())
-    logical_date = Column(UtcDateTime, nullable=False)
-    sort_ordinal = Column(Integer, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
     dag_run = relationship("DagRun")
@@ -469,6 +483,8 @@ def _create_backfill(
                 Backfill.completed_at.is_(None),
             )
         )
+        if num_active is None:
+            raise UnknownActiveBackfills(dag_id)
         if num_active > 0:
             raise AlreadyRunningBackfill(
                 f"Another backfill is running for dag {dag_id}. "

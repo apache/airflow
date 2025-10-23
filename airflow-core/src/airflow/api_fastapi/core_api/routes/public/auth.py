@@ -22,7 +22,6 @@ from fastapi.responses import RedirectResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import is_safe_url
-from airflow.configuration import conf
 
 auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
@@ -56,23 +55,3 @@ def logout(request: Request, next: None | str = None) -> RedirectResponse:
         logout_url = request.app.state.auth_manager.get_url_login()
 
     return RedirectResponse(logout_url)
-
-
-@auth_router.get(
-    "/refresh",
-    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
-)
-def refresh(request: Request, next: None | str = None) -> RedirectResponse:
-    """Refresh the authentication token."""
-    refresh_url = request.app.state.auth_manager.get_url_refresh()
-
-    if not refresh_url:
-        return RedirectResponse(f"{conf.get('api', 'base_url', fallback='/')}auth/logout")
-
-    if next and not is_safe_url(next, request=request):
-        raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
-
-    if next:
-        refresh_url += f"?next={next}"
-
-    return RedirectResponse(refresh_url)

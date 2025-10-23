@@ -121,6 +121,13 @@ class AirflowClient:
             run_id=resp["dag_run_id"],
         )
 
+    def get_task_logs(self, dag_id: str, run_id: str, task_id: str, try_number: int = 1):
+        """Get task logs via API."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/{try_number}",
+        )
+
 
 class TaskSDKClient:
     """Client for interacting with the Task SDK API."""

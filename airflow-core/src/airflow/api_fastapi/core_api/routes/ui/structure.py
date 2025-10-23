@@ -66,7 +66,7 @@ def structure_data(
             )
         version_number = dag_version_model.version_number
 
-    serialized_dag: SerializedDagModel = session.scalar(
+    serialized_dag: SerializedDagModel | None = session.scalar(
         select(SerializedDagModel)
         .join(DagVersion)
         .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == version_number)

@@ -253,13 +253,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date`'
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date`'
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -1686,6 +1686,9 @@ components:
             $ref: '#/components/schemas/HITLDetail'
           type: array
           title: Pending Actions
+        is_favorite:
+          type: boolean
+          title: Is Favorite
         file_token:
           type: string
           title: File Token
@@ -1721,6 +1724,7 @@ components:
       - asset_expression
       - latest_dag_runs
       - pending_actions
+      - is_favorite
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -2001,8 +2005,6 @@ components:
       description: DAG Run model for the Grid UI.
     HITLDetail:
       properties:
-        task_instance:
-          $ref: '#/components/schemas/TaskInstanceResponse'
         options:
           items:
             type: string
@@ -2066,12 +2068,14 @@ components:
           type: boolean
           title: Response Received
           default: false
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
       type: object
       required:
-      - task_instance
       - options
       - subject
       - created_at
+      - task_instance
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLUser:

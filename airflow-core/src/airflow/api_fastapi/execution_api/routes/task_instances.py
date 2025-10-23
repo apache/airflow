@@ -59,6 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
@@ -416,8 +417,16 @@ def ti_update_state(
 
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
     dr = ti.dag_run
+
+    # Check fail_fast from DagModel (simple column lookup) - early exit if False
+    # This avoids loading 5-50 MB SerializedDAG in 99% of cases
+    fail_fast = session.scalar(select(DagModel.fail_fast).where(DagModel.dag_id == dag_id))
+    if not fail_fast:
+        return
+
+    # Only load SerializedDAG when fail_fast=True (rare case ~1%)
     ser_dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
-    if ser_dag and getattr(ser_dag, "fail_fast", False):
+    if ser_dag:
         task_dict = getattr(ser_dag, "task_dict")
         task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
         _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
@@ -437,7 +446,7 @@ def _create_ti_state_update_query_and_update_state(
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=updated_state)
+        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
 
         if updated_state == TerminalTIState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload

@@ -53,6 +53,7 @@ PLURAL_SUFFIXES = {
     "ar": ["_zero", "_one", "_two", "_few", "_many", "_other"],
     "ca": MOST_COMMON_PLURAL_SUFFIXES,
     "de": MOST_COMMON_PLURAL_SUFFIXES,
+    "el": MOST_COMMON_PLURAL_SUFFIXES,
     "en": MOST_COMMON_PLURAL_SUFFIXES,
     "es": ["_one", "_many", "_other"],
     "fr": ["_one", "_many", "_other"],
@@ -64,6 +65,7 @@ PLURAL_SUFFIXES = {
     "nl": MOST_COMMON_PLURAL_SUFFIXES,
     "pl": ["_one", "_few", "_many", "_other"],
     "pt": ["_zero", "_one", "_many", "_other"],
+    "th": ["_other"],
     "tr": MOST_COMMON_PLURAL_SUFFIXES,
     "zh-CN": ["_other"],
     "zh-TW": ["_other"],
@@ -454,20 +456,53 @@ def print_translation_progress(console, locale_files, missing_counts, summary):
     "--add-missing",
     is_flag=True,
     default=False,
-    help="Add missing translations for the selected language, prefixed with 'TODO: translate:'.",
+    help="Add missing translations for all languages except English, prefixed with 'TODO: translate:'.",
 )
-def cli(language: str | None = None, add_missing: bool = False):
-    if add_missing:
-        if not language:
-            raise ValueError("--language is required when passing --add_missing")
-        locale_path = LOCALES_DIR / language
-        locale_path.mkdir(exist_ok=True)
+@click.option(
+    "--remove-extra",
+    is_flag=True,
+    default=False,
+    help="Remove extra translations that are present in the language but missing in English.",
+)
+def cli(language: str | None = None, add_missing: bool = False, remove_extra: bool = False):
     locale_files = get_locale_files()
     console = Console(force_terminal=True, color_system="auto")
     print_locale_file_table(locale_files, console, language)
     found_difference = print_file_set_differences(locale_files, console, language)
     summary, missing_counts = compare_keys(locale_files, console)
     console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
+    if add_missing and language != "en":
+        # Loop through all languages except 'en' and add missing translations
+        if language:
+            language_files = [lf for lf in locale_files if lf.locale == language]
+        else:
+            language_files = [lf for lf in locale_files if lf.locale != "en"]
+        for lf in language_files:
+            filtered_summary = {}
+            for filename, diff in summary.items():
+                filtered_summary[filename] = LocaleSummary(
+                    missing_keys={lf.locale: diff.missing_keys.get(lf.locale, [])},
+                    extra_keys={lf.locale: diff.extra_keys.get(lf.locale, [])},
+                )
+            add_missing_translations(lf.locale, filtered_summary, console)
+        # After adding, re-run the summary for all languages
+        summary, missing_counts = compare_keys(get_locale_files(), console)
+    if remove_extra and language != "en":
+        # Loop through all languages except 'en' and remove extra translations
+        if language:
+            language_files = [lf for lf in locale_files if lf.locale == language]
+        else:
+            language_files = [lf for lf in locale_files if lf.locale != "en"]
+        for lf in language_files:
+            filtered_summary = {}
+            for filename, diff in summary.items():
+                filtered_summary[filename] = LocaleSummary(
+                    missing_keys={lf.locale: diff.missing_keys.get(lf.locale, [])},
+                    extra_keys={lf.locale: diff.extra_keys.get(lf.locale, [])},
+                )
+            remove_extra_translations(lf.locale, filtered_summary, console)
+        # After removing, re-run the summary for all languages
+        summary, missing_counts = compare_keys(get_locale_files(), console)
     if language:
         locales = [lf.locale for lf in locale_files]
         if language not in locales:
@@ -487,8 +522,6 @@ def cli(language: str | None = None, add_missing: bool = False):
                 [lf for lf in locale_files if lf.locale == language], filtered_summary, console
             )
             found_difference = found_difference or lang_diff
-            if add_missing:
-                add_missing_translations(language, filtered_summary, console)
     else:
         lang_diff = print_language_summary(locale_files, summary, console)
         found_difference = found_difference or lang_diff
@@ -550,16 +583,11 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
                 full_key = f"{prefix}.{k}" if prefix else k
                 base = get_plural_base(full_key, suffixes)
                 if base and any(full_key == base + s for s in suffixes):
-                    # Add all plural forms at the current level (not nested)
                     for suffix in suffixes:
                         plural_key = base + suffix
                         key_name = plural_key.split(".")[-1]
                         if plural_key in missing_keys:
-                            if isinstance(v, dict):
-                                dst[key_name] = {}
-                                add_keys(v, dst[key_name], plural_key)
-                            else:
-                                dst[key_name] = f"TODO: translate: {v}"
+                            dst[key_name] = f"TODO: translate: {v}"
                     continue
                 if full_key in missing_keys:
                     if isinstance(v, dict):
@@ -586,6 +614,52 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary], c
             json.dump(lang_data, f, ensure_ascii=False, indent=2)
             f.write("\n")  # Ensure newline at the end of the file
         console.print(f"[green]Added missing translations to {lang_path}[/green]")
+
+
+def remove_extra_translations(language: str, summary: dict[str, LocaleSummary], console: Console):
+    """
+    Remove extra translations for the selected language.
+
+    Removes keys that are present in the language file but missing in the English file.
+    """
+    for filename, diff in summary.items():
+        extra_keys = set(diff.extra_keys.get(language, []))
+        if not extra_keys:
+            continue
+        lang_path = LOCALES_DIR / language / filename
+        try:
+            lang_data = load_json(lang_path)
+        except Exception as e:
+            console.print(f"[yellow]Failed to load {language} file {lang_path}: {e}[/yellow]")
+            continue
+
+        # Helper to recursively remove extra keys
+        def remove_keys(dst, prefix=""):
+            keys_to_remove = []
+            for k, v in list(dst.items()):
+                full_key = f"{prefix}.{k}" if prefix else k
+                if full_key in extra_keys:
+                    keys_to_remove.append(k)
+                elif isinstance(v, dict):
+                    remove_keys(v, full_key)
+                    # Remove empty dictionaries after recursion
+                    if not v:
+                        keys_to_remove.append(k)
+            for k in keys_to_remove:
+                del dst[k]
+
+        remove_keys(lang_data)
+
+        def natural_key_sort(obj):
+            if isinstance(obj, dict):
+                return {k: natural_key_sort(obj[k]) for k in sorted(obj)}
+            return obj
+
+        lang_data = natural_key_sort(lang_data)
+        with open(lang_path, "w", encoding="utf-8") as f:
+            json.dump(lang_data, f, ensure_ascii=False, indent=2)
+            f.write("\n")  # Ensure newline at the end of the file
+        console.print(f"[green]Removed {len(extra_keys)} extra translations from {lang_path}[/green]")
 
 
 if __name__ == "__main__":

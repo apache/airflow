@@ -131,6 +131,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
+    _context: Context | None = None
+    """The Task Instance context."""
+
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -173,7 +176,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
-        context: Context = {
+        # Cache the context object, which ensures that all calls to get_template_context
+        # are operating on the same context object.
+        self._context: Context = self._context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -213,7 +218,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            context.update(context_from_server)
+            self._context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -224,7 +229,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                context.update(
+                self._context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -251,7 +256,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return context
+        return self._context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None

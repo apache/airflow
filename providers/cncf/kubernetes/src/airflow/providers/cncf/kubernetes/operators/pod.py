@@ -69,18 +69,20 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_succeeded,
+    get_container_termination_message,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
     PodNotFoundException,
-    PodOperatorHookProtocol,
     PodPhase,
-    container_is_succeeded,
-    get_container_termination_message,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
@@ -95,6 +97,7 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
+    from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
 
     try:
@@ -209,8 +212,9 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
-    :param termination_grace_period: Termination grace period if task killed in UI,
-        defaults to kubernetes default
+    :param termination_grace_period: Termination grace period (in seconds) for the pod.
+        This sets the pod's ``terminationGracePeriodSeconds`` and is also used as the grace period
+        when deleting the pod if the task is killed. If not specified, uses the Kubernetes default (30 seconds).
     :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
@@ -735,20 +739,9 @@ class KubernetesPodOperator(BaseOperator):
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
-            self.cleanup(
-                pod=pod_to_clean,
-                remote_pod=self.remote_pod,
-                xcom_result=result,
-                context=context,
+            self.post_complete_action(
+                pod=pod_to_clean, remote_pod=self.remote_pod, context=context, result=result
             )
-            for callback in self.callbacks:
-                callback.on_pod_cleanup(
-                    pod=pod_to_clean,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
 
         if self.do_xcom_push:
             return result
@@ -819,11 +812,20 @@ class KubernetesPodOperator(BaseOperator):
     def execute_async(self, context: Context) -> None:
         if self.pod_request_obj is None:
             self.pod_request_obj = self.build_pod_request_obj(context)
+        for callback in self.callbacks:
+            callback.on_pod_manifest_created(
+                pod_request=self.pod_request_obj,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
         if self.pod is None:
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+
         if self.callbacks:
             pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
@@ -886,6 +888,7 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        xcom_sidecar_output = None
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
@@ -909,20 +912,37 @@ class KubernetesPodOperator(BaseOperator):
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
-            if event["status"] in ("error", "failed", "timeout"):
-                event_message = event.get("message", "No message provided")
-                self.log.error(
-                    "Trigger emitted an %s event, failing the task: %s", event["status"], event_message
-                )
-                # fetch some logs when pod is failed
+            if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
-                if self.do_xcom_push:
-                    _ = self.extract_xcom(pod=self.pod)
+                for callback in self.callbacks:
+                    callback.on_pod_completion(
+                        pod=self.pod,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
+                    )
+                for callback in self.callbacks:
+                    callback.on_pod_teardown(
+                        pod=self.pod,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
+                    )
 
-                message = event.get("stack_trace", event["message"])
-                raise AirflowException(message)
+                xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
+
+                if event["status"] != "success":
+                    self.log.error(
+                        "Trigger emitted an %s event, failing the task: %s", event["status"], event["message"]
+                    )
+                    message = event.get("stack_trace", event["message"])
+                    raise AirflowException(message)
+
+                return xcom_sidecar_output
 
             if event["status"] == "running":
                 if self.get_logs:
@@ -940,22 +960,12 @@ class KubernetesPodOperator(BaseOperator):
                     self.invoke_defer_method(pod_log_status.last_log_time)
                 else:
                     self.invoke_defer_method()
-
-            elif event["status"] == "success":
-                # fetch some logs when pod is executed successfully
-                if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
-
-                if self.do_xcom_push:
-                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
-                    return xcom_sidecar_output
-                return
         except TaskDeferred:
             raise
         finally:
-            self._clean(event, context)
+            self._clean(event=event, context=context, result=xcom_sidecar_output)
 
-    def _clean(self, event: dict[str, Any], context: Context) -> None:
+    def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if event["status"] == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
@@ -979,6 +989,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod,
                 remote_pod=self.pod,
                 context=context,
+                result=result,
             )
 
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
@@ -1008,11 +1019,15 @@ class KubernetesPodOperator(BaseOperator):
                 e if not isinstance(e, ApiException) else e.reason,
             )
 
-    def post_complete_action(self, *, pod, remote_pod, context: Context, **kwargs) -> None:
+    def post_complete_action(
+        self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict | None, **kwargs
+    ) -> None:
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
         self.cleanup(
             pod=pod,
             remote_pod=remote_pod,
+            xcom_result=result,
+            context=context,
         )
         for callback in self.callbacks:
             callback.on_pod_cleanup(
@@ -1305,6 +1320,7 @@ class KubernetesPodOperator(BaseOperator):
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
                 active_deadline_seconds=self.active_deadline_seconds,
+                termination_grace_period_seconds=self.termination_grace_period,
             ),
         )
 

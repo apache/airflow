@@ -26,7 +26,7 @@ from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.winrm.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.platform import getuser
 
 # TODO: FIXME please - I have too complex implementation

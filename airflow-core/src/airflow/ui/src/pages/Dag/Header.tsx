@@ -128,7 +128,7 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
+            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText />
             <Menu.Root>
               <Menu.Trigger asChild>
                 <Button aria-label={translate("dag:header.buttons.advanced")} variant="outline">

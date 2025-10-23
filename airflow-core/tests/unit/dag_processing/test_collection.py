@@ -799,6 +799,16 @@ class TestUpdateDagParsingResults:
                 id="default-owner",
             ),
             pytest.param(
+                {},
+                {"fail_fast": False},
+                id="default-fail-fast",
+            ),
+            pytest.param(
+                {"fail_fast": True},
+                {"fail_fast": True},
+                id="fail-fast-true",
+            ),
+            pytest.param(
                 {
                     "_tasks_": [
                         EmptyOperator(task_id="task", owner="owner1"),
