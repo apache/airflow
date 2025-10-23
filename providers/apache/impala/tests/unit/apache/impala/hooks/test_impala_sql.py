@@ -191,3 +191,58 @@ def test_get_sqlalchemy_engine(impala_hook, mock_connection, mocker):
     assert actual_url.query == {}
     
     
+def test_get_url(impala_hook, mock_connection):
+    """Ensure get_uri() returns correct formatted URI for Impala connection"""
+    
+    mock_connection.host = "impala.company.com"
+    mock_connection.port = 21050
+    mock_connection.login = "user"
+    mock_connection.password = "secret"
+    mock_connection.schema = "analytics"
+    mock_connection.extra = json.dumps({"use_ssl":True,"auth_mechanism": "PLAIN"})
+    
+    with patch.object(impala_hook, "get_connection", return_value=mock_connection):
+        uri = impala_hook.get_uri()
+        
+    expected_uri = (
+        "impala://user:secret@impala.company.com:21050/analytics?"
+        "use_ssl=True&auth_mechanism=PLAIN"
+    )
+    
+    assert uri == expected_uri
+    
+
+@pytest.mark.parametrize(
+    "sql", ["", " ", "\n"]
+)
+
+def test_run_with_empty_sql(impala_hook, sql):
+    """Test that running an empty SQL string."""
+    with pytest.raises(ValueError, match="List of SQL statements is empty"):
+        impala_hook.run(sql)
+        
+        
+@pytest.fixture
+def impala_hook_with_timeout(create_connection_without_db):
+    conn = Connection(
+        conn_id="impala_with_timeout",
+        conn_type="impala",
+        host=DEFAULT_HOST,
+        login=DEFAULT_LOGIN,
+        password=DEFAULT_PASSWORD,
+        port=DEFAULT_PORT,
+        schema=DEFAULT_SCHEMA,
+        extra=json.dumps({"timeout": 10}),
+    )
+    create_connection_without_db(conn)
+    return ImpalaHook(imapala_conn_id="impala_with_timeout")
+
+def test_execution_timeout_exceeded(impala_hook_with_timeout):
+    test_sql = "SELECT * FROM big_table"
+
+    with patch(
+        "apache.impala.src.airflow.providers.apache.impala.hooks.impala.ImpalaHook.run",
+        side_effect=TimeoutError("Query exceeded execution timeout")
+    ):
+        with pytest.raises(TimeoutError, match="Query exceeded execution timeout"):
+            impala_hook_with_timeout.run(sql=test_sql)
