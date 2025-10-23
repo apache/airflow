@@ -134,7 +134,25 @@ def timeout(seconds=1, error_message="Timeout"):
             signal.setitimer(signal.ITIMER_REAL, 0)
 
 
-def _validate_executor_fields(dag: DAG) -> None:
+def _executor_exists(executor_name: str, team_name: str | None) -> bool:
+    """Check if executor exists, with global fallback for teams."""
+    try:
+        # First pass check for team-specific executor or a global executor (i.e. team_name=None)
+        ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=team_name)
+        return True
+    except UnknownExecutorException:
+        if team_name:
+            # If we had a team_name but didn't find an executor, check if there is a global executor that
+            # satisfies the request.
+            try:
+                ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=None)
+                return True
+            except UnknownExecutorException:
+                pass
+    return False
+
+
+def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
@@ -144,32 +162,30 @@ def _validate_executor_fields(dag: DAG) -> None:
     # Check if multi team is available by reading the multi_team configuration (which is boolean)
     if conf.getboolean("core", "multi_team"):
         # Get team name from bundle configuration if available
-        if hasattr(dag, "bundle_name") and dag.bundle_name:
+        if bundle_name:
             from airflow.dag_processing.bundles.manager import DagBundlesManager
 
             bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[dag.bundle_name]
+            bundle_config = bundle_manager._bundle_config[bundle_name]
 
             dag_team_name = bundle_config.team_name
             if dag_team_name:
                 log.debug(
-                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, dag.bundle_name
+                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
                 )
 
     for task in dag.tasks:
         if not task.executor:
             continue
-        try:
-            # Validate that the executor exists and is available for the DAG's team
-            ExecutorLoader.lookup_executor_name_by_str(task.executor, team_name=dag_team_name)
-        except UnknownExecutorException:
+
+        if not _executor_exists(task.executor, dag_team_name):
             if dag_team_name:
                 raise UnknownExecutorException(
                     f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available "
-                    f"for team '{dag_team_name}' (the team associated with DAG '{dag.dag_id}'). "
-                    f"Make sure '{task.executor}' is configured for team '{dag_team_name}' in your "
+                    f"for team '{dag_team_name}' (the team associated with DAG '{dag.dag_id}') or as a global executor. "
+                    f"Make sure '{task.executor}' is configured for team '{dag_team_name}' or globally in your "
                     "[core] executors configuration, or update the task's executor to use one of the "
-                    f"configured executors for team '{dag_team_name}'."
+                    f"configured executors for team '{dag_team_name}' or available global executors."
                 )
             raise UnknownExecutorException(
                 f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available. "
@@ -210,9 +226,11 @@ class DagBag(LoggingMixin):
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
+        bundle_name: str | None = None,
     ):
         super().__init__()
         self.bundle_path = bundle_path
+        self.bundle_name = bundle_name
         include_examples = (
             include_examples
             if isinstance(include_examples, bool)
@@ -528,7 +546,7 @@ class DagBag(LoggingMixin):
             dag.relative_fileloc = relative_fileloc
             try:
                 dag.validate()
-                _validate_executor_fields(dag)
+                _validate_executor_fields(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
             except AirflowClusterPolicySkipDag:
                 pass
