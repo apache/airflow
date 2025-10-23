@@ -82,6 +82,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 4. Install Airflow on Windows, using WSL2. In Powershell, run the following commands to create WSL2 environment.
 
    .. code-block:: bash
+
       :substitutions:
 
 
