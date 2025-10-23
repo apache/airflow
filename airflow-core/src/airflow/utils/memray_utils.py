@@ -61,7 +61,6 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
                 import memray
 
                 profile_path = f"{AIRFLOW_HOME}/{component.value}_memory.bin"
-                log.info("enable_memray_trace is on. so memory state is tracked by memray")
                 with memray.Tracker(
                     profile_path,
                 ):
