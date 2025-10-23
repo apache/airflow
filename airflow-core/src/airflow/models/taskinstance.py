@@ -74,6 +74,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRunState
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -150,24 +151,6 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class DagRunState(str, Enum):
-    """
-    All-possible states that a DagRun can be in.
-
-    These are "shared" with TaskInstanceState in some parts of the code,
-    so please ensure that their values always match the ones with the
-    same name in TaskInstanceState.
-    """
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
 
     def __str__(self) -> str:
         return self.value

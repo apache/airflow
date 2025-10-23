@@ -176,11 +176,11 @@ def __getattr__(name: str):
     if name == "DagRunState":
         import warnings
 
-        from airflow.models.taskinstance import DagRunState
+        from airflow.models.dagrun import DagRunState
 
         warnings.warn(
             "The `airflow.utils.state.DagRunState` attribute is deprecated and will be removed in a future version. "
-            "Please use `airflow.models.taskinstance.DagRunState` instead.",
+            "Please use `airflow.models.dagrun.DagRunState` instead.",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -68,10 +68,10 @@ from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES

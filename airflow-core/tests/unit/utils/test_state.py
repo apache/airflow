@@ -20,8 +20,8 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.taskinstance import IntermediateTIState, TaskInstanceState, TerminalTIState
 from airflow.sdk import DAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State

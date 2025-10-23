@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 from airflow.listeners import hookimpl
-from airflow.models.taskinstance import DagRunState, TaskInstanceState
+from airflow.models.dagrun import DagRunState
+from airflow.models.taskinstance import TaskInstanceState
 
 
 class ClassBasedListener:

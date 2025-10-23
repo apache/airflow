@@ -69,10 +69,10 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import RUN_ID_REGEX, DagRun
+from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunState
 from airflow.models.deadline import Deadline
 from airflow.models.expandinput import create_expand_input
-from airflow.models.taskinstance import DagRunState, TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom import XComModel

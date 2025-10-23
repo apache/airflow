@@ -26,7 +26,8 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
+from airflow.models.dagrun import DagRunState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task, task_group
 from airflow.sdk.bases.operator import BaseOperator

@@ -34,8 +34,8 @@ from airflow.api_fastapi.core_api.datamodels.ui.dashboard import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
 from airflow.models.dag import DagModel
-from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
+from airflow.models.dagrun import DagRun, DagRunState, DagRunType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 
 dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 

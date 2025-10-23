@@ -26,8 +26,8 @@ from sqlalchemy import insert, select
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import DagRunState, TaskInstanceState
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 

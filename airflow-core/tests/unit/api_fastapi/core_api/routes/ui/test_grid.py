@@ -27,7 +27,8 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
+from airflow.models.dagrun import DagRunState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup

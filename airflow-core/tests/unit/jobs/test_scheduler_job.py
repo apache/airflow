@@ -56,14 +56,14 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue,
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline, DeadlineCallbackState
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator

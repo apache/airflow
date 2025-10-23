@@ -55,9 +55,9 @@ from airflow.models.dag import (
 )
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import DagRunState, TaskInstance as TI, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance as TI, TaskInstanceState
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator

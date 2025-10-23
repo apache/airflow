@@ -31,7 +31,8 @@ from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
-from airflow.models.taskinstance import DagRunState, TaskInstance, TaskInstanceState, TerminalTIState
+from airflow.models.dagrun import DagRunState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState, TerminalTIState
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, task, task_group
