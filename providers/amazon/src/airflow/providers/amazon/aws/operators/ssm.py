@@ -81,9 +81,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
-        deferrable: bool = conf.getboolean(
-            "operators", "default_deferrable", fallback=False
-        ),
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -95,9 +93,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         self.document_name = document_name
         self.run_command_kwargs = run_command_kwargs or {}
 
-    def execute_complete(
-        self, context: Context, event: dict[str, Any] | None = None
-    ) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -210,13 +206,8 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
             )
             invocations = [{"InstanceId": self.instance_id}]
         else:
-            self.log.info(
-                "Retrieving output for command %s from all instances",
-                self.command_id
-            )
-            response = self.hook.list_command_invocations(
-                self.command_id
-            )
+            self.log.info("Retrieving output for command %s from all instances", self.command_id)
+            response = self.hook.list_command_invocations(self.command_id)
             invocations = response.get("CommandInvocations", [])
 
         # TBD: Do we return formatted or RAW API output?
@@ -224,48 +215,27 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
         # contains
         # a lot
         # of metadata that's typically not needed for downstream tasks.
-        output_data: dict[str, Any] = {
-            "command_id": self.command_id,
-            "invocations": []
-        }
+        output_data: dict[str, Any] = {"command_id": self.command_id, "invocations": []}
 
         for invocation in invocations:
             instance_id = invocation["InstanceId"]
             try:
-                invocation_details = self.hook.get_command_invocation(
-                    self.command_id, instance_id
-                )
+                invocation_details = self.hook.get_command_invocation(self.command_id, instance_id)
                 output_data["invocations"].append(
                     {
                         "instance_id": instance_id,
                         "status": invocation_details.get("Status", ""),
-                        "response_code": invocation_details.get(
-                            "ResponseCode", ""
-                        ),
-                        "standard_output": invocation_details.get(
-                            "StandardOutputContent", ""
-                        ),
-                        "standard_error": invocation_details.get(
-                            "StandardErrorContent", ""
-                        ),
-                        "execution_start_time": invocation_details.get(
-                            "ExecutionStartDateTime", ""
-                        ),
-                        "execution_end_time": invocation_details.get(
-                            "ExecutionEndDateTime", ""
-                        ),
-                        "document_name": invocation_details.get(
-                            "DocumentName", ""
-                        ),
+                        "response_code": invocation_details.get("ResponseCode", ""),
+                        "standard_output": invocation_details.get("StandardOutputContent", ""),
+                        "standard_error": invocation_details.get("StandardErrorContent", ""),
+                        "execution_start_time": invocation_details.get("ExecutionStartDateTime", ""),
+                        "execution_end_time": invocation_details.get("ExecutionEndDateTime", ""),
+                        "document_name": invocation_details.get("DocumentName", ""),
                         "comment": invocation_details.get("Comment", ""),
                     }
                 )
             except Exception as e:
-                self.log.warning(
-                    "Failed to get output for instance %s: %s", instance_id, e
-                )
-                output_data["invocations"].append(
-                    {"instance_id": instance_id, "error": str(e)}
-                )
+                self.log.warning("Failed to get output for instance %s: %s", instance_id, e)
+                output_data["invocations"].append({"instance_id": instance_id, "error": str(e)})
 
         return output_data

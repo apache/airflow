@@ -85,9 +85,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         self,
         *,
         command_id,
-        deferrable: bool = conf.getboolean(
-            "operators", "default_deferrable", fallback=False
-        ),
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: int = 120,
         max_retries: int = 75,
         **kwargs,
@@ -99,9 +97,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         self.max_retries = max_retries
 
     def poke(self, context: Context):
-        response = self.hook.conn.list_command_invocations(
-            CommandId=self.command_id
-        )
+        response = self.hook.conn.list_command_invocations(CommandId=self.command_id)
         command_invocations = response.get("CommandInvocations", [])
 
         if not command_invocations:
@@ -138,11 +134,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         else:
             super().execute(context=context)
 
-    def execute_complete(
-        self,
-        context: Context,
-        event: dict[str, Any] | None = None
-    ) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
