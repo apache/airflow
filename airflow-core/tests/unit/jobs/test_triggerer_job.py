@@ -1181,6 +1181,7 @@ class TestTriggererMessageTypes:
             "TriggerDagRun",
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
+            "GetDagState",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1197,6 +1198,7 @@ class TestTriggererMessageTypes:
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
             "HITLDetailRequestResult",
+            "DagStateResult",
         }
 
         supervisor_diff = (
