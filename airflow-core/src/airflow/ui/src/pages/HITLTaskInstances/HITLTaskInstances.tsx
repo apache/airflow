@@ -32,6 +32,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -127,6 +128,8 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
+  const baseRefetchInterval = useAutoRefresh({});
+
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
@@ -134,21 +137,38 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
-  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
-    dagId: dagId ?? "~",
-    dagIdPattern,
-    dagRunId: runId ?? "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
-    responseReceived:
-      Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
-        ? effectiveResponseReceived === "true"
-        : undefined,
-    state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
-    taskId,
-    taskIdPattern,
-  });
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
+    {
+      dagId: dagId ?? "~",
+      dagIdPattern,
+      dagRunId: runId ?? "~",
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+      responseReceived:
+        Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
+          ? effectiveResponseReceived === "true"
+          : undefined,
+      state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+      taskId,
+      taskIdPattern,
+    },
+    undefined,
+    {
+      // Only continue auto-refetching when filtering for unreceived responses
+      // and at least one TaskInstance is still deferred without a response.
+      refetchInterval: (query) => {
+        const hasDeferredWithoutResponse = Boolean(
+          query.state.data?.hitl_details.some(
+            (detail: HITLDetail) =>
+              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+          ),
+        );
+
+        return hasDeferredWithoutResponse ? baseRefetchInterval : false;
+      },
+    },
+  );
 
   const handleResponseChange = useCallback(() => {
     setTableURLState({
