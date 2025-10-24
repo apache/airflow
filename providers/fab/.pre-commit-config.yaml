@@ -45,7 +45,7 @@ repos:
           ^src/airflow/providers/fab/auth_manager/models/db\.py$
       - id: prevent-deprecated-sqlalchemy-usage-fab
         name: Prevent deprecated sqlalchemy usage
-        entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
+        entry: ../../scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
         language: python
         files: ^.*\.py$
         pass_filenames: true
