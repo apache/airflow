@@ -35,6 +35,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
@@ -126,6 +127,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
     :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
     :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
+    :param ssl_ca_cert: Path to a CA certificate to be used by the Kubernetes client
+        to verify the server's SSL certificate. If not provided, will fall back to
+        kubernetes_executor.ssl_ca_cert setting.
     """
 
     conn_name_attr = "kubernetes_conn_id"
@@ -151,6 +155,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "namespace": StringField(lazy_gettext("Namespace"), widget=BS3TextFieldWidget()),
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
+            "ssl_ca_cert": StringField(lazy_gettext("SSL CA certificate path"), widget=BS3TextFieldWidget()),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
             "xcom_sidecar_container_image": StringField(
                 lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
@@ -179,6 +184,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         in_cluster: bool | None = None,
         disable_verify_ssl: bool | None = None,
         disable_tcp_keepalive: bool | None = None,
+        ssl_ca_cert: str | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id or kubernetes_conn_id
@@ -189,6 +195,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self.in_cluster = in_cluster
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
+        self.ssl_ca_cert = ssl_ca_cert
         self._is_in_cluster: bool | None = None
 
     @staticmethod
@@ -262,11 +269,20 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive = self._coalesce_param(
             self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
         )
+        ssl_ca_cert = self._coalesce_param(
+            conf.get("kubernetes_executor", "ssl_ca_cert", fallback=None), self.ssl_ca_cert
+        )
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
         if disable_tcp_keepalive is not True:
             _enable_tcp_keepalive()
+
+        # Configure SSL CA certificate if provided
+        if ssl_ca_cert:
+            if not self.client_configuration:
+                self.client_configuration = client.Configuration()
+            self.client_configuration.ssl_ca_cert = ssl_ca_cert
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
@@ -788,6 +804,16 @@ class AsyncKubernetesHook(KubernetesHook):
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = await self._get_field("kube_config_path")
         kubeconfig = await self._get_field("kube_config")
+        ssl_ca_cert = self._coalesce_param(
+            conf.get("kubernetes_executor", "ssl_ca_cert", fallback=None), self.ssl_ca_cert
+        )
+
+        # Configure SSL CA certificate if provided
+        if ssl_ca_cert:
+            if not self.client_configuration:
+                self.client_configuration = client.Configuration()
+            self.client_configuration.ssl_ca_cert = ssl_ca_cert
+
         num_selected_configuration = sum(
             1 for o in [in_cluster, kubeconfig, kubeconfig_path, self.config_dict] if o
         )
