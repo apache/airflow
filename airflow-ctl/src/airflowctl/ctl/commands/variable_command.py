@@ -86,7 +86,7 @@ def export(args, api_client=NEW_API_CLIENT) -> None:
     """Export all the variables to the file."""
     success_message = "[green]Export successful! {total_entries} variable(s) to {file}[/green]"
     var_dict = {}
-    variables = api_client.variables.list()
+    variables = api_client.variables.list(limit=None)
 
     for variable in variables.variables:
         if variable.description:
