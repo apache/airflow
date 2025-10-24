@@ -25,4 +25,4 @@ repos:
         language: python
         files: ^src/airflow/providers/common/compat/sdk\.py$
         pass_filenames: false
-        entry: ../../scripts/ci/prek/check_common_compat_lazy_imports.py
+        entry: ../../../scripts/ci/prek/check_common_compat_lazy_imports.py
