@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload, Callable
 
 import prestodb
 from deprecated import deprecated
@@ -212,6 +212,52 @@ class PrestoHook(DbApiHook):
             return super().get_first(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+        """
+        Overwrite common run. Default split_statements = True
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The parameters to render the SQL query with.
+        :param handler: The result handler which is called with the result of each statement.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return result for only last statement or for all after split
+        :return: if handler provided, returns query results (may be list of results depending on params)
+        """
+        return super().run(sql, autocommit, parameters, handler, split_statements, return_last)
 
     def _get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
         try:
