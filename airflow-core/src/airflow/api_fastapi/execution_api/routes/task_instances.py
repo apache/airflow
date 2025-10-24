@@ -586,7 +586,7 @@ def ti_skip_downstream(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_410_GONE: {"description": "Task Instance not found, might have moved to the Task Instance History table"},
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
@@ -614,12 +614,12 @@ def ti_heartbeat(
             "Retrieved current task state", state=previous_state, current_hostname=hostname, current_pid=pid
         )
     except NoResultFound:
-        log.error("Task Instance not found")
+        log.error("Task Instance not found in Task Instance table, might have moved to the Task Instance History table")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_410_GONE,
             detail={
                 "reason": "not_found",
-                "message": "Task Instance not found",
+                "message": "Task Instance not found, might have moved to the Task Instance History table",
             },
         )
 
