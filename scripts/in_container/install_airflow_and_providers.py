@@ -39,9 +39,14 @@ from in_container_utils import (
 
 SOURCE_TARBALL = AIRFLOW_ROOT_PATH / ".build" / "airflow.tar.gz"
 EXTRACTED_SOURCE_DIR = AIRFLOW_ROOT_PATH / ".build" / "airflow_source"
-INSTALLATION_DIST_PREFIX = "ui/dist"
+CORE_UI_DIST_PREFIX = "ui/dist"
 CORE_SOURCE_UI_PREFIX = "airflow-core/src/airflow/ui"
 CORE_SOURCE_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
+SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX = "api_fastapi/auth/managers/simple/ui/dist"
+SIMPLE_AUTH_MANAGER_SOURCE_UI_PREFIX = "airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui"
+SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY = (
+    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+)
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
 
@@ -479,9 +484,21 @@ def find_installation_spec(
 
 
 def download_airflow_source_tarball(installation_spec: InstallationSpec):
-    """Download Airflow source tarball from GitHub and extract UI directories."""
+    """Download Airflow source tarball from GitHub."""
+    if not installation_spec.compile_ui_assets:
+        console.print(
+            "[bright_blue]Skipping downloading Airflow source tarball since UI assets compilation is disabled."
+        )
+        return
+
     if not installation_spec.airflow_distribution:
         console.print("[yellow]No airflow distribution specified, cannot download source tarball.")
+        return
+
+    if SOURCE_TARBALL.exists() and EXTRACTED_SOURCE_DIR.exists():
+        console.print(
+            "[bright_blue]Source tarball and extracted source directory already exist. Skipping download."
+        )
         return
 
     # Extract GitHub repository information from airflow_distribution
@@ -548,40 +565,44 @@ def download_airflow_source_tarball(installation_spec: InstallationSpec):
             return
         extracted_dir = extracted_dirs[0]
         extracted_dir.rename(EXTRACTED_SOURCE_DIR)
-
-        # Copy UI directories to the expected locations
-        extracted_ui_directory = EXTRACTED_SOURCE_DIR / CORE_SOURCE_UI_PREFIX
-        if extracted_ui_directory.exists():
-            console.print(
-                f"[bright_blue]Copying main UI from: {extracted_ui_directory} to: {CORE_SOURCE_UI_DIRECTORY}"
-            )
-            if CORE_SOURCE_UI_DIRECTORY.exists():
-                shutil.rmtree(CORE_SOURCE_UI_DIRECTORY)
-            CORE_SOURCE_UI_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(extracted_ui_directory, CORE_SOURCE_UI_DIRECTORY)
-        else:
-            console.print(f"[yellow]Main UI directory not found at: {extracted_ui_directory}")
-
-        console.print("[bright_blue]Source tarball downloaded and UI directories extracted successfully")
+        console.print("[bright_blue]Source tarball downloaded and extracted successfully")
 
     except Exception as e:
         console.print(f"[red]Error extracting source tarball: {e}")
         return
 
 
-def compile_ui_assets(installation_spec: InstallationSpec):
+def compile_ui_assets(
+    installation_spec: InstallationSpec,
+    source_prefix: str,
+    source_ui_directory: Path,
+    dist_prefix: str,
+):
     if not installation_spec.compile_ui_assets:
         console.print("[bright_blue]Skipping UI assets compilation")
         return
 
-    if not CORE_SOURCE_UI_DIRECTORY.exists():
+    # Copy UI directories from extracted tarball source to core source directory
+    extracted_ui_directory = EXTRACTED_SOURCE_DIR / source_prefix
+    if extracted_ui_directory.exists():
         console.print(
-            f"[bright_blue]UI directory '{CORE_SOURCE_UI_DIRECTORY}' still does not exist. Skipping UI assets compilation."
+            f"[bright_blue]Copying UI source from: {extracted_ui_directory} to: {source_ui_directory}"
+        )
+        if source_ui_directory.exists():
+            shutil.rmtree(source_ui_directory)
+        source_ui_directory.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(extracted_ui_directory, source_ui_directory)
+    else:
+        console.print(f"[yellow]Main UI directory not found at: {extracted_ui_directory}")
+
+    if not source_ui_directory.exists():
+        console.print(
+            f"[bright_blue]UI directory '{source_ui_directory}' still does not exist. Skipping UI assets compilation."
         )
         return
 
     # check if UI assets need to be recompiled
-    dist_directory = get_airflow_installation_path() / INSTALLATION_DIST_PREFIX
+    dist_directory = get_airflow_installation_path() / dist_prefix
     if dist_directory.exists():
         console.print(f"[bright_blue]Already compiled UI assets found in '{dist_directory}'")
         return
@@ -635,9 +656,9 @@ def compile_ui_assets(installation_spec: InstallationSpec):
         github_actions=False,
         shell=False,
         check=True,
-        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+        cwd=os.fspath(source_ui_directory),
     )
-    shutil.rmtree(CORE_SOURCE_UI_DIRECTORY / "node_modules", ignore_errors=True)
+    shutil.rmtree(source_ui_directory / "node_modules", ignore_errors=True)
 
     # install dependencies
     run_command(
@@ -645,7 +666,7 @@ def compile_ui_assets(installation_spec: InstallationSpec):
         github_actions=False,
         shell=False,
         check=True,
-        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+        cwd=os.fspath(source_ui_directory),
     )
     # compile UI assets
     run_command(
@@ -653,10 +674,10 @@ def compile_ui_assets(installation_spec: InstallationSpec):
         github_actions=False,
         shell=False,
         check=True,
-        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+        cwd=os.fspath(source_ui_directory),
     )
     # copy compiled assets to installation directory
-    dist_source_directory = CORE_SOURCE_UI_DIRECTORY / "dist"
+    dist_source_directory = source_ui_directory / "dist"
     console.print(
         f"[bright_blue]Copying compiled UI assets from '{dist_source_directory}' to '{dist_directory}'"
     )
@@ -924,9 +945,14 @@ def install_airflow_and_providers(
             airflow_providers_common_init_py.write_text(INIT_CONTENT + "\n")
 
     # compile ui assets
-    airflow_path = get_airflow_installation_path()
     download_airflow_source_tarball(installation_spec)
-    compile_ui_assets(installation_spec)
+    compile_ui_assets(installation_spec, CORE_SOURCE_UI_PREFIX, CORE_SOURCE_UI_DIRECTORY, CORE_UI_DIST_PREFIX)
+    compile_ui_assets(
+        installation_spec,
+        SIMPLE_AUTH_MANAGER_SOURCE_UI_PREFIX,
+        SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY,
+        SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX,
+    )
     console.print("\n[green]Done!")
 
 
