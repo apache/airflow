@@ -37,6 +37,7 @@ from airflow.providers_manager import (
     ProviderInfo,
     ProvidersManager,
 )
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
@@ -80,7 +81,9 @@ class TestProviderManager:
             version="0.0.1",
             data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
         )
-        with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
+        with pytest.warns(
+            expected_warning=DeprecatedImportWarning, match="hook-class-names"
+        ) as warning_records:
             providers_manager._discover_hooks()
         assert warning_records
 

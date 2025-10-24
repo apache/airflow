@@ -42,6 +42,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
@@ -843,14 +844,14 @@ with airflow.DAG(
         assert dagbag.dagbag_stats[0].warning_num == 2
         assert dagbag.captured_warnings == {
             dag_file: (
-                f"{dag_file}:46: DeprecationWarning: Deprecated Parameter",
-                f"{dag_file}:48: UserWarning: Some Warning",
+                f"{dag_file}:47: airflow.utils.deprecation_tools.DeprecatedImportWarning: Deprecated Parameter",
+                f"{dag_file}:49: UserWarning: Some Warning",
             )
         }
 
         with warnings.catch_warnings():
-            # Disable capture DeprecationWarning, and it should be reflected in captured warnings
-            warnings.simplefilter("ignore", DeprecationWarning)
+            # Disable capture DeprecatedImportWarning, and it should be reflected in captured warnings
+            warnings.simplefilter("ignore", DeprecatedImportWarning)
             dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
             assert dag_file in dagbag.captured_warnings
             assert len(dagbag.captured_warnings[dag_file]) == 1
@@ -876,8 +877,8 @@ with airflow.DAG(
         assert dagbag.dagbag_stats[0].warning_num == 2
         assert dagbag.captured_warnings == {
             warning_zipped_dag_path: (
-                f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
-                f"{in_zip_dag_file}:48: UserWarning: Some Warning",
+                f"{in_zip_dag_file}:47: airflow.utils.deprecation_tools.DeprecatedImportWarning: Deprecated Parameter",
+                f"{in_zip_dag_file}:49: UserWarning: Some Warning",
             )
         }
 

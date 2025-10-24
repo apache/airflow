@@ -38,6 +38,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.models.team import Team
 from airflow.sdk import SecretCache
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -489,7 +490,7 @@ class Connection(Base, LoggingMixin):
             warnings.warn(
                 "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
                 "Please use `get` on Connection from sdk(`airflow.sdk.Connection`) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
             try:
@@ -565,7 +566,7 @@ class Connection(Base, LoggingMixin):
             warnings.warn(
                 "Using Connection.from_json from `airflow.models` is deprecated."
                 "Please use `from_json` on Connection from sdk(airflow.sdk.Connection) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
 

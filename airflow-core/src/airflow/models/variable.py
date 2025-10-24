@@ -36,6 +36,7 @@ from airflow.models.crypto import get_fernet
 from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import mapped_column
@@ -152,7 +153,7 @@ class Variable(Base, LoggingMixin):
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
                 "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
@@ -209,7 +210,7 @@ class Variable(Base, LoggingMixin):
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
@@ -307,7 +308,7 @@ class Variable(Base, LoggingMixin):
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
@@ -362,7 +363,7 @@ class Variable(Base, LoggingMixin):
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
                 "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
