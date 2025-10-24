@@ -2561,6 +2561,15 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+    use_rust_dag_processor:
+      description: |
+        .. note:: |experimental|
+
+        Whether to use the experimental Rust DAG processor.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.
