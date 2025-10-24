@@ -50,8 +50,8 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
 
   if (!nextRunEvents.length) {
     return (
-      <HStack maxWidth="200px">
-        <FiDatabase style={{ display: "inline" }} />
+      <HStack maxWidth="100%" overflow="hidden">
+        <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
         <Text>{timetableSummary}</Text>
       </HStack>
     );
@@ -61,9 +61,23 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
 
   if (nextRunEvents.length === 1 && asset !== undefined) {
     return (
-      <HStack maxWidth="200px">
-        <FiDatabase style={{ display: "inline" }} />
-        <Link asChild color="fg.info" display="block" fontSize="sm" maxWidth="200px" truncate>
+      <HStack maxWidth="100%" overflow="hidden">
+        <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
+        <Link
+          asChild
+          color="fg.info"
+          css={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
+            wordBreak: "break-word",
+          }}
+          display="-webkit-box"
+          flex="1"
+          fontSize="sm"
+          minWidth="0"
+        >
           <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
         </Link>
       </HStack>
