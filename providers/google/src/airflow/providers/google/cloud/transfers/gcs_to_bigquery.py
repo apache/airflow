@@ -593,6 +593,8 @@ class GCSToBigQueryOperator(BaseOperator):
         self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
+            dataset_id=table.dataset_id,
+            table_id=table.table_id,
             location=self.location,
             exists_ok=True,
         )
