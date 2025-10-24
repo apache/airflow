@@ -68,7 +68,7 @@ To retrieve the output and execution details from an SSM command that has been e
 
 This operator is useful for:
 
-* Retrieving output from commands executed by ``SsmRunCommandOperator`` in previous tasks
+* Retrieving output from commands executed by :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` in previous tasks
 * Getting output from SSM commands executed outside of Airflow
 * Inspecting command results for debugging or data processing purposes
 
