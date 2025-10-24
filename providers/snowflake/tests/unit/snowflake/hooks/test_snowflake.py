@@ -1110,7 +1110,7 @@ class TestPytestSnowflakeHook:
         mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
         assert token == mock_azure_token
 
-    def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
+    def test_get_azure_oauth_token_expect_failure_on_older_azure_provider_package(self, mocker):
         class MockAzureBaseHookOldVersion:
             """Simulate an old version of AzureBaseHook where sdk_client is required."""
 
