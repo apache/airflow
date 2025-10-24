@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from socket import socket
 
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -450,11 +451,14 @@ class DagFileProcessorManager(LoggingMixin):
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
-            query = select(DbCallbackRequest)
+            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
+            query = cast(
+                "Select[tuple[DbCallbackRequest]]",
+                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
+            )
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
