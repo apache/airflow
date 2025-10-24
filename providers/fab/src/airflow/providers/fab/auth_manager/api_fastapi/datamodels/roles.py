@@ -21,43 +21,36 @@ from pydantic import Field
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
-class ActionOut(BaseModel):
+class ActionResponse(BaseModel):
     """Outgoing representation of an action (permission name)."""
 
     name: str
 
 
-class ResourceOut(BaseModel):
+class ResourceResponse(BaseModel):
     """Outgoing representation of a resource."""
 
     name: str
 
 
-class ActionResourceOut(BaseModel):
+class ActionResourceResponse(BaseModel):
     """Pairing of an action with a resource."""
 
-    action: ActionOut
-    resource: ResourceOut
+    action: ActionResponse
+    resource: ResourceResponse
 
 
-class RoleIn(StrictBaseModel):
+class RoleBody(StrictBaseModel):
     """Incoming payload for creating/updating a role."""
 
     name: str
-    permissions: list[ActionResourceOut] = Field(
+    permissions: list[ActionResourceResponse] = Field(
         default_factory=list, alias="actions", validation_alias="actions"
     )
 
 
-class RoleOut(BaseModel):
+class RoleResponse(BaseModel):
     """Outgoing representation of a role and its permissions."""
 
     name: str
-    permissions: list[ActionResourceOut] = Field(default_factory=list, serialization_alias="actions")
-
-
-class RoleCollectionOut(BaseModel):
-    """Collection wrapper for roles with total count."""
-
-    roles: list[RoleOut]
-    total_entries: int
+    permissions: list[ActionResourceResponse] = Field(default_factory=list, serialization_alias="actions")

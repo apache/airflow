@@ -27,7 +27,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAut
 
 
 @pytest.fixture
-def auth_manager():
+def fab_auth_manager():
     return MagicMock()
 
 
@@ -50,7 +50,7 @@ def _make_role_obj(name: str, perms: list[tuple[str, str]]):
     return types.SimpleNamespace(name=name, permissions=perm_objs)
 
 
-@patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.get_auth_manager")
+@patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.get_fab_auth_manager")
 class TestRolesService:
     def setup_method(self):
         self.body_ok = types.SimpleNamespace(
@@ -82,13 +82,13 @@ class TestRolesService:
             ],
         )
 
-    def test_create_role_success(self, get_auth_manager, auth_manager, security_manager):
+    def test_create_role_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.side_effect = [
             None,
             _make_role_obj("roleA", [("can_read", "DAG")]),
         ]
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         out = FABAuthManagerRoles.create_role(self.body_ok)
 
@@ -96,52 +96,53 @@ class TestRolesService:
         assert out.permissions
         assert out.permissions[0].action.name == "can_read"
         assert out.permissions[0].resource.name == "DAG"
-
         security_manager.bulk_sync_roles.assert_called_once_with(
             [{"role": "roleA", "perms": [("can_read", "DAG")]}]
         )
 
-    def test_create_role_conflict(self, get_auth_manager, auth_manager, security_manager):
+    def test_create_role_conflict(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.return_value = object()
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_ok)
         assert ex.value.status_code == 409
 
-    def test_create_role_missing_name(self, get_auth_manager, auth_manager, security_manager):
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+    def test_create_role_missing_name(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_no_name)
         assert ex.value.status_code == 400
 
-    def test_create_role_action_not_found(self, get_auth_manager, auth_manager, security_manager):
+    def test_create_role_action_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.return_value = None
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_bad_action)
         assert ex.value.status_code == 400
         assert "action" in ex.value.detail
 
-    def test_create_role_resource_not_found(self, get_auth_manager, auth_manager, security_manager):
+    def test_create_role_resource_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.return_value = None
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_bad_resource)
         assert ex.value.status_code == 400
         assert "resource" in ex.value.detail
 
-    def test_create_role_unexpected_no_created(self, get_auth_manager, auth_manager, security_manager):
+    def test_create_role_unexpected_no_created(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
         security_manager.find_role.side_effect = [None, None]
-        auth_manager.security_manager = security_manager
-        get_auth_manager.return_value = auth_manager
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_ok)

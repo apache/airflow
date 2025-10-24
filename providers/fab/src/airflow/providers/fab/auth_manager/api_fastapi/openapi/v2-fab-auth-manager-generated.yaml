@@ -93,7 +93,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RoleIn'
+              $ref: '#/components/schemas/RoleBody'
         required: true
       responses:
         '200':
@@ -101,7 +101,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleOut'
+                $ref: '#/components/schemas/RoleResponse'
         '400':
           description: Bad Request
           content:
@@ -143,7 +143,19 @@ paths:
       - HTTPBearer: []
 components:
   schemas:
-    ActionOut:
+    ActionResourceResponse:
+      properties:
+        action:
+          $ref: '#/components/schemas/ActionResponse'
+        resource:
+          $ref: '#/components/schemas/ResourceResponse'
+      type: object
+      required:
+      - action
+      - resource
+      title: ActionResourceResponse
+      description: Pairing of an action with a resource.
+    ActionResponse:
       properties:
         name:
           type: string
@@ -151,20 +163,8 @@ components:
       type: object
       required:
       - name
-      title: ActionOut
+      title: ActionResponse
       description: Outgoing representation of an action (permission name).
-    ActionResourceOut:
-      properties:
-        action:
-          $ref: '#/components/schemas/ActionOut'
-        resource:
-          $ref: '#/components/schemas/ResourceOut'
-      type: object
-      required:
-      - action
-      - resource
-      title: ActionResourceOut
-      description: Pairing of an action with a resource.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -211,7 +211,7 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
-    ResourceOut:
+    ResourceResponse:
       properties:
         name:
           type: string
@@ -219,38 +219,38 @@ components:
       type: object
       required:
       - name
-      title: ResourceOut
+      title: ResourceResponse
       description: Outgoing representation of a resource.
-    RoleIn:
+    RoleBody:
       properties:
         name:
           type: string
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceOut'
+            $ref: '#/components/schemas/ActionResourceResponse'
           type: array
           title: Actions
       additionalProperties: false
       type: object
       required:
       - name
-      title: RoleIn
+      title: RoleBody
       description: Incoming payload for creating/updating a role.
-    RoleOut:
+    RoleResponse:
       properties:
         name:
           type: string
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceOut'
+            $ref: '#/components/schemas/ActionResourceResponse'
           type: array
           title: Actions
       type: object
       required:
       - name
-      title: RoleOut
+      title: RoleResponse
       description: Outgoing representation of a role and its permissions.
     ValidationError:
       properties:
