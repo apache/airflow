@@ -80,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -811,6 +812,19 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
 
+    # Try to render map_index_template early with available context (will be re-rendered after execution)
+    # This provides a partial label during task execution for templates using pre-execution context
+    # If rendering fails here, we suppress the error since it will be re-rendered after execution
+    try:
+        if rendered_map_index := _render_map_index(context, ti=ti, log=log):
+            ti.rendered_map_index = rendered_map_index
+            log.debug("Sending early rendered map index", length=len(rendered_map_index))
+            SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=rendered_map_index))
+    except Exception:
+        log.debug(
+            "Early rendering of map_index_template failed, will retry after task execution", exc_info=True
+        )
+
     _validate_task_inlets_and_outlets(ti=ti, log=log)
 
     try:
@@ -927,10 +941,20 @@ def run(
 
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
                 with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                    previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                    # Send update only if value changed (e.g., user set context variables during execution)
+                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                        SUPERVISOR_COMMS.send(
+                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
+                        )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
+                previous_rendered_map_index = ti.rendered_map_index
                 ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                # Send update only if value changed (e.g., user set context variables during execution)
+                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1322,9 +1346,10 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
+    log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
-    log.info("Map index rendered as %s", rendered_map_index)
+    log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
 

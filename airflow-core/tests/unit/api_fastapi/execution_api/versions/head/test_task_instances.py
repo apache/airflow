@@ -2479,3 +2479,59 @@ class TestInvactiveInletsAndOutlets:
         assert response.status_code == 200, f"Response: {response.text}"
         context = response.json()
         assert context["dag_run"]["conf"] is None
+
+
+class TestTIPatchRenderedMapIndex:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_patch_rendered_map_index(self, client, session, create_task_instance):
+        """Test updating rendered_map_index for a task instance."""
+        ti = create_task_instance(
+            task_id="test_ti_patch_rendered_map_index",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        rendered_map_index = "custom_label_123"
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/rendered-map-index",
+            json=rendered_map_index,
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.rendered_map_index == rendered_map_index
+
+    def test_ti_patch_rendered_map_index_not_found(self, client, session):
+        """Test 404 error when task instance does not exist."""
+        fake_id = str(uuid4())
+        response = client.patch(
+            f"/execution/task-instances/{fake_id}/rendered-map-index",
+            json="test",
+        )
+
+        assert response.status_code == 404
+
+    def test_ti_patch_rendered_map_index_empty_string(self, client, session, create_task_instance):
+        """Test that empty string is accepted (clears the rendered_map_index)."""
+        ti = create_task_instance(
+            task_id="test_ti_patch_rendered_map_index_empty",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/rendered-map-index",
+            json="",
+        )
+
+        assert response.status_code == 422
