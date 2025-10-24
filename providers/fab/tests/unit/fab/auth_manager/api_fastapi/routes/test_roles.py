@@ -18,19 +18,29 @@
 from __future__ import annotations
 
 import types
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.api_fastapi.core_api.security import get_user
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleOut
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleResponse
+
+
+@contextmanager
+def _noop_cm():
+    yield None
 
 
 @pytest.mark.db_test
 class TestRoles:
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
-    def test_create_role(self, mock_roles, mock_get_auth_manager, test_client):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_create_role(self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client):
         dummy_user = types.SimpleNamespace(id=1, username="tester")
         test_client.app.dependency_overrides[get_user] = lambda: dummy_user
 
@@ -38,7 +48,7 @@ class TestRoles:
         mgr.is_authorized_custom_view.return_value = True
         mock_get_auth_manager.return_value = mgr
 
-        dummy_out = RoleOut(name="my_new_role", permissions=[])
+        dummy_out = RoleResponse(name="my_new_role", permissions=[])
         mock_roles.create_role.return_value = dummy_out
 
         try:
@@ -50,7 +60,11 @@ class TestRoles:
             test_client.app.dependency_overrides.pop(get_user, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
-    def test_create_role_forbidden(self, mock_get_auth_manager, test_client):
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_create_role_forbidden(self, mock_get_application_builder, mock_get_auth_manager, test_client):
         dummy_user = types.SimpleNamespace(id=1, username="tester")
         test_client.app.dependency_overrides[get_user] = lambda: dummy_user
 

@@ -24,7 +24,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import get_user
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleIn, RoleOut
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleBody, RoleResponse
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAuthManagerRoles
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
@@ -44,7 +44,7 @@ def requires_fab_custom_view(method: str, resource_name: str):
 
 @roles_router.post(
     "/roles",
-    response_model=RoleOut,
+    response_model=RoleResponse,
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -57,7 +57,7 @@ def requires_fab_custom_view(method: str, resource_name: str):
     ),
     dependencies=[Depends(requires_fab_custom_view("POST", permissions.RESOURCE_ROLE))],
 )
-def create_role(body: RoleIn) -> RoleOut:
+def create_role(body: RoleBody) -> RoleResponse:
     """Create a new role (actions can be empty)."""
     with get_application_builder():
         return FABAuthManagerRoles.create_role(body=body)
