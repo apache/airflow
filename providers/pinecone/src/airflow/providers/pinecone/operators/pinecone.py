@@ -21,8 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
-from airflow.providers.pinecone.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from pinecone import Vector
