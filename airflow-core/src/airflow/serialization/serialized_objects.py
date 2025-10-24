@@ -56,6 +56,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from sqlalchemy import func, or_, select, tuple_
 
 from airflow import macros
+from airflow._shared.observability.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime, from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf as airflow_conf
@@ -100,7 +101,6 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
-from airflow.stats import Stats
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,

@@ -44,6 +44,8 @@ from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
+from airflow._shared.observability.stats import Stats
+from airflow._shared.observability.traces.base_tracer import DebugTrace
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
@@ -60,8 +62,6 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
