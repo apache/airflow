@@ -241,7 +241,7 @@ class TIHeartbeatInfo(BaseModel):
 
 class TIRescheduleStatePayload(BaseModel):
     """
-    Schema for updating TaskInstance to a up_for_reschedule state.
+    Schema for updating TaskInstance to an up_for_reschedule state.
     """
 
     model_config = ConfigDict(

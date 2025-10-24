@@ -800,7 +800,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.1.0",
-        "remove-providers": "",
+        "remove-providers": "edge3",  # Need to remove edge3 from tests until we have 3.1.1 used here.
         "run-unit-tests": "true",
     },
 ]
