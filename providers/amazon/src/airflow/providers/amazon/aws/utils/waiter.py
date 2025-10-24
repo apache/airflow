@@ -51,8 +51,8 @@ def waiter(
     :param desired_state: Wait until the getter returns this value
     :param failure_states: A set of states which indicate failure and should throw an
         exception if any are reached before the desired_state
-    :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc)
-    :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc)
+    :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc.)
+    :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc.)
     :param countdown: Number of seconds the waiter should wait for the desired state before timing out.
         Defaults to 25 * 60 seconds. None = infinite.
     :param check_interval_seconds: Number of seconds waiter should wait before attempting
