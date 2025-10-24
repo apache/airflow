@@ -21,8 +21,8 @@ requires = [ "hatchling==1.27.0" ]
 build-backend = "hatchling.build"
 
 [project]
-name = "apache-airflow-task-sdk-tests"
-description = "Task SDK tests for Apache Airflow"
+name = "apache-airflow-ctl-tests"
+description = "Airflow CTL tests for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
@@ -36,7 +36,7 @@ maintainers = [
 version = "0.0.1"
 
 dependencies = [
-    "apache-airflow-core",
+    "apache-airflow-ctl",
     "apache-airflow-devel-common",
 ]
 
