@@ -2244,7 +2244,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = session.scalar(stmt)
-        Stats.gauge("executor.running_dags", running_dags)
+        Stats.gauge("scheduler.running_dags", running_dags)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
