@@ -1431,7 +1431,8 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),
+            # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
@@ -2468,10 +2469,12 @@ REQUEST_TEST_CASES = [
         expected_body={"is_paused": False, "type": "DagStateResult"},
         client_mock=ClientMock(
             method_path="dags.get_state",
-            args=("test_dag",),
+            kwargs={
+                "dag_id": "test_dag",
+            },
             response=DagStateResult(is_paused=False),
         ),
-        test_id="get_dag_run_state",
+        test_id="get_dag_state",
     ),
 ]
 
