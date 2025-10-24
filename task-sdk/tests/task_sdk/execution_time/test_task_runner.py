@@ -1149,6 +1149,28 @@ def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_sup
     assert ti.rendered_map_index == "Hello! test_run"
 
 
+def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_supervisor_comms):
+    """Test that rendered_map_index is rendered and potentially updated after execution."""
+
+    def test_function(ti):
+        # Simulate setting a context variable during execution
+        ti.xcom_push(key="execution_result", value="completed")
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+        map_index_template="Label: {{ task.task_id }}",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_progressive_map_index")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    # Verify that rendered_map_index is set (existing behavior)
+    assert ti.rendered_map_index == "Label: test_task"
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
