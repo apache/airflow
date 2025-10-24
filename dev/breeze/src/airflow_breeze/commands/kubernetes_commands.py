@@ -44,10 +44,12 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
 from airflow_breeze.global_constants import (
+    ALLOWED_AIRFLOW_KUBERNETES_COMPONENTS,
     ALLOWED_EXECUTORS,
     ALLOWED_KUBERNETES_VERSIONS,
     CELERY_EXECUTOR,
     KUBERNETES_EXECUTOR,
+    LOCAL_EXECUTOR,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -80,6 +82,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_CORE_SOURCES_PATH
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
 
@@ -142,6 +145,13 @@ option_force_venv_setup = click.option(
     help="Force recreation of the virtualenv.",
     is_flag=True,
     envvar="FORCE_VENV_SETUP",
+)
+option_kubernetes_component = click.option(
+    "--component",
+    help="Specify specific Airflow component in Kubernetes",
+    type=CacheableChoice(ALLOWED_AIRFLOW_KUBERNETES_COMPONENTS),
+    show_default=True,
+    default=CacheableDefault(ALLOWED_AIRFLOW_KUBERNETES_COMPONENTS[0]),
 )
 option_kubernetes_version = click.option(
     "--kubernetes-version",
@@ -448,6 +458,124 @@ def delete_cluster(python: str, kubernetes_version: str, all: bool):
         _delete_all_clusters()
     else:
         _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=None)
+
+
+def _restart(component: str, python: str, kubernetes_version: str, executor: str):
+    # Restart deployments that use the code
+    components_to_restart = ["scheduler", "api-server", "trigger", "worker"]
+    if component != "all":
+        components_to_restart = [component]
+
+    for component in components_to_restart:
+        get_console().print(f"[info]Restarting {component} component...")
+        result = run_command_with_k8s_env(
+            [
+                "kubectl",
+                "rollout",
+                "restart",
+                "statefulset" if executor == LOCAL_EXECUTOR and component == "scheduler" else "deployment",
+                f"airflow-{component}",
+                "-n",
+                HELM_AIRFLOW_NAMESPACE,
+            ],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            get_console().print(f"[warning]Failed to restart {component} component")
+
+
+@kubernetes_group.command(
+    name="reload-code", help="Copy airflow-core code to airflow_code PVC and restart all deployment"
+)
+@option_python
+@option_kubernetes_version
+@option_kubernetes_component
+@option_executor
+def reload_code(python: str, kubernetes_version: str, component: str, executor: str):
+    result = sync_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+
+    # Copy code to PVC via one of the pods that mounts it
+    get_console().print("[info]Copying local airflow-core code to airflow_code PVC...")
+
+    # First find a pod that has the PVC mounted - typically scheduler is a good choice
+    get_pod_cmd = [
+        "kubectl",
+        "get",
+        "pods",
+        "-n",
+        HELM_AIRFLOW_NAMESPACE,
+        "-l",
+        "component=scheduler",
+        "-o",
+        "jsonpath='{.items[0].metadata.name}'",
+    ]
+    result = run_command_with_k8s_env(
+        get_pod_cmd,
+        python=python,
+        kubernetes_version=kubernetes_version,
+        capture_output=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        get_console().print("[error]Failed to find scheduler pod")
+        sys.exit(result.returncode)
+
+    pod_name = result.stdout.decode().strip().replace("'", "")
+
+    # Copy the code to the PVC through the pod
+    result = run_command_with_k8s_env(
+        [
+            "kubectl",
+            "cp",
+            str(AIRFLOW_CORE_SOURCES_PATH / "airflow"),
+            f"{HELM_AIRFLOW_NAMESPACE}/{pod_name}:/opt/airflow",
+            "-c",
+            "airflow",
+        ],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        get_console().print("[error]Failed to copy code to PVC")
+        sys.exit(result.returncode)
+
+    _restart(
+        component=component,
+        python=python,
+        kubernetes_version=kubernetes_version,
+        executor=executor,
+    )
+
+    get_console().print("[success]Code reloaded successfully!")
+    return
+
+
+@kubernetes_group.command(name="restart", help="Restart all ( or specific ) airflow components")
+@option_python
+@option_kubernetes_version
+@option_kubernetes_component
+@option_executor
+def restart(python: str, kubernetes_version: str, component: str, executor: str):
+    result = sync_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+
+    _restart(
+        component=component,
+        python=python,
+        kubernetes_version=kubernetes_version,
+        executor=executor,
+    )
 
 
 def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | None, str | None]:
@@ -1024,6 +1152,8 @@ def _deploy_helm_chart(
             "10m0s",
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
+            "--set",
+            "devMode.enabled=true",  # allow mount airflow code from host machine
             "--set",
             f"defaultAirflowRepository={params.airflow_image_kubernetes}",
             "--set",
