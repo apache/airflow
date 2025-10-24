@@ -189,6 +189,8 @@ class OpenLineageListener:
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
+                # Airflow 3.0+
+                task_instance_id=getattr(task_instance, "id", None),
             )
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
@@ -313,6 +315,8 @@ class OpenLineageListener:
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
+                # Airflow 3.0+
+                task_instance_id=getattr(task_instance, "id", None),
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
@@ -450,6 +454,8 @@ class OpenLineageListener:
                 try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
+                # Airflow 3.0+
+                task_instance_id=getattr(task_instance, "id", None),
             )
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()
@@ -525,6 +531,8 @@ class OpenLineageListener:
                 try_number=ti.try_number,
                 logical_date=date,
                 map_index=ti.map_index,
+                # Airflow 3.0+
+                task_instance_id=getattr(ti, "id", None),
             )
 
             adapter_kwargs = {
