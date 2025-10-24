@@ -361,6 +361,7 @@ class AssetEventsResult(AssetEventsResponse):
         # Exclude defaults to avoid sending unnecessary data
         # Pass the type as AssetEventsResult explicitly so we can then call model_dump_json with exclude_unset=True
         # to avoid sending unset fields (which are defaults in our case).
+
         return cls(
             **asset_events_response.model_dump(exclude_defaults=True),
             type="AssetEventsResult",
