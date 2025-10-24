@@ -22,11 +22,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-from airflow.providers.smtp.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.smtp.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class EmailOperator(BaseOperator):

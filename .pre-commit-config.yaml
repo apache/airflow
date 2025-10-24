@@ -1422,12 +1422,6 @@ repos:
         entry: ./scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-      - id: generate-openapi-spec-keycloak
-        name: Generate the FastAPI API spec for Keycloak
-        language: python
-        entry: ./scripts/ci/prek/generate_openapi_spec_providers.py keycloak
-        pass_filenames: false
-        files: ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/.*\.py$
       - id: check-i18n-json
         name: Check i18n files validity
         description: Check i18n files are valid json, have no TODOs, and auto-format them
