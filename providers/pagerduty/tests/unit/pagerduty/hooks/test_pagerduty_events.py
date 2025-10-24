@@ -101,6 +101,8 @@ class TestPagerdutyEventsHook:
             json=mock_response_body,
             request=httpx.Request("POST", "https://events.pagerduty.com/v2/change/enqueue"),
         )
+
+        mock_response.ok = True
         mock_request.return_value = mock_response
         resp = hook.create_change_event(summary="test", source="airflow")
         mock_request.assert_called_once()
@@ -122,6 +124,7 @@ class TestPagerdutyEventsHook:
             json=mock_response_body,
             request=httpx.Request("POST", "https://events.pagerduty.com/v2/enqueue"),
         )
+        mock_response.ok = True
         mock_request.return_value = mock_response
 
         resp = hook.send_event(
