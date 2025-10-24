@@ -22,6 +22,7 @@ import os
 from collections.abc import Callable
 from unittest import mock
 
+import numpy as np
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -38,6 +39,7 @@ from airflow.sdk.definitions.asset import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
+from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.io import ObjectStoragePath
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -480,3 +482,58 @@ class TestAssetSubclasses:
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
+
+
+class TestAssetMetadataNormalization:
+    @pytest.mark.parametrize(
+        "metadata, expected",
+        [
+            ({"np_int": np.int64(5)}, {"np_int": 5}),
+            ({"np_float": np.float64(3.14)}, {"np_float": 3.14}),
+            ({"np_bool": np.bool_(True)}, {"np_bool": True}),
+            ({"np_array": np.array([1, 2, 3])}, {"np_array": [1, 2, 3]}),
+            (
+                {"np_complex": np.complex128(1 + 2j)},
+                {"np_complex": {"real": 1.0, "imag": 2.0}},
+            ),
+            (
+                {
+                    "nested": {
+                        "np_int": np.int64(5),
+                        "list": [np.float64(3.14), np.array([1, 2])],
+                    }
+                },
+                {"nested": {"np_int": 5, "list": [3.14, [1, 2]]}},
+            ),
+        ],
+    )
+    def test_asset_with_numpy_metadata(self, metadata, expected):
+        asset = Asset("test_asset", extra=metadata)
+        assert asset.extra == expected
+
+    @pytest.mark.parametrize(
+        "metadata, expected",
+        [
+            ({"np_int": np.int64(5)}, {"np_int": 5}),
+            ({"np_float": np.float64(3.14)}, {"np_float": 3.14}),
+            ({"np_bool": np.bool_(True)}, {"np_bool": True}),
+            ({"np_array": np.array([1, 2, 3])}, {"np_array": [1, 2, 3]}),
+            (
+                {"np_complex": np.complex128(1 + 2j)},
+                {"np_complex": {"real": 1.0, "imag": 2.0}},
+            ),
+            (
+                {
+                    "nested": {
+                        "np_int": np.int64(5),
+                        "list": [np.float64(3.14), np.array([1, 2])],
+                    }
+                },
+                {"nested": {"np_int": 5, "list": [3.14, [1, 2]]}},
+            ),
+        ],
+    )
+    def test_metadata_with_numpy_types(self, metadata, expected):
+        asset = Asset("test_asset")
+        meta = Metadata(asset=asset, extra=metadata)
+        assert meta.extra == expected
