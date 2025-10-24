@@ -218,6 +218,14 @@ repos:
         entry: ./scripts/ci/prek/check_deferrable_default.py
         pass_filenames: false
         files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
+      - id: check-new-airflow-exception-usage
+        name: Check new AirflowException usage
+        language: python
+        entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py
+        pass_filenames: true
+        require_serial: true
+        types: [python]
+        files: ^(providers/|airflow-.*/|task-sdk/).+\.py$
   - repo: https://github.com/adamchainz/blacken-docs
     rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
