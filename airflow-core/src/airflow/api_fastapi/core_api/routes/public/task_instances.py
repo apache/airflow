@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Annotated, Literal, cast
 
 import structlog
@@ -82,7 +83,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -696,7 +697,7 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -789,13 +790,22 @@ def post_clear_task_instances(
             end_date=body.end_date,
         )
 
+    params = inspect.signature(clear_task_instances).parameters
+    kwargs = {
+        "run_on_latest_version": body.run_on_latest_version,
+    }
+
+    # Only include this argument if the function supports it
+    if "prevent_running_task" in params:
+        kwargs["prevent_running_task"] = body.prevent_running_task
+
     if not dry_run:
-        clear_task_instances(
-            task_instances,
-            session,
-            DagRunState.QUEUED if reset_dag_runs else False,
-            run_on_latest_version=body.run_on_latest_version,
-        )
+        try:
+            clear_task_instances(
+                task_instances, session, DagRunState.QUEUED if reset_dag_runs else False, **kwargs
+            )
+        except AirflowClearRunningTaskException as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

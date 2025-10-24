@@ -19,8 +19,10 @@
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import tz from "dayjs/plugin/timezone";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 dayjs.extend(dayjsDuration);
+dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
 export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -58,4 +60,12 @@ export const formatDate = (
   }
 
   return dayjs(date).tz(timezone).format(format);
+};
+
+export const getRelativeTime = (date: string | null | undefined): string => {
+  if (date === null || date === "" || date === undefined) {
+    return "";
+  }
+
+  return dayjs(date).fromNow();
 };
