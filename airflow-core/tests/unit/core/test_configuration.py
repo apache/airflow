@@ -1600,7 +1600,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category is DeprecationWarning
+        assert c.category is DeprecatedImportWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1624,7 +1624,7 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category is DeprecationWarning
+        assert w.category is DeprecatedImportWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
