@@ -622,7 +622,7 @@ class TaskOutletAssetReference(Base):
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 
-    asset = relationship("AssetModel", back_populates="producing_tasks")
+    asset = relationship("AssetModel", back_populates="producing_tasks", lazy="noload")
 
     __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (

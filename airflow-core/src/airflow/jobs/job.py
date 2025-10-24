@@ -127,6 +127,7 @@ class Job(Base, LoggingMixin):
         primaryjoin="Job.dag_id == DagModel.dag_id",
         viewonly=True,
         foreign_keys=[dag_id],
+        lazy="noload",
     )
 
     """

@@ -49,7 +49,7 @@ class DagWarning(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
-    dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
+    dag_model = relationship("DagModel", viewonly=True, lazy="noload")
 
     __tablename__ = "dag_warning"
     __table_args__ = (

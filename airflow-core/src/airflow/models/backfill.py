@@ -158,6 +158,7 @@ class Backfill(Base):
         primaryjoin="DagModel.dag_id == Backfill.dag_id",
         viewonly=True,
         foreign_keys=[dag_id],
+        lazy="noload",
     )
 
     def __repr__(self):

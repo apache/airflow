@@ -55,6 +55,7 @@ class Log(Base):
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
+        lazy="noload",
     )
 
     task_instance = relationship(
