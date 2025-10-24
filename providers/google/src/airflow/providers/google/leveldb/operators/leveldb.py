@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

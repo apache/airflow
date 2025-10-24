@@ -21,9 +21,9 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
+from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from datetime import datetime

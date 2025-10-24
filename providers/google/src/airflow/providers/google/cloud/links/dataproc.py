@@ -30,7 +30,8 @@ from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import BaseOperator, Context
+    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.google.version_compat import BaseOperator
 
 
 def __getattr__(name: str) -> Any:
