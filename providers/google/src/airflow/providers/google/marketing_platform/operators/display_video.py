@@ -30,7 +30,7 @@ from airflow.providers.google.marketing_platform.hooks.display_video import Goog
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
