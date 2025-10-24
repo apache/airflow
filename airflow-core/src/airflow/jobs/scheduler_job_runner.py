@@ -1758,6 +1758,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        partition_dags: list[DagModel] = []
+        other_dags = []
+
+        partition_keys: dict[str, str] = {}
+
+        for dag in dag_models:
+            sdm = self.scheduler_dag_bag.get_latest_version_of_dag(dag.dag_id, session=session)
+            if not sdm:
+                raise RuntimeError(f"no serdag for {dag.dag_id}")
+            if getattr(sdm.timetable, "partitions", None) is True:
+                partition_dags.append(dag)
+                partition_keys[dag.dag_id] = str(dag.next_dagrun)  # todo: AIP-76 improve
+            else:
+                other_dags.append(dag)
+
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -1766,7 +1781,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(
                 select(DagRun.dag_id, DagRun.logical_date).where(
                     tuple_(DagRun.dag_id, DagRun.logical_date).in_(
-                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
+                        (dm.dag_id, dm.next_dagrun) for dm in other_dags
                     ),
                 )
             )
@@ -1786,60 +1801,64 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
-            if not dag:
+            serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            data_interval = get_next_data_interval(dag.timetable, dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
+            # we need to set serdag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+            data_interval = None
+            if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+                partition_key = partition_keys.get(serdag.dag_id)
+                data_interval = get_next_data_interval(serdag.timetable, dag_model)
+                logical_date = dag_model.next_dagrun
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
-                        dag.create_dagrun(
-                            run_id=dag.timetable.generate_run_id(
+                        serdag.create_dagrun(
+                            run_id=serdag.timetable.generate_run_id(
                                 run_type=DagRunType.SCHEDULED,
                                 run_after=timezone.coerce_datetime(dag_model.next_dagrun),
-                                data_interval=data_interval,
+                                data_interval=None if partition_key else data_interval,
                             ),
-                            logical_date=dag_model.next_dagrun,
-                            data_interval=data_interval,
+                            logical_date=None if partition_key else logical_date,
+                            data_interval=None if partition_key else data_interval,
                             run_after=dag_model.next_dagrun_create_after,
                             run_type=DagRunType.SCHEDULED,
                             triggered_by=DagRunTriggeredByType.TIMETABLE,
                             state=DagRunState.QUEUED,
                             creating_job_id=self.job.id,
                             session=session,
+                            partition_key=partition_key,
                         )
-                        active_runs_of_dags[dag.dag_id] += 1
+                        active_runs_of_dags[serdag.dag_id] += 1
                     else:
                         if dag_model.next_dagrun is None:
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # serdag.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
                 # and continue to the next dag.
                 except Exception:
-                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
                     continue
             if self._should_update_dag_next_dagruns(
-                dag,
+                serdag,
                 dag_model,
                 last_dag_run=None,
-                active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
+                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
                 session=session,
             ):
-                dag_model.calculate_dagrun_date_fields(dag, data_interval)
+                dag_model.calculate_dagrun_date_fields(serdag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        # memory for larger dags? or expunge_all()
+        #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
