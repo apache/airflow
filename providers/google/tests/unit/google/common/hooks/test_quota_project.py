@@ -64,3 +64,4 @@ class TestGoogleBaseHookQuotaProject:
 
 def mock_init_no_args(self, **kwargs):
     pass
+

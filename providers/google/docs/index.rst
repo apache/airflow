@@ -90,6 +90,99 @@ Google services including:
 
 Release: 18.0.0
 
+Features
+--------
+
+Quota Project Support for Google Cloud Providers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow's Google Cloud providers support specifying a "quota project" (a billing project) for
+API calls. That lets API usage be billed to a different Google Cloud project than the one that
+owns the service account. This is useful for organizations that share service accounts but
+centralize billing in specific projects.
+
+Usage
+^^^^^
+
+There are two ways to set a quota project in Airflow:
+
+- Via connection extras (recommended for environment-wide defaults).
+- Directly on operators or hooks (recommended when a single task must bill to a different project).
+
+Connection extras
+"""""""""""""""
+
+Add the quota project ID to the Google Cloud connection extras. For example:
+
+.. code-block:: json
+
+    {
+        "quota_project_id": "your-billing-project-id"
+    }
+
+You can set this via the Airflow UI, the Connections REST API, or an environment variable, for
+example:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{
+        "conn_type": "google-cloud-platform",
+        "extra": {
+            "quota_project_id": "your-billing-project-id"
+        }
+    }'
+
+Operator / Hook parameter
+"""""""""""""""""""""""
+
+You can also pass the quota project directly when creating an operator or hook. This takes
+precedence over the connection extras:
+
+.. code-block:: python
+
+    from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+
+    task = BigQueryExecuteQueryOperator(
+        task_id='execute_query',
+        sql='SELECT * FROM `my_project.dataset.table`',
+        quota_project_id='your-billing-project-id'
+    )
+
+    # Or when creating a hook
+    from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+    hook = BigQueryHook(quota_project_id='your-billing-project-id')
+
+Priority
+^^^^^^^
+
+If a quota project is provided both in the connection extras and as an operator/hook
+parameter, the operator/hook parameter wins.
+
+Compatibility
+^^^^^^^^^^^
+
+This setting works with Google Cloud services that support the quota project mechanism (the
+`x-goog-user-project` header), for example:
+
+- BigQuery
+- Cloud Storage
+- Dataflow
+- Other Google Cloud APIs that accept quota project headers
+
+Impact
+^^^^^^
+
+Using a quota project affects where API usage is billed, which quotas are applied, and how
+usage is reported for monitoring and auditing.
+
+Examples
+^^^^^^^
+
+**Examples**
+
+See the example DAG: ``airflow/providers/google/cloud/example_dags/example_quota_project.py``
+
 Provider package
 ----------------
 
@@ -187,6 +280,96 @@ PIP package                                 Version required
 
 Cross provider package dependencies
 -----------------------------------
+
+Quota Project Support for Google Cloud Providers
+------------------------------------------------
+
+Airflow's Google Cloud providers support specifying a "quota project" (a billing project) for
+API calls. That lets API usage be billed to a different Google Cloud project than the one that
+owns the service account. This is useful for organizations that share service accounts but
+centralize billing in specific projects.
+
+Usage
+~~~~~
+
+There are two ways to set a quota project in Airflow:
+
+- Via connection extras (recommended for environment-wide defaults).
+- Directly on operators or hooks (recommended when a single task must bill to a different project).
+
+Connection extras
+^^^^^^^^^^^^^^^^^
+
+Add the quota project ID to the Google Cloud connection extras. For example:
+
+.. code-block:: json
+
+    {
+        "quota_project_id": "your-billing-project-id"
+    }
+
+You can set this via the Airflow UI, the Connections REST API, or an environment variable, for
+example::
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{
+            "conn_type": "google-cloud-platform",
+            "extra": {
+                "quota_project_id": "your-billing-project-id"
+            }
+        }'
+
+Operator / Hook parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can also pass the quota project directly when creating an operator or hook. This takes
+precedence over the connection extras:
+
+.. code-block:: python
+
+    from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+
+    task = BigQueryExecuteQueryOperator(
+        task_id='execute_query',
+        sql='SELECT * FROM `my_project.dataset.table`',
+        quota_project_id='your-billing-project-id'
+    )
+
+    # Or when creating a hook
+    from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+    hook = BigQueryHook(quota_project_id='your-billing-project-id')
+
+Priority
+~~~~~~~
+
+If a quota project is provided both in the connection extras and as an operator/hook
+parameter, the operator/hook parameter wins.
+
+Compatibility
+~~~~~~~~~~~~~
+
+This setting works with Google Cloud services that support the quota project mechanism (the
+`x-goog-user-project` header), for example:
+
+- BigQuery
+- Cloud Storage
+- Dataflow
+- Other Google Cloud APIs that accept quota project headers
+
+Impact
+~~~~~~
+
+Using a quota project affects where API usage is billed, which quotas are applied, and how
+usage is reported for monitoring and auditing.
+
+Examples
+~~~~~~~~
+
+**Examples**
+
+See the example DAG: ``airflow/providers/google/cloud/example_dags/example_quota_project.py``
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
