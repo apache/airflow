@@ -496,7 +496,7 @@ spark_job_template.yaml
 
     * kubernetes: This segment encompasses the task's Kubernetes resource configuration, directly corresponding to the Kubernetes API Documentation. Each resource type includes an example within the template.
 
-  * The designated base image to be utilized is ``gcr.io/spark-operator/spark-py:v3.1.1``.
+  * The designated base image to be utilized is ``apache/spark-py:v3.4.0``.
 
   * Ensure that the Spark code is either embedded within the image, mounted using a persistentVolume, or accessible from an external location such as an S3 bucket.
 
@@ -506,7 +506,7 @@ Next, create the task using the following:
 
     SparkKubernetesOperator(
         task_id="spark_task",
-        image="gcr.io/spark-operator/spark-py:v3.1.1",  # OR custom image using that
+        image="apache/spark-py:v3.4.0",  # OR custom image using that
         code_path="local://path/to/spark/code.py",
         application_file="spark_job_template.yaml",  # OR spark_job_template.json
         dag=dag,
