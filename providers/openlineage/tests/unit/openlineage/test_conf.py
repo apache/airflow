@@ -538,7 +538,7 @@ def test_dag_state_change_process_pool_size(var_string, expected):
 
 @pytest.mark.parametrize(
     "var_string",
-    (
+    [
         "4.56",
         "asdf",
         "true",
@@ -546,7 +546,7 @@ def test_dag_state_change_process_pool_size(var_string, expected):
         "None",
         "",
         " ",
-    ),
+    ],
 )
 def test_dag_state_change_process_pool_size_invalid_value_raise_error(var_string):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
@@ -556,12 +556,12 @@ def test_dag_state_change_process_pool_size_invalid_value_raise_error(var_string
 
 @pytest.mark.parametrize(
     ("var_string", "expected"),
-    (
+    [
         ("1", 1),
         ("2   ", 2),
         ("  3", 3),
         (None, 10),  # default
-    ),
+    ],
 )
 def test_execution_timeout(var_string, expected):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_EXECUTION_TIMEOUT): var_string}):
@@ -571,7 +571,7 @@ def test_execution_timeout(var_string, expected):
 
 @pytest.mark.parametrize(
     "var_string",
-    (
+    [
         "4.56",
         "asdf",
         "true",
@@ -579,7 +579,7 @@ def test_execution_timeout(var_string, expected):
         "None",
         "",
         " ",
-    ),
+    ],
 )
 def test_execution_timeout_invalid_value_raise_error(var_string):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_EXECUTION_TIMEOUT): var_string}):
@@ -599,14 +599,14 @@ def test_include_full_task_info(var_string, expected):
 
 @pytest.mark.parametrize(
     "var_string",
-    (
+    [
         "a",
         "asdf",
         "None",
         "31",
         "",
         " ",
-    ),
+    ],
 )
 def test_include_full_task_info_invalid_value_raise_error(var_string):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}):
@@ -631,14 +631,14 @@ def test_debug_mode(var_string, expected):
 
 @pytest.mark.parametrize(
     "var_string",
-    (
+    [
         "a",
         "asdf",
         "None",
         "31",
         "",
         " ",
-    ),
+    ],
 )
 def test_debug_mode_invalid_value_raise_error(var_string):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DEBUG_MODE): var_string}):

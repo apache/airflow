@@ -343,10 +343,10 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
 
 @pytest.mark.parametrize(
     ("levels",),
-    (
+    [
         pytest.param("my.logger=warn", id="str"),
         pytest.param({"my.logger": "warn"}, id="dict"),
-    ),
+    ],
 )
 def test_logger_filtering(structlog_config, levels):
     with structlog_config(
