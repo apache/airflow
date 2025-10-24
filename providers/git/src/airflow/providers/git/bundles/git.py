@@ -48,7 +48,7 @@ class GitDagBundle(BaseDagBundle):
     :param prune_dotgit_folder: Remove .git folder from the versions after cloning.
 
         The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
-        to share the object directory via hardlinks, but if you have a lot of current versions
+        to share the object directory via hard links, but if you have a lot of current versions
         running, or an especially large git repo setting this to True will save some disk space
         at the expense of `git` operations not working in the bundle that Tasks run from.
     """
