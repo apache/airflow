@@ -26,7 +26,7 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
@@ -496,21 +496,58 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
 
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    def test_get_or_create_pod(self, mock_find_pod):
+        found_pod = mock.MagicMock()
+        found_pod.metadata.namespace = "test-ns"
+        mock_find_pod.side_effect = [None, found_pod]
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+
+        assert op.get_or_create_pod(found_pod, context) == found_pod
+
     @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
-    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod):
+    def test_pod_creation_timeout(
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_find_pod
+    ):
+        mock_find_pod.return_value = None
+        mock_job_request_obj = mock_build_job_request_obj.return_value
+        mock_pod_request_obj = mock_job_request_obj.spec.template
+        mock_pod_request_obj.metadata.namespace = "test-ns"
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(task_id="test_task_id", pod_creation_timeout=1)
+        op.pod_request_obj = mock_pod_request_obj
+
+        with pytest.raises(AirflowTaskTimeout):
+            op.execute(context)
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_find_pod):
         mock_hook.return_value.is_job_failed.return_value = False
         mock_job_request_obj = mock_build_job_request_obj.return_value
         mock_job_expected = mock_create_job.return_value
+        mock_pod_request_obj = mock_job_request_obj.spec.template
+        mock_pod_request_obj.metadata.namespace = "test-ns"
+        mock_find_pod.side_effect = [None, mock_pod_request_obj]
         mock_ti = mock.MagicMock()
         context = dict(ti=mock_ti)
 
         op = KubernetesJobOperator(
             task_id="test_task_id",
         )
+        op.pod_request_obj = mock_pod_request_obj
         with pytest.warns(AirflowProviderDeprecationWarning):
             execute_result = op.execute(context=context)
 
