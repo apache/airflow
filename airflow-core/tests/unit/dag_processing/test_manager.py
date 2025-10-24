@@ -1169,29 +1169,6 @@ class TestDagFileProcessorManager:
         bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
         assert bundle_names_being_parsed == expected
 
-    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
-        from airflow.utils.state import DagRunState
-
-        with dag_maker("metric_dag") as dag:
-            _ = dag
-        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
-        dag_maker.create_dagrun(
-            run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
-        )
-
-        recorded: list[tuple[str, int]] = []
-
-        def _fake_gauge(metric: str, value: int, *_, **__):
-            recorded.append((metric, value))
-
-        monkeypatch.setattr("airflow.dag_processing.manager.Stats.gauge", _fake_gauge, raising=True)
-
-        with conf_vars({("metrics", "statsd_on"): "True"}):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager._emit_running_dags_metric()
-
-        assert recorded == [("executor.running_dags", 2)]
-
     @conf_vars({("core", "multi_team"): "true"})
     def test_bundles_with_team(self, session):
         team1_name = "test_team1"
