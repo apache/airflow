@@ -65,8 +65,35 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     hook_name = "Amazon Athena"
     supports_autocommit = True
 
-    def __init__(self, athena_conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        athena_conn_id: str = default_conn_name,
+        *,
+        s3_staging_dir: str | None = None,
+        work_group: str | None = None,
+        driver: str | None = None,
+        aws_domain: str | None = None,
+        session_kwargs: dict | None = None,
+        config_kwargs: dict | None = None,
+        role_arn: str | None = None,
+        assume_role_method: str | None = None,
+        assume_role_kwargs: dict | None = None,
+        aws_session_token: str | None = None,
+        endpoint_url: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.s3_staging_dir = s3_staging_dir
+        self.work_group = work_group
+        self.driver = driver
+        self.aws_domain = aws_domain
+        self.session_kwargs = session_kwargs
+        self.config_kwargs = config_kwargs
+        self.role_arn = role_arn
+        self.assume_role_method = assume_role_method
+        self.assume_role_kwargs = assume_role_kwargs
+        self.aws_session_token = aws_session_token
+        self.endpoint_url = endpoint_url
         self.athena_conn_id = athena_conn_id
 
     @classmethod
@@ -144,10 +171,10 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             raise AirflowException("region_name must be specified in the connection's extra")
 
         return dict(
-            driver=self.conn.extra_dejson.get("driver", "rest"),
+            driver=self.conn.extra_dejson.get("driver", self.driver or "rest"),
             schema_name=self.conn.schema,
             region_name=self.conn.region_name,
-            aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
+            aws_domain=self.conn.extra_dejson.get("aws_domain", self.aws_domain or "amazonaws.com"),
         )
 
     def get_uri(self) -> URL:
@@ -169,11 +196,38 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         """Get a ``pyathena.Connection`` object."""
         conn_params = self._get_conn_params()
 
+        # Start with connection extra_dejson, then override with hook parameters
         conn_kwargs: dict = {
             "schema_name": conn_params["schema_name"],
             "region_name": conn_params["region_name"],
             "session": self.get_session(region_name=conn_params["region_name"]),
             **self.conn.extra_dejson,
         }
+
+        # Override with hook parameters if they were provided
+        if self.s3_staging_dir is not None:
+            conn_kwargs["s3_staging_dir"] = self.s3_staging_dir
+        if self.work_group is not None:
+            conn_kwargs["work_group"] = self.work_group
+        if self.session_kwargs is not None:
+            conn_kwargs["session_kwargs"] = self.session_kwargs
+        if self.config_kwargs is not None:
+            conn_kwargs["config_kwargs"] = self.config_kwargs
+        if self.role_arn is not None:
+            conn_kwargs["role_arn"] = self.role_arn
+        if self.assume_role_method is not None:
+            conn_kwargs["assume_role_method"] = self.assume_role_method
+        if self.assume_role_kwargs is not None:
+            conn_kwargs["assume_role_kwargs"] = self.assume_role_kwargs
+        if self.aws_session_token is not None:
+            conn_kwargs["aws_session_token"] = self.aws_session_token
+        if self.endpoint_url is not None:
+            conn_kwargs["endpoint_url"] = self.endpoint_url
+
+        # Keep overrides consistent with _get_conn_params/get_uri
+        if getattr(self, "driver", None) is not None:
+            conn_kwargs["driver"] = self.driver
+        if getattr(self, "aws_domain", None) is not None:
+            conn_kwargs["aws_domain"] = self.aws_domain
 
         return pyathena.connect(**conn_kwargs)
