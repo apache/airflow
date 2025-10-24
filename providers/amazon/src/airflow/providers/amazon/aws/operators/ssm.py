@@ -210,11 +210,6 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
             response = self.hook.list_command_invocations(self.command_id)
             invocations = response.get("CommandInvocations", [])
 
-        # TBD: Do we return formatted or RAW API output?
-        # My rationalle for going formatted: Raw AWS API response
-        # contains
-        # a lot
-        # of metadata that's typically not needed for downstream tasks.
         output_data: dict[str, Any] = {"command_id": self.command_id, "invocations": []}
 
         for invocation in invocations:
