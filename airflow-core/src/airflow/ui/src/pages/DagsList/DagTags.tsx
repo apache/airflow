@@ -32,13 +32,16 @@ type Props = {
 
 export const DagTags = ({ hideIcon = false, tags }: Props) => (
   <LimitedItemsList
-    icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
+    data-testid="dag-tags"
+    icon={hideIcon ? undefined : <FiTag data-testid="dag-tag-icon" />}
     interactive
-    items={tags.map(({ name }) => (
-      <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${name}`}>
-        {name}
-      </RouterLink>
-    ))}
+    items={[...tags]
+      .sort((firstTag, secondTag) => firstTag.name.localeCompare(secondTag.name))
+      .map(({ name }) => (
+        <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${name}`}>
+          {name}
+        </RouterLink>
+      ))}
     maxItems={MAX_TAGS}
   />
 );
