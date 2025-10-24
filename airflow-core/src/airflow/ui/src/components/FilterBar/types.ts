@@ -18,7 +18,7 @@
  */
 import type React from "react";
 
-export type FilterValue = Date | number | string | null | undefined;
+export type FilterValue = Date | number | ReadonlyArray<string> | string | null | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
@@ -26,9 +26,16 @@ export type FilterConfig = {
   readonly icon?: React.ReactNode;
   readonly key: string;
   readonly label: string;
+
+  // number-only (optional; ignored by other types)
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
+
+  /** When true (default), select behaves as multi-select; when false, single-select. */
+  readonly multiple?: boolean;
+  // select-only (optional; ignored by other types)
+  readonly options?: ReadonlyArray<{ disabled?: boolean; label: React.ReactNode | string; value: string }>;
+
   readonly placeholder?: string;
   readonly required?: boolean;
   readonly type: "date" | "number" | "select" | "text";
