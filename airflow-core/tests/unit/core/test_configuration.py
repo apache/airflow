@@ -1583,7 +1583,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_suppress_future_warnings_no_future_warning(self):
         from airflow.configuration import AirflowConfigParser
-        from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
         test_conf = AirflowConfigParser()
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
@@ -1601,7 +1600,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category is DeprecatedImportWarning
+        assert c.category is DeprecationWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1616,7 +1615,6 @@ sql_alchemy_conn=sqlite://test
     )
     def test_future_warning_only_for_code_ref(self, key):
         from airflow.configuration import AirflowConfigParser
-        from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
         old_val = "deactivate_stale_dags_interval"
         test_conf = AirflowConfigParser()
@@ -1626,7 +1624,7 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category is DeprecatedImportWarning
+        assert w.category is DeprecationWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
