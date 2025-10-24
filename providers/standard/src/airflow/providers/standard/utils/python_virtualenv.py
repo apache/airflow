@@ -134,7 +134,7 @@ def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str,
     return uv_index_env_vars
 
 
-def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> None:
+def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str, str] | None = None) -> None:
     """
     Execute a process and stream output to logger.
 
@@ -143,15 +143,16 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict | N
     :param env: Additional environment variables to set for the subprocess.
     """
     log = logging.getLogger(__name__)
-    popen_args = {
-        "cwd": cwd,
-        "env": env,
-    }
-    kwargs = {k: v for k, v in popen_args.items() if v is not None}
 
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, **kwargs
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=0,
+        close_fds=True,
+        cwd=cwd,
+        env=env,
     ) as proc:
         log.info("Output:")
         if proc.stdout:
