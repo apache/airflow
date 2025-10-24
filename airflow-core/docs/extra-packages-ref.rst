@@ -303,6 +303,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| voyageai            |  ``pip install apache-airflow[voyageai]``           | Voyageai hooks and operators                        |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
 Locally installed software extras
 =================================
