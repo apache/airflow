@@ -75,6 +75,7 @@ services:
       - ../../../providers/dingding/tests:/opt/airflow/providers/dingding/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
+      - ../../../providers/docling/tests:/opt/airflow/providers/docling/tests
       - ../../../providers/edge3/tests:/opt/airflow/providers/edge3/tests
       - ../../../providers/elasticsearch/tests:/opt/airflow/providers/elasticsearch/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
