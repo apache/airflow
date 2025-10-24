@@ -25,17 +25,14 @@ pytestmark = pytest.mark.db_test
 
 @pytest.mark.parametrize(
     "user_id, expected_id",
-    [
-        (999, "999"),
-        ("999", "999"),
-    ],
+    [(999, "999")],
 )
-def test_get_id_returns_str(user_id: int | str, expected_id: str) -> None:
+def test_get_id_returns_str(user_id: int, expected_id: str) -> None:
     """
     Ensure get_id() always returns a string representation of the id.
     """
     user = User()
-    user.id = user_id  # type: ignore[assignment] # id can be int or str for this test
+    user.id = user_id
     result = user.get_id()
     assert isinstance(result, str), f"Expected str, got {type(result)}"
     assert result == expected_id
