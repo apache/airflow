@@ -20,9 +20,32 @@ import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import {
+  FilterBar,
+  type FilterValue,
+  type DateRangeValue,
+  type FilterConfig,
+} from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+
+const processGenericValue = (config: FilterConfig, value: string): FilterValue => {
+  if (config.type === "number") {
+    const parsedValue = Number(value);
+
+    return isNaN(parsedValue) ? value : parsedValue;
+  }
+
+  if (config.type === "daterange") {
+    try {
+      return JSON.parse(value) as DateRangeValue;
+    } catch {
+      return { endDate: undefined, startDate: undefined };
+    }
+  }
+
+  return value;
+};
 
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
@@ -30,10 +53,8 @@ export const XComFilters = () => {
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       SearchParamsKeys.KEY_PATTERN,
-      SearchParamsKeys.LOGICAL_DATE_GTE,
-      SearchParamsKeys.LOGICAL_DATE_LTE,
-      SearchParamsKeys.RUN_AFTER_GTE,
-      SearchParamsKeys.RUN_AFTER_LTE,
+      SearchParamsKeys.LOGICAL_DATE_RANGE,
+      SearchParamsKeys.RUN_AFTER_RANGE,
     ];
 
     if (dagId === "~") {
@@ -58,18 +79,46 @@ export const XComFilters = () => {
   const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
 
   const initialValues = useMemo(() => {
+    const processDateRangeValue = (gteKey: string, lteKey: string): DateRangeValue | undefined => {
+      const gte = searchParams.get(gteKey);
+      const lte = searchParams.get(lteKey);
+
+      if ((gte !== null && gte !== "") || (lte !== null && lte !== "")) {
+        return {
+          endDate: lte ?? undefined,
+          startDate: gte ?? undefined,
+        } as DateRangeValue;
+      }
+
+      return undefined;
+    };
+
     const values: Record<string, FilterValue> = {};
 
     filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
+      if (config.key === (SearchParamsKeys.LOGICAL_DATE_RANGE as string)) {
+        const dateRange = processDateRangeValue(
+          SearchParamsKeys.LOGICAL_DATE_GTE,
+          SearchParamsKeys.LOGICAL_DATE_LTE,
+        );
 
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
+        if (dateRange !== undefined) {
+          values[config.key] = dateRange;
+        }
+      } else if (config.key === (SearchParamsKeys.RUN_AFTER_RANGE as string)) {
+        const dateRange = processDateRangeValue(
+          SearchParamsKeys.RUN_AFTER_GTE,
+          SearchParamsKeys.RUN_AFTER_LTE,
+        );
 
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
+        if (dateRange !== undefined) {
+          values[config.key] = dateRange;
+        }
+      } else {
+        const value = searchParams.get(config.key);
+
+        if (value !== null && value !== "") {
+          values[config.key] = processGenericValue(config, value);
         }
       }
     });
