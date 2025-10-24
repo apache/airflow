@@ -24,10 +24,12 @@ from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.types import AssetEvent
 
 
 changed: list[Asset] = []
 created: list[Asset] = []
+created_events: list[AssetEvent] = []
 
 
 @hookimpl
@@ -40,6 +42,11 @@ def on_asset_created(asset):
     created.append(copy.deepcopy(asset))
 
 
+@hookimpl
+def on_asset_event_created(event: AssetEvent):
+    created_events.append(copy.deepcopy(event))
+
+
 def clear():
-    global changed, created
-    changed, created = [], []
+    global changed, created, created_events
+    changed, created, created_events = [], [], []
