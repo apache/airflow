@@ -32,7 +32,7 @@ from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
-from airflow.utils.state import TaskInstanceState
+from airflow.models.taskinstance import TaskInstanceState
 
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 

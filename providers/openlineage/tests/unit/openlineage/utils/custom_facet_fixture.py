@@ -23,7 +23,14 @@ import attrs
 from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+    from airflow.models.taskinstance import TaskInstance
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import TaskInstanceState
+    else:
+        from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 
 @attrs.define

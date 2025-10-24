@@ -26,6 +26,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import cache
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
@@ -73,6 +74,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRunState
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -93,7 +95,66 @@ from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, mapped_column
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
+
+
+class TerminalTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it has reached a terminal state."""
+
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"  # A user can raise an AirflowSkipException from a task & it will be marked as skipped
+    UPSTREAM_FAILED = "upstream_failed"
+    REMOVED = "removed"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class IntermediateTIState(str, Enum):
+    """States that a Task Instance can be in that indicate it is not yet in a terminal or running state."""
+
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RESTARTING = "restarting"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    DEFERRED = "deferred"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class TaskInstanceState(str, Enum):
+    """
+    All possibles state that a Task Instance can be in.
+
+    Note that None is also allowed, so always use this in a type hint with Optional.
+    """
+
+    # The scheduler sets a TaskInstance state to None when it's created but not
+    # yet run, but we don't list it here since TaskInstance is a string enum.
+    # Use None instead if need this state.
+
+    # Set by the scheduler
+    REMOVED = TerminalTIState.REMOVED  # Task vanished from DAG before it ran
+    SCHEDULED = IntermediateTIState.SCHEDULED  # Task should run and will be handed to executor soon
+
+    # Set by the task instance itself
+    QUEUED = IntermediateTIState.QUEUED  # Executor has enqueued the task
+    RUNNING = "running"  # Task is executing
+    SUCCESS = TerminalTIState.SUCCESS  # Task completed
+    RESTARTING = IntermediateTIState.RESTARTING  # External request to restart (e.g. cleared when running)
+    FAILED = TerminalTIState.FAILED  # Task errored out
+    UP_FOR_RETRY = IntermediateTIState.UP_FOR_RETRY  # Task failed but has retries left
+    UP_FOR_RESCHEDULE = IntermediateTIState.UP_FOR_RESCHEDULE  # A waiting `reschedule` sensor
+    UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
+    SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
+    DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+
+    def __str__(self) -> str:
+        return self.value
+
 
 TR = TaskReschedule
 

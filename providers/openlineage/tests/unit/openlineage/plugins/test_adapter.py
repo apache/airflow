@@ -40,7 +40,14 @@ from openlineage.client.facet_v2 import (
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
-from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter

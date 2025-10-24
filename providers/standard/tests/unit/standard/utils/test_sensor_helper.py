@@ -32,7 +32,13 @@ from airflow.providers.standard.utils.sensor_helper import (
     _get_count,
     _get_external_task_group_task_ids,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import DagRunState, TaskInstanceState
+else:
+    from airflow.utils.state import DagRunState, TaskInstanceState  # type: ignore[attr-defined,no-redef]
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
@@ -104,7 +110,7 @@ class TestSensorHelper:
             run_type=run_type,
             data_interval=data_interval,
             start_date=now,
-            state=DagRunState.SUCCESS,  # not important
+            state=DagRunState.SUCCESS,  # type: ignore[arg-type]
             external_trigger=False,
             execution_date=execution_date,  # type: ignore[call-arg]
         )

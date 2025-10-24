@@ -29,14 +29,13 @@ from sqlalchemy import select
 
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag_version import DagVersion
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.task.trigger_rule import TriggerRule
-from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mapping import expand_mapped_task

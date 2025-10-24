@@ -24,8 +24,9 @@ import pytest
 
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dagrun import DagRunState
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs

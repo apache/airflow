@@ -22,9 +22,10 @@ import pytest
 from sqlalchemy import select
 
 from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance

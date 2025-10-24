@@ -22,7 +22,6 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
-from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
@@ -34,9 +33,10 @@ else:
     from airflow.models import DAG  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
+    from airflow.sdk import TaskInstanceState, timezone
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None

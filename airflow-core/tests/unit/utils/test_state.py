@@ -20,10 +20,11 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.taskinstance import IntermediateTIState, TaskInstanceState, TerminalTIState
 from airflow.sdk import DAG
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, IntermediateTIState, State, TaskInstanceState, TerminalTIState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db

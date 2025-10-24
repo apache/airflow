@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.utils.session import find_session_idx, provide_session
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

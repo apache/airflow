@@ -24,8 +24,13 @@ from typing import (
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.edge3.worker_api.datamodels import EdgeJobBase, WorkerStateBody
-from airflow.utils.state import TaskInstanceState  # noqa: TC001
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TaskInstanceState
+else:
+    from airflow.utils.state import TaskInstanceState  # type: ignore[attr-defined,no-redef]  # noqa: TC001
 
 
 class Worker(WorkerStateBody):
