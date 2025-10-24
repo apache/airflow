@@ -1285,6 +1285,14 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
+    for outlet in task.outlets or ():
+        if isinstance(outlet, Asset):
+            # Render template at runtime
+            rendered_extra = render_event_extra_template(
+                outlet.event_extra_template, context=context, jinja_env=task.dag.get_template_env()
+            )
+            outlet_events[outlet].extra.update(rendered_extra)
+
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
@@ -1316,6 +1324,37 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
+
+
+def render_event_extra_template(
+    event_extra_template: dict[str, Any] | None,
+    context: Context,
+    jinja_env: jinja2.Environment | None = None,
+) -> dict[str, Any]:
+    """
+    Render the `event_extra_template` into a plain dict that will be merged.
+
+    In AssetEvent.extra at runtime. Safe to call even if template is None.
+    """
+    template = event_extra_template or {}
+    if not template:
+        return {}
+
+    if jinja_env is None:
+        jinja_env = context["dag"].get_template_env()
+
+    def _render(value):
+        if isinstance(value, str):
+            return jinja_env.from_string(value).render(context)
+        if isinstance(value, dict):
+            return {k: _render(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_render(v) for v in value]
+        if isinstance(value, tuple):
+            return tuple(_render(v) for v in value)
+        return value
+
+    return _render(template)
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
