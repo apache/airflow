@@ -535,11 +535,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_delay"] = value
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        return float(self.partial_kwargs.get("retry_exponential_backoff", 0))
 
     @retry_exponential_backoff.setter
-    def retry_exponential_backoff(self, value: bool) -> None:
+    def retry_exponential_backoff(self, value: float) -> None:
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
