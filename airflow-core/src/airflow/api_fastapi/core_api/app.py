@@ -174,10 +174,10 @@ def init_config(app: FastAPI) -> None:
     app.state.secret_key = get_signing_key("api", "secret_key")
 
 
-def init_error_handlers(app: FastAPI) -> None:
-    from airflow.api_fastapi.common.exceptions import ERROR_HANDLERS
+def init_exception_handlers(app: FastAPI) -> None:
+    from airflow.api_fastapi.common.exceptions import EXCEPTION_HANDLERS
 
-    for handler in ERROR_HANDLERS:
+    for handler in EXCEPTION_HANDLERS:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
 
