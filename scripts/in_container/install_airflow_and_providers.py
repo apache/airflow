@@ -404,10 +404,6 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
-        console.print(
-            "[yellow]Note that installing airflow from branch has no assets compiled, so you will"
-            "not be able to run UI (we might add asset compilation for this case later if needed)."
-        )
     elif use_airflow_version in ["wheel", "sdist"] and not use_distributions_from_dist:
         console.print(
             "[red]USE_AIRFLOW_VERSION cannot be 'wheel' or 'sdist' without --use-distributions-from-dist"
