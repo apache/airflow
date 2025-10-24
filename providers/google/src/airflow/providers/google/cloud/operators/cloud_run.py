@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
-from google.cloud.run_v2 import Job, Service
+from google.cloud.run_v2 import Execution, Job, Service
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -33,7 +33,6 @@ from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishe
 
 if TYPE_CHECKING:
     from google.api_core import operation
-    from google.cloud.run_v2.types import Execution
 
     from airflow.utils.context import Context
 
@@ -324,6 +323,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
             job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
+            ti = context["ti"]
+            ti.xcom_push(key="job_execution_id", value=Execution.to_dict(result))
             return Job.to_dict(job)
         self.defer(
             trigger=CloudRunJobFinishedTrigger(
