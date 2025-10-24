@@ -19,11 +19,11 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
 import shutil
 import sys
+from functools import cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -37,12 +37,11 @@ from in_container_utils import (
     run_command,
 )
 
-MAIN_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
-MAIN_UI_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "ui" / "hash.txt"
-SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
-    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
-)
-SIMPLE_AUTH_MANAGER_UI_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "ui" / "simple-auth-manager-hash.txt"
+SOURCE_TARBALL = AIRFLOW_ROOT_PATH / ".build" / "airflow.tar.gz"
+EXTRACTED_SOURCE_DIR = AIRFLOW_ROOT_PATH / ".build" / "airflow_source"
+INSTALLATION_DIST_PREFIX = "ui/dist"
+CORE_SOURCE_UI_PREFIX = "airflow-core/src/airflow/ui"
+CORE_SOURCE_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
 
@@ -223,6 +222,22 @@ def get_providers_constraints_location(
         github_repository=github_repository,
         providers=True,
     )
+
+
+@cache
+def get_airflow_installation_path() -> Path:
+    """Get the installation path of Airflow in the container.
+    Will return somehow like `/usr/python/lib/python3.10/site-packages/airflow`.
+    """
+    import importlib.util
+
+    spec = importlib.util.find_spec("airflow")
+    if spec is None or spec.origin is None:
+        console.print("[red]Airflow not found - cannot mount sources")
+        sys.exit(1)
+
+    airflow_path = Path(spec.origin).parent
+    return airflow_path
 
 
 class InstallationSpec(NamedTuple):
@@ -463,38 +478,132 @@ def find_installation_spec(
     return installation_spec
 
 
-def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = sorted(directory.rglob("*"))
-    if skip_path_regexp:
-        matcher = re.compile(skip_path_regexp)
-        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
-    sha = hashlib.sha256()
-    for file in files:
-        if file.is_file() and not file.name.startswith("."):
-            sha.update(file.read_bytes())
-    return sha.hexdigest()
+def download_airflow_source_tarball(installation_spec: InstallationSpec):
+    """Download Airflow source tarball from GitHub and extract UI directories."""
+    if not installation_spec.airflow_distribution:
+        console.print("[yellow]No airflow distribution specified, cannot download source tarball.")
+        return
+
+    # Extract GitHub repository information from airflow_distribution
+    # Expected format: "apache-airflow @ git+https://github.com/owner/repo.git@branch"
+    airflow_dist = installation_spec.airflow_distribution
+    git_url_match = re.search(r"git\+https://github\.com/([^/]+)/([^/]+)\.git@([^#\s]+)", airflow_dist)
+
+    if not git_url_match:
+        console.print(f"[yellow]Cannot extract GitHub repository info from: {airflow_dist}")
+        return
+
+    owner, repo, ref = git_url_match.groups()
+    console.print(f"[bright_blue]Downloading source tarball from GitHub: {owner}/{repo}@{ref}")
+
+    # Create build directory if it doesn't exist
+    SOURCE_TARBALL.parent.mkdir(parents=True, exist_ok=True)
+
+    # Download tarball from GitHub API if it doesn't exist
+    if not SOURCE_TARBALL.exists():
+        tarball_url = f"https://api.github.com/repos/{owner}/{repo}/tarball/{ref}"
+        console.print(f"[bright_blue]Downloading from: {tarball_url}")
+
+        try:
+            result = run_command(
+                ["curl", "-L", tarball_url, "-o", str(SOURCE_TARBALL)],
+                github_actions=False,
+                shell=False,
+                check=True,
+            )
+
+            if result.returncode != 0:
+                console.print(f"[red]Failed to download tarball: {result.stderr}")
+                return
+        except Exception as e:
+            console.print(f"[red]Error downloading source tarball: {e}")
+            return
+    else:
+        console.print(f"[bright_blue]Source tarball already exists at: {SOURCE_TARBALL}")
+
+    try:
+        # Create temporary extraction directory
+        if EXTRACTED_SOURCE_DIR.exists():
+            shutil.rmtree(EXTRACTED_SOURCE_DIR)
+        # make sure .build exists
+        EXTRACTED_SOURCE_DIR.parent.mkdir(parents=True, exist_ok=True)
+
+        # Extract tarball
+        console.print(f"[bright_blue]Extracting tarball to: {EXTRACTED_SOURCE_DIR}")
+        result = run_command(
+            ["tar", "-xzf", str(SOURCE_TARBALL), "-C", str(EXTRACTED_SOURCE_DIR.parent)],
+            github_actions=False,
+            shell=False,
+            check=True,
+        )
+
+        if result.returncode != 0:
+            console.print(f"[red]Failed to extract tarball: {result.stderr}")
+            return
+
+        # Rename extracted directory to a known name
+        extracted_dirs = list(EXTRACTED_SOURCE_DIR.parent.glob(f"{owner}-{repo}-*"))
+        if not extracted_dirs:
+            console.print("[red]No extracted directory found after tarball extraction.")
+            return
+        extracted_dir = extracted_dirs[0]
+        extracted_dir.rename(EXTRACTED_SOURCE_DIR)
+
+        # Copy UI directories to the expected locations
+        extracted_ui_directory = EXTRACTED_SOURCE_DIR / CORE_SOURCE_UI_PREFIX
+        if extracted_ui_directory.exists():
+            console.print(
+                f"[bright_blue]Copying main UI from: {extracted_ui_directory} to: {CORE_SOURCE_UI_DIRECTORY}"
+            )
+            if CORE_SOURCE_UI_DIRECTORY.exists():
+                shutil.rmtree(CORE_SOURCE_UI_DIRECTORY)
+            CORE_SOURCE_UI_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(extracted_ui_directory, CORE_SOURCE_UI_DIRECTORY)
+        else:
+            console.print(f"[yellow]Main UI directory not found at: {extracted_ui_directory}")
+
+        console.print("[bright_blue]Source tarball downloaded and UI directories extracted successfully")
+
+    except Exception as e:
+        console.print(f"[red]Error extracting source tarball: {e}")
+        return
 
 
-def compile_ui_assets(installation_spec: InstallationSpec, ui_directory: Path, hash_file: Path):
+def compile_ui_assets(installation_spec: InstallationSpec):
     if not installation_spec.compile_ui_assets:
         console.print("[bright_blue]Skipping UI assets compilation")
         return
 
+    if not CORE_SOURCE_UI_DIRECTORY.exists():
+        console.print(
+            f"[bright_blue]UI directory '{CORE_SOURCE_UI_DIRECTORY}' still does not exist. Skipping UI assets compilation."
+        )
+        return
+
     # check if UI assets need to be recompiled
-    node_modules_directory = ui_directory / "node_modules"
-    dist_directory = ui_directory / "dist"
-    hash_file.parent.mkdir(exist_ok=True, parents=True)
-    if node_modules_directory.exists() and dist_directory.exists():
-        old_hash = hash_file.read_text() if hash_file.exists() else ""
-        new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
-        if new_hash == old_hash:
-            console.print(f"The UI directory '{ui_directory}' has not changed! Skip regeneration.")
-            return
+    dist_directory = get_airflow_installation_path() / INSTALLATION_DIST_PREFIX
+    if dist_directory.exists():
+        console.print(f"[bright_blue]Already compiled UI assets found in '{dist_directory}'")
+        return
+    console.print(f"[bright_blue]No compiled UI assets found in '{dist_directory}'")
 
     # ensure dependencies for UI assets compilation
     need_pnpm = shutil.which("pnpm") is None
     if need_pnpm:
         console.print("[bright_blue]Installing pnpm directly from official setup script")
+        run_command(
+            [
+                "bash",
+                "-c",
+                "curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs",
+            ],
+            github_actions=False,
+            shell=False,
+            check=True,
+        )
+        run_command(["npm", "install", "-g", "pnpm"], github_actions=False, shell=False, check=True)
+
+        """
         run_command(
             [
                 "bash",
@@ -505,34 +614,54 @@ def compile_ui_assets(installation_spec: InstallationSpec, ui_directory: Path, h
             shell=False,
             check=True,
         )
+        console.print("[bright_blue]Setting up pnpm PATH")
+        run_command(
+            [
+                "bash",
+                "-c",
+                'export PNPM_HOME="/root/.local/share/pnpm"; case ":$PATH:" in *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;; esac',
+            ],
+            github_actions=False,
+            shell=False,
+            check=True,
+        )
+        """
     else:
         console.print("[bright_blue]pnpm already installed")
 
-    # install UI assets compilation dependencies
-    env = os.environ.copy()
-    env["FORCE_COLOR"] = "true"
-    for try_num in range(3):
-        console.print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
-        result = run_command(
-            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
-            cwd=os.fspath(ui_directory),
-            text=True,
-            check=False,
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            break
-        if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
-            console.print(result.stdout + "\n" + result.stderr)
-            sys.exit(1)
+    # TO avoid ` ELIFECYCLE  Command failed.` errors, we need to clear cache and node_modules
+    run_command(
+        ["bash", "-c", "pnpm cache delete"],
+        github_actions=False,
+        shell=False,
+        check=True,
+        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+    )
+    shutil.rmtree(CORE_SOURCE_UI_DIRECTORY / "node_modules", ignore_errors=True)
 
+    # install dependencies
+    run_command(
+        ["bash", "-c", "pnpm install --frozen-lockfile -config.confirmModulesPurge=false"],
+        github_actions=False,
+        shell=False,
+        check=True,
+        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+    )
     # compile UI assets
-    run_command(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
+    run_command(
+        ["bash", "-c", "pnpm run build"],
+        github_actions=False,
+        shell=False,
+        check=True,
+        cwd=os.fspath(CORE_SOURCE_UI_DIRECTORY),
+    )
+    # copy compiled assets to installation directory
+    dist_source_directory = CORE_SOURCE_UI_DIRECTORY / "dist"
+    console.print(
+        f"[bright_blue]Copying compiled UI assets from '{dist_source_directory}' to '{dist_directory}'"
+    )
+    shutil.copytree(dist_source_directory, dist_directory)
     console.print("[bright_blue]UI assets compiled successfully")
-
-    # Write new hash to file
-    new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
-    hash_file.write_text(new_hash)
 
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
@@ -752,12 +881,6 @@ def install_airflow_and_providers(
             shell=True,
             check=False,
         )
-        import importlib.util
-
-        spec = importlib.util.find_spec("airflow")
-        if spec is None or spec.origin is None:
-            console.print("[red]Airflow not found - cannot mount sources")
-            sys.exit(1)
         from packaging.version import Version
 
         from airflow import __version__
@@ -768,7 +891,7 @@ def install_airflow_and_providers(
                 "[yellow]Patching airflow 2 installation "
                 "in order to load providers from separate distributions.\n"
             )
-            airflow_path = Path(spec.origin).parent
+            airflow_path = get_airflow_installation_path()
             # Make sure old Airflow will include providers including common subfolder allow to extend loading
             # providers from the installed separate source packages
             console.print("[yellow]Uninstalling Airflow-3 only providers\n")
@@ -800,6 +923,10 @@ def install_airflow_and_providers(
             airflow_providers_common_init_py.parent.mkdir(exist_ok=True)
             airflow_providers_common_init_py.write_text(INIT_CONTENT + "\n")
 
+    # compile ui assets
+    airflow_path = get_airflow_installation_path()
+    download_airflow_source_tarball(installation_spec)
+    compile_ui_assets(installation_spec)
     console.print("\n[green]Done!")
 
 
@@ -856,10 +983,6 @@ def _install_airflow_and_optionally_providers_together(
             run_command(base_install_cmd, github_actions=github_actions, check=True)
     else:
         run_command(base_install_cmd, github_actions=github_actions, check=True)
-
-    # compile ui assets
-    compile_ui_assets(installation_spec, MAIN_UI_DIRECTORY, MAIN_UI_HASH_FILE)
-    compile_ui_assets(installation_spec, SIMPLE_AUTH_MANAGER_UI_DIRECTORY, SIMPLE_AUTH_MANAGER_UI_HASH_FILE)
 
 
 def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, github_actions: bool):
