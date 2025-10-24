@@ -120,6 +120,7 @@ spec:
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.apiServer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}

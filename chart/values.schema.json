@@ -5094,6 +5094,11 @@
                     ],
                     "default": null
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for API server to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
