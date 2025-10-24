@@ -75,13 +75,18 @@ Deprecation policy
 From time-to-time existing features will be deprecated, or modules will be renamed.
 
 When this happens, the existing code will continue to work but will issue a DeprecatedImportWarning (or a subclass) when the code is executed.
-This code will continue to work for the rest of the current major version -- if it works on 3.0.0, it will work for every 3.Y.Z release.
+This code will continue to work for the rest of the current major version -- if it works on 3.1.0, it will work for every 3.Y.Z release.
 
-So, for example, if we decided to start the deprecation of a function in Airflow 3.3.1:
+So, for example, if we decided to start the deprecation of a function in Airflow 3.1.1:
 
 * Airflow 3.1 will contain a backwards-compatible replica of the function which will raise a DeprecatedImportWarning
-* Airflow 3.1 will continue to work and issue a warning
-* Airflow 3.1 (the major version that follows 2.2) will remove the feature outright
+* Airflow 3.2 will continue to work and issue a warning
+* Airflow 4.0 (the major version that follows 3.x) will remove the feature outright
+
+Recent deprecations using DeprecatedImportWarning include:
+
+* Provider hook class names in hook-class-names configuration (providers_manager.py)
+* Various provider-specific deprecated methods and imports across Microsoft Azure, Kubernetes, and other providers
 
 The exception to this deprecation policy is any feature which is marked as "experimental", which *may* suffer breaking changes or complete removal in a Feature release.
 
