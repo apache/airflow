@@ -17,6 +17,42 @@
  under the License.
  -->
 
+# v3.1.0
+
+## New Features:
+
+- Add `map_index` filter to TaskInstance API queries ([#55614](https://github.com/apache/airflow/pull/55614))
+- Add `has_import_errors` filter to Core API GET /dags endpoint ([#54563](https://github.com/apache/airflow/pull/54563))
+- Add `dag_version` filter to get_dag_runs endpoint ([#54882](https://github.com/apache/airflow/pull/54882))
+- Implement pattern search for event log endpoint ([#55114](https://github.com/apache/airflow/pull/55114))
+- Add asset-based filtering support to DAG API endpoint ([#54263](https://github.com/apache/airflow/pull/54263))
+- Add Greater Than and Less Than range filters to DagRuns and Task Instance list ([#54302](https://github.com/apache/airflow/pull/54302))
+- Add `try_number` as filter to task instances ([#54695](https://github.com/apache/airflow/pull/54695))
+- Add filters to Browse XComs endpoint ([#54049](https://github.com/apache/airflow/pull/54049))
+- Add Filtering by DAG Bundle Name and Version to API routes ([#54004](https://github.com/apache/airflow/pull/54004))
+- Add search filter for DAG runs by triggering user name ([#53652](https://github.com/apache/airflow/pull/53652))
+- Enable multi sorting (AIP-84) ([#53408](https://github.com/apache/airflow/pull/53408))
+- Add `run_on_latest_version` support for backfill and clear operations ([#52177](https://github.com/apache/airflow/pull/52177))
+- Add `run_id_pattern` search for Dag Run API ([#52437](https://github.com/apache/airflow/pull/52437))
+- Add tracking of triggering user to Dag runs ([#51738](https://github.com/apache/airflow/pull/51738))
+- Expose DAG parsing duration in the API ([#54752](https://github.com/apache/airflow/pull/54752))
+
+## New API Endpoints:
+
+- Add Human-in-the-Loop (HITL) endpoints for approval workflows ([#52868](https://github.com/apache/airflow/pull/52868), [#53373](https://github.com/apache/airflow/pull/53373), [#53376](https://github.com/apache/airflow/pull/53376), [#53885](https://github.com/apache/airflow/pull/53885), [#53923](https://github.com/apache/airflow/pull/53923), [#54308](https://github.com/apache/airflow/pull/54308), [#54310](https://github.com/apache/airflow/pull/54310), [#54723](https://github.com/apache/airflow/pull/54723), [#54773](https://github.com/apache/airflow/pull/54773), [#55019](https://github.com/apache/airflow/pull/55019), [#55463](https://github.com/apache/airflow/pull/55463), [#55525](https://github.com/apache/airflow/pull/55525), [#55535](https://github.com/apache/airflow/pull/55535), [#55603](https://github.com/apache/airflow/pull/55603), [#55776](https://github.com/apache/airflow/pull/55776))
+- Add endpoint to watch dag run until finish ([#51920](https://github.com/apache/airflow/pull/51920))
+- Add TI bulk actions endpoint ([#50443](https://github.com/apache/airflow/pull/50443))
+- Add Keycloak Refresh Token Endpoint ([#51657](https://github.com/apache/airflow/pull/51657))
+
+## Deprecations:
+
+- Mark `DagDetailsResponse.concurrency` as deprecated ([#55150](https://github.com/apache/airflow/pull/55150))
+
+## Bug Fixes:
+
+- Fix dag import error modal pagination ([#55719](https://github.com/apache/airflow/pull/55719))
+
+
 # v3.0.2
 
 ## Major changes:

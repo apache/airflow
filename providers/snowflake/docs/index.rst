@@ -43,6 +43,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/snowflake/index>
 
 .. toctree::
@@ -78,7 +79,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 6.5.4
+Release: 6.6.0
 
 Provider package
 ----------------
@@ -102,7 +103,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ========================================================================
 ``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.5``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
@@ -110,8 +111,8 @@ PIP package                                 Version required
 ``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
 ``snowflake-connector-python``              ``>=3.7.1``
 ``snowflake-sqlalchemy``                    ``>=1.4.0``
-``snowflake-snowpark-python``               ``>=1.17.0; python_version < "3.12"``
-``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.13"``
+``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
+``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.14"``
 ==========================================  ========================================================================
 
 Cross provider package dependencies
@@ -127,13 +128,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-snowflake[common.compat]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+======================================================================================================================  ===================
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
+======================================================================================================================  ===================
 
 Downloading official packages
 -----------------------------
@@ -141,5 +143,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 6.5.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 6.5.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.5.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.6.0-py3-none-any.whl.sha512>`__)

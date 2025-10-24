@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 try:
     from airflow.operators.python import PythonOperator
 except ImportError:
-    from airflow.providers.common.compat.standard.operators import PythonOperator
+    from airflow.providers.common.compat.standard.operators import PythonOperator  # type: ignore[no-redef]
 
 
 class CmdOperator(BaseOperator):

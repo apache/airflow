@@ -165,14 +165,6 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-      - name: "Install and cache prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ steps.breeze.outputs.host-python-version }}
-          skip-prek-hooks: ${{ needs.build-info.outputs.skip-prek-hooks }}
-          platform: "linux/amd64"
-          save-cache: true
   run-pin-versions-hook:
     name: "Run pin-versions hook"
     needs: [build-info]
@@ -190,7 +182,6 @@ jobs:
           python-version: "3.11"
           platform: "linux/amd64"
           save-cache: true
-          skip-prek-hooks: ""
       - name: "Run pin-versions"
         run: >
           prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
@@ -883,7 +874,6 @@ jobs:
       - tests-non-db-providers
       - tests-postgres-core
       - tests-postgres-providers
-      # - tests-special
       - tests-sqlite-core
       - tests-sqlite-providers
       - tests-task-sdk
@@ -935,7 +925,21 @@ jobs:
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
-    needs: [build-info]
+    needs:
+      - build-info
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-airflow-ctl
+      - tests-special
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
     runs-on: ${{ fromJSON(needs.build-info.outputs.amd-runners) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:

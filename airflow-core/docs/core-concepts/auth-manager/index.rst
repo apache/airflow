@@ -166,7 +166,7 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
     response = RedirectResponse(url="/")
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
     return response
 
 .. note::

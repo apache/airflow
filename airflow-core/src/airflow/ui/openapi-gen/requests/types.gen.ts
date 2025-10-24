@@ -406,6 +406,9 @@ export type ClearTaskInstancesBody = {
     only_failed?: boolean;
     only_running?: boolean;
     reset_dag_runs?: boolean;
+    /**
+     * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
+     */
     task_ids?: Array<(string | [
     string,
     number
@@ -964,7 +967,6 @@ export type FastAPIRootMiddlewareResponse = {
  * Schema for Human-in-the-loop detail.
  */
 export type HITLDetail = {
-    task_instance: TaskInstanceResponse;
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -982,6 +984,7 @@ export type HITLDetail = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceResponse;
 };
 
 /**
@@ -990,6 +993,29 @@ export type HITLDetail = {
 export type HITLDetailCollection = {
     hitl_details: Array<HITLDetail>;
     total_entries: number;
+};
+
+/**
+ * Schema for Human-in-the-loop detail history.
+ */
+export type HITLDetailHisotry = {
+    options: Array<(string)>;
+    subject: string;
+    body?: string | null;
+    defaults?: Array<(string)> | null;
+    multiple?: boolean;
+    params?: {
+        [key: string]: unknown;
+    };
+    assigned_users?: Array<HITLUser>;
+    created_at: string;
+    responded_by_user?: HITLUser | null;
+    responded_at?: string | null;
+    chosen_options?: Array<(string)> | null;
+    params_input?: {
+        [key: string]: unknown;
+    };
+    response_received?: boolean;
 };
 
 /**
@@ -1349,6 +1375,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    hitl_detail: HITLDetailHisotry | null;
 };
 
 /**
@@ -2955,7 +2982,7 @@ export type GetHitlDetailsData = {
     mapIndex?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, run_after, rendered_map_index, task_instance_operator, task_instance_state`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      */
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
@@ -3255,12 +3282,6 @@ export type LogoutData = {
 };
 
 export type LogoutResponse = unknown;
-
-export type RefreshData = {
-    next?: string | null;
-};
-
-export type RefreshResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
@@ -6323,25 +6344,6 @@ export type $OpenApiTs = {
     '/api/v2/auth/logout': {
         get: {
             req: LogoutData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Temporary Redirect
-                 */
-                307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/auth/refresh': {
-        get: {
-            req: RefreshData;
             res: {
                 /**
                  * Successful Response

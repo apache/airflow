@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure IAM/Entra ID support for PostgresHook (#55729)``
+
+Misc
+~~~~
+
+* ``fix mypy type errors in common/sql provider for sqlalchemy 2 upgrade (#56824)``
+* ``Migrate postgres provider to ''common.compat'' (#57022)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#55980)``
+
 6.3.0
 .....
 

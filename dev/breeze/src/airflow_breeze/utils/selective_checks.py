@@ -1215,23 +1215,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        # Skip all mypy "individual" file checks if we are running mypy checks in CI
-        # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
-        # The prek will semi-randomly skip such list of files into several groups and we want
-        # to make sure that such checks are always run in CI for whole "group" of files - i.e.
-        # whole package rather than for individual files. That's why we skip those checks in CI
-        # and run them via `mypy-all` command instead and dedicated CI job in matrix
-        # This will also speed up static-checks job usually as the jobs will be running in parallel
-        prek_hooks_to_skip.update(
-            {
-                "mypy-providers",
-                "mypy-airflow-core",
-                "mypy-dev",
-                "mypy-task-sdk",
-                "mypy-airflow-ctl",
-                "mypy-devel-common",
-            }
-        )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(

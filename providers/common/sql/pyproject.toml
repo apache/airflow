@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.28.1"
+version = "1.28.2"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -68,6 +68,9 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"common.compat" = [
+    "apache-airflow-providers-common-compat>=1.8.0",
+]
 "pandas" = [
     'pandas[sql-other]>=2.1.2; python_version <"3.13"',
     # Technically - we should add "sql-other" here as well, but this will only be possible when we move
@@ -86,6 +89,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
@@ -121,8 +125,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.28.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

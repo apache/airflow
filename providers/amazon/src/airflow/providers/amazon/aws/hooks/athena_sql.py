@@ -56,7 +56,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
     .. note::
-        get_uri() depends on SQLAlchemy and PyAthena.
+        get_uri() depends on SQLAlchemy and PyAthena
     """
 
     conn_name_attr = "athena_conn_id"
@@ -150,7 +150,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
         )
 
-    def get_uri(self) -> str:
+    def get_uri(self) -> URL:
         """Overridden to use the Athena dialect as driver name."""
         conn_params = self._get_conn_params()
         creds = self.get_credentials(region_name=conn_params["region_name"])

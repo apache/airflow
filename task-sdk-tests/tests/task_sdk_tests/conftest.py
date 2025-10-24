@@ -97,7 +97,7 @@ def debug_environment():
 def docker_compose_setup(tmp_path_factory):
     """Start docker-compose once per session."""
     import os
-    from shutil import copyfile
+    from shutil import copyfile, copytree
 
     from python_on_whales import DockerClient, docker
 
@@ -105,6 +105,12 @@ def docker_compose_setup(tmp_path_factory):
     tmp_dir = tmp_path_factory.mktemp("airflow-task-sdk-test")
     tmp_docker_compose_file = tmp_dir / "docker-compose.yaml"
     copyfile(DOCKER_COMPOSE_FILE_PATH, tmp_docker_compose_file)
+
+    # Copy the DAGs folder to the temp directory so docker-compose can find it
+    from task_sdk_tests.constants import TASK_SDK_TESTS_ROOT
+
+    TASK_SDK_DAGS_FOLDER = TASK_SDK_TESTS_ROOT / "dags"
+    copytree(TASK_SDK_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     # Set environment variables
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
@@ -230,11 +236,11 @@ def airflow_test_setup(docker_compose_setup):
 
     console.print(f"[green]✅ DAG triggered: {dag_run_id}")
 
-    # Step 4: Get task instance for testing
-    console.print("[yellow]Waiting for any task instance...")
+    # Step 4: Get task instance for testing - wait for long_running_task to be RUNNING
+    console.print("[yellow]Waiting for long_running_task to be RUNNING...")
     ti_id = None
 
-    for attempt in range(20):
+    for attempt in range(30):  # Increased to 30 attempts (60 seconds)
         try:
             ti_url = f"http://localhost:8080/api/v2/dags/test_dag/dagRuns/{dag_run_id}/taskInstances"
             ti_response = requests.get(ti_url, headers=headers, timeout=10)
@@ -242,17 +248,19 @@ def airflow_test_setup(docker_compose_setup):
 
             task_instances = ti_response.json().get("task_instances", [])
 
-            if task_instances:
-                first_ti = task_instances[0]
-                ti_id = first_ti.get("id")
+            # Look specifically for long_running_task that is in RUNNING state
+            for ti in task_instances:
+                if ti.get("task_id") == "long_running_task" and ti.get("state") == "running":
+                    ti_id = ti.get("id")
+                    if ti_id:
+                        console.print(f"[green]✅ Found running task: '{ti.get('task_id')}'")
+                        console.print(f"[green]    State: {ti.get('state')}")
+                        console.print(f"[green]    Instance ID: {ti_id}")
+                        break
 
-                if ti_id:
-                    console.print(f"[green]✅ Using task instance from '{first_ti.get('task_id')}'")
-                    console.print(f"[green]    State: {first_ti.get('state')}")
-                    console.print(f"[green]    Instance ID: {ti_id}")
-                    break
-            else:
-                console.print(f"[blue]Waiting for tasks (attempt {attempt + 1}/20)")
+            if ti_id:
+                break
+            console.print(f"[blue]Waiting for long_running_task to start (attempt {attempt + 1}/30)")
 
         except Exception as e:
             console.print(f"[yellow]Task check failed: {e}")
@@ -260,8 +268,8 @@ def airflow_test_setup(docker_compose_setup):
         time.sleep(2)
 
     if not ti_id:
-        console.print("[red]❌ Task instances never appeared. Final debug info:")
-        raise TimeoutError("No task instance found within timeout period")
+        console.print("[red]❌ long_running_task never reached RUNNING state. Final debug info:")
+        raise TimeoutError("long_running_task did not reach RUNNING state within timeout period")
 
     # Step 5: Create SDK client
     jwt_token = generate_jwt_token(ti_id)
@@ -274,6 +282,14 @@ def airflow_test_setup(docker_compose_setup):
         "sdk_client": sdk_client,
         "core_api_headers": headers,
     }
+
+
+@pytest.fixture(scope="session")
+def task_sdk_api_version():
+    """Get the API version from the installed Task SDK."""
+    from airflow.sdk.api.datamodels._generated import API_VERSION
+
+    return API_VERSION
 
 
 @pytest.fixture(scope="session")

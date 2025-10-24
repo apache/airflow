@@ -258,7 +258,7 @@ class TestBteqOperator:
         mock_execute_bteq_script.assert_called_once()
         assert result == 0
 
-    @mock.patch("airflow.providers.teradata.version_compat.BaseOperator.render_template")
+    @mock.patch("airflow.providers.common.compat.sdk.BaseOperator.render_template")
     def test_render_template_in_sql(self, mock_render):
         op = BteqOperator(task_id="render_test", sql="SELECT * FROM {{ params.table }};")
         mock_render.return_value = "SELECT * FROM my_table;"

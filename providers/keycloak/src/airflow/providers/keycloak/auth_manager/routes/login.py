@@ -30,6 +30,7 @@ from airflow.api_fastapi.core_api.security import get_user
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
@@ -70,7 +71,12 @@ def login_callback(request: Request):
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
+    # See https://github.com/apache/airflow/pull/55506
+    if AIRFLOW_V_3_1_1_PLUS:
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+    else:
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
 

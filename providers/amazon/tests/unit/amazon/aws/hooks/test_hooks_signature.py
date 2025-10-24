@@ -45,6 +45,7 @@ ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
     "EmrHook": {"emr_conn_id"},
     "EmrContainerHook": {"virtual_cluster_id"},
     "FirehoseHook": {"delivery_stream"},
+    "_FirehoseHook": {"delivery_stream"},
     "GlueJobHook": {
         "job_name",
         "concurrent_run_limit",
