@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import TIMESTAMP
 
@@ -39,7 +40,7 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Add created_at and last_updated_at columns to deadline table."""
+    """Make changes to enable adding DeadlineAlerts to the UI."""
     op.add_column(
         "deadline",
         sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -49,8 +50,20 @@ def upgrade():
         sa.Column("last_updated_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
     )
 
+    # Create new deadline_alert table
+    op.create_table(
+        "deadline_alert",
+        sa.Column("id", UUIDType(binary=False)),
+        sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("display_name", sa.String(250), nullable=True),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
+    )
+
 
 def downgrade():
-    """Remove created_at and last_updated_at columns from deadline table."""
+    """Remove changes that were added to enable adding DeadlineAlerts to the UI."""
     op.drop_column("deadline", "last_updated_at", if_exists=True)
     op.drop_column("deadline", "created_at", if_exists=True)
+
+    op.drop_table("deadline_alert")

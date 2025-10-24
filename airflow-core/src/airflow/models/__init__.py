@@ -66,6 +66,7 @@ def import_all_models():
     import airflow.models.dag_version
     import airflow.models.dagbundle
     import airflow.models.dagwarning
+    import airflow.models.deadline_alert
     import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
@@ -106,6 +107,7 @@ __lazy_imports = {
     "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
+    "DeadlineAlert": "airflow.models.deadline_alert",
     "Log": "airflow.models.log",
     "HITLDetail": "airflow.models.hitl",
     "MappedOperator": "airflow.models.mappedoperator",
@@ -134,6 +136,7 @@ if TYPE_CHECKING:
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
     from airflow.models.deadline import Deadline
+    from airflow.models.deadline_alert import DeadlineAlert
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.pool import Pool
