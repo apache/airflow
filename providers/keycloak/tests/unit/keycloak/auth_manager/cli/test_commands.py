@@ -28,10 +28,12 @@ from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
     _create_admin_permission,
     _create_op_permission,
+    _create_policies,
     _create_read_only_permission,
     _create_user_permission,
     create_all_command,
     create_permissions_command,
+    create_policies_command,
     create_resources_command,
     create_scopes_command,
 )
@@ -214,6 +216,7 @@ class TestCommands:
         mock__create_user_permission.assert_called_once_with(client, "test-id")
         mock_create_op_permission.assert_called_once_with(client, "test-id")
 
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_policies")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_scopes")
@@ -224,6 +227,7 @@ class TestCommands:
         mock_create_scopes,
         mock_create_resources,
         mock_create_permissions,
+        mock_create_policies,
     ):
         client = Mock()
         mock_get_client.return_value = client
@@ -254,6 +258,7 @@ class TestCommands:
         mock_create_scopes.assert_called_once_with(client, "test-id")
         mock_create_resources.assert_called_once_with(client, "test-id")
         mock_create_permissions.assert_called_once_with(client, "test-id")
+        mock_create_policies.assert_called_once_with(client, "test-id")
 
     def test_create_permissions_read_only(self):
         client = Mock()
@@ -341,6 +346,63 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "resources": ["2", "3"],
+            },
+            skip_exists=True,
+        )
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_policies_command(self, mock_get_client):
+        client = Mock()
+        mock_get_client.return_value = client
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+        client.create_client_authz_policy.return_value = {}
+
+        params = [
+            "keycloak-auth-manager",
+            "create-policies",
+            "--username",
+            "test",
+            "--password",
+            "test",
+        ]
+
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_policies_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        create_calls = client.create_client_authz_policy.call_args_list
+        assert create_calls
+        kwargs = create_calls[0].kwargs
+        assert kwargs["client_id"] == "test-id"
+        payload = kwargs["payload"]
+        assert payload["name"] == "DagVisibilityPolicy"
+        assert payload["type"] == "js"
+        assert "dag_ids" in payload["code"]
+
+    def test_create_policies(self):
+        client = Mock()
+        with patch(
+            "airflow.providers.keycloak.auth_manager.cli.commands._load_policy_source",
+            return_value="policy-code",
+        ):
+            _create_policies(client, "test-id")
+
+        client.create_client_authz_policy.assert_called_once_with(
+            client_id="test-id",
+            payload={
+                "name": "DagVisibilityPolicy",
+                "type": "js",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "code": "policy-code",
             },
             skip_exists=True,
         )
