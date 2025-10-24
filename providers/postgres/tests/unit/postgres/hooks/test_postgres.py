@@ -27,7 +27,7 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
@@ -472,9 +472,9 @@ class TestPostgresHookConn:
         assert mock_db_token in self.db_hook.sqlalchemy_url
 
     def test_get_azure_iam_token_expect_failure_on_get_token(self, mocker):
-        """Test get_azure_iam_token method gets token from provided connection id"""
-
         class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
+
             def __init__(self, sdk_client, conn_id="azure_default"):
                 pass
 
@@ -484,7 +484,7 @@ class TestPostgresHookConn:
 
         self.connection.extra = json.dumps({"iam": True, "azure_conn_id": azure_conn_id})
         with pytest.raises(
-            TypeError,
+            AirflowOptionalProviderFeatureException,
             match=(
                 "Getting azure token is not supported.*"
                 "Please upgrade apache-airflow-providers-microsoft-azure>="

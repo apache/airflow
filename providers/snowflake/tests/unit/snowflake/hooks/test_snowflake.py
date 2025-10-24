@@ -1111,9 +1111,9 @@ class TestPytestSnowflakeHook:
         assert token == mock_azure_token
 
     def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
-        """Test get_azure_oauth_token method gets token from provided connection id"""
-
         class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
+
             def __init__(self, sdk_client, conn_id="azure_default"):
                 pass
 
@@ -1123,7 +1123,7 @@ class TestPytestSnowflakeHook:
 
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         with pytest.raises(
-            TypeError,
+            AirflowOptionalProviderFeatureException,
             match=(
                 "Getting azure token is not supported.*"
                 "Please upgrade apache-airflow-providers-microsoft-azure>="

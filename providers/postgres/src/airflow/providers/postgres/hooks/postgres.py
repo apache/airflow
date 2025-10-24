@@ -526,7 +526,7 @@ class PostgresHook(DbApiHook):
             azure_base_hook: AzureBaseHook = azure_conn.get_hook()
         except TypeError as e:
             if "required positional argument: 'sdk_client'" in str(e):
-                raise TypeError(
+                raise AirflowOptionalProviderFeatureException(
                     "Getting azure token is not supported by current version of 'AzureBaseHook'. "
                     "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
                 ) from e

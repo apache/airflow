@@ -37,7 +37,7 @@ from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -272,7 +272,7 @@ class SnowflakeHook(DbApiHook):
             azure_base_hook: AzureBaseHook = azure_conn.get_hook()
         except TypeError as e:
             if "required positional argument: 'sdk_client'" in str(e):
-                raise TypeError(
+                raise AirflowOptionalProviderFeatureException(
                     "Getting azure token is not supported by current version of 'AzureBaseHook'. "
                     "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
                 ) from e
