@@ -83,11 +83,6 @@ So, for example, if we decided to start the deprecation of a function in Airflow
 * Airflow 3.2 will continue to work and issue a warning
 * Airflow 4.0 (the major version that follows 3.x) will remove the feature outright
 
-Recent deprecations using DeprecatedImportWarning include:
-
-* Provider hook class names in hook-class-names configuration (providers_manager.py)
-* Various provider-specific deprecated methods and imports across Microsoft Azure, Kubernetes, and other providers
-
 The exception to this deprecation policy is any feature which is marked as "experimental", which *may* suffer breaking changes or complete removal in a Feature release.
 
 .. _experimental:
