@@ -29,6 +29,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { useGridTISummariesBatch } from "src/queries/useGridTISummariesBatch.ts";
 import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
@@ -75,6 +76,12 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     limit,
     runType,
     triggeringUser,
+  });
+
+  // Batch fetch all TI summaries for all runs (prevents N+1 query problem)
+  const { data: tiSummariesByRunId } = useGridTISummariesBatch({
+    enabled: Boolean(gridRuns?.length),
+    runs: gridRuns ?? [],
   });
 
   // calculate dag run bar heights relative to max
@@ -131,6 +138,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
+                tiSummaries={tiSummariesByRunId[dr.run_id]}
               />
             ))}
           </Flex>

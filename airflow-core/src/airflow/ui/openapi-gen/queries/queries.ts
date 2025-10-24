@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GridTISummariesBatchRequest, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1861,6 +1861,25 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Get Grid Ti Summaries Batch
+* Get task instance summaries for multiple DAG runs in a single request.
+*
+* This endpoint is much more efficient than calling /ti_summaries/{dag_id}/{run_id}
+* multiple times, as it fetches all task instances in a single database query.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns GridTISummariesBatch Successful Response
+* @throws ApiError
+*/
+export const useGridServiceGetGridTiSummariesBatch = <TData = Common.GridServiceGetGridTiSummariesBatchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: GridTISummariesBatchRequest;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: GridTISummariesBatchRequest;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => GridService.getGridTiSummariesBatch({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.
