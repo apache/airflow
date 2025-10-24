@@ -7105,8 +7105,6 @@ class TestSchedulerJob:
         monkeypatch.setattr("airflow.dag_processing.manager.Stats.gauge", _fake_gauge, raising=True)
 
         with conf_vars({("metrics", "statsd_on"): "True"}):
-            # mock_executor = MagicMock(spec=BaseExecutor)
-            # scheduler_job = Job(executor=mock_executor)
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(scheduler_job)
             self.job_runner._emit_running_dags_metric()

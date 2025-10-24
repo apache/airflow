@@ -1024,13 +1024,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
-    def _is_metrics_enabled(self):
-        return (
-            conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False)
-            or conf.getboolean("metrics", "statsd_on", fallback=False)
-            or conf.getboolean("metrics", "otel_on", fallback=False)
-        )
-
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = time.monotonic()

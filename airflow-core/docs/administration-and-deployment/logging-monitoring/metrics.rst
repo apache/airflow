@@ -236,13 +236,13 @@ Name                                                 Description
 ``scheduler.tasks.executable``                       Number of tasks that are ready for execution (set to queued)
                                                      with respect to pool limits, Dag concurrency, executor state,
                                                      and priority.
+``scheduler.running_dags``                           Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state
 ``executor.open_slots.<executor_class_name>``        Number of open slots on a specific executor. Only emitted when multiple executors are configured.
 ``executor.open_slots``                              Number of open slots on executor
 ``executor.queued_tasks.<executor_class_name>``      Number of queued tasks on on a specific executor. Only emitted when multiple executors are configured.
 ``executor.queued_tasks``                            Number of queued tasks on executor
 ``executor.running_tasks.<executor_class_name>``     Number of running tasks on on a specific executor. Only emitted when multiple executors are configured.
 ``executor.running_tasks``                           Number of running tasks on executor
-``executor.running_dags``                            Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state
 ``pool.open_slots.<pool_name>``                      Number of open slots in the pool
 ``pool.open_slots``                                  Number of open slots in the pool. Metric with pool_name tagging.
 ``pool.queued_slots.<pool_name>``                    Number of queued slots in the pool
