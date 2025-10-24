@@ -62,3 +62,16 @@ class TestSchedulerPdb:
             },
             show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
+
+    def test_should_pass_validation_with_pdb_enabled_and_min_available_param_only(self):
+        render_chart(
+            values={
+                "scheduler": {
+                    "podDisruptionBudget": {
+                        "enabled": True,
+                        "config": {"minAvailable": 1},
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
+        )  # checks that no validation exception is raised

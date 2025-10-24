@@ -19,46 +19,44 @@ from __future__ import annotations
 from chart_utils.helm_template_generator import render_chart
 
 
-class TestPgbouncerPdb:
-    """Tests PgBouncer PDB."""
+class TestApiserverPdb:
+    """Tests api-server pdb."""
 
     def test_should_pass_validation_with_just_pdb_enabled_v1(self):
         render_chart(
-            values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            values={"apiServer": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/api-server/api-server-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_just_pdb_enabled_v1beta1(self):
         render_chart(
-            values={"pgbouncer": {"enabled": True, "podDisruptionBudget": {"enabled": True}}},
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            values={"apiServer": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/api-server/api-server-poddisruptionbudget.yaml"],
             kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_pdb_enabled_and_min_available_param(self):
         render_chart(
             values={
-                "pgbouncer": {
-                    "enabled": True,
+                "apiServer": {
                     "podDisruptionBudget": {
                         "enabled": True,
                         "config": {"maxUnavailable": None, "minAvailable": 1},
-                    },
+                    }
                 }
             },
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            show_only=["templates/api-server/api-server-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_pdb_enabled_and_min_available_param_only(self):
         render_chart(
             values={
-                "pgbouncer": {
-                    "enabled": True,
+                "apiServer": {
                     "podDisruptionBudget": {
                         "enabled": True,
                         "config": {"minAvailable": 1},
-                    },
+                    }
                 }
             },
-            show_only=["templates/pgbouncer/pgbouncer-poddisruptionbudget.yaml"],
+            show_only=["templates/api-server/api-server-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
