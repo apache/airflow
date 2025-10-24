@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.providers.apache.beam.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
 
 if TYPE_CHECKING:

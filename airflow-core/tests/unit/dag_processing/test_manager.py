@@ -772,6 +772,7 @@ class TestDagFileProcessorManager:
 
         with configure_testing_dag_bundle(dag_filepath):
             manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
             with create_session() as session:
                 callbacks = manager._fetch_callbacks(session=session)
@@ -814,6 +815,51 @@ class TestDagFileProcessorManager:
             with create_session() as session:
                 manager.run()
                 assert session.query(DbCallbackRequest).count() == 1
+
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
+        """Ensure callbacks for bundles not owned by current dag processor manager are ignored and not deleted."""
+
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        # Create two callbacks: one for the active 'testing' bundle and one for a different bundle
+        matching = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="match",
+        )
+        non_matching = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="other-bundle",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="no-match",
+        )
+
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=matching, priority_weight=100))
+            session.add(DbCallbackRequest(callback=non_matching, priority_weight=200))
+
+        with configure_testing_dag_bundle(dag_filepath):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+            with create_session() as session:
+                callbacks = manager._fetch_callbacks(session=session)
+
+                # Only the matching callback should be returned
+                assert [c.run_id for c in callbacks] == ["match"]
+
+                # The non-matching callback should remain in the DB
+                remaining = session.query(DbCallbackRequest).all()
+                assert len(remaining) == 1
+                # Decode remaining request and verify it's for the other bundle
+                remaining_req = remaining[0].get_callback_request()
+                assert remaining_req.bundle_name == "other-bundle"
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):

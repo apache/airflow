@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlalchemy_jsonfield
@@ -153,10 +154,10 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
         sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
     )
     assignees: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
-    responded_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     responded_by: Mapped[dict | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True
     )

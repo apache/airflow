@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     COUNTERS,
     METADATA,
@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service impo
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):

@@ -22,11 +22,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class LookerCheckPdtBuildSensor(BaseSensorOperator):

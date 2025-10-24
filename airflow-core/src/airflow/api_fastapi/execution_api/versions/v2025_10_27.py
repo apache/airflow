@@ -17,23 +17,9 @@
 
 from __future__ import annotations
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
-
-
-class AddTriggeringUserNameField(VersionChange):
-    """Add the `triggering_user_name` field to DagRun model."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("triggering_user_name").didnt_exist,)
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_triggering_user_name_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Remove the `triggering_user_name` field from the dag_run object when converting to the previous version."""
-        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
-            response.body["dag_run"].pop("triggering_user_name", None)
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 
 
 class MakeDagRunConfNullable(VersionChange):

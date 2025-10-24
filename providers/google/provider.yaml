@@ -29,12 +29,13 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1757950535
+source-date-epoch: 1761116868
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 18.1.0
   - 18.0.0
   - 17.2.0
   - 17.1.0
@@ -455,6 +456,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_logging_sink.rst
     tags: [gcp]
+  - integration-name: Google Cloud Generative AI
+    external-doc-url: https://cloud.google.com/generative-ai-studio
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/gen_ai.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -620,6 +626,9 @@ operators:
   - integration-name: Google Cloud Logging Sink
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_logging_sink
+  - integration-name: Google Cloud Generative AI
+    python-modules:
+      - airflow.providers.google.cloud.operators.gen_ai
 
 sensors:
   - integration-name: Google BigQuery
@@ -901,6 +910,9 @@ hooks:
   - integration-name: Google Cloud Logging
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_logging
+  - integration-name: Google Cloud Generative AI
+    python-modules:
+      - airflow.providers.google.cloud.hooks.gen_ai
 
 
 triggers:

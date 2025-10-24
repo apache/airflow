@@ -29,7 +29,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseSensorOperator, poke_mode_only
+from airflow.providers.common.compat.sdk import BaseSensorOperator, poke_mode_only
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -41,7 +41,7 @@ from airflow.providers.google.cloud.triggers.gcs import (
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):

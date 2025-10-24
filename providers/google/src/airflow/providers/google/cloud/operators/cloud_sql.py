@@ -28,7 +28,7 @@ from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.lazy_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -39,8 +39,8 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 SETTINGS = "settings"

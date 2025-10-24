@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.sql.expression import case, false
@@ -55,7 +57,7 @@ def historical_metrics(
 ) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
     current_time = timezone.utcnow()
-    permitted_dag_ids = readable_dags_filter.value
+    permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
     # DagRuns
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
@@ -93,11 +95,11 @@ def historical_metrics(
     historical_metrics_response = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-            **dict(dag_run_types),
+            **{row.run_type: row.count for row in dag_run_types},
         },
         "dag_run_states": {
             **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-            **dict(dag_run_states),
+            **{row.state: row.count for row in dag_run_states},
         },
         "task_instance_states": {
             "no_status": 0,
@@ -118,7 +120,7 @@ def dag_stats(
     readable_dags_filter: ReadableDagsFilterDep,
 ) -> DashboardDagStatsResponse:
     """Return basic DAG stats with counts of DAGs in various states."""
-    permitted_dag_ids = readable_dags_filter.value
+    permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
     latest_dates_subq = (
         select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
         .where(DagRun.logical_date.is_not(None))
@@ -162,7 +164,7 @@ def dag_stats(
         func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
     ).select_from(latest_runs_cte)
 
-    counts = session.execute(combined_runs_query).first()
+    counts = session.execute(combined_runs_query).one()
 
     return DashboardDagStatsResponse(
         active_dag_count=active_count,

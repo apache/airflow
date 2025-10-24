@@ -153,7 +153,13 @@ class ClearTaskInstancesBody(BaseModel):
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = True
     only_running: Annotated[bool | None, Field(title="Only Running")] = False
     reset_dag_runs: Annotated[bool | None, Field(title="Reset Dag Runs")] = True
-    task_ids: Annotated[list[str | TaskIds] | None, Field(title="Task Ids")] = None
+    task_ids: Annotated[
+        list[str | TaskIds] | None,
+        Field(
+            description="A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+            title="Task Ids",
+        ),
+    ] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False

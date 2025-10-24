@@ -25,13 +25,13 @@ from typing import TYPE_CHECKING, Any
 import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.lazy_compat import BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.google.version_compat import BaseOperator
-    from airflow.utils.context import Context
 
 
 def __getattr__(name: str) -> Any:

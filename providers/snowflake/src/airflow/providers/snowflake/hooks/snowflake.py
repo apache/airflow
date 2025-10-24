@@ -38,15 +38,11 @@ from sqlalchemy import create_engine
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
-
-try:
-    from airflow.sdk import Connection
-except ImportError:
-    from airflow.models.connection import Connection  # type: ignore[assignment]
 
 T = TypeVar("T")
 if TYPE_CHECKING:

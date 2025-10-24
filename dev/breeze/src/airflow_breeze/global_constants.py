@@ -202,10 +202,10 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.2"
-UV_VERSION = "0.9.4"
+UV_VERSION = "0.9.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -279,6 +279,7 @@ class GroupOfTests(Enum):
     TASK_SDK = "task-sdk"
     TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
+    CTL_INTEGRATION = "airflow-ctl-integration"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -316,6 +317,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
+    GroupOfTests.CTL_INTEGRATION: [ALL_TEST_TYPE],
 }
 
 
@@ -798,7 +800,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.1.0",
-        "remove-providers": "",
+        "remove-providers": "edge3",  # Need to remove edge3 from tests until we have 3.1.1 used here.
         "run-unit-tests": "true",
     },
 ]

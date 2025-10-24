@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from google.cloud.bigtable import enums
     from google.cloud.bigtable.column_family import GarbageCollectionRule
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigtableValidationMixin:

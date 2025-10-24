@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import uuid6
@@ -65,8 +66,8 @@ class DagVersion(Base):
         cascade_backrefs=False,
     )
     task_instances = relationship("TaskInstance", back_populates="dag_version")
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
 

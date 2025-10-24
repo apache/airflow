@@ -22,6 +22,7 @@
 
 - [What the provider distributions are](#what-the-provider-distributions-are)
 - [Provider distributions](#provider-distributions)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider distributions versioning](#provider-distributions-versioning)
@@ -80,6 +81,14 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
 
 # Bump min Airflow version for providers
 
@@ -782,7 +791,7 @@ Set an environment variable: PATH_TO_SVN to the root of folder where you have pr
 
 ``` shell
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=${pwd -P)
+export PATH_TO_SVN=$(pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -916,7 +925,7 @@ This can be done with the Apache RAT tool.
 # Get rat if you do not have it
 if command -v wget >/dev/null 2>&1; then
     echo "Using wget to download Apache RAT..."
-    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
 else
     echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
     exit 1
@@ -932,15 +941,27 @@ done
 # Generate list of unpacked providers
 find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
 # Check licences
-for d in $(cat /tmp/files.txt)
+for d in $(cat /tmp/files.txt | sort)
 do
-  pushd $d
-  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
-  popd >/dev/null
+  pushd $d 2>&1 >/dev/null
+  echo "Checking licences for $d"
+  java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes .  2>/dev/null | grep '! '
+  popd 2>&1 >/dev/null
 done
 ```
 
-You should see only '0 Unknown licences"
+You should see output similar to:
+
+```
+Checking licences for ./apache_airflow_providers_airbyte-5.2.4
+Checking licences for ./apache_airflow_providers_alibaba-3.2.4
+Checking licences for ./apache_airflow_providers_amazon-9.16.0
+Checking licences for ./apache_airflow_providers_apache_beam-6.1.6
+Checking licences for ./apache_airflow_providers_apache_cassandra-3.8.3
+...
+```
+
+You will see there files that are considered problematic by RAT tool (RAT prints such files preceding them with "! ").
 
 Cleanup:
 
@@ -1041,6 +1062,7 @@ You should get output similar to:
 ```
 Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
+...
 ```
 
 ## Verify the release candidate by Contributors

@@ -18,12 +18,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.providers.common.compat.lazy_compat import BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.google.version_compat import BaseOperator
-    from airflow.utils.context import Context
 
 
 BASE_LINK = "https://analytics.google.com/analytics/web/"

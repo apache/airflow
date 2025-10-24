@@ -1,0 +1,166 @@
+{
+  "columns": {
+    "description": "คำอธิบาย",
+    "key": "คีย์",
+    "name": "ชื่อ",
+    "value": "ค่า"
+  },
+  "config": {
+    "columns": {
+      "section": "ส่วน"
+    },
+    "title": "การตั้งค่า Airflow"
+  },
+  "connections": {
+    "add": "เพิ่มการเชื่อมต่อ",
+    "columns": {
+      "connectionId": "ID การเชื่อมต่อ",
+      "connectionType": "ประเภทการเชื่อมต่อ",
+      "host": "โฮสต์",
+      "port": "พอร์ต"
+    },
+    "connection_one": "การเชื่อมต่อ",
+    "connection_other": "การเชื่อมต่อทั้งหมด",
+    "delete": {
+      "deleteConnection_one": "ลบการเชื่อมต่อ 1 รายการ",
+      "deleteConnection_other": "ลบการเชื่อมต่อ {{count}} รายการ",
+      "firstConfirmMessage_one": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
+      "firstConfirmMessage_other": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
+      "title": "ลบการเชื่อมต่อ"
+    },
+    "edit": "แก้ไขการเชื่อมต่อ",
+    "form": {
+      "connectionIdRequired": "กรุณาระบุ ID การเชื่อมต่อ",
+      "connectionIdRequirement": "ID การเชื่อมต่อไม่สามารถมีช่องว่างได้",
+      "connectionTypeRequired": "กรุณาระบุประเภทการเชื่อมต่อ",
+      "extraFields": "ฟิลด์เพิ่มเติม",
+      "extraFieldsJson": "ฟิลด์เพิ่มเติมในรูปแบบ JSON",
+      "helperText": "ไม่พบประเภทการเชื่อมต่อ? โปรดตรวจสอบให้แน่ใจว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
+      "helperTextForRedactedFields": "ฟิลด์ที่ถูกซ่อน ('***') จะไม่ถูกเปลี่ยนแปลงหากไม่ได้แก้ไข",
+      "selectConnectionType": "เลือกประเภทการเชื่อมต่อ",
+      "standardFields": "ฟิลด์มาตรฐาน"
+    },
+    "nothingFound": {
+      "description": "การเชื่อมต่อที่ตั้งค่าผ่าน environment variables หรือ secrets managers จะไม่ปรากฏที่นี่",
+      "documentationLink": "ดูรายละเอียดเพิ่มเติมได้ในเอกสารของ Airflow",
+      "learnMore": "ค่าการเชื่อมต่อเหล่านี้จะถูกประมวลผลตอน runtime และจะไม่แสดงในหน้า UI",
+      "title": "ไม่พบการเชื่อมต่อ!"
+    },
+    "searchPlaceholder": "ค้นหาการเชื่อมต่อ",
+    "test": "ทดสอบการเชื่อมต่อ",
+    "testDisabled": "ฟีเจอร์ทดสอบการเชื่อมต่อถูกปิดใช้งาน โปรดติดต่อผู้ดูแลระบบเพื่อเปิดใช้งาน",
+    "typeMeta": {
+      "error": "ไม่สามารถดึงข้อมูล Connection Type Meta ได้",
+      "standardFields": {
+        "description": "คำอธิบาย",
+        "host": "โฮสต์",
+        "login": "เข้าสู่ระบบ",
+        "password": "รหัสผ่าน",
+        "port": "พอร์ต",
+        "url_schema": "สคีมา"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "ลบ",
+    "modal": {
+      "confirmButton": "ใช่, ลบ",
+      "secondConfirmMessage": "การกระทำนี้เป็นการถาวรและไม่สามารถย้อนกลับได้",
+      "thirdConfirmMessage": "คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?"
+    },
+    "selected": "ที่เลือกไว้",
+    "tooltip": "ลบการเชื่อมต่อที่เลือก"
+  },
+  "formActions": {
+    "save": "บันทึก"
+  },
+  "plugins": {
+    "columns": {
+      "source": "แหล่งที่มา"
+    },
+    "importError_one": "เกิดข้อผิดพลาดในการนำเข้าปลั๊กอิน",
+    "importError_other": "เกิดข้อผิดพลาดในการนำเข้าปลั๊กอิน",
+    "searchPlaceholder": "ค้นหาตามไฟล์"
+  },
+  "pools": {
+    "add": "เพิ่มพูล",
+    "deferredSlotsIncluded": "รวมช่องที่ถูกเลื่อนแล้ว",
+    "delete": {
+      "title": "ลบพูล",
+      "warning": "การกระทำนี้จะลบเมทาดาต้าทั้งหมดที่เกี่ยวข้องกับพูลและอาจส่งผลกระทบต่องานที่ใช้พูลนี้"
+    },
+    "edit": "แก้ไขพูล",
+    "form": {
+      "checkbox": "เลือกเพื่อรวมงานที่ถูกเลื่อนเมื่อคำนวณจำนวนช่องว่างในพูล",
+      "description": "คำอธิบาย",
+      "includeDeferred": "รวมงานที่ถูกเลื่อน",
+      "nameMaxLength": "ชื่อยาวได้ไม่เกิน 256 ตัวอักษร",
+      "nameRequired": "กรุณาระบุชื่อ",
+      "slots": "จำนวนช่อง"
+    },
+    "noPoolsFound": "ไม่พบพูล",
+    "pool_one": "พูล",
+    "pool_other": "พูลทั้งหมด",
+    "searchPlaceholder": "ค้นหาพูล",
+    "sort": {
+      "asc": "ชื่อ (A-Z)",
+      "desc": "ชื่อ (Z-A)",
+      "placeholder": "เรียงตาม"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "ชื่อแพ็กเกจ",
+      "version": "เวอร์ชัน"
+    }
+  },
+  "variables": {
+    "add": "เพิ่มตัวแปร",
+    "columns": {
+      "isEncrypted": "ถูกเข้ารหัสหรือไม่"
+    },
+    "delete": {
+      "deleteVariable_one": "ลบตัวแปร 1 รายการ",
+      "deleteVariable_other": "ลบตัวแปร {{count}} รายการ",
+      "firstConfirmMessage_one": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
+      "firstConfirmMessage_other": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
+      "title": "ลบตัวแปร",
+      "tooltip": "ลบตัวแปรที่เลือก"
+    },
+    "edit": "แก้ไขตัวแปร",
+    "export": "ส่งออก",
+    "exportTooltip": "ส่งออกตัวแปรที่เลือก",
+    "form": {
+      "invalidJson": "JSON ไม่ถูกต้อง",
+      "keyMaxLength": "คีย์ยาวได้ไม่เกิน 250 ตัวอักษร",
+      "keyRequired": "กรุณาระบุคีย์",
+      "valueRequired": "กรุณาระบุค่า"
+    },
+    "import": {
+      "button": "นำเข้า",
+      "conflictResolution": "เลือกวิธีจัดการเมื่อมีตัวแปรซ้ำ",
+      "errorParsingJsonFile": "เกิดข้อผิดพลาดในการอ่านไฟล์ JSON: โปรดอัปโหลดไฟล์ JSON ที่มีตัวแปร (เช่น {\"key\": \"value\", ...})",
+      "options": {
+        "fail": {
+          "description": "หยุดการนำเข้าหากพบตัวแปรที่มีอยู่แล้ว",
+          "title": "ล้มเหลว"
+        },
+        "overwrite": {
+          "description": "เขียนทับตัวแปรในกรณีที่มีความขัดแย้ง",
+          "title": "เขียนทับ"
+        },
+        "skip": {
+          "description": "ข้ามการนำเข้าตัวแปรที่มีอยู่แล้ว",
+          "title": "ข้าม"
+        }
+      },
+      "title": "นำเข้าตัวแปร",
+      "upload": "อัปโหลดไฟล์ JSON",
+      "uploadPlaceholder": "อัปโหลดไฟล์ JSON ที่มีตัวแปร (เช่น {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "ไม่พบตัวแปร",
+    "searchPlaceholder": "ค้นหาคีย์",
+    "variable_one": "ตัวแปร",
+    "variable_other": "ตัวแปรทั้งหมด"
+  }
+}
