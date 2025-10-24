@@ -73,7 +73,7 @@ LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
-LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
+LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
 LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
@@ -197,7 +197,8 @@ _parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fall
 if not _parse_timestamp:
 
     def _parse_timestamp(line: str):
-        timestamp_str, _ = line.split(" ", 1)
+        # Make this resilient to all input types, ensure it's always a string.
+        timestamp_str, _ = str(line).split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
@@ -262,7 +263,10 @@ def _log_stream_to_parsed_log_stream(
     for line in log_stream:
         if line:
             try:
-                log = StructuredLogMessage.model_validate_json(line)
+                if isinstance(line, dict):
+                    log = StructuredLogMessage.model_validate(line)
+                else:
+                    log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
@@ -936,5 +940,12 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        sources, logs = remote_io.read(path, ti)
-        return sources, logs or []
+        logs: LogMessages | list[RawLogStream] | None  # extra typing to void mypy assignment error
+        try:
+            # Use .stream interface if provider's RemoteIO supports it
+            sources, logs = remote_io.stream(path, ti)
+            return sources, logs or []
+        except (AttributeError, NotImplementedError):
+            # Fallback to .read interface
+            sources, logs = remote_io.read(path, ti)
+            return sources, logs or []
