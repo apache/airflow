@@ -326,7 +326,13 @@ def clear_db_dag_code():
 
 def clear_db_callbacks():
     with create_session() as session:
-        session.query(DbCallbackRequest).delete()
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.callback import Callback
+
+            session.query(Callback).delete()
+
+        else:
+            session.query(DbCallbackRequest).delete()
 
 
 def set_default_pool_slots(slots):
