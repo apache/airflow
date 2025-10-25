@@ -24,9 +24,12 @@ import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
+import { useStructureServiceStructureData } from "openapi/queries";
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
+import type { FilterMode } from "src/layouts/Details/LineageFilter";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -41,13 +44,23 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
+  readonly filterMode: FilterMode;
+  readonly filterRoot: string | undefined;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  filterMode,
+  filterRoot,
+  limit,
+  runType,
+  showGantt,
+  triggeringUser,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +90,46 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     triggeringUser,
   });
 
+  const selectedVersion = useSelectedVersion();
+
+  // Fetch lineage-filtered structure when filter is active
+  const { data: lineageStructure } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: false,
+      includeDownstream: filterMode === "downstream" || filterMode === "both",
+      includeUpstream: filterMode === "upstream" || filterMode === "both",
+      root: filterMode !== "none" && filterRoot !== undefined ? filterRoot : undefined,
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    {
+      enabled: selectedVersion !== undefined && filterMode !== "none" && filterRoot !== undefined,
+    },
+  );
+
+  // Extract allowed task IDs from lineage structure when filter is active
+  const allowedTaskIds = useMemo(() => {
+    if (filterMode === "none" || filterRoot === undefined || lineageStructure === undefined) {
+      return undefined;
+    }
+
+    const taskIds = new Set<string>();
+
+    lineageStructure.nodes.forEach((node) => {
+      const addNodeAndChildren = (currentNode: typeof node) => {
+        taskIds.add(currentNode.id);
+        if (currentNode.children) {
+          currentNode.children.forEach((child) => addNodeAndChildren(child));
+        }
+      };
+
+      addNodeAndChildren(node);
+    });
+
+    return taskIds;
+  }, [filterMode, filterRoot, lineageStructure]);
+
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
@@ -87,7 +140,19 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(() => {
+    const nodes = flattenNodes(dagStructure, openGroupIds);
+
+    // Filter nodes based on lineage filter if active
+    if (allowedTaskIds !== undefined) {
+      return {
+        ...nodes,
+        flatNodes: nodes.flatNodes.filter((node) => allowedTaskIds.has(node.id)),
+      };
+    }
+
+    return nodes;
+  }, [dagStructure, openGroupIds, allowedTaskIds]);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,

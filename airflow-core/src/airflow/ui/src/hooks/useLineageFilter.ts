@@ -19,11 +19,10 @@
 import { useEffect, useRef } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { FilterMode } from "src/layouts/Details/Graph/LineageFilter";
+import type { FilterMode } from "src/layouts/Details/LineageFilter";
 
 type UseLineageFilterProps = {
   readonly dagId: string;
-  readonly dagView: "graph" | "grid";
   readonly taskId?: string;
 };
 
@@ -36,26 +35,15 @@ type UseLineageFilterReturn = {
 };
 
 /**
- * Custom hook to manage lineage filter state for the DAG graph view.
+ * Custom hook to manage lineage filter state for the DAG views (Graph and Grid).
  *
  * This hook handles:
  * - Persisting filter state in localStorage
  * - Clearing filter on initial mount when no task is selected
- * - Updating filter root when switching between views
  * - Managing filter state when tasks are clicked
  */
-export const useLineageFilter = ({
-  dagId,
-  dagView,
-  taskId,
-}: UseLineageFilterProps): UseLineageFilterReturn => {
-  const prevDagViewRef = useRef(dagView);
-  const prevTaskIdRef = useRef<string | undefined>(taskId);
-  const isManualFilterChangeRef = useRef(false);
-
+export const useLineageFilter = ({ dagId, taskId }: UseLineageFilterProps): UseLineageFilterReturn => {
   // Use localStorage for lineage filter state so it persists across navigation
-  // and updates when tasks are selected from grid or other views
-  // When updated in other views, the filter is removed.
   const [lineageFilterMode, setLineageFilterMode] = useLocalStorage<FilterMode>(
     `lineage_filter_mode-${dagId}`,
     "none",
@@ -65,15 +53,7 @@ export const useLineageFilter = ({
     undefined,
   );
 
-  // Use refs to track current filter values without causing effect re-runs
-  const lineageFilterModeRef = useRef(lineageFilterMode);
-  const lineageFilterRootRef = useRef(lineageFilterRoot);
   const isInitialMountRef = useRef(true);
-
-  useEffect(() => {
-    lineageFilterModeRef.current = lineageFilterMode;
-    lineageFilterRootRef.current = lineageFilterRoot;
-  }, [lineageFilterMode, lineageFilterRoot]);
 
   // Clear filter on initial mount if no task is selected
   useEffect(() => {
@@ -89,7 +69,6 @@ export const useLineageFilter = ({
   }, [taskId, lineageFilterMode, setLineageFilterMode]);
 
   const handleLineageFilterModeChange = (mode: FilterMode) => {
-    isManualFilterChangeRef.current = true;
     setLineageFilterMode(mode);
     if (mode !== "none" && taskId !== undefined && taskId !== lineageFilterRoot) {
       setLineageFilterRoot(taskId);
@@ -97,43 +76,8 @@ export const useLineageFilter = ({
   };
 
   const handleClearLineageFilter = () => {
-    isManualFilterChangeRef.current = true;
     setLineageFilterMode("none");
   };
-
-  useEffect(() => {
-    if (isManualFilterChangeRef.current) {
-      isManualFilterChangeRef.current = false;
-      prevDagViewRef.current = dagView;
-      prevTaskIdRef.current = taskId;
-
-      return;
-    }
-
-    const isComingFromOtherView = prevDagViewRef.current !== "graph" && dagView === "graph";
-    const isAlreadyInGraphView = prevDagViewRef.current === "graph" && dagView === "graph";
-    const hasActiveFilter = lineageFilterModeRef.current !== "none";
-    const currentRoot = lineageFilterRootRef.current;
-
-    // Only update state if taskId or dagView actually changed
-    const taskIdChanged = prevTaskIdRef.current !== taskId;
-    const dagViewChanged = prevDagViewRef.current !== dagView;
-
-    if (taskId !== undefined && dagView === "graph" && (taskIdChanged || dagViewChanged)) {
-      if (taskId !== currentRoot && isComingFromOtherView) {
-        setLineageFilterRoot(taskId);
-        setLineageFilterMode("none");
-      } else if (taskId !== currentRoot && isAlreadyInGraphView && !hasActiveFilter) {
-        // Only update the root if already in graph view AND no filter is active
-        // When a filter is active, clicking a different task won't change the root
-        // The root only changes when user manually selects a filter from the menu
-        setLineageFilterRoot(taskId);
-      }
-    }
-
-    prevDagViewRef.current = dagView;
-    prevTaskIdRef.current = taskId;
-  }, [taskId, dagView, setLineageFilterRoot, setLineageFilterMode]);
 
   return {
     handleClearLineageFilter,

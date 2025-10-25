@@ -31,8 +31,8 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import type { FilterMode } from "src/layouts/Details/Graph/LineageFilter";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
+import type { FilterMode } from "src/layouts/Details/LineageFilter";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
