@@ -328,24 +328,95 @@ Custom References
 ^^^^^^^^^^^^^^^^^
 
 While the built-in references should cover most use cases, and more will be released over time, you
-can create custom references by implementing a class that inherits from DeadlineReference.  This may
-be useful if you have calendar integrations or other sources that you want to use as a reference.
+can create custom references.  This may be useful if you have calendar integrations or other sources
+that you want to use as a reference.  You can create custom references by implementing a class that
+inherits from BaseDeadlineReference, give it am _evaluate_with() method, and register it.  There are
+two ways to accomplish this.  The recommended way is to use the ``@deadline_reference`` decorator
+but for more complicated implementations, the ``register_custom_reference()`` method is available.
+
+**Recommended: Using the decorator**
 
 .. code-block:: python
 
-    class CustomReference(DeadlineReference):
-        """A deadline reference that uses a custom data source."""
+    from airflow._shared.timezones.timezone import datetime
+    from airflow.models.deadline import ReferenceModels
+    from sqlalchemy.orm import Session
 
-        # Define any required parameters for your reference
-        required_kwargs = {"custom_id"}
+    from airflow.sdk.definitions.deadline import DeadlineReference, deadline_reference
+
+
+    # By default, the evaluate_with method will be executed when the dagrun is created.
+    @deadline_reference()
+    class MyCustomDecoratedReference(ReferenceModels.BaseDeadlineReference):
+        """A custom reference evaluated when DAG runs are created."""
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            """
-            Evaluate the reference time using the provided session and kwargs.
-
-            The session parameter can be used for database queries, and kwargs
-            will contain any required parameters defined in required_kwargs.
-            """
-            custom_id = kwargs["custom_id"]
-            # Your custom logic here to determine the reference time
+            # Add your business logic here
             return your_datetime
+
+
+    # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
+    @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
+    class MyQueuedReference(ReferenceModels.BaseDeadlineReference):
+        """A custom reference evaluated when DAG runs are queued."""
+
+        required_kwargs = {"custom_param"}
+
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+            custom_value = kwargs["custom_param"]
+            # Use custom_value in your calculation
+            return your_datetime
+
+**Alternative: Manual Registration**
+
+For advanced use cases requiring conditional or dynamic registration, you may wish use the registration method directly.
+In this case, the plugin file will look something like this:
+
+.. code-block:: python
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.deadline import ReferenceModels
+    from airflow.sdk.definitions.deadline import DeadlineReference
+
+
+    class MyManualReference(ReferenceModels.BaseDeadlineReference):
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+            # Add your business logic here
+            return your_datetime
+
+
+    # Register with specific timing based on configuration
+    timing = (
+        DeadlineReference.TYPES.DAGRUN_QUEUED if use_queued_timing else DeadlineReference.TYPES.DAGRUN_CREATED
+    )
+    DeadlineReference.register_custom_reference(MyManualReference, timing)
+
+**Using Custom References in DAGs**
+
+Once registered, use your custom references in DAG definitions like any other reference:
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow import DAG
+    from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
+
+    with DAG(
+        dag_id="custom_reference_example",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.MyCustomDecoratedReference(),
+            interval=timedelta(hours=2),
+            callback=AsyncCallback(my_callback),
+        ),
+    ):
+        # Your tasks here
+        ...
+
+**Important Notes:**
+
+* **Timezone Awareness**: Always return timezone-aware datetime objects
+* **Plugin Placement**: Place custom references in plugin files (e.g., ``plugins/my_deadline_references.py``)
+* **Scheduler Restart**: Restart the Airflow scheduler after adding or modifying custom references
+* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs
+* **Database Access**: Use the ``session`` parameter for Airflow database queries if needed
