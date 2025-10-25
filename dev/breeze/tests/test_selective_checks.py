@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console
@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -2478,3 +2479,273 @@ def test_ui_english_translation_changed_allowed_with_label():
         default_branch="main",
     )
     assert selective_checks.ui_english_translation_changed is True
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == "ubuntu-22.04"
+
+
+def test_runner_type_pr():
+    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
+
+    result = selective_checks.runner_type
+
+    assert result == PUBLIC_AMD_RUNNERS
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_runner_type_schedule(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.SCHEDULE,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.runner_type
+
+    assert result == '["ubuntu-22.04-arm"]'
+
+
+@pytest.mark.parametrize(
+    "integration, runner_type, expected_result",
+    [
+        # Test integrations disabled for all CI environments
+        pytest.param(
+            "elasticsearch",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="elasticsearch_disabled_on_amd",
+        ),
+        pytest.param(
+            "mssql",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="mssql_disabled_on_amd",
+        ),
+        pytest.param(
+            "localstack",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="localstack_disabled_on_arm",
+        ),
+        # Test integrations disabled only for ARM runners
+        pytest.param(
+            "kerberos",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="kerberos_disabled_on_arm",
+        ),
+        pytest.param(
+            "drill",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="drill_disabled_on_arm",
+        ),
+        pytest.param(
+            "tinkerpop",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="tinkerpop_disabled_on_arm",
+        ),
+        pytest.param(
+            "pinot",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="pinot_disabled_on_arm",
+        ),
+        pytest.param(
+            "trino",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="trino_disabled_on_arm",
+        ),
+        pytest.param(
+            "ydb",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="ydb_disabled_on_arm",
+        ),
+        # Test integrations that are NOT disabled on AMD runners
+        pytest.param(
+            "kerberos",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="kerberos_enabled_on_amd",
+        ),
+        pytest.param(
+            "drill",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="drill_enabled_on_amd",
+        ),
+        pytest.param(
+            "tinkerpop",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="tinkerpop_enabled_on_amd",
+        ),
+        # Test an integration that is not in any disabled list
+        pytest.param(
+            "postgres",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="postgres_enabled_on_amd",
+        ),
+        pytest.param(
+            "postgres",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="postgres_enabled_on_arm",
+        ),
+        pytest.param(
+            "redis",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="redis_enabled_on_amd",
+        ),
+        pytest.param(
+            "redis",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="redis_enabled_on_arm",
+        ),
+    ],
+)
+def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+    """Test that _is_disabled_integration correctly identifies disabled integrations."""
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    # Mock the runner_type property
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
+    ):
+        result = selective_checks._is_disabled_integration(integration)
+        assert result == expected_result
+
+
+def test_testable_core_integrations_excludes_disabled():
+    """Test that testable_core_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
+        ["postgres", "elasticsearch", "kerberos"],
+    ):
+        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" in result
+            assert "elasticsearch" not in result
+
+
+def test_testable_core_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_core_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS", ["postgres", "kerberos", "drill"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" not in result
+            assert "drill" not in result
+
+
+def test_testable_providers_integrations_excludes_disabled():
+    """Test that testable_providers_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS",
+        ["postgres", "mssql", "trino"],
+    ):
+        # Test with AMD runner - should exclude mssql (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" in result
+            assert "mssql" not in result
+
+
+def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_providers_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS", ["postgres", "trino", "ydb"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" not in result
+            assert "ydb" not in result

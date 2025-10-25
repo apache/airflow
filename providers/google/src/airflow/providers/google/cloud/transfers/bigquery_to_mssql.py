@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToS
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
