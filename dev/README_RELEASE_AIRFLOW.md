@@ -654,11 +654,13 @@ you are checking):
 
 ```shell script
 VERSION=X.Y.Zrc1
+TASK_SDK_VERSION=X.Y.Zrc1
 git fetch apache --tags
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
 breeze release-management prepare-airflow-distributions --distribution-format both
+breeze release-management prepare-task-sdk-distributions --distribution-format both
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
@@ -668,6 +670,7 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 
 ```bash
 breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
@@ -675,7 +678,7 @@ This is generally faster and requires less resources/network bandwidth. Note tha
 do it before preparing the tarball as preparing packages cleans up dist folder from
 apache-airflow artifacts as it uses hatch's `-c` build flag.
 
-The `prepare-airflow-distributions` command (no matter if docker or local hatch is used) should produce the
+The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
 
 The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
@@ -690,10 +693,16 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
 cd asf-dist/dev/airflow/${VERSION}
-for i in ${AIRFLOW_REPO_ROOT}/dist/*
+for i in *.whl *.tar.gz
 do
-  echo "Checking if $(basename $i) is the same as $i"
-  diff "$(basename $i)" "$i" && echo "OK"
+  echo "Checking if $(basename $i) is the same as ${AIRFLOW_REPO_ROOT}/dist/$(basename $i)"
+  diff "$(basename $i)" "${AIRFLOW_REPO_ROOT}/dist/$(basename $i)" && echo "OK"
+done
+cd ../task-sdk/${TASK_SDK_VERSION}
+for i in *.whl *.tar.gz
+do
+  echo "Checking if $(basename $i) is the same as ${AIRFLOW_REPO_ROOT}/dist/$(basename $i)"
+  diff "$(basename $i)" "${AIRFLOW_REPO_ROOT}/dist/$(basename $i)" && echo "OK"
 done
 ```
 
@@ -743,20 +752,34 @@ cd $AIRFLOW_REPO_ROOT/dev
 uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
 ```
 
+
+```shell script
+cd $AIRFLOW_REPO_ROOT/dev
+uv run check_files.py task-sdk -v ${TASK_SDK_VERSION} -p ${PATH_TO_SVN}/task-sdk
+```
+
 ## Licence check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
-  the jar is inside)
-* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
-* Enter the sources folder run the check
+Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+
+Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache-airflow-*-source.tar.gz -C /tmp/apache-airflow-src
+```
+
+Run the check:
+
+```shell script
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src | grep "! "
 ```
 
 where `.rat-excludes` is the file in the root of Airflow source code.
+
+You should see no files reported as Unknown or with wrong licence.
 
 ## Signature check
 
