@@ -250,9 +250,10 @@ def _do_delete(
                     )
                 )
             else:
-                delete = source_table.delete().where(
-                    and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
-                )
+                comparisons = [
+                    pk_col == target_table.c[pk_col.name] for pk_col in source_table.primary_key.columns
+                ]
+                delete = source_table.delete().where(and_(*comparisons))
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
             session.commit()
@@ -269,15 +270,22 @@ def _do_delete(
 
 
 def _subquery_keep_last(
-    *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
-) -> Query:
+    *,
+    recency_column: Any,
+    keep_last_filters: Any | None,
+    group_by_columns: list[Any] | None,
+    max_date_colname: str,
+    session: Session,
+) -> Any:
+    if group_by_columns is None:
+        group_by_columns = []
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
             subquery = subquery.filter(entry)
 
-    if group_by_columns is not None:
+    if group_by_columns:
         subquery = subquery.group_by(*group_by_columns)
 
     return subquery.subquery(name="latest")
@@ -316,7 +324,7 @@ def _build_query(
     conditions = [base_table_recency_col < clean_before_timestamp]
     if keep_last:
         max_date_col_name = "max_date_per_group"
-        group_by_columns = [column(x) for x in keep_last_group_by]
+        group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
             recency_column=recency_column,
             keep_last_filters=keep_last_filters,
@@ -472,7 +480,9 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
 
 
 def _get_archived_table_names(table_names: list[str] | None, session: Session) -> list[str]:
-    inspector = inspect(session.bind)
+    if (bind := session.get_bind()) is None:
+        return []
+    inspector = inspect(bind)
     db_table_names = [
         x
         for x in inspector.get_table_names()
