@@ -48,7 +48,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
-    RUNNERS_TYPE_MAPPING,
+    RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -1318,7 +1318,6 @@ class SelectiveChecks:
         if response.status_code != 200:
             get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
             return None
-        get_console().print(f"[blue]Response received for workflow run {response.json()}.\n")
         runs = response.json().get("workflow_runs", [])
         if not runs:
             get_console().print(
@@ -1344,9 +1343,8 @@ class SelectiveChecks:
         if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
             branch = self._github_context_dict.get("ref_name", "main")
             label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
-            if not label:
-                return PUBLIC_AMD_RUNNERS
-            return RUNNERS_TYPE_MAPPING[label]
+
+            return RUNNERS_TYPE_CROSS_MAPPING[label] if label else PUBLIC_AMD_RUNNERS
 
         return PUBLIC_AMD_RUNNERS
 
