@@ -746,31 +746,72 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
+There are two ways to publish the documentation - using breeze command from your local machine or
+using breeze commands from GitHub Actions. Both are actually execute remote workflows in GitHub Actions.
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> helm-chart
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing. This should be a
+release tag like `helm-chart/1.1.0`
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases.
+The default option is `auto` which should automatically select the right environment based on the tag name.
+
+Other available parameters can be found with:
+
+```shell script
+breeze workflow-run publish-docs --help
+```
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it. (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref helm-chart/1.18.0 --site-env staging \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
+  --skip-write-to-stable-folder \
+  helm-chart
+```
+
+### Manually using GitHub Actions
+
 There are two steps to publish the documentation:
 
-1. Publish the documentation to the `live` S3 bucket.
+1. Publish the documentation to the `staging` S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
-
-You should specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
-
-The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default
-`auto` selection should publish to the `live` bucket - based on
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default `auto` selection should publish to the `staging` bucket - based on
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-After that step, the provider documentation should be available under the https://airflow.apache.org
-(same as in the helm chart documentation).
+You should specify 'helm-chart' passed as packages to be built.
 
-2. Invalidated Fastly cache for the documentation.
+After that step, the provider documentation should be available under https://airflow.stage.apache.org//
+URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
 
 In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository. Make sure to use `main` branch.
+workflow in `airflow-site` repository - but make sure to use `staging` branch.
 
 After that workflow completes, the new version should be available in the drop-down list and stable links
-should be updated and Fastly cache should be invalidated.
+should be updated, also Fastly cache will be updated
 
 ## Update `index.yaml` in airflow-site
 
