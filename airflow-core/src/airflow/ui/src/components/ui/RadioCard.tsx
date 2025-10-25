@@ -45,7 +45,19 @@ export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>((p
   const shouldWrapContent = Boolean(indicator);
 
   return (
-    <RadioCard.Item {...rest}>
+    <RadioCard.Item
+      _hover={
+        rest.disabled
+          ? undefined
+          : {
+              bg: "colorPalette.emphasized",
+              borderColor: "colorPalette.emphasized",
+            }
+      }
+      colorPalette="brand"
+      cursor={rest.disabled ? "not-allowed" : "pointer"}
+      {...rest}
+    >
       <RadioCard.ItemHiddenInput ref={ref} {...inputProps} />
       <RadioCard.ItemControl>
         {indicatorPlacement === "start" && indicator}

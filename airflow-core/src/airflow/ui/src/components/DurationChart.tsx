@@ -35,7 +35,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
-import { getComputedCSSVariableValue } from "src/theme";
+import { resolveTokenValue } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 ChartJS.register(
@@ -68,14 +68,15 @@ export const DurationChart = ({
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
-  const [queuedColorToken] = useToken("colors", ["queued.solid"]);
+  const [queuedColor] = useToken("colors", ["queued.solid"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   // Get states and create color tokens for them
   const states = entries?.map((entry) => entry.state).filter(Boolean) ?? [];
-  const stateColorTokens = useToken(
+  const stateColors = useToken(
     "colors",
     states.map((state) => `${state}.solid`),
-  );
+  ).map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
 
   if (!entries) {
     return undefined;
@@ -85,8 +86,8 @@ export const DurationChart = ({
   const stateColorMap: Record<string, string> = {};
 
   states.forEach((state, index) => {
-    if (state) {
-      stateColorMap[state] = getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)");
+    if (state && stateColors[index]) {
+      stateColorMap[state] = stateColors[index];
     }
   });
 
@@ -125,7 +126,7 @@ export const DurationChart = ({
         data={{
           datasets: [
             {
-              backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
+              backgroundColor: queuedColor,
               data: entries.map((entry: RunResponse) => {
                 switch (kind) {
                   case "Dag Run": {

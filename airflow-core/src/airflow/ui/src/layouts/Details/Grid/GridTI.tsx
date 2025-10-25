@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, Flex, useToken } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,14 +27,16 @@ import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { type HoverContextType, useHover } from "src/context/hover";
+import { resolveTokenValue } from "src/theme";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
-  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
+  (setHoveredTaskId: HoverContextType["setHoveredTaskId"], hoverColor: string) =>
+  (event: MouseEvent<HTMLDivElement>) => {
     const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
     tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+      task.style.backgroundColor = hoverColor;
     });
 
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
@@ -69,7 +71,10 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
 
   const [searchParams] = useSearchParams();
 
-  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
+  const [hoverColor] = useToken("colors", ["info.subtle"])
+    .map(token => resolveTokenValue(token || "oklch(0.5 0 0)"));
+
+  const onMouseEnter = handleMouseEnter(setHoveredTaskId, hoverColor ?? "");
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
   const getTaskUrl = useCallback(

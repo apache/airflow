@@ -143,9 +143,10 @@ export const FilterBar = ({
         <Menu.Root>
           <Menu.Trigger asChild>
             <Button
-              _hover={{ bg: "colorPalette.subtle" }}
-              bg="gray.muted"
+              _hover={{ bg: "colorPalette.emphasized" }}
+              bg="colorPalette.muted"
               borderRadius="full"
+              colorPalette="brand"
               variant="outline"
             >
               <MdAdd />
@@ -165,7 +166,7 @@ export const FilterBar = ({
         </Menu.Root>
       )}
       {filters.length > 0 && (
-        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
+        <Button borderRadius="full" onClick={resetFilters} size="sm" variant="outline">
           <MdClear />
           {translate("common:reset")}
         </Button>
