@@ -269,16 +269,14 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
-          {dagView === "graph" && (
-            <LineageFilter
-              currentTaskId={taskId}
-              filterMode={lineageFilterMode}
-              filterRoot={lineageFilterRoot}
-              onClearFilter={onClearLineageFilter}
-              onFilterModeChange={setLineageFilterMode}
-              translate={translate}
-            />
-          )}
+          <LineageFilter
+            currentTaskId={taskId}
+            filterMode={lineageFilterMode}
+            filterRoot={lineageFilterRoot}
+            onClearFilter={onClearLineageFilter}
+            onFilterModeChange={setLineageFilterMode}
+            translate={translate}
+          />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
