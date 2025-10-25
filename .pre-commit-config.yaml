@@ -212,12 +212,6 @@ repos:
         files: ^airflow-core/src/airflow/models/taskinstance\.py$|^airflow-core/src/airflow/models/taskinstancehistory\.py$
         pass_filenames: false
         require_serial: true
-      - id: check-deferrable-default
-        name: Check and fix default value of default_deferrable
-        language: python
-        entry: ./scripts/ci/prek/check_deferrable_default.py
-        pass_filenames: false
-        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/adamchainz/blacken-docs
     rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
@@ -358,12 +352,6 @@ repos:
     # changes quickly - especially when we want the early modifications from the first local group
     # to be applied before the non-local prek hooks are run
     hooks:
-      - id: update-providers-dependencies
-        name: Update dependencies for providers
-        entry: ./scripts/ci/prek/update_providers_dependencies.py
-        language: python
-        always_run: true
-        pass_filenames: false
       - id: check-shared-distributions-structure
         name: Check shared distributions structure
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
@@ -376,34 +364,6 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
-      - id: validate-operators-init
-        name: No templated field logic checks in operator __init__
-        description: Prevent templated field logic checks in operators' __init__
-        language: python
-        entry: ./scripts/ci/prek/validate_operators_init.py
-        pass_filenames: true
-        files: ^providers/.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
-      - id: update-providers-build-files
-        name: Update providers build files
-        entry: ./scripts/ci/prek/update_providers_build_files.py
-        language: python
-        pass_filenames: true
-        files: |
-          (?x)
-          ^providers/[^\/]*/src/airflow/providers/[^\/]*/__init__\.py$|
-          ^providers/[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__\.py$|
-          ^providers/.*/pyproject\.toml$|
-          ^providers/.*/provider\.yaml$|
-          ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE\.py\.jinja2$|
-          ^airflow_breeze/templates/get_provider_info_TEMPLATE\.py\.jinja2$|
-          ^airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
-        require_serial: true
-      - id: check-airflow-v-imports-in-tests
-        name: Check AIRFLOW_V imports in tests
-        language: python
-        entry: ./scripts/ci/prek/check_airflow_v_imports_in_tests.py
-        pass_filenames: true
-        files: ^providers/.*/tests/.+\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -493,12 +453,6 @@ repos:
         language: python
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
-      - id: check-sql-dependency-common-data-structure
-        name: Check dependency of SQL providers
-        description: Check dependency of SQL Providers with common data structure
-        entry: ./scripts/ci/prek/check_common_sql_dependency.py
-        language: python
-        files: ^providers/.*/src/airflow/providers/.*/hooks/.*\.py$
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the extras defined in hatch_build.py are listed in extra-packages-ref.rst file
@@ -522,13 +476,6 @@ repos:
           ^docs/images/.*\.py$|
           ^airflow-ctl/docs/images/diagrams/.*\.py$
         pass_filenames: true
-      - id: generate-volumes-for-sources
-        name: Generate volumes for docker compose
-        entry: ./scripts/ci/prek/generate_volumes_for_sources.py
-        language: python
-        files: ^providers/.*/provider\.yaml$
-        pass_filenames: false
-        require_serial: true
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
         entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
@@ -568,75 +515,6 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
-      - id: check-pytest-mark-db-test-in-providers
-        language: pygrep
-        name: Check pytest.mark.db_test use in providers
-        entry: pytest\.mark\.db_test
-        pass_filenames: true
-        # Here we should add providers that are already free from the pytest.mark.db_test
-        # and we want to keep them clean and only use non-db-tests
-        files: >
-            (?x)
-            ^providers/airbyte/.*\.py$|
-            ^providers/apache/beam/.*\.py$|
-            ^providers/apache/flink/.*\.py$|
-            ^providers/apache/iceberg/.*\.py$|
-            ^providers/apache/kafka/.*\.py$|
-            ^providers/apprise/.*\.py$|
-            ^providers/arangodb/.*\.py$|
-            ^providers/asana/.*\.py$|
-            ^providers/atlassian/jira/.*\.py$|
-            ^providers/cloudant/.*\.py$|
-            ^providers/cohere/.*\.py$|
-            ^providers/common/compat/.*\.py$|
-            ^providers/common/messaging/.*\.py$|
-            ^providers/datadog/.*\.py$|
-            ^providers/dingding/.*\.py$|
-            ^providers/discord/.*\.py$|
-            ^providers/exasol/.*\.py$|
-            ^providers/facebook/.*\.py$|
-            ^providers/ftp/.*\.py$|
-            ^providers/grpc/.*\.py$|
-            ^providers/hashicorp/.*\.py$|
-            ^providers/imap/.*\.py$|
-            ^providers/influxdb/.*\.py$|
-            ^providers/jdbc/.*\.py$|
-            ^providers/jenkins/.*\.py$|
-            ^providers/mongo/.*\.py$|
-            ^providers/microsoft/psrp/.*\.py$|
-            ^providers/microsoft/winrm/.*\.py$|
-            ^providers/neo4j/.*\.py$|
-            ^providers/odbc/.*\.py$|
-            ^providers/openai/.*\.py$|
-            ^providers/openfaas/.*\.py$|
-            ^providers/opsgenie/.*\.py$|
-            ^providers/oracle/.*\.py$|
-            ^providers/pagerduty/.*\.py$|
-            ^providers/pgvector/.*\.py$|
-            ^providers/pinecone/.*\.py$|
-            ^providers/postgres/.*\.py$|
-            ^providers/presto/.*\.py$|
-            ^providers/segment/.*\.py$|
-            ^providers/sendgrid/.*\.py$|
-            ^providers/singularity/.*\.py$|
-            ^providers/slack/.*\.py$|
-            ^providers/smtp/.*\.py$|
-            ^providers/tableau/.*\.py$|
-            ^providers/teradata/.*\.py$|
-            ^providers/trino/.*\.py$|
-            ^providers/vertica/.*\.py$|
-            ^providers/yandex/.*\.py$|
-            ^providers/zendesk/.*\.py$
-      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
-        name: Verify no hard-coded version in example dags
-        description: The links to example dags should use |version| as version specification
-        language: pygrep
-        entry: >
-          (?i)
-          .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
-          .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
-        pass_filenames: true
-        files: ^providers/.*/docs/.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -651,13 +529,6 @@ repos:
         entry: "^\\s*from airflow\\.providers.(?!standard.)"
         pass_filenames: true
         files: ^airflow-core/src/airflow/example_dags/.*\.py$
-      - id: check-no-airflow-deprecation-in-providers
-        language: pygrep
-        name: Do not use DeprecationWarning in providers
-        description: Use AirflowProviderDeprecationWarning in providers
-        entry: "^\\s*DeprecationWarning*"
-        pass_filenames: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -690,80 +561,81 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
-          ^airflow-core/src/airflow/ui/openapi-gen/|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
+          ^airflow-core/docs/.*commits\.rst$|
+          ^airflow-core/newsfragments/41368\.significant\.rst$|
+          ^airflow-core/newsfragments/41761.significant\.rst$|
+          ^airflow-core/newsfragments/43349\.significant\.rst$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
           ^airflow-core/src/airflow/models/baseoperator\.py$|
           ^airflow-core/src/airflow/operators/__init__\.py$|
-          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute\.py$|
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
+          ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
+          ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^airflow-core/src/airflow/utils/db\.py$|
+          ^airflow-core/src/airflow/utils/trigger_rule\.py$|
+          ^airflow-core/tests/|
+          ^.*changelog\.(rst|txt)$|
+          ^.*CHANGELOG\.(rst|txt)$|
+          ^chart/values.schema\.json$|
+          ^.*commits\.(rst|txt)$|
+          ^.*/conf_constants\.py$|
+          ^.*/conf\.py$|
+          ^contributing-docs/03_contributors_quick_start\.rst$|
+          ^dev/|
+          ^devel-common/src/docs/README\.rst$|
+          ^devel-common/src/sphinx_exts/removemarktransform\.py|
+          ^devel-common/src/tests_common/test_utils/db\.py|
+          .*/dist/.*|
+          ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
+          git|
+          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
+          package-lock\.json$|
+          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
+          ^\.pre-commit-config\.yaml$|
+          ^.*/provider_conf\.py$|
+          ^providers/\.pre-commit-config\.yaml$|
           ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr\.py$|
           ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr\.py$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
+          ^providers/apache/hdfs/docs/connections\.rst$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
+          ^providers/apache/kafka/docs/connections/kafka\.rst$|
+          ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
+          ^providers/cncf/kubernetes/docs/operators\.rst$|
+          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute\.py$|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/pnpm-lock.yaml$|
           ^providers/exasol/src/airflow/providers/exasol/hooks/exasol\.py$|
+          ^providers/fab/docs/auth-manager/webserver-authentication\.rst$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/fab/src/airflow/providers/fab/www/static/|
           ^providers/fab/src/airflow/providers/fab/www/templates/|
+          ^providers/google/docs/operators/cloud/kubernetes_engine\.rst$|
           ^providers/google/src/airflow/providers/google/cloud/hooks/bigquery\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
           ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/cli/definition.py|
+          ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|
-          ^airflow-core/docs/.*commits\.rst$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm\.py$|
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie\.py$|
           ^providers/redis/src/airflow/providers/redis/provider\.yaml$|
-          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
-          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock\.yaml$|
-          ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
-          ^airflow-core/src/airflow/utils/db\.py$|
-          ^airflow-core/src/airflow/utils/trigger_rule\.py$|
-          ^chart/values.schema\.json$|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
-          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
-          ^dev/|
-          ^devel-common/src/docs/README\.rst$|
-          ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
-          ^providers/apache/kafka/docs/connections/kafka\.rst$|
-          ^providers/apache/hdfs/docs/connections\.rst$|
-          ^providers/apache/spark/docs/decorators/pyspark\.rst$|
-          ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
-          ^providers/fab/docs/auth-manager/webserver-authentication\.rst$|
-          ^providers/google/docs/operators/cloud/kubernetes_engine\.rst$|
-          ^providers/cncf/kubernetes/docs/operators\.rst$|
-          ^.*/conf\.py$|
-          ^.*/conf_constants\.py$|
-          ^.*/provider_conf\.py$|
-          ^devel-common/src/sphinx_exts/removemarktransform\.py|
-          ^devel-common/src/tests_common/test_utils/db\.py|
-          ^airflow-core/newsfragments/41761.significant\.rst$|
-          ^scripts/ci/prek/vendor_k8s_json_schema\.py$|
+          ^providers/.*/tests/|
+          .rat-excludes|
+          ^.*RELEASE_NOTES\.rst$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
-          ^airflow-core/tests/|
-          ^providers/.*/tests/|
-          ^\.pre-commit-config\.yaml$|
-          ^.*CHANGELOG\.(rst|txt)$|
-          ^.*changelog\.(rst|txt)$|
-          ^.*commits\.(rst|txt)$|
-          ^.*RELEASE_NOTES\.rst$|
-          ^contributing-docs/03_contributors_quick_start\.rst$|
-          ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
-          git|
-          ^airflow-core/newsfragments/43349\.significant\.rst$|
-          ^airflow-core/newsfragments/41368\.significant\.rst$|
-          .*/dist/.*|
-          .rat-excludes|
-          package-lock\.json$|
-          ^providers/edge3/src/airflow/providers/edge3/plugins/www/pnpm-lock.yaml$
+          ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -808,27 +680,6 @@ repos:
           ^airflow-core/src/airflow/operators/.*$|
           ^providers/.*/src/airflow/providers/.*$|
           ^providers/.*/src/airflow/providers/standard/sensors/.*$
-      - id: check-base-operator-usage
-        language: pygrep
-        name: Check BaseOperator other imports
-        description: Make sure BaseOperator is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
-        pass_filenames: true
-        files: >
-          (?x)
-          ^providers/.*/src/airflow/providers/.*\.py$
-        exclude: ^providers/standard/.*/.*\.py$
-      - id: check-get-lineage-collector-providers
-        language: python
-        name: Check providers import hook lineage code from compat
-        description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
-          airflow.lineage.hook.
-        entry: ./scripts/ci/prek/check_airflow_imports.py
-          --pattern '^airflow\.lineage\.hook'
-          --message "Only TYPE_CHECKING imports from `airflow.lineage.hook` are allowed in providers."
-          --only_top_level
-        files: ^providers/.*/src/airflow/providers/.*\.py$
-        exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python
@@ -867,13 +718,6 @@ repos:
         language: python
         files: ^LICENSE$
         pass_filenames: false
-      - id: check-aiobotocore-optional
-        name: Check if aiobotocore is an optional dependency only
-        entry: ./scripts/ci/prek/check_aiobotocore_optional.py
-        language: python
-        files: ^providers/.*/provider\.yaml$
-        pass_filenames: true
-        require_serial: true
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -945,13 +789,6 @@ repos:
         entry: ./scripts/ci/prek/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
-      - id: check-providers-subpackages-init-file-exist
-        name: Provider subpackage init files are there
-        pass_filenames: false
-        always_run: true
-        entry: ./scripts/ci/prek/check_providers_subpackages_all_have_init.py
-        language: python
-        require_serial: true
       - id: check-integrations-list-consistent
         name: Sync integrations list with docs
         entry: ./scripts/ci/prek/check_integrations_list.py
@@ -1177,12 +1014,6 @@ repos:
         pass_filenames: true
         files: ^airflow-core/docs/.*example-dags\.rst$|^docs/.*index\.rst$^airflow-core/docs/.*index\.rst$
         always_run: true
-      - id: check-system-tests-tocs
-        name: Check that system tests is properly added
-        entry: ./scripts/ci/prek/check_system_tests_hidden_in_index.py
-        language: python
-        pass_filenames: true
-        files: ^providers/.*/docs/index\.rst$
       - id: check-lazy-logging
         name: Check that all logging methods are lazy
         entry: ./scripts/ci/prek/check_lazy_logging.py
@@ -1202,13 +1033,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/tests/.*\.py$
-      - id: check-provider-docs-valid
-        name: Validate provider doc files
-        entry: ./scripts/ci/prek/check_provider_docs.py
-        language: python
-        files: ^providers/.*/provider\.yaml$|^.*/docs/.*
-        require_serial: true
-        pass_filenames: false
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1334,21 +1158,6 @@ repos:
         pass_filenames: false
         files: ^airflow-core/.*\.py$
         require_serial: true
-      - id: mypy-providers
-        stages: ['pre-push']
-        name: Run mypy for providers
-        language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^providers/.*\.py$
-        require_serial: true
-      - id: mypy-providers
-        stages: ['manual']
-        name: Run mypy for providers (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py providers
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-task-sdk
         stages: ['pre-push']
         name: Run mypy for task-sdk
@@ -1409,13 +1218,6 @@ repos:
         files: ^airflow-core/src/airflow/ui/public/i18n/locales/.*\.json$
         entry: ./scripts/ci/prek/check_i18n_json.py
         pass_filenames: false
-      - id: check-provider-yaml-valid
-        name: Validate provider.yaml files
-        entry: ./scripts/ci/prek/check_provider_yaml_files.py
-        language: python
-        files: ^providers/.*/provider\.yaml$
-        exclude: ^providers/.*/.venv/.*$
-        require_serial: true
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
@@ -1465,19 +1267,6 @@ repos:
         pass_filenames: false
         files:
           ^airflow-ctl/src/airflowctl/ctl/cli_config.py$|airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py
-      - id: check-imports-in-providers
-        name: Check imports in providers
-        entry: ./scripts/ci/prek/check_imports_in_providers.py
-        language: python
-        files: ^providers/.*/src/airflow/providers/.*version_compat.*\.py$
-        require_serial: true
-      - id: provider-version-compat
-        name: Check for correct version_compat imports in providers
-        entry: ./scripts/ci/prek/check_provider_version_compat.py
-        language: python
-        types: [python]
-        files: ^providers/.*/src/airflow/providers/.*\.py$
-        require_serial: true
       - id: check-airflow-version-checks-in-core
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core
@@ -1493,7 +1282,6 @@ repos:
           ^airflow-core/tests/unit/core/test_configuration\.py$|
           ^airflow-core/tests/unit/models/test_renderedtifields\.py$|
           ^airflow-core/tests/unit/models/test_variable\.py$
-
       - id: check-sdk-imports
         name: Check for SDK imports in core files
         entry: ./scripts/ci/prek/check_sdk_imports.py
