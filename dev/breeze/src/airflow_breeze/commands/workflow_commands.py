@@ -178,10 +178,14 @@ def workflow_run_publish(
     if airflow_version and not airflow_base_version:
         airflow_base_version = Version(airflow_version).base_version
 
+    joined_packages = " ".join(doc_packages)
+    if "providers" in joined_packages and "apache-airflow-providers" not in joined_packages:
+        joined_packages = joined_packages + " apache-airflow-providers"
+
     workflow_fields = {
         "ref": ref,
         "destination": site_env,
-        "include-docs": " ".join(doc_packages),
+        "include-docs": joined_packages,
         "exclude-docs": exclude_docs,
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
         "build-sboms": "true" if "apache-airflow" in doc_packages else "false",
