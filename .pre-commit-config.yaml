@@ -642,12 +642,6 @@ repos:
         entry: ./scripts/ci/prek/check_base_operator_partial_arguments.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/models/(?:base|mapped)operator\.py$
-      - id: check-init-decorator-arguments
-        name: Sync model __init__ and decorator arguments
-        language: python
-        entry: ./scripts/ci/prek/check_init_decorator_arguments.py
-        pass_filenames: false
-        files: ^task-sdk/src/airflow/sdk/definitions/dag\.py$|^task-sdk/src/airflow/sdk/definitions/decorators/task_group\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
         language: python
@@ -1157,21 +1151,6 @@ repos:
         entry: ./scripts/ci/prek/mypy_folder.py airflow-core
         pass_filenames: false
         files: ^airflow-core/.*\.py$
-        require_serial: true
-      - id: mypy-task-sdk
-        stages: ['pre-push']
-        name: Run mypy for task-sdk
-        language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^task-sdk/.*\.py$
-        require_serial: true
-      - id: mypy-task-sdk
-        stages: ['manual']
-        name: Run mypy for task-sdk (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py task-sdk
-        pass_filenames: false
-        files: ^.*\.py$
         require_serial: true
       - id: mypy-devel-common
         stages: ['pre-push']
