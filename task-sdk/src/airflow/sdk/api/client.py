@@ -394,9 +394,11 @@ class VariableOperations:
             raise
         return VariableResponse.model_validate_json(resp.read())
 
-    def set(self, key: str, value: str | None, description: str | None = None) -> OKResponse:
+    def set(
+        self, key: str, value: str | None, description: str | None = None, team_id: str | None = None
+    ) -> OKResponse:
         """Set an Airflow Variable via the API server."""
-        body = VariablePostBody(val=value, description=description)
+        body = VariablePostBody(val=value, description=description, team_id=team_id)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to

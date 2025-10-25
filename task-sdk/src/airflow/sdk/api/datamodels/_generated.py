@@ -360,6 +360,7 @@ class VariablePostBody(BaseModel):
     )
     val: Annotated[str | None, Field(title="Val")] = None
     description: Annotated[str | None, Field(title="Description")] = None
+    team_id: Annotated[str | None, Field(title="Team Id")] = None
 
 
 class VariableResponse(BaseModel):

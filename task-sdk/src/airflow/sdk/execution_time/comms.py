@@ -771,6 +771,7 @@ class PutVariable(BaseModel):
     value: str | None
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
+    team_id: str | None = None
 
 
 class DeleteVariable(BaseModel):
