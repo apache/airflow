@@ -53,17 +53,23 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import type { FilterMode } from "./Graph/LineageFilter";
+import { LineageFilter } from "./Graph/LineageFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: string;
   readonly limit: number;
+  readonly lineageFilterMode: FilterMode;
+  readonly lineageFilterRoot: string | undefined;
+  readonly onClearLineageFilter: () => void;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+  readonly setLineageFilterMode: (mode: FilterMode) => void;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -108,11 +114,15 @@ export const PanelButtons = ({
   dagRunStateFilter,
   dagView,
   limit,
+  lineageFilterMode,
+  lineageFilterRoot,
+  onClearLineageFilter,
   panelGroupRef,
   runTypeFilter,
   setDagRunStateFilter,
   setDagView,
   setLimit,
+  setLineageFilterMode,
   setRunTypeFilter,
   setShowGantt,
   setTriggeringUserFilter,
@@ -120,7 +130,7 @@ export const PanelButtons = ({
   triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
-  const { dagId = "", runId } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
@@ -259,6 +269,16 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
+          {dagView === "graph" && (
+            <LineageFilter
+              currentTaskId={taskId}
+              filterMode={lineageFilterMode}
+              filterRoot={lineageFilterRoot}
+              onClearFilter={onClearLineageFilter}
+              onFilterModeChange={setLineageFilterMode}
+              translate={translate}
+            />
+          )}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
