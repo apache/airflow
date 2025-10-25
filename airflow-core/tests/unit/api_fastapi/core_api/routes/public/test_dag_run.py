@@ -249,7 +249,7 @@ def get_dag_run_dict(run: DagRun):
         ),
         "run_type": run.run_type,
         "state": run.state,
-        "triggered_by": run.triggered_by.value,
+        "triggered_by": run.triggered_by.value if run.triggered_by is not None else None,
         "triggering_user_name": run.triggering_user_name,
         "conf": run.conf,
         "note": run.note,
