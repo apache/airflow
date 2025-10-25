@@ -20,13 +20,7 @@ import { Box, Text } from "@chakra-ui/react";
 import { FiGitCommit } from "react-icons/fi";
 
 export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => (
-  <Box
-    color="orange.fg"
-    left="-8px"
-    position="absolute"
-    title={`Bundle Version: ${bundleVersion}`}
-    top="93px"
-  >
+  <Box color="orange.fg" left={-2} position="absolute" title={`Bundle Version: ${bundleVersion}`} top={93}>
     <FiGitCommit size="15px" />
   </Box>
 );
@@ -44,22 +38,22 @@ export const DagVersionIndicator = ({
     <Box
       aria-label={`Version ${dagVersionNumber} indicator`}
       as="output"
-      height={isVertical ? "103px" : "2px"}
-      left={isVertical ? "-1px" : "0"}
+      height={isVertical ? 104 : 0.5}
+      left={isVertical ? -1.2 : 0}
       position="absolute"
-      top={isVertical ? "-5px" : "-1px"}
-      width={isVertical ? "1.75px" : "18px"}
-      zIndex={3}
+      top={isVertical ? -1.5 : -0.5}
+      width={isVertical ? 0.5 : 4.5}
+      zIndex={1}
     >
       {isVertical ? (
         <>
-          <Box bg="orange.focusRing" height="100%" left="0" position="absolute" top="0" width="1.75px" />
+          <Box bg="orange.focusRing" height="full" position="absolute" width={0.5} />
 
           <Box
             _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
             left="50%"
             position="absolute"
-            top="-7px"
+            top={-2}
             transform="translateX(-50%)"
             zIndex={5}
           >
@@ -69,29 +63,29 @@ export const DagVersionIndicator = ({
                 cursor: "pointer",
               }}
               bg="orange.focusRing"
-              borderRadius="50%"
-              height="8px"
+              borderRadius="full"
+              height={2}
               transition="all 0.2s"
-              width="8px"
+              width={2}
             />
             <Box
               bg="orange.focusRing"
-              borderRadius="4px"
+              borderRadius="full"
               className="version-tooltip"
               left="50%"
               opacity={0}
               pointerEvents="none"
               position="absolute"
-              px="2px"
-              py="0.5px"
-              top="0"
+              px={0.5}
+              py={0.5}
+              top={-0.5}
               transform="translateX(-50%)"
               transition="all 0.2s"
               visibility="hidden"
             >
               <Text
                 color={{ _dark: "black", _light: "white" }}
-                fontSize="7px"
+                fontSize="2xs"
                 fontWeight="bold"
                 lineHeight="1"
                 whiteSpace="nowrap"
@@ -106,9 +100,9 @@ export const DagVersionIndicator = ({
           _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
           left="50%"
           position="absolute"
-          top="-6.5px"
+          top={-1.5}
           transform="translateX(-50%)"
-          zIndex={5}
+          zIndex="tooltip"
         >
           <Box
             _hover={{
@@ -124,22 +118,22 @@ export const DagVersionIndicator = ({
           </Box>
           <Box
             bg="orange.focusRing"
-            borderRadius="4px"
+            borderRadius="full"
             className="version-tooltip"
             left="50%"
             opacity={0}
             pointerEvents="none"
             position="absolute"
-            px="2px"
-            py="0.5px"
-            top="4px"
+            px={0.5}
+            py={0.5}
+            top={0.5}
             transform="translateX(-50%)"
             transition="all 0.2s"
             visibility="hidden"
           >
             <Text
               color={{ _dark: "black", _light: "white" }}
-              fontSize="7px"
+              fontSize="2xs"
               fontWeight="bold"
               lineHeight="1"
               whiteSpace="nowrap"
