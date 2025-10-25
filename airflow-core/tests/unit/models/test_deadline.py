@@ -556,7 +556,7 @@ class TestCustomDeadlineReference:
         assert custom_ref.__class__ is self.MyCustomRef
 
         # Should behave like built-in references.
-        assert hasattr(custom_ref, '_evaluate_with')
+        assert hasattr(custom_ref, "_evaluate_with")
         assert callable(custom_ref._evaluate_with)
 
     def test_register_custom_reference_default_timing(self):

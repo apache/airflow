@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, cast
 from typing import cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
@@ -25,7 +26,12 @@ from airflow.sdk.definitions.callback import AsyncCallback, Callback
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serde import deserialize, serialize
 
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
 logger = logging.getLogger(__name__)
+
+DeadlineReferenceTuple: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
 
 
 class DeadlineAlertFields:
@@ -145,17 +151,17 @@ class DeadlineReference:
         """Collection of DeadlineReference types for type checking."""
 
         # Deadlines that should be created when the DagRun is created.
-        DAGRUN_CREATED = (
+        DAGRUN_CREATED: DeadlineReferenceTuple = (
             ReferenceModels.DagRunLogicalDateDeadline,
             ReferenceModels.FixedDatetimeDeadline,
             ReferenceModels.AverageRuntimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
-        DAGRUN_QUEUED = (ReferenceModels.DagRunQueuedAtDeadline,)
+        DAGRUN_QUEUED: DeadlineReferenceTuple = (ReferenceModels.DagRunQueuedAtDeadline,)
 
         # All DagRun-related deadline types.
-        DAGRUN = DAGRUN_CREATED + DAGRUN_QUEUED
+        DAGRUN: DeadlineReferenceTuple = DAGRUN_CREATED + DAGRUN_QUEUED
 
     from airflow.models.deadline import ReferenceModels
 
@@ -185,7 +191,11 @@ class DeadlineReference:
     )()
 
     @classmethod
-    def register_custom_reference(cls, reference_class: type, timing=None):
+    def register_custom_reference(
+        cls,
+        reference_class: type[ReferenceModels.BaseDeadlineReference],
+        timing: DeadlineReferenceTuple | None = None,
+    ):
         """
         Register a custom deadline reference class.
 
@@ -222,7 +232,7 @@ class DeadlineReference:
         return reference_class
 
 
-def deadline_reference(timing=None):
+def deadline_reference(timing: DeadlineReferenceTuple | None = None):
     """
     Decorate a class to register a custom deadline reference.
 
