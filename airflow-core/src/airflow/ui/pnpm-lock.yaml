@@ -50,12 +50,9 @@ importers:
       '@xyflow/react':
         specifier: ^12.4.4
         version: 12.4.4(@types/react@18.3.19)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-<<<<<<< HEAD
       anser:
         specifier: ^2.3.2
         version: 2.3.2
-=======
->>>>>>> 28f931c7f5 (Bump React and React-DOM (#55598))
       axios:
         specifier: ^1.12.0
         version: 1.12.0
@@ -128,12 +125,9 @@ importers:
       react-markdown:
         specifier: ^9.1.0
         version: 9.1.0(@types/react@18.3.19)(react@19.1.1)
-<<<<<<< HEAD
       react-resizable:
         specifier: ^3.0.5
         version: 3.0.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-=======
->>>>>>> 28f931c7f5 (Bump React and React-DOM (#55598))
       react-resizable-panels:
         specifier: ^2.1.7
         version: 2.1.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3859,15 +3853,12 @@ packages:
     resolution: {integrity: sha512-Dlq/5LAZgF0Gaz6yiqZCf6VCcZs1ghAJyrsu84Q/GT0gV+mCxbfmKNoGRKBYMJ8IEdGPqu49YWXD02GCknEDkw==}
     peerDependencies:
       react: ^19.1.1
-<<<<<<< HEAD
 
   react-draggable@4.5.0:
     resolution: {integrity: sha512-VC+HBLEZ0XJxnOxVAZsdRi8rD04Iz3SiiKOoYzamjylUcju/hP9np/aZdLHf/7WOD268WMoNJMvYfB5yAK45cw==}
     peerDependencies:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
-=======
->>>>>>> 28f931c7f5 (Bump React and React-DOM (#55598))
 
   react-hook-form@7.56.2:
     resolution: {integrity: sha512-vpfuHuQMF/L6GpuQ4c3ZDo+pRYxIi40gQqsCmmfUBwm+oqvBhKhwghCuj2o00YCgSfU6bR9KC/xnQGWm3Gr08A==}
@@ -9437,7 +9428,6 @@ snapshots:
       react: 19.1.1
       scheduler: 0.26.0
 
-<<<<<<< HEAD
   react-draggable@4.5.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       clsx: 2.1.1
@@ -9454,17 +9444,6 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-=======
-  react-hook-form@7.56.2(react@19.1.1):
-    dependencies:
-      react: 19.1.1
-
-  react-hotkeys-hook@4.6.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
-    dependencies:
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-
->>>>>>> 28f931c7f5 (Bump React and React-DOM (#55598))
   react-i18next@15.5.1(i18next@25.1.2(typescript@5.8.3))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(typescript@5.8.3):
     dependencies:
       '@babel/runtime': 7.26.10
@@ -9525,7 +9504,6 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-<<<<<<< HEAD
   react-resizable@3.0.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       prop-types: 15.8.1
@@ -9534,8 +9512,6 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-=======
->>>>>>> 28f931c7f5 (Bump React and React-DOM (#55598))
   react-router-dom@6.30.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@remix-run/router': 1.23.0
