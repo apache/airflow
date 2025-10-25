@@ -46,7 +46,7 @@ if not files_to_test:
 
 # TODO(potiuk): add suspended providers exclusion
 
-repo_root = Path(__file__).parents[3]
+repo_root = Path(__file__).parents[3].resolve()
 cmd = [
     "bash",
     "-c",
