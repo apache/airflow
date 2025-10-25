@@ -64,7 +64,8 @@ def upgrade():
 
         # Replace INTEGER id with UUID id
         batch_op.drop_column("id")
-        batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False, primary_key=True))
+        batch_op.add_column(sa.Column("id", UUIDType(binary=False), nullable=False))
+        batch_op.create_primary_key("callback_pkey", ["id"])
 
         batch_op.drop_column("callback_data")
         batch_op.drop_column("callback_type")
@@ -87,7 +88,6 @@ def downgrade():
         # Replace UUID id with INTEGER id
         batch_op.drop_column("id")
         batch_op.add_column(sa.Column("id", sa.INTEGER(), nullable=False, autoincrement=True))
-        # MySQL requires the primary key constraint to be created separately when autoincrement=True
         batch_op.create_primary_key("callback_request_pkey", ["id"])
 
         batch_op.drop_constraint(batch_op.f("callback_trigger_id_fkey"), type_="foreignkey")

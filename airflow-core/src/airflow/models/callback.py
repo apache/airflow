@@ -29,6 +29,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
+from airflow.stats import Stats
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
@@ -48,6 +49,10 @@ class CallbackState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+
+ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))
+TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
 
 
 class CallbackType(str, Enum):
@@ -131,26 +136,42 @@ class Callback(Base):
     trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
 
-    def __init__(self, priority_weight: int = 1):
+    def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         self.state = CallbackState.PENDING
         self.priority_weight = priority_weight
+        self.data = kwargs  # kwargs can be used to include additional info in metric tags
+        if prefix:
+            self.data["prefix"] = prefix
 
     def queue(self):
         self.state = CallbackState.QUEUED
 
+    def get_metric_info(self, status: str, result: Any) -> dict:
+        tags = {"result": result, **self.data}
+        tags.pop("prefix")
+
+        if "kwargs" in tags:
+            # Remove the context (if exists) to keep the tags simple
+            tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+
+        prefix = self.data.get("prefix", "")
+        name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
+
+        return {"stat": name, "tags": tags}
+
     @staticmethod
-    def create_from_sdk_def(callback_def: CallbackDefinitionProtocol) -> Callback:
+    def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
         # Cannot check actual type using isinstance() because that would require SDK import
         match type(callback_def).__name__:
             case "AsyncCallback":
                 if TYPE_CHECKING:
                     assert isinstance(callback_def, ImportPathCallbackDefProtocol)
-                return TriggererCallback(callback_def)
+                return TriggererCallback(callback_def, **kwargs)
 
             case "SyncCallback":
                 if TYPE_CHECKING:
                     assert isinstance(callback_def, ImportPathExecutorCallbackDefProtocol)
-                return ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+                return ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH, **kwargs)
 
             case _:
                 raise ValueError(f"Cannot handle Callback of type {type(callback_def)}")
@@ -164,15 +185,33 @@ class TriggererCallback(Callback):
     def __init__(self, callback_def: ImportPathCallbackDefProtocol, **kwargs):
         super().__init__(**kwargs)
         self.fetch_method = CallbackFetchMethod.IMPORT_PATH
-        self.data = callback_def.serialize()
+        self.data |= callback_def.serialize()
 
     def queue(self):
-        # TODO: queue the trigger
+        from airflow.models.trigger import Trigger
+        from airflow.triggers.callback import CallbackTrigger
+
+        self.trigger = Trigger.from_object(
+            CallbackTrigger(
+                callback_path=self.data["path"],
+                callback_kwargs=self.data["kwargs"],
+            )
+        )
         super().queue()
 
     def handle_event(self, event: TriggerEvent, session: Session):
-        # TODO: modify fields based on the event
-        pass
+        from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+
+        if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in (ACTIVE_STATES | TERMINAL_STATES):
+            self.state = status
+            if status in TERMINAL_STATES:
+                self.trigger = None
+                self.output = event.payload.get(PAYLOAD_BODY_KEY)
+                Stats.incr(**self.get_metric_info(status, self.output))
+
+            session.add(self)
+        else:
+            log.error("Unexpected event received: %s", event.payload)
 
 
 class ExecutorCallback(Callback):
@@ -185,7 +224,7 @@ class ExecutorCallback(Callback):
     ):
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
-        self.data = callback_def.serialize()
+        self.data |= callback_def.serialize()
 
 
 class DagProcessorCallback(Callback):
@@ -198,7 +237,7 @@ class DagProcessorCallback(Callback):
 
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
-        self.data = {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
+        self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
 
     def get_callback_request(self) -> CallbackRequest:
         module = import_module("airflow.callbacks.callback_requests")
