@@ -40,6 +40,11 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
+RUNNERS_TYPE_MAPPING = {
+    "ubuntu-22.04": '["ubuntu-22.04"]',
+    "ubuntu-22.04-arm": '["ubuntu-22.04-arm"]',
+}
+
 ANSWER = ""
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
@@ -204,7 +209,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.2"
+PIP_VERSION = "25.3"
 UV_VERSION = "0.9.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
