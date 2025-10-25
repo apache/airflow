@@ -19,10 +19,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
+from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
@@ -70,9 +72,13 @@ def _run_rust_processor():
         str(conf.getint("dag_processor", "bundle_refresh_check_interval")),
         "--file-parsing-sort-mode",
         conf.get("dag_processor", "file_parsing_sort_mode"),
+        "--dags-folder",
+        settings.DAGS_FOLDER,
     ]
+    env = os.environ.copy()
+    env["RUST_LOG"] = "debug"
     try:
-        process = subprocess.Popen(command)
+        process = subprocess.Popen(command, env=env)
         process.wait()
     except KeyboardInterrupt:
         log.info("Terminating Rust DAG processor.")
