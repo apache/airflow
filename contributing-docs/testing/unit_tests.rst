@@ -61,7 +61,7 @@ For avoid this make sure:
   components in backward compatible way.
 * You use ``pytest.warn`` (see `pytest doc <https://docs.pytest.org/en/latest/how-to/capture-warnings.html#warns>`__
   context manager for catch warning during the test deprecated components.
-  Yes we still need to test legacy/deprecated stuff until it complitly removed)
+  Yes we still need to test legacy/deprecated stuff until it completely removed)
 
 .. code-block:: python
 
@@ -420,7 +420,7 @@ How to make your test not depend on DB
 ......................................
 
 This is tricky and there is no single solution. Sometimes we can mock-out the methods that require
-DB access or objects that normally require database. Sometimes we can decide to test just sinle method
+DB access or objects that normally require database. Sometimes we can decide to test just single method
 of class rather than more complex set of steps. Generally speaking it's good to have as many "pure"
 unit tests that require no DB as possible comparing to DB tests. They are usually faster an more
 reliable as well.

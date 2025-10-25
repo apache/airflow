@@ -945,7 +945,14 @@ class S3Hook(AwsBaseHook):
             stacklevel=2,
         )
 
-        return list(self.iter_file_metadata(prefix=prefix, page_size=page_size, max_items=max_items))
+        return list(
+            self.iter_file_metadata(
+                prefix=prefix,
+                bucket_name=bucket_name,
+                page_size=page_size,
+                max_items=max_items,
+            )
+        )
 
     @provide_bucket_name
     def iter_file_metadata(
