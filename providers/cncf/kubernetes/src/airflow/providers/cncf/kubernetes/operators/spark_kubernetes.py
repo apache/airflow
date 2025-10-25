@@ -257,12 +257,47 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
         return pod
 
+    def trigger_reentry(self, context, event=None):
+        """
+        Recreate necessary components for cleanup when resuming from deferred state.
+
+        This ensures consistent behavior between deferrable and non-deferrable modes.
+        """
+        # Recreate the hook if not available
+        if not hasattr(self, "hook") or self.hook is None:
+            self.hook = KubernetesHook(
+                conn_id=self.kubernetes_conn_id,
+                in_cluster=self.in_cluster
+                or self.template_body.get("kubernetes", {}).get("in_cluster", False),
+                config_file=self.config_file
+                or self.template_body.get("kubernetes", {}).get("kube_config_file", None),
+                cluster_context=self.cluster_context
+                or self.template_body.get("kubernetes", {}).get("cluster_context", None),
+            )
+
+        # Recreate the launcher if not available
+        if not hasattr(self, "launcher") or self.launcher is None:
+            self.launcher = CustomObjectLauncher(
+                name=self.name,
+                namespace=self.namespace,
+                kube_client=self.hook.get_conn(),
+                custom_obj_api=self.custom_obj_api,
+                template_body=self.template_body,
+            )
+
+        # Call the parent trigger_reentry
+        return super().trigger_reentry(context, event)
+
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
                 pod_name = pod.metadata.name.replace("-driver", "")
                 self.log.info("Deleting spark job: %s", pod_name)
-                self.launcher.delete_spark_job(pod_name)
+                # Check if launcher exists before using it (needed for deferrable mode)
+                if hasattr(self, "launcher") and self.launcher is not None:
+                    self.launcher.delete_spark_job(pod_name)
+                else:
+                    self.log.warning("Launcher not available for pod deletion in deferrable mode")
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
 
@@ -361,7 +396,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.find_spark_job(context, exclude_checked=exclude_checked)
 
     def on_kill(self) -> None:
-        if self.launcher:
+        if hasattr(self, "launcher") and self.launcher:
             self.log.debug("Deleting spark job for task %s", self.task_id)
             self.launcher.delete_spark_job()
 
