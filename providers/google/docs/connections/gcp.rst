@@ -117,7 +117,16 @@ Secret name which holds Keyfile JSON
     Not required if using application default credentials.
 
 Scopes (comma separated)
-    A list of comma-separated `Google Cloud scopes
+  A list of comma-separated `Google Cloud scopes
+
+Quota Project ID (optional)
+  The Google Cloud project ID to use for API quota and billing purposes. This is useful when using a shared service account but want to attribute quota/billing to a different project. If not specified, the default project from the connection is used. Must be a valid GCP project ID (lowercase letters, digits, hyphens, 6-30 characters, starting with a letter).
+
+  .. note::
+    If using anonymous credentials, quota project logic is ignored.
+
+  .. warning::
+    Ensure the service account has permission to use the specified quota project. Invalid or unauthorized quota project IDs will result in an error.
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
     authenticate with.
 
