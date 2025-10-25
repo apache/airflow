@@ -110,7 +110,9 @@ def update_hitl_detail(
 ) -> HITLDetailResponse:
     """Update the response part of a Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_detail_model_result = session.execute(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)).scalar()
+    hitl_detail_model_result = session.execute(
+        select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)
+    ).scalar()
     hitl_detail_model = _check_hitl_detail_exists(hitl_detail_model_result)
     if hitl_detail_model.response_received:
         raise HTTPException(
