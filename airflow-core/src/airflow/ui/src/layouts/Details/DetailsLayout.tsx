@@ -84,7 +84,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     lineageFilterMode,
     lineageFilterRoot,
     setLineageFilterRoot,
-  } = useLineageFilter({ dagId, dagView, taskId });
+  } = useLineageFilter({ dagId, taskId });
 
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
@@ -174,6 +174,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   <HStack alignItems="flex-end" gap={0}>
                     <Grid
                       dagRunState={dagRunStateFilter}
+                      filterMode={lineageFilterMode}
+                      filterRoot={lineageFilterRoot}
                       limit={limit}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
