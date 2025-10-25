@@ -704,6 +704,8 @@ Firehose
 Firestore
 firestore
 firstname
+Flamegraph
+flamegraph
 Flink
 flink
 flinkDeployment
@@ -1120,6 +1122,7 @@ memberOf
 memcached
 Memorystore
 memorystore
+memray
 Mesos
 mesos
 MessageAttributes
