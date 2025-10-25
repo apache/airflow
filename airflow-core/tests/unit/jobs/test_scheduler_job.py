@@ -7100,7 +7100,7 @@ class TestSchedulerJob:
         def _fake_gauge(metric: str, value: int, *_, **__):
             recorded.append((metric, value))
 
-        monkeypatch.setattr("airflow.dag_processing.manager.Stats.gauge", _fake_gauge, raising=True)
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.Stats.gauge", _fake_gauge, raising=True)
 
         with conf_vars({("metrics", "statsd_on"): "True"}):
             scheduler_job = Job()
