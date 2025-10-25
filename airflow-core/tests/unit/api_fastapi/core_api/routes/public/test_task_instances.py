@@ -3905,7 +3905,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
         )
         ti_2 = TaskInstance(
-            task=tis[0].task, run_id=tis[0].run_id, map_index=map_index + 1, dag_version_id=tis[0].dag_version_id
+            task=tis[0].task,
+            run_id=tis[0].run_id,
+            map_index=map_index + 1,
+            dag_version_id=tis[0].dag_version_id,
         )
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
         ti_2.rendered_task_instance_fields = RTIF(ti_2, render_templates=False)
