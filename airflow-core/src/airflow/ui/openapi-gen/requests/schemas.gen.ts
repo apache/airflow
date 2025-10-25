@@ -3923,10 +3923,13 @@ export const $HITLDetailHisotry = {
             type: 'boolean',
             title: 'Response Received',
             default: false
+        },
+        task_instance: {
+            '$ref': '#/components/schemas/TaskInstanceHistoryResponse'
         }
     },
     type: 'object',
-    required: ['options', 'subject', 'created_at'],
+    required: ['options', 'subject', 'created_at', 'task_instance'],
     title: 'HITLDetailHisotry',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
@@ -5200,20 +5203,10 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
-        },
-        hitl_detail: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/HITLDetailHisotry'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'hitl_detail'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
