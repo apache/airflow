@@ -143,7 +143,12 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pod status and yield a TriggerEvent."""
-        self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
+        self.log.info(
+            "Checking pod %r in namespace %r with poll interval %r.",
+            self.pod_name,
+            self.pod_namespace,
+            self.poll_interval,
+        )
         try:
             state = await self._wait_for_pod_start()
             if state == ContainerState.TERMINATED:
@@ -183,6 +188,11 @@ class KubernetesPodTrigger(BaseTrigger):
             )
             return
         except Exception as e:
+            self.log.exception(
+                "Unexpected error while waiting for pod %s in namespace %s",
+                self.pod_name,
+                self.pod_namespace,
+            )
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
