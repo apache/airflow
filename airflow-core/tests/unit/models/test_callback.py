@@ -42,6 +42,7 @@ def sync_callback():
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 TEST_ASYNC_CALLBACK = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS)
 TEST_SYNC_CALLBACK = SyncCallback(sync_callback, kwargs=TEST_CALLBACK_KWARGS)
+TEST_DAG_ID = "test_dag"
 
 
 @pytest.fixture
@@ -82,6 +83,19 @@ class TestCallback:
 
         with pytest.raises(ValueError, match="Cannot handle Callback of type"):
             Callback.create_from_sdk_def(unknown_callback)
+
+    def test_get_metric_info(self):
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
+        callback.data["kwargs"] = {"context": {"dag_id": TEST_DAG_ID}, "email": "test@example.com"}
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
+
+        assert metric_info["stat"] == "deadline_alerts.callback_success"
+        assert metric_info["tags"] == {
+            "result": "0",
+            "path": TEST_ASYNC_CALLBACK.path,
+            "kwargs": {"email": "test@example.com"},
+            "dag_id": TEST_DAG_ID,
+        }
 
 
 class TestTriggererCallback:
