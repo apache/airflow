@@ -16,20 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { http, HttpResponse, type HttpHandler } from "msw";
+import { ChakraProvider } from "@chakra-ui/react";
+import { useMemo, type PropsWithChildren } from "react";
 
-export const handlers: Array<HttpHandler> = [
-  http.get("/ui/config", () =>
-    HttpResponse.json({
-      auto_refresh_interval: 3,
-      default_wrap: false,
-      enable_swagger_ui: true,
-      hide_paused_dags_by_default: false,
-      instance_name: "Airflow",
-      page_size: 15,
-      require_confirmation_dag_change: false,
-      test_connection: "Disabled",
-      theme: "",
-    }),
-  ),
-];
+import { useConfig } from "src/queries/useConfig";
+import { createTheme } from "src/theme";
+import { generatePalette } from "src/utils/generatePalette";
+
+export const ChakraCustomProvider = ({ children }: PropsWithChildren) => {
+  const getTheme = useConfig("theme");
+
+  const system = useMemo(() => {
+    if (typeof getTheme === "undefined") {
+      return undefined;
+    }
+
+    const theme = typeof getTheme === "string" ? getTheme : "";
+
+    return createTheme(generatePalette(theme));
+  }, [getTheme]);
+
+  return system && <ChakraProvider value={system}>{children}</ChakraProvider>;
+};

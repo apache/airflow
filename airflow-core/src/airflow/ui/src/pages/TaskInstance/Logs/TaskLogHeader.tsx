@@ -42,7 +42,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { Button, Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { system } from "src/theme";
+import { createTheme } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
@@ -85,6 +85,7 @@ export const TaskLogHeader = ({
   const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
+  const system = createTheme();
 
   // Have select zIndex greater than modal zIndex in fullscreen so that
   // select options are displayed.

@@ -6983,10 +6983,14 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'External Log Name'
+        },
+        theme: {
+            type: 'string',
+            title: 'Theme'
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

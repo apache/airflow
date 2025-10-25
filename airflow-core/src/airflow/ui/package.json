@@ -66,7 +66,9 @@
     "use-debounce": "^10.0.4",
     "usehooks-ts": "^3.1.1",
     "yaml": "^2.6.1",
-    "zustand": "^5.0.4"
+    "zustand": "^5.0.4",
+    "culori": "^4.0.2",
+    "@types/culori": "^4.0.1"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.2",

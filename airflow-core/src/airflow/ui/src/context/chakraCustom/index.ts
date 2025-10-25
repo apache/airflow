@@ -16,20 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { http, HttpResponse, type HttpHandler } from "msw";
 
-export const handlers: Array<HttpHandler> = [
-  http.get("/ui/config", () =>
-    HttpResponse.json({
-      auto_refresh_interval: 3,
-      default_wrap: false,
-      enable_swagger_ui: true,
-      hide_paused_dags_by_default: false,
-      instance_name: "Airflow",
-      page_size: 15,
-      require_confirmation_dag_change: false,
-      test_connection: "Disabled",
-      theme: "",
-    }),
-  ),
-];
+export * from "./ChakraCustomProvider";

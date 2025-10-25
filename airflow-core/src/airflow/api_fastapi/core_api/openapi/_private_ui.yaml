@@ -1245,6 +1245,9 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        theme:
+          type: string
+          title: Theme
       type: object
       required:
       - page_size
@@ -1257,6 +1260,7 @@ components:
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
+      - theme
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
