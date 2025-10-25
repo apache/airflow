@@ -71,6 +71,10 @@ Please review and ensure that all security issues marked for the release have be
 addressed and resolved. Ping security team (comment in the issues) if anything missing or
 the issue does not seem to be addressed.
 
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
 # Prepare the Apache Airflow Helm Chart Release Candidate
 
 ## Pre-requisites
