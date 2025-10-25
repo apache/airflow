@@ -162,10 +162,11 @@ def get_dags(
         session=session,
     )
 
-    dags = session.scalars(dags_select)
+    dags_list = list(session.scalars(dags_select))
+    dags_response = [DAGResponse.from_orm(dag) for dag in dags_list]
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=dags_response,
         total_entries=total_entries,
     )
 
@@ -188,8 +189,8 @@ def get_dag(
 ) -> DAGResponse:
     """Get basic information about a DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    dag_model: DagModel = session.get(DagModel, dag_id)
-    if not dag_model:
+    dag_model: DagModel | None = session.get(DagModel, dag_id)
+    if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
     for key, value in dag.__dict__.items():
@@ -215,8 +216,8 @@ def get_dag_details(
     """Get details of DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    dag_model: DagModel = session.get(DagModel, dag_id)
-    if not dag_model:
+    dag_model: DagModel | None = session.get(DagModel, dag_id)
+    if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
     for key, value in dag.__dict__.items():
@@ -340,8 +341,10 @@ def patch_dags(
         .execution_options(synchronize_session="fetch")
     )
 
+    dags_response = [DAGResponse.from_orm(dag) for dag in dags]
+
     return DAGCollectionResponse(
-        dags=dags,
+        dags=dags_response,
         total_entries=total_entries,
     )
 
@@ -355,7 +358,7 @@ def patch_dags(
 def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     """Mark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
-    if not dag:
+    if dag is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
@@ -371,7 +374,7 @@ def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
 def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     """Unmark the DAG as favorite."""
     dag = session.get(DagModel, dag_id)
-    if not dag:
+    if dag is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DAG with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
