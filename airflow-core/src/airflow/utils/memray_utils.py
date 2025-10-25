@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from enum import Enum
 from functools import wraps
 from typing import ParamSpec, TypeVar
+
+import structlog
 
 from airflow.configuration import AIRFLOW_HOME, conf
 
@@ -29,7 +30,7 @@ from airflow.configuration import AIRFLOW_HOME, conf
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(logger_name=__name__)
 
 
 class MemrayTraceComponents(Enum):
