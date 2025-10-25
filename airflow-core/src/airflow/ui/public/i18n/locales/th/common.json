@@ -101,8 +101,6 @@
   },
   "filter": "ตัวกรอง",
   "filters": {
-    "durationFrom": "ระยะเวลาตั้งแต่",
-    "durationTo": "ระยะเวลาถึง",
     "logicalDateFrom": "วันที่ตามกำหนดทำงานตั้งแต่",
     "logicalDateTo": "วันที่ตามกำหนดทำงานถึง",
     "runAfterFrom": "ทำงานตั้งแต่",
