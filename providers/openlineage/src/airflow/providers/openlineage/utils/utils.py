@@ -35,6 +35,8 @@ from airflow import __version__ as AIRFLOW_VERSION
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DagRun, TaskReschedule
 from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -57,11 +59,6 @@ from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.module_loading import import_string
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
-
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -72,9 +69,6 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
     from airflow.models import TaskInstance
-    from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, BaseOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -85,21 +79,6 @@ if TYPE_CHECKING:
 
     AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:
-    try:
-        from airflow.sdk import DAG, BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-    except ImportError:
-        from airflow.models import DAG, BaseOperator, MappedOperator
-
-    try:
-        from airflow.providers.common.compat.assets import Asset
-    except ImportError:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk import Asset
-        else:
-            # dataset is renamed to asset since Airflow 3.0
-            from airflow.datasets import Dataset as Asset
-
     try:
         from airflow.sdk._shared.secrets_masker import (
             Redactable,

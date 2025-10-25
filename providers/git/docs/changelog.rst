@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+0.0.9
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix corrupted bare Git repository recovery in DAG bundles (#56206)``
+
+Misc
+~~~~
+
+* ``Migrate git provider to ''common.compat'' (#57008)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.0.8
 .....
 
@@ -61,7 +82,7 @@ Doc-only
 Misc
 ~~~~
 
-* ``Refactor bundle view_url to not instaniate bundle on server components (#52876)``
+* ``Refactor bundle view_url to not instantiate bundle on server components (#52876)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

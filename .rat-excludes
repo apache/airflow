@@ -187,3 +187,32 @@ mocks/*
 
 # Kubernetes env
 .env
+
+# Doc files
+/docs/.latest-doc-only-change.txt
+/docs/redirects.txt
+/docs/integration-logos/*.svg
+/docs/img/*.md5sum
+/docs/img/*.svg
+
+# Log files
+*.log
+
+# md5 sum files
+.*\.md5sum
+
+# Generated files
+*generated.*
+/src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
+/src/airflow/providers/edge3/plugins/www/*
+/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml
+/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v2-fab-auth-manager-generated.yaml
+/src/airflow/providers/fab/www/static/dist/*
+/any/dag_id=dag_for_testing_redis_task_handler/run_id=test/task_id=task_for_testing_redis_log_handler/attempt=1.log
+/src/airflow/providers/google/ads/.gitignore
+
+# Vendored-in code
+/src/airflow/providers/google/_vendor/*
+
+# Git ignore file
+.gitignore

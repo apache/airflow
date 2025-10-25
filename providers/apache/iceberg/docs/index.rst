@@ -73,7 +73,7 @@ apache-airflow-providers-apache-iceberg package
 `Iceberg <https://iceberg.apache.org/>`__
 
 
-Release: 1.3.2
+Release: 1.3.3
 
 Provider package
 ----------------

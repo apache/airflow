@@ -31,7 +31,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused, TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -200,7 +200,7 @@ class TestDagRunOperator:
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
         dr = dag_maker.create_dagrun()
-        with pytest.raises(ValueError, match="^conf parameter should be JSON Serializable$"):
+        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
             dag_maker.run_ti(task.task_id, dr)
 
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
@@ -254,6 +254,52 @@ class TestDagRunOperator:
                     {"run_ids": ["run_id_1"], "run_id_1": "failed"},
                 ),
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
+        with pytest.raises(
+            NotImplementedError, match="Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x"
+        ):
+            TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "bar"},
+                fail_when_dag_is_paused=True,
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_str_conf(self):
+        """
+        Test TriggerDagRunOperator conf is proper json string formatted
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf='{"foo": "bar"}',
+            )
+
+            # Ensure correct exception is raised
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+            assert exc_info.value.conf == {"foo": "bar"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_str_conf_error(self):
+        """
+        Test TriggerDagRunOperator conf is not proper json string formatted
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf="{'foo': 'bar', 'key': 123}",
+            )
+
+            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+                task.execute(context={})
 
 
 # TODO: To be removed once the provider drops support for Airflow 2
@@ -771,9 +817,5 @@ class TestDagRunOperatorAF2:
                 fail_when_dag_is_paused=True,
             )
         dag_maker.create_dagrun()
-        if AIRFLOW_V_3_0_PLUS:
-            error = DagIsPaused
-        else:
-            error = AirflowException
-        with pytest.raises(error, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
+        with pytest.raises(AirflowException, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

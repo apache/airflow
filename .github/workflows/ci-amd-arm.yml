@@ -16,14 +16,21 @@
 # under the License.
 #
 ---
-name: Tests ARM
+name: Tests AMD/ARM
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 3,9,15,21 * * *'
+    - cron: '28 1,3,7,9,13,15,19,21 * * *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+  pull_request:
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -36,7 +43,7 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-arm-${{ github.event.pull_request.number || github.ref }}
+  group: ci-amd-arm-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -50,7 +57,6 @@ jobs:
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
-      amd-runners: ${{ steps.selective-checks.outputs.amd-runners }}
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
@@ -87,6 +93,7 @@ jobs:
       mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
+      platform: ${{ steps.selective-checks.outputs.platform }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -109,6 +116,7 @@ jobs:
       run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
@@ -158,13 +166,37 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
+  run-pin-versions-hook:
+    name: "Run pin-versions hook"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    if: needs.build-info.outputs.platform == 'linux/amd64'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          # octopin needs python 3.11
+          python-version: "3.11"
+          platform: ${{ needs.build-info.outputs.platform }}
+          save-cache: true
+      - name: "Run pin-versions"
+        run: >
+          prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
+          pin-versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   basic-tests:
     name: "Basic tests"
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
+      runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       run-api-codegen: ${{needs.build-info.outputs.run-api-codegen}}
@@ -174,7 +206,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
-      platform: "linux/arm64"
+      platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
 
   build-ci-images:
@@ -187,8 +219,8 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
@@ -210,8 +242,8 @@ jobs:
       packages: write
       id-token: write
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -232,8 +264,8 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       generate-pypi-constraints: "true"
@@ -251,8 +283,8 @@ jobs:
       id-token: write
       contents: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       run-mypy: ${{ needs.build-info.outputs.run-mypy }}
       mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -290,8 +322,8 @@ jobs:
       needs.build-info.outputs.latest-versions-only != 'true' &&
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -313,8 +345,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -331,8 +363,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -360,8 +392,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
       test-scope: "DB"
@@ -381,6 +413,65 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
 
+  tests-mysql-core:
+    name: "MySQL tests: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      backend: "mysql"
+      test-name: "MySQL"
+      test-scope: "DB"
+      test-group: "core"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      run-migration-tests: "true"
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
+
+  tests-mysql-providers:
+    name: "MySQL tests: providers"
+    uses: ./.github/workflows/run-unit-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      backend: "mysql"
+      test-name: "MySQL"
+      test-scope: "DB"
+      test-group: "providers"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
+      test-types-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      run-migration-tests: "true"
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+    if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
+
+
   tests-sqlite-core:
     name: "Sqlite tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -389,8 +480,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -420,8 +511,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
       test-name-separator: ""
@@ -443,6 +534,7 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
 
+
   tests-non-db-core:
     name: "Non-DB tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -451,8 +543,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -481,8 +573,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
       test-name-separator: ""
@@ -517,8 +609,8 @@ jobs:
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
@@ -535,6 +627,28 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
+  tests-integration-system:
+    name: Integration and System Tests
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/integration-system-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
+      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
+      run-system-tests: ${{ needs.build-info.outputs.run-system-tests }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: needs.build-info.outputs.run-unit-tests == 'true'
+
   tests-with-lowest-direct-resolution-core:
     name: "Low dep tests:core"
     needs: [build-info, build-ci-images]
@@ -545,8 +659,8 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -575,8 +689,8 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
@@ -606,8 +720,8 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       build-type: "Regular"
       push-image: "false"
       upload-image-artifact: "true"
@@ -627,8 +741,8 @@ jobs:
     needs: [build-info, build-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -647,8 +761,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -666,8 +780,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -682,7 +796,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.arm-runners) }}
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -724,8 +838,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -754,7 +868,10 @@ jobs:
       - generate-constraints
       - providers
       - tests-helm
+      - tests-integration-system
       - tests-kubernetes
+      - tests-mysql-core
+      - tests-mysql-providers
       - tests-non-db-core
       - tests-non-db-providers
       - tests-postgres-core
@@ -768,8 +885,8 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
-      runners: ${{ needs.build-info.outputs.arm-runners }}
-      platform: "linux/arm64"
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -799,12 +916,12 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Failure Alert: Scheduled CI (ARM) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Failure Alert: Scheduled CI (ARM) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
 
   summarize-warnings:
@@ -812,6 +929,8 @@ jobs:
     name: "Summarize warnings"
     needs:
       - build-info
+      - tests-mysql-core
+      - tests-mysql-providers
       - tests-non-db-core
       - tests-non-db-providers
       - tests-postgres-core
@@ -823,7 +942,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ fromJSON(needs.build-info.outputs.arm-runners) }}
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -853,7 +972,7 @@ jobs:
       - name: "Upload artifact for summarized warnings"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: test-summarized-arm-runner-warnings
+          name: "test-summarized-warnings"
           path: ./files/warn-summary-*.txt
           retention-days: 7
           if-no-files-found: ignore

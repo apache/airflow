@@ -22,12 +22,13 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1754503590
+source-date-epoch: 1761135982
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.3.4
   - 6.3.3
   - 6.3.2
   - 6.3.1

@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.6.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix XCom object storage backend path validation (#56244)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56495)``
+   * ``Remove useless Airflow version compatibility checks (#55852)``
+
 1.6.3
 .....
 

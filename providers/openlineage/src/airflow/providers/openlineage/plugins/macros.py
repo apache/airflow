@@ -24,7 +24,7 @@ from airflow.providers.openlineage.utils.utils import get_job_name
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.providers.common.compat.sdk import TaskInstance
 
 
 def lineage_job_namespace():

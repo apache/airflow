@@ -28,17 +28,13 @@ from paramiko.sftp import SFTP_NO_SUCH_FILE
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
-from airflow.providers.sftp.version_compat import BaseSensorOperator, PokeReturnValue
 from airflow.utils.timezone import convert_to_utc, parse
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SFTPSensor(BaseSensorOperator):

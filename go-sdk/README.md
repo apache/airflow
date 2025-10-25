@@ -17,82 +17,107 @@
  under the License.
  -->
 
-# 🚧 Apache Airflow Go Task SDK 🚧
+# Apache Airflow Go Task SDK
+
+The Go SDK uses the Task Execution Interface (TEI or Task API) introduced in AIP-72 with Airflow 3.0.0 to give
+Task functions written in Go full access to the Airflow "model", natively in go.
+
+The Task API however does not provide a means to get the `ExecuteTaskWorkload` to the go worker itself. For
+that we use the Edge Executor API.
+Longer term we will likely need to stabilize the Edge Executor API and add versioning to it.
+
+Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow Go to be interpreted), all tasks must:
+
+1. Be compiled into a binary ahead of time, and
+2. Be registered inside the worker process in order to be executed.
+
 
 > [!NOTE]
 > This Golang SDK is under active development and is not ready for prime-time yet.
 
-This README is primarily aimed at developers working _on_ the Go-SDK itself. Users wishing to write Airflow tasks in Go should look at the reference docs, but those don't exist yet.
+## Quickstart
 
-## How It Works
+- See [`example/bundle/main.go`](./example/bundle/main.go) for an example dag bundle where you can define your task functions
 
-The Go SDK uses the Task Execution Interface (TEI or Task API) introduced in AIP-72 with Airflow 3.0.0.
+- Compile this into a binary:
 
-The Task API however does not provide a means to get the `ExecuteTaskWorkload` to the go worker itself. For the short term, we make use of [gopher-celery](https://github.com/marselester/gopher-celery) to get tasks from a Redis broker. Longer term we will likely need to stabilize the Edge Executor API and write a go client for that.
+  ```bash
+  go build -o ./bin/sample-dag-bundle ./example/bundle
+  ```
 
-Since Go is a compiled language (putting aside projects such as [YAEGI](https://github.com/traefik/yaegi) that allow go to be interpreted) all tasks must be a) compiled in to the binary, and b) "registered" inside the worker process in order to be executed.
+  (or see the [`Justfile`](./example/bundle/Justfile) for how you can build it and specify they bundle version number at build time.)
 
-## Quick Testing Setup
+- Configure the go edge worker, by editing `$AIRFLOW_HOME/go-sdk.yaml`:
 
-The Go SDK currently works with Airflow's Celery Executor setup. Here's how to get started:
+  These config values need tweaking, especially the ports and secrets. The ports are the default assuming
+  airflow is running locally via `airflow standalone`.
 
-### Prerequisites
+  ```toml
+  [edge]
+  api_url = "http://0.0.0.0:8080/"
 
-- Go 1.24 or later
-- Docker and Docker Compose (for Breeze)
-- Redis (for Celery broker)
+  [execution]
+  api_url = "http://0.0.0.0:8080/execution"
 
-### Step 1: Start Airflow with Celery Executor
+  [api_auth]
+  # This needs to match the value from the same setting in your API server for Edge API to function
+  secret_key = "hPDU4Yi/wf5COaWiqeI3g=="
 
-Start Breeze with Celery executor:
+  [bundles]
+  # Which folder to look in for pre-compiled bundle binaries
+  folder = "./bin"
 
-```bash
-breeze start-airflow --backend postgres --executor CeleryExecutor --load-example-dags
+  [logging]
+  # Where to write task logs to
+  base_log_folder = "./logs"
+  # Secret key matching airflow API server config, to only allow log requests from there.
+  secret_key = "u0ZDb2ccINAbhzNmvYzclw=="
+  ```
+
+  You can also set these options via environment variables of `AIRFLOW__${section}_${key}`, for example `AIRFLOW__API_AUTH__SECRET_KEY`.
+
+- Install the worker
+
+  ```bash
+  go install github.com/apache/airflow/go-sdk/cmd/airflow-go-edge-worker@latest
+  ```
+
+- Run it!
+
+  ```bash
+  airflow-go-edge-worker run --queues golang
+  ```
+
+### Example Dag:
+
+You will need to create a python Dag and deploy it in to the Airflow
+
+```python
+from airflow.sdk import dag, task
+
+
+@task.stub(queue="golang")
+def extract(): ...
+
+
+@task.stub(queue="golang")
+def transform(): ...
+
+
+@dag()
+def simple_dag():
+
+    extract() >> transform()
+
+
+multi_language()
 ```
 
-This will start:
+Here we see the `@task.stub` which tells the Dag parser about the "shape" of the go tasks, and lets us define
+the relationships between them
 
-- Airflow API Server on `http://localhost:28080`
-- Celery workers (we will not utilise this)
-- Redis broker on `localhost:26379`
-- Loads the example DAGs
-
-### Step 2: Stop the Celery Worker
-
-We want to run the go workers instead of running the Celery ones. So in `breeze`, press CTRL+C to
-stop the Celery workers.
-
-### Step 3: Run the Go SDK Worker
-
-From the `go-sdk` directory, run the example worker:
-
-```bash
-go run ./example/main.go run \
-  --broker-address=localhost:26379 \
-  --queues default \
-  --execution-api-url http://localhost:28080/execution
-```
-
-**Parameters explained:**
-
-- `--broker-address=localhost:26379`: Redis broker address (default Celery broker)
-- `--queues default`: Queue name where Celery enqueues tasks
-- `--execution-api-url http://localhost:28080/execution`: Airflow's Task Execution API endpoint
-
-### Step 4: Submit a Test Task
-
-You can submit tasks through the Airflow UI for dag_id: `tutorial_dag`. The Go worker will pick up tasks from the Celery queue and execute them using the Task Execution Interface.
-
-Observe the logs in the terminal where you run the test task.
-
-## Current state
-
-This SDK currently will:
-
-- Get tasks from Celery queue(s)
-- Run registered tasks (no support for dag versioning or loading of multiple different "bundles")
-- Heartbeat and report the final state of the final TI
-- Allow access to Variables
+> [!NOTE]
+> Yes, you still have to have a python Dag file for now. This is a known limitation at the moment.
 
 ## Known missing features
 
@@ -100,7 +125,6 @@ A non-exhaustive list of features we have yet to implement
 
 - Support for putting tasks into state other than success or failed/up-for-retry (deferred, failed-without-retries etc.)
 - Remote task logs (i.e. S3/GCS etc)
-- XCom reading/writing from API server
 - XCom reading/writing from other XCom backends
 
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
@@ -44,8 +44,6 @@ export const TaskInstancesColumn = ({
   versionDisplayMode,
 }: Props) => {
   const { dagId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-  const search = searchParams.toString();
 
   const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
 
@@ -69,27 +67,28 @@ export const TaskInstancesColumn = ({
         }
         const prevTaskInstance = taskInstanceMap.get(prevNode.id);
 
-        return prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
+        return (
+          prevTaskInstance &&
+          prevTaskInstance.dag_version_number !== taskInstance.dag_version_number
+        );
       })();
 
     return (
       <Box key={node.id} position="relative">
-        {hasVersionChangeFlag ? (
+        {hasVersionChangeFlag && (
           <DagVersionIndicator
             dagVersionNumber={taskInstance.dag_version_number ?? null}
             orientation="horizontal"
           />
-        ) : null}
+        )}
         <GridTI
           dagId={dagId}
           instance={taskInstance}
           isGroup={node.isGroup}
           isMapped={node.is_mapped}
-          key={node.id}
           label={node.label}
           onClick={onCellClick}
           runId={runId}
-          search={search}
           taskId={node.id}
         />
       </Box>
