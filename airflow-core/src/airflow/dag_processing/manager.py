@@ -636,12 +636,15 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_filelocs.append(str(rel_sub_path))
 
         with create_session() as session:
-            DagModel.deactivate_deleted_dags(
+            any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
                 rel_filelocs=rel_filelocs,
                 session=session,
             )
-            remove_references_to_deleted_dags(session=session)
+            # Only run cleanup if we actually deactivated any DAGs
+            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
+            if any_deactivated:
+                remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
