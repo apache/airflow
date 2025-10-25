@@ -13,6 +13,7 @@ pub struct DagProcessorManagerConfig {
     pub base_log_dir: String,
     pub bundle_refresh_check_interval: Duration,
     pub file_parsing_sort_mode: String,
+    pub dags_folder: String,
 }
 
 #[derive(Parser, Debug)]
@@ -38,6 +39,8 @@ struct CliConfig {
     bundle_refresh_check_interval: u64,
     #[arg(long)]
     file_parsing_sort_mode: String,
+    #[arg(long)]
+    dags_folder: String,
 }
 
 impl DagProcessorManagerConfig {
@@ -57,6 +60,7 @@ impl DagProcessorManagerConfig {
                 cli_config.bundle_refresh_check_interval,
             ),
             file_parsing_sort_mode: cli_config.file_parsing_sort_mode,
+            dags_folder: cli_config.dags_folder
         }
     }
 }

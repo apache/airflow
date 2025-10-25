@@ -26,7 +26,11 @@ chrono = { version = "0.4.42" }
 clap = { version = "4.5.50", features = ["derive"] }
 diesel = { version = "2.3.3", features = ["chrono", "mysql", "postgres", "r2d2", "serde_json", "sqlite"] }
 diesel-async = { version = "0.7.3", features=["mysql_async", "postgres", "sqlite"]}
+env_logger = "0.11.8"
+futures = "0.3.31"
 log = "0.4.28"
 pyo3 = { version = "0.27.1" }
 serde = { version = "1.0.228" }
+signal-hook = "0.3.18"
+signal-hook-tokio = { version ="0.3.1", features = ["futures-v0_3"]}
 tokio = { version = "1.48.0", features = ["full"] }
