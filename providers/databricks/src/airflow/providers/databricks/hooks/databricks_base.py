@@ -60,6 +60,15 @@ except ImportError:
 if TYPE_CHECKING:
     from airflow.models import Connection
 
+    class DatabricksConnectionT(Connection):
+        """Typing for Databricks Connection."""
+
+        login: str
+        password: str
+        host: str
+        extra_dejson: dict[str, Any]
+
+
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
 AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
@@ -141,10 +150,10 @@ class BaseDatabricksHook(BaseHook):
             }
 
     @cached_property
-    def databricks_conn(self) -> Connection:
+    def databricks_conn(self) -> DatabricksConnectionT:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
-    def get_conn(self) -> Connection:
+    def get_conn(self) -> DatabricksConnectionT:
         return self.databricks_conn
 
     @cached_property
