@@ -78,3 +78,47 @@ class TestRoles:
             assert resp.json()["detail"] == "Forbidden"
         finally:
             test_client.app.dependency_overrides.pop(get_user, None)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_create_role_validation_422_empty_name(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client
+    ):
+        dummy_user = types.SimpleNamespace(id=1, username="tester")
+        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        try:
+            resp = test_client.post("/fab/v1/roles", json={"name": "", "actions": []})
+            assert resp.status_code == 422
+            mock_roles.create_role.assert_not_called()
+        finally:
+            test_client.app.dependency_overrides.pop(get_user, None)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_create_role_validation_422_missing_name(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client
+    ):
+        dummy_user = types.SimpleNamespace(id=1, username="tester")
+        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        try:
+            resp = test_client.post("/fab/v1/roles", json={"actions": []})
+            assert resp.status_code == 422
+            mock_roles.create_role.assert_not_called()
+        finally:
+            test_client.app.dependency_overrides.pop(get_user, None)

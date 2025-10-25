@@ -43,7 +43,7 @@ class ActionResourceResponse(BaseModel):
 class RoleBody(StrictBaseModel):
     """Incoming payload for creating/updating a role."""
 
-    name: str
+    name: str = Field(min_length=1)
     permissions: list[ActionResourceResponse] = Field(
         default_factory=list, alias="actions", validation_alias="actions"
     )
