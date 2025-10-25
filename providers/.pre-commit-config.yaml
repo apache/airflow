@@ -162,7 +162,7 @@ repos:
         name: Check providers import hook lineage code from compat
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
-        entry: ./scripts/ci/prek/check_airflow_imports.py
+        entry: ../scripts/ci/prek/check_airflow_imports.py
           --pattern '^airflow\.lineage\.hook'
           --message "Only TYPE_CHECKING imports from `airflow.lineage.hook` are allowed in providers."
           --only_top_level
