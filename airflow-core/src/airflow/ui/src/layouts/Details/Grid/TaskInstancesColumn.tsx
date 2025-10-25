@@ -67,20 +67,17 @@ export const TaskInstancesColumn = ({
         }
         const prevTaskInstance = taskInstanceMap.get(prevNode.id);
 
-        return (
-          prevTaskInstance &&
-          prevTaskInstance.dag_version_number !== taskInstance.dag_version_number
-        );
+        return prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
       })();
 
     return (
       <Box key={node.id} position="relative">
-        {hasVersionChangeFlag && (
+        {hasVersionChangeFlag ? (
           <DagVersionIndicator
             dagVersionNumber={taskInstance.dag_version_number ?? null}
             orientation="horizontal"
           />
-        )}
+        ) : null}
         <GridTI
           dagId={dagId}
           instance={taskInstance}
