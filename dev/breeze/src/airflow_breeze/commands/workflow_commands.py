@@ -148,6 +148,7 @@ def workflow_run_publish(
             get_console().print(
                 f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
             )
+            get_console().print("\nYou can add --skip-tag-validation to skip this validation.")
             sys.exit(1)
 
     get_console().print(
