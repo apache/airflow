@@ -48,6 +48,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNNERS_TYPE_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -1300,6 +1301,60 @@ class SelectiveChecks:
         if isinstance(affected_providers, AllProvidersSentinel):
             return ""
         return " ".join(sorted(affected_providers))
+
+    def get_job_label(self, event_type: str, branch: str):
+        import requests
+
+        job_name = "Basic tests"
+        workflow_name = "ci-amd-arm.yml"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if os.environ.get("GITHUB_TOKEN"):
+            headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
+
+        url = f"https://api.github.com/repos/{self._github_repository}/actions/workflows/{workflow_name}/runs"
+        payload = {"event": event_type, "status": "completed", "branch": branch}
+
+        response = requests.get(url, headers=headers, params=payload)
+        if response.status_code != 200:
+            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            return None
+        get_console().print(f"[blue]Response received for workflow run {response.json()}.\n")
+        runs = response.json().get("workflow_runs", [])
+        if not runs:
+            get_console().print(
+                f"[yellow]No runs information found for workflow {workflow_name}, params: {payload}.\n"
+            )
+            return None
+        jobs_url = runs[0].get("jobs_url")
+        jobs_response = requests.get(jobs_url, headers=headers)
+        jobs = jobs_response.json().get("jobs", [])
+        if not jobs:
+            get_console().print("[yellow]No jobs information found for jobs %s.\n", jobs_url)
+            return None
+
+        for job in jobs:
+            if job_name in job.get("name", ""):
+                runner_labels = job.get("labels", [])
+                return runner_labels[0]
+
+        return None
+
+    @cached_property
+    def runner_type(self):
+        if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+            branch = self._github_context_dict.get("ref_name", "main")
+            label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
+            if not label:
+                return PUBLIC_AMD_RUNNERS
+            return RUNNERS_TYPE_MAPPING[label]
+
+        return PUBLIC_AMD_RUNNERS
+
+    @cached_property
+    def platform(self):
+        if "arm" in self.runner_type:
+            return "linux/arm64"
+        return "linux/amd64"
 
     @cached_property
     def amd_runners(self) -> str:
