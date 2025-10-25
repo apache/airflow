@@ -18,8 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from starlette import status
-from starlette.exceptions import HTTPException
+from fastapi import HTTPException, status
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleBody, RoleResponse
 from airflow.providers.fab.www.utils import get_fab_auth_manager

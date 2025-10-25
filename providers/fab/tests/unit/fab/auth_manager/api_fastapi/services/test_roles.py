@@ -21,7 +21,7 @@ import types
 from unittest.mock import MagicMock, patch
 
 import pytest
-from starlette.exceptions import HTTPException
+from fastapi import HTTPException
 
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAuthManagerRoles
 

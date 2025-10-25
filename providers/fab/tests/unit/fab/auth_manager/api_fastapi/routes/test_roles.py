@@ -17,33 +17,25 @@
 
 from __future__ import annotations
 
-import types
-from contextlib import contextmanager
+from contextlib import nullcontext as _noop_cm
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.api_fastapi.core_api.security import get_user
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleResponse
-
-
-@contextmanager
-def _noop_cm():
-    yield None
 
 
 @pytest.mark.db_test
 class TestRoles:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
         "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
         return_value=_noop_cm(),
     )
-    def test_create_role(self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client):
-        dummy_user = types.SimpleNamespace(id=1, username="tester")
-        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
-
+    def test_create_role(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
         mock_get_auth_manager.return_value = mgr
@@ -51,74 +43,62 @@ class TestRoles:
         dummy_out = RoleResponse(name="my_new_role", permissions=[])
         mock_roles.create_role.return_value = dummy_out
 
-        try:
+        with as_user():
             resp = test_client.post("/fab/v1/roles", json={"name": "my_new_role", "actions": []})
             assert resp.status_code == 200
             assert resp.json() == dummy_out.model_dump(by_alias=True)
             mock_roles.create_role.assert_called_once()
-        finally:
-            test_client.app.dependency_overrides.pop(get_user, None)
 
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
         "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
         return_value=_noop_cm(),
     )
-    def test_create_role_forbidden(self, mock_get_application_builder, mock_get_auth_manager, test_client):
-        dummy_user = types.SimpleNamespace(id=1, username="tester")
-        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
-
+    def test_create_role_forbidden(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
         mock_get_auth_manager.return_value = mgr
 
-        try:
+        with as_user():
             resp = test_client.post("/fab/v1/roles", json={"name": "r", "actions": []})
             assert resp.status_code == 403
-            assert resp.json()["detail"] == "Forbidden"
-        finally:
-            test_client.app.dependency_overrides.pop(get_user, None)
+            mock_roles.create_role.assert_not_called()
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
         "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
         return_value=_noop_cm(),
     )
     def test_create_role_validation_422_empty_name(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
     ):
-        dummy_user = types.SimpleNamespace(id=1, username="tester")
-        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
         mock_get_auth_manager.return_value = mgr
 
-        try:
+        with as_user():
             resp = test_client.post("/fab/v1/roles", json={"name": "", "actions": []})
             assert resp.status_code == 422
             mock_roles.create_role.assert_not_called()
-        finally:
-            test_client.app.dependency_overrides.pop(get_user, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
         "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
         return_value=_noop_cm(),
     )
     def test_create_role_validation_422_missing_name(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
     ):
-        dummy_user = types.SimpleNamespace(id=1, username="tester")
-        test_client.app.dependency_overrides[get_user] = lambda: dummy_user
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
         mock_get_auth_manager.return_value = mgr
 
-        try:
+        with as_user():
             resp = test_client.post("/fab/v1/roles", json={"actions": []})
             assert resp.status_code == 422
             mock_roles.create_role.assert_not_called()
-        finally:
-            test_client.app.dependency_overrides.pop(get_user, None)
