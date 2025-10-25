@@ -82,7 +82,7 @@ const isFieldObject = (fieldType: string) => fieldType === "object";
 
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" &&
-  (!fieldSchema.items || fieldSchema.items.type === undefined || fieldSchema.items.type === "string");
+  (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
 
 const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "time";

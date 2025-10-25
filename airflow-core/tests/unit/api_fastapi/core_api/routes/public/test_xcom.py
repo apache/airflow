@@ -210,6 +210,62 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 200
         assert response.json()["value"] == expected_return
 
+    @pytest.mark.parametrize(
+        "include_prior_dates, should_find_xcom",
+        [
+            pytest.param(True, True, id="include_prior_dates=true"),
+            pytest.param(False, False, id="include_prior_dates=false"),
+        ],
+    )
+    def test_include_prior_dates(self, test_client, dag_maker, session, include_prior_dates, should_find_xcom):
+        """Test that include_prior_dates parameter works correctly for XCom retrieval across different DAG runs."""
+        # Create DAG with task
+        with dag_maker(dag_id=TEST_DAG_ID, schedule=None, start_date=logical_date_parsed):
+            from airflow.providers.standard.operators.empty import EmptyOperator
+            EmptyOperator(task_id=TEST_TASK_ID)
+
+        # Create earlier DAG run and add XCom
+        earlier_run = dag_maker.create_dagrun(
+            run_id="earlier_run", 
+            logical_date=timezone.parse("2024-01-01T00:00:00Z"),
+            run_type=DagRunType.MANUAL
+        )
+        
+        # Create later DAG run (this is what we'll query against)
+        later_run = dag_maker.create_dagrun(
+            run_id="later_run", 
+            logical_date=timezone.parse("2024-01-02T00:00:00Z"),
+            run_type=DagRunType.MANUAL
+        )
+
+        dag_maker.sync_dagbag_to_db()
+        session.merge(dag_maker.dag_model)
+        session.commit()
+
+        # Add XCom to earlier run only
+        XComModel.set(
+            key=TEST_XCOM_KEY,
+            value=TEST_XCOM_VALUE,
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id="earlier_run",
+            session=session,
+        )
+
+        # Try to retrieve XCom from later run with include_prior_dates parameter
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/later_run/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"include_prior_dates": include_prior_dates})
+
+        if should_find_xcom:
+            # Should find the XCom from earlier run
+            assert response.status_code == 200
+            assert response.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+            assert response.json()["run_id"] == "earlier_run"
+        else:
+            # Should not find XCom when include_prior_dates=False
+            assert response.status_code == 404
+            assert f"XCom entry with key: `{TEST_XCOM_KEY}` not found" in response.json()["detail"]
+
 
 class TestGetXComEntries(TestXComEndpoint):
     @pytest.fixture(autouse=True)

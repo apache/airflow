@@ -78,6 +78,7 @@ def get_xcom_entry(
     map_index: Annotated[int, Query(ge=-1)] = -1,
     deserialize: Annotated[bool, Query()] = False,
     stringify: Annotated[bool, Query()] = False,
+    include_prior_dates: Annotated[bool, Query()] = True,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
     xcom_query = XComModel.get_many(
@@ -86,6 +87,7 @@ def get_xcom_entry(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
+        include_prior_dates=include_prior_dates,
         limit=1,
     )
 
@@ -236,10 +238,9 @@ def create_xcom_entry(
 
     # Validate DAG Run ID
     if not dag_run:
-        if not dag_run:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
-            )
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Dag Run with ID: `{dag_run_id}` not found for dag: `{dag_id}`"
+        )
 
     # Check existing XCom
     already_existing_query = XComModel.get_many(
@@ -315,7 +316,6 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
-    xcom_new_value = XComModel.serialize_value(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
@@ -336,6 +336,6 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    xcom_entry.value = XComModel.serialize_value(xcom_new_value)
+    xcom_entry.value = XComModel.serialize_value(patch_body.value)
 
     return XComResponseNative.model_validate(xcom_entry)
