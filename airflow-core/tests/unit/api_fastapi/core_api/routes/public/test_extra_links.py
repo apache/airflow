@@ -29,7 +29,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
-from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_operators import CustomOperator, InitExtraLinksOperator
 
 pytestmark = pytest.mark.db_test
 
@@ -305,3 +305,96 @@ class TestGetExtraLinks:
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
+
+    def test_should_fallback_to_xcom_for_init_defined_links(self, test_client, dag_maker, session):
+        """
+        Ensure API returns links from XCom when operator_extra_links is defined in __init__.
+        """
+        dag_id = "INIT_DAG"
+        dag_run_id = "INIT_RUN"
+        task_id = "init_task"
+
+        with dag_maker(dag_id=dag_id, schedule=None, serialized=True):
+            InitExtraLinksOperator(task_id=task_id)
+
+        dag_maker.create_dagrun(
+            run_id=dag_run_id,
+            logical_date=self.default_time,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+            data_interval=(self.default_time, self.default_time),
+            run_after=self.default_time,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        # Push runtime XCom (_link_Google)
+        XCom.set(
+            key="_link_Google",
+            value="https://www.google.com",
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id=dag_run_id,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+        )
+
+        assert response.status_code == 200
+        assert (
+            response.json()
+            == ExtraLinkCollectionResponse(
+                extra_links={"Google": "https://www.google.com"},
+                total_entries=1,
+            ).model_dump()
+        )
+
+    def test_should_fallback_to_xcom_for_init_defined_links_mapped(self, test_client, dag_maker, session):
+        """
+        Ensure API returns links from XCom for mapped tasks
+        when operator_extra_links is defined in __init__.
+        """
+        dag_id = "INIT_DAG_MAPPED"
+        dag_run_id = "INIT_RUN_MAPPED"
+        task_id = "init_task_mapped"
+
+        with dag_maker(dag_id=dag_id, schedule=None, serialized=True):
+            _ = InitExtraLinksOperator.partial(task_id=task_id).expand(value=["VAL_1", "VAL_2"])
+
+        dag_maker.create_dagrun(
+            run_id=dag_run_id,
+            logical_date=self.default_time,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+            data_interval=(self.default_time, self.default_time),
+            run_after=self.default_time,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        for map_index, _val in enumerate(["VAL_1", "VAL_2"]):
+            XCom.set(
+                key="_link_Google",
+                value="https://www.google.com",
+                task_id=task_id,
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                map_index=map_index,
+                session=session,
+            )
+            session.commit()
+
+            response = test_client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+                params={"map_index": map_index},
+            )
+
+            assert response.status_code == 200
+            assert (
+                response.json()
+                == ExtraLinkCollectionResponse(
+                    extra_links={"Google": "https://www.google.com"},
+                    total_entries=1,
+                ).model_dump()
+            )
