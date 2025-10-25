@@ -351,6 +351,7 @@ def find_installation_spec(
         else:
             airflow_ctl_constraints_location = None
         airflow_ctl_distribution = airflow_ctl_spec
+        compile_ui_assets = False
     elif use_airflow_version == "none" or use_airflow_version == "":
         console.print("\n[bright_blue]Skipping airflow package installation\n")
         airflow_distribution_spec = None
@@ -359,6 +360,7 @@ def find_installation_spec(
         airflow_task_sdk_distribution = None
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
+        compile_ui_assets = False
     elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
         owner, repo, branch = repo_match.groups()
         console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
@@ -410,6 +412,7 @@ def find_installation_spec(
         )
         sys.exit(1)
     else:
+        compile_ui_assets = False
         console.print(f"\nInstalling airflow via apache-airflow=={use_airflow_version}")
         airflow_distribution_spec = f"apache-airflow{airflow_extras}=={use_airflow_version}"
         airflow_core_distribution_spec = (
@@ -462,7 +465,7 @@ def find_installation_spec(
         airflow_task_sdk_distribution=airflow_task_sdk_distribution,
         airflow_ctl_distribution=airflow_ctl_distribution,
         airflow_ctl_constraints_location=airflow_ctl_constraints_location,
-        compile_ui_assets=compile_ui_assets or None,
+        compile_ui_assets=compile_ui_assets,
         provider_distributions=provider_distributions_list,
         provider_constraints_location=get_providers_constraints_location(
             providers_constraints_mode=providers_constraints_mode,
