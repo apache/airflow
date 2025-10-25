@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
@@ -244,7 +245,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=session.scalars(asset_aliases_select),
+        asset_aliases=list(session.scalars(asset_aliases_select)),
         total_entries=total_entries,
     )
 
@@ -333,7 +334,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
-        asset_events=assets_events,
+        asset_events=list(assets_events),
         total_entries=total_entries,
     )
 
@@ -608,7 +609,7 @@ def delete_asset_queued_events(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    result = session.execute(delete_stmt)
+    result = cast(CursorResult, session.execute(delete_stmt))
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -642,7 +643,7 @@ def delete_dag_asset_queued_events(
     )
 
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = session.execute(delete_statement)
+    result = cast(CursorResult, session.execute(delete_statement))
 
     if result.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
@@ -677,7 +678,7 @@ def delete_dag_asset_queued_event(
     delete_statement = (
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
-    result = session.execute(delete_statement)
+    result = cast(CursorResult, session.execute(delete_statement))
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
