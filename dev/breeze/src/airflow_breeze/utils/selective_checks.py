@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
@@ -1389,6 +1390,13 @@ class SelectiveChecks:
         )  # ^ sort by Python minor version
         return json.dumps(sorted_providers_to_exclude)
 
+    def _is_disabled_integration(self, integration: str) -> bool:
+        return (
+            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            or integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM
+            and self.runner_type in PUBLIC_ARM_RUNNERS
+        )
+
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
@@ -1396,7 +1404,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_CORE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
@@ -1406,7 +1414,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
