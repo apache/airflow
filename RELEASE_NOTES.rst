@@ -24,6 +24,7 @@
 
 .. towncrier release notes start
 
+
 Airflow 3.1.0 (2025-09-25)
 --------------------------
 
@@ -60,7 +61,6 @@ the serialization foundation enables independent upgrades when components are de
 - Reduced dependency on server-side Airflow versions
 
 **For Platform Teams**: Foundation for independent upgrades:
-
 - Schema compliance ensures compatibility across versions
 - Deployment flexibility when components are separated
 - Reduced coordination overhead between development and operations teams
@@ -80,7 +80,6 @@ Configure deadline monitoring by specifying:
 - **Callback**: Response action using Airflow Notifiers or custom functions
 
 Example use cases:
-
 - Alert if a daily ETL hasn't completed 1 hour after its scheduled time
 - Notify stakeholders 30 minutes before a critical deadline
 - Escalate when resource-constrained DAGs remain queued too long
@@ -130,14 +129,12 @@ external views. This extensibility framework allows organizations to embed custo
 monitoring tools, and domain-specific interfaces directly within the Airflow UI.
 
 **New Plugin Capabilities**:
-
 - **React Apps**: Full-featured React applications integrated into Airflow navigation
 - **External Views**: Embed external web applications via iframe with seamless authentication
 - **Dashboard Integration**: Custom widgets and panels for operational dashboards
 - **Menu Integration**: Add custom navigation items and organize tools logically
 
 **Developer Experience**:
-
 - Hot reloading during development with ``airflow-react-plugin`` dev tools
 - TypeScript support and modern React patterns
 - Standardized plugin loading and validation
@@ -504,14 +501,6 @@ Bug Fixes
 - Fix XCom API responses failing when encountering non-serializable objects by falling back to string representation (#55880)
 - Fix asset queue display in UI showing incorrect timestamps for deleted queue events (#54652)
 - Fix SQLite database migrations failing due to foreign key constraint handling (#55883)
-- Fix DAG deserialization failure when using non-default weight_rule values like 'absolute' (#55906)
-- Fix async connection retrieval in triggerer context preventing event loop blocking (#55812)
-- Fix Airflow downgrade compatibility by handling serialized DAG format conversion from v3 to v2 (#55975)
-- Fix 'All Log Levels' filter not working in task log viewer (#55851)
-- Fix Grid view scrollbar overlapping issues on Firefox browser (#55960)
-- Fix Gantt chart misalignment with Grid view layout (#55995)
-- Fix Grid view task names being extremely collapsed and unreadable when displaying many DAG runs (#55997)
-- Fix ``LocalExecutor`` race condition where tasks could start before database state was committed (#56010)
 
 Miscellaneous
 ^^^^^^^^^^^^^
