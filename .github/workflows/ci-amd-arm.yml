@@ -903,6 +903,7 @@ jobs:
   notify-slack-failure:
     name: "Notify Slack on Failure"
     needs:
+      - build-info
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
