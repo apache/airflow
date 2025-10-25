@@ -39,6 +39,7 @@ import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { useLineageFilter } from "src/hooks/useLineageFilter";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -55,7 +56,7 @@ type Props = {
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
-  const { dagId = "", runId } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
@@ -75,6 +76,16 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
+
+  // Lineage filter state and handlers
+  const {
+    handleClearLineageFilter,
+    handleLineageFilterModeChange,
+    lineageFilterMode,
+    lineageFilterRoot,
+    setLineageFilterRoot,
+  } = useLineageFilter({ dagId, dagView, taskId });
+
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -138,11 +149,15 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
                   limit={limit}
+                  lineageFilterMode={lineageFilterMode}
+                  lineageFilterRoot={lineageFilterRoot}
+                  onClearLineageFilter={handleClearLineageFilter}
                   panelGroupRef={panelGroupRef}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
+                  setLineageFilterMode={handleLineageFilterModeChange}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setTriggeringUserFilter={setTriggeringUserFilter}
@@ -150,7 +165,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
-                  <Graph />
+                  <Graph
+                    filterMode={lineageFilterMode}
+                    filterRoot={lineageFilterRoot}
+                    setFilterRoot={setLineageFilterRoot}
+                  />
                 ) : (
                   <HStack alignItems="flex-end" gap={0}>
                     <Grid

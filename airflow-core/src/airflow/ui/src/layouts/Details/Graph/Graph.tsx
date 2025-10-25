@@ -31,6 +31,7 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import type { FilterMode } from "src/layouts/Details/Graph/LineageFilter";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
@@ -58,11 +59,28 @@ const nodeColor = (
   return "";
 };
 
-export const Graph = () => {
+type GraphProps = {
+  readonly filterMode: FilterMode;
+  readonly filterRoot: string | undefined;
+  readonly setFilterRoot: (root: string | undefined) => void;
+};
+
+export const Graph = ({ filterMode, filterRoot, setFilterRoot }: GraphProps) => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();
+
+  const handleNodeClick = (_event: React.MouseEvent, node: ReactFlowNode<CustomNodeProps>) => {
+    if (filterMode !== "none") {
+      return;
+    }
+    // Only set filter root for actual tasks, not DAGs or other node types
+    // This just stores which task was clicked - it doesn't activate the filter
+    if (!node.id.startsWith("dag:") && !node.id.startsWith("asset")) {
+      setFilterRoot(node.id);
+    }
+  };
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -84,6 +102,9 @@ export const Graph = () => {
     {
       dagId,
       externalDependencies: dependencies === "immediate",
+      includeDownstream: filterMode === "downstream" || filterMode === "both",
+      includeUpstream: filterMode === "upstream" || filterMode === "both",
+      root: filterMode !== "none" && filterRoot !== undefined ? filterRoot : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
@@ -167,6 +188,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      onNodeClick={handleNodeClick}
       style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
