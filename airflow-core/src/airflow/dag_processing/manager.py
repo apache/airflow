@@ -1065,7 +1065,8 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_files_to_queue(self, files: list[DagFileInfo], add_at_front: bool):
         """Add stuff to the back or front of the file queue, unless it's already present."""
-        new_files = list(f for f in files if f not in self._file_queue)
+        queue_set = set(self._file_queue)
+        new_files = [f for f in files if f not in queue_set]
         if add_at_front:
             self._file_queue.extendleft(new_files)
         else:
