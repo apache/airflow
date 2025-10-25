@@ -44,7 +44,7 @@ impl DagProcessorManagerConfig {
     pub fn from_cli() -> Self {
         let cli_config = CliConfig::parse();
 
-        DagProcessorManagerConfig {
+        Self {
             processor_timeout: Duration::from_secs(cli_config.processor_timeout),
             parsing_processes: cli_config.parsing_processes,
             parsing_cleanup_interval: Duration::from_secs(cli_config.parsing_cleanup_interval),
