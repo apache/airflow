@@ -69,6 +69,9 @@ class DagBundleModel(Base, LoggingMixin):
 
             from airflow.configuration import conf
 
+            if not self.signed_url_template:
+                return None
+
             serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
             payload = serializer.loads(self.signed_url_template)
             if isinstance(payload, dict) and "url" in payload and "bundle_name" in payload:
