@@ -2359,7 +2359,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        for attempt in run_with_db_retries(max_retries, logger=self.log):
+        for attempt in run_with_db_retries(max_retries, logger=self.log, exception_types=(DBAPIError, OperationalError)):
             with attempt:
                 num_timed_out_tasks = session.execute(
                     update(TI)
@@ -2377,6 +2377,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ).rowcount
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:
