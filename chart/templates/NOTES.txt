@@ -119,13 +119,6 @@ Default Webserver (Airflow UI) Login credentials:
     password: {{ .Values.webserver.defaultUser.password }}
 {{- end }}
 
-{{- if .Values.postgresql.enabled }}
-Default Postgres connection credentials:
-    username: {{ .Values.data.metadataConnection.user }}
-    password: {{ .Values.data.metadataConnection.pass }}
-    port: {{ .Values.data.metadataConnection.port }}
-
-{{- end }}
 
 {{- if not .Values.fernetKeySecretName }}
 
@@ -202,12 +195,6 @@ unnecessary restarts of your Airflow components.
 
 Information on how to set a static {{ $serverKind }} secret key can be found here:
 https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
-
-{{- end }}
-
-{{- if or .Values.postgresql.postgresqlUsername .Values.postgresql.postgresqlPassword }}
-
-   {{ fail "postgresql.postgresqlUsername and postgresql.postgresqlPassword are no longer supported. If you wish to use the 'postgres' user, set its password with postgresql.auth.postgresPassword. If you wish to create a different user, do so with postgresql.auth.username and postgresql.auth.password." }}
 
 {{- end }}
 

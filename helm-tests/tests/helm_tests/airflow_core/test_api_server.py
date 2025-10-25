@@ -134,7 +134,7 @@ class TestAPIServerDeployment:
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume-airflow"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume-airflow"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[-1].name", docs[0])
             == "test-volume-airflow"
@@ -153,7 +153,7 @@ class TestAPIServerDeployment:
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[-1].name", docs[0])
             == "test-volume"

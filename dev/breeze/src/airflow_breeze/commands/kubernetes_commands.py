@@ -1048,12 +1048,36 @@ def _deploy_helm_chart(
             f"config.core.auth_manager={auth_manager}",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
+            "--set",
+            "sqliteShared.enabled=true",
+            "--set",
+            "sqliteShared.persistence.enabled=true",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
         if not use_flask_appbuilder:
             helm_command.extend(["--set", "webserver.defaultUser.enabled=false"])
         if upgrade:
+            # Delete SQLite PVC before upgrade to avoid immutability errors
+            # PVC spec is immutable after creation, and Helm upgrade will fail if trying to modify it
+            get_console(output=output).print(
+                "[info]Deleting SQLite PVC before upgrade to avoid immutability errors"
+            )
+            run_command_with_k8s_env(
+                [
+                    "kubectl",
+                    "delete",
+                    "pvc",
+                    "airflow-sqlite-shared",
+                    "--namespace",
+                    HELM_AIRFLOW_NAMESPACE,
+                    "--ignore-not-found=true",
+                ],
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+            )
             # force upgrade
             helm_command.append("--force")
         if use_standard_naming:

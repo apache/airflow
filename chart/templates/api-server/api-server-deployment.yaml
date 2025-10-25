@@ -135,6 +135,7 @@ spec:
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -180,6 +181,7 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- end }}
+            {{- include "airflow.sqliteShared.volumeMount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -249,4 +251,5 @@ spec:
         {{- if .Values.apiServer.extraVolumes }}
           {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        {{- include "airflow.sqliteShared.volume" . | nindent 8 }}
 {{- end }}
