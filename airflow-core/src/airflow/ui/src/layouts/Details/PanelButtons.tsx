@@ -67,8 +67,10 @@ type Props = {
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
+  readonly setVersionDisplayMode: React.Dispatch<React.SetStateAction<string>>;
   readonly showGantt: boolean;
   readonly triggeringUserFilter: string | undefined;
+  readonly versionDisplayMode: string;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -100,6 +102,16 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
   };
 };
 
+const getVersionDisplayOptions = (translate: (key: string) => string) =>
+  createListCollection({
+    items: [
+      { label: translate("dag:panel.versionDisplay.options.showAll"), value: "all" },
+      { label: translate("dag:panel.versionDisplay.options.showDagVersion"), value: "dag" },
+      { label: translate("dag:panel.versionDisplay.options.showBundleVersion"), value: "bundle" },
+      { label: translate("dag:panel.versionDisplay.options.hideAll"), value: "none" },
+    ],
+  });
+
 const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
@@ -116,8 +128,10 @@ export const PanelButtons = ({
   setRunTypeFilter,
   setShowGantt,
   setTriggeringUserFilter,
+  setVersionDisplayMode,
   showGantt,
   triggeringUserFilter,
+  versionDisplayMode,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -128,6 +142,7 @@ export const PanelButtons = ({
     "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -189,6 +204,14 @@ export const PanelButtons = ({
     const trimmedValue = value.trim();
 
     setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
+  };
+
+  const handleVersionDisplayChange = (
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    if (event.value[0] !== undefined) {
+      setVersionDisplayMode(event.value[0]);
+    }
   };
 
   const handleFocus = (view: string) => {
@@ -477,6 +500,38 @@ export const PanelButtons = ({
                         ) : undefined}
                       </>
                     )}
+                    {/* eslint-disable react/jsx-max-depth */}
+                    <VStack alignItems="flex-start" px={1}>
+                      <Select.Root
+                        // @ts-expect-error option type
+                        collection={getVersionDisplayOptions(translate)}
+                        onValueChange={handleVersionDisplayChange}
+                        size="sm"
+                        value={[versionDisplayMode]}
+                      >
+                        <Select.Label fontSize="xs">
+                          {translate("dag:panel.versionDisplay.label")}
+                        </Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {getVersionDisplayOptions(translate).items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                    </VStack>
+                    {/* eslint-enable react/jsx-max-depth */}
                   </Popover.Body>
                 </Popover.Content>
               </Popover.Positioner>

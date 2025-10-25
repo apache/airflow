@@ -7699,6 +7699,33 @@ export const $GridRunsResponse = {
         run_type: {
             '$ref': '#/components/schemas/DagRunType'
         },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
+        },
+        bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Version'
+        },
+        has_mixed_versions: {
+            type: 'boolean',
+            title: 'Has Mixed Versions',
+            default: false
+        },
         duration: {
             type: 'integer',
             title: 'Duration',
@@ -7806,6 +7833,17 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Max End Date'
+        },
+        dag_version_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Number'
         }
     },
     type: 'object',

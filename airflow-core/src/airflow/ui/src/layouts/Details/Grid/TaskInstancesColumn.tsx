@@ -20,41 +20,75 @@ import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
 
 type Props = {
   readonly depth?: number;
+  readonly hasMixedVersions?: boolean;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
+  readonly versionDisplayMode?: string;
 };
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({
+  hasMixedVersions,
+  nodes,
+  onCellClick,
+  runId,
+  taskInstances,
+  versionDisplayMode,
+}: Props) => {
   const { dagId = "" } = useParams();
 
-  return nodes.map((node) => {
+  const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
+
+  return nodes.map((node, idx) => {
     // todo: how does this work with mapped? same task id for multiple tis
-    const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+    const taskInstance = taskInstanceMap.get(node.id);
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
+    const hasVersionChangeFlag =
+      hasMixedVersions &&
+      (versionDisplayMode === "dag" || versionDisplayMode === "all") &&
+      idx > 0 &&
+      (() => {
+        const prevNode = nodes[idx - 1];
+
+        if (!prevNode) {
+          return false;
+        }
+        const prevTaskInstance = taskInstanceMap.get(prevNode.id);
+
+        return prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
+      })();
+
     return (
-      <GridTI
-        dagId={dagId}
-        instance={taskInstance}
-        isGroup={node.isGroup}
-        isMapped={node.is_mapped}
-        key={node.id}
-        label={node.label}
-        onClick={onCellClick}
-        runId={runId}
-        taskId={node.id}
-      />
+      <Box key={node.id} position="relative">
+        {hasVersionChangeFlag ? (
+          <DagVersionIndicator
+            dagVersionNumber={taskInstance.dag_version_number ?? null}
+            orientation="horizontal"
+          />
+        ) : null}
+        <GridTI
+          dagId={dagId}
+          instance={taskInstance}
+          isGroup={node.isGroup}
+          isMapped={node.is_mapped}
+          label={node.label}
+          onClick={onCellClick}
+          runId={runId}
+          taskId={node.id}
+        />
+      </Box>
     );
   });
 };
