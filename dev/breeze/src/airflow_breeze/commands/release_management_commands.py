@@ -1775,9 +1775,7 @@ def run_publish_docs_in_parallel(
     distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
-    include_success_outputs: bool,
     parallelism: int,
-    skip_cleanup: bool,
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
@@ -1841,7 +1839,6 @@ def run_publish_docs_in_parallel(
 @option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
@@ -1861,13 +1858,11 @@ def run_publish_docs_in_parallel(
 )
 @option_parallelism
 @option_run_in_parallel
-@option_skip_cleanup
 @option_verbose
 def publish_docs(
     airflow_site_directory: str,
     debug_resources: bool,
     doc_packages: tuple[str, ...],
-    include_success_outputs: bool,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
@@ -1875,7 +1870,6 @@ def publish_docs(
     distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
-    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -1913,9 +1907,7 @@ def publish_docs(
         run_publish_docs_in_parallel(
             distributions_list=current_packages,
             parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
