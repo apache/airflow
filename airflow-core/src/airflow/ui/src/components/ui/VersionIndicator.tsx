@@ -44,10 +44,10 @@ export const DagVersionIndicator = ({
     <Box
       aria-label={`Version ${dagVersionNumber} indicator`}
       as="output"
-      height={isVertical ? "98px" : "2px"}
+      height={isVertical ? "103px" : "2px"}
       left={isVertical ? "-1px" : "0"}
       position="absolute"
-      top={isVertical ? "0" : "-1px"}
+      top={isVertical ? "-5px" : "-1px"}
       width={isVertical ? "1.75px" : "18px"}
       zIndex={3}
     >
