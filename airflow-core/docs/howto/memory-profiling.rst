@@ -177,7 +177,7 @@ This will generate an HTML file (``memray-flamegraph-scheduler_memory.html``) th
     :alt: Example Memray flamegraph showing memory allocations
 
 The flamegraph shows the call stack with the width of each box representing the amount of memory allocated
-by that function and its callees. Functions at the top of the graph are leaf functions that directly allocate memory.
+by that function. Functions at the top of the graph are leaf functions that directly allocate memory.
 
 Other Analysis Methods
 """"""""""""""""""""""
