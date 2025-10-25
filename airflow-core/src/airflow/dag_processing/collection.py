@@ -64,7 +64,7 @@ from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Iterator
+    from collections.abc import Collection, Container, Iterable, Iterator
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select, Subquery
@@ -944,7 +944,9 @@ class AssetModelOperation(NamedTuple):
         triggers: dict[int, dict] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
-        active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
+        active_assets: Container[tuple[str, str]] = (
+            _find_active_assets(self.assets, session=session) if self.assets else set()
+        )
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
