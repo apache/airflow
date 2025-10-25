@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, Mock, patch
 
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -158,10 +157,19 @@ class TestEnableMemrayTrackErrorHandling:
         """
         Verify graceful degradation when memray module is unavailable.
         """
-        with patch.dict("sys.modules"):
-            if "memray" in sys.modules:
-                del sys.modules["memray"]
+        with patch.dict("sys.modules", {"memray": None}):
+            decorated_function = enable_memray_trace(MemrayTraceComponents.dag_processor)(self.mock_function)
+            result = decorated_function("arg1")
 
+            self.mock_function.assert_called_once_with("arg1")
+            assert result == "test_result"
+
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
+    def test_graceful_fallback_on_exception(self):
+        """
+        Verify graceful degradation when exception occurs
+        """
+        with patch("memray.Tracker", side_effect=RuntimeError("Failed to initialize tracker")):
             decorated_function = enable_memray_trace(MemrayTraceComponents.dag_processor)(self.mock_function)
             result = decorated_function("arg1")
 
