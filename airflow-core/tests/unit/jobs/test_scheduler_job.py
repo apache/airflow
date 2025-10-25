@@ -7088,8 +7088,6 @@ class TestSchedulerJob:
 
     def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
         """Test that the running_dags metric is emitted correctly."""
-        from airflow.utils.state import DagRunState
-
         with dag_maker("metric_dag") as dag:
             _ = dag
         dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
