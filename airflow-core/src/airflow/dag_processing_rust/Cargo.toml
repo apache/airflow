@@ -28,9 +28,15 @@ diesel = { version = "2.3.3", features = ["chrono", "mysql", "postgres", "r2d2",
 diesel-async = { version = "0.7.3", features=["mysql_async", "postgres", "sqlite"]}
 env_logger = "0.11.8"
 futures = "0.3.31"
+globset = "0.4.18"
 log = "0.4.28"
 pyo3 = { version = "0.27.1" }
 serde = { version = "1.0.228" }
 signal-hook = "0.3.18"
 signal-hook-tokio = { version ="0.3.1", features = ["futures-v0_3"]}
 tokio = { version = "1.48.0", features = ["full"] }
+walkdir = { version = "2.5.0"}
+tempfile = "3.23.0"
+
+#[dev-dependencies]
+#tempfile = "3.23.0"

@@ -69,7 +69,7 @@ async fn main() -> Result<(), Error> {
         manager_config.min_file_process_interval.as_secs()
     );
 
-    // TODO: Implement Rust support for the other bundle types
+    // TODO: Implement other bundle types (Rust-native)
     let bundle = LocalDagBundle {
         path: manager_config.dags_folder,
         refresh_interval: manager_config.bundle_refresh_check_interval.as_secs()
@@ -79,10 +79,18 @@ async fn main() -> Result<(), Error> {
         "Checking for new files in local bundle every {} seconds", bundle.refresh_interval
     );
 
-    while AtomicUsize::load(&signal_count, Ordering::SeqCst) == 0 {
-        info!("hello");
-        sleep(Duration::from_secs(5)).await;
+    // while AtomicUsize::load(&signal_count, Ordering::SeqCst) == 0 {
+    //
+    // }
+
+    let dag_files = utils::file::find_dag_file_paths(&bundle.path);
+    for (i, dag_file) in dag_files.iter().enumerate() {
+        // if i % 5 == 0 {
+        //     sleep(Duration::from_secs(5)).await;
+        // }
+        info!("Processing DAG file: {}", dag_file);
     }
+
 
     let duration = start.elapsed();
     debug!("Time elapsed in main() is: {:?}", duration);
