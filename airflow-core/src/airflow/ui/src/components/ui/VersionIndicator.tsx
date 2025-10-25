@@ -20,7 +20,14 @@ import { Box, Text } from "@chakra-ui/react";
 import { FiGitCommit } from "react-icons/fi";
 
 export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => (
-  <Box color="orange.fg" left={-2} position="absolute" title={`Bundle Version: ${bundleVersion}`} top={93}>
+  <Box
+    color="orange.fg"
+    left={-2}
+    position="absolute"
+    title={`Bundle Version: ${bundleVersion}`}
+    top={93}
+    zIndex={1}
+  >
     <FiGitCommit size="15px" />
   </Box>
 );
@@ -55,7 +62,7 @@ export const DagVersionIndicator = ({
             position="absolute"
             top={-2}
             transform="translateX(-50%)"
-            zIndex={5}
+            zIndex="tooltip"
           >
             <Box
               _hover={{
