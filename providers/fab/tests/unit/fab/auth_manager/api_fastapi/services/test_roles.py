@@ -62,7 +62,7 @@ class TestRolesService:
                 )
             ],
         )
-        self.body_no_name = types.SimpleNamespace(name="", permissions=[])
+
         self.body_bad_action = types.SimpleNamespace(
             name="roleB",
             permissions=[
@@ -108,14 +108,6 @@ class TestRolesService:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.create_role(self.body_ok)
         assert ex.value.status_code == 409
-
-    def test_create_role_missing_name(self, get_fab_auth_manager, fab_auth_manager, security_manager):
-        fab_auth_manager.security_manager = security_manager
-        get_fab_auth_manager.return_value = fab_auth_manager
-
-        with pytest.raises(HTTPException) as ex:
-            FABAuthManagerRoles.create_role(self.body_no_name)
-        assert ex.value.status_code == 400
 
     def test_create_role_action_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_role.return_value = None

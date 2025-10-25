@@ -52,6 +52,7 @@ def requires_fab_custom_view(method: str, resource_name: str):
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
             status.HTTP_409_CONFLICT,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         ]
     ),

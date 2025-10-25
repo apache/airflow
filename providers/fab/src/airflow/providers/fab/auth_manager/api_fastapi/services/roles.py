@@ -50,9 +50,6 @@ class FABAuthManagerRoles:
 
     @classmethod
     def create_role(cls, body: RoleBody) -> RoleResponse:
-        if not body.name:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Role name must be provided")
-
         security_manager = get_fab_auth_manager().security_manager
 
         existing = security_manager.find_role(name=body.name)
