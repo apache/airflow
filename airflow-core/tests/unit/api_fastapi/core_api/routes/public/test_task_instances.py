@@ -3904,8 +3904,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ti = TaskInstance(
             task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
         )
+        ti_2 = TaskInstance(
+            task=tis[0].task,
+            run_id=tis[0].run_id,
+            map_index=map_index + 1,
+            dag_version_id=tis[0].dag_version_id,
+        )
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        ti_2.rendered_task_instance_fields = RTIF(ti_2, render_templates=False)
         session.add(ti)
+        session.add(ti_2)
         session.commit()
 
         response = test_client.patch(
@@ -3919,6 +3927,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response2 = test_client.get(f"{self.ENDPOINT_URL}/{map_index}")
         assert response2.status_code == 200
         assert response2.json()["state"] == self.NEW_STATE
+
+        response3 = test_client.get(f"{self.ENDPOINT_URL}/{map_index + 1}")
+        assert response3.status_code == 200
+        assert response3.json()["state"] != self.NEW_STATE
+        assert response3.json()["state"] is None
 
     def test_should_update_mapped_task_instance_summary_state(self, test_client, session):
         tis = self.create_task_instances(session)
