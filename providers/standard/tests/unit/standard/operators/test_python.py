@@ -61,7 +61,7 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
@@ -1410,8 +1410,8 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, system_site_packages=False, op_args=[4])
 
     @mock.patch(
-        "airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess",
-        wraps=execute_in_subprocess,
+        "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
+        wraps=_execute_in_subprocess,
     )
     def test_with_index_urls(self, wrapped_execute_in_subprocess):
         def f(a):

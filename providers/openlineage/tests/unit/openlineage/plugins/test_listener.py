@@ -52,10 +52,7 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+from airflow.providers.common.compat.sdk import BaseOperator
 
 EXPECTED_TRY_NUMBER_1 = 1
 

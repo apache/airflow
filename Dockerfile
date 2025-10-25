@@ -54,7 +54,7 @@ ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.2
+ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.9.5
 ARG AIRFLOW_USE_UV="false"

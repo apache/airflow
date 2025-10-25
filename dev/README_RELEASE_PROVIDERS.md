@@ -90,6 +90,11 @@ Please review and ensure that all security issues marked for the release have be
 addressed and resolved. Ping security team (comment in the issues) if anything missing or
 the issue does not seem to be addressed.
 
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
+
 # Bump min Airflow version for providers
 
 1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove

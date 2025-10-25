@@ -49,13 +49,9 @@ if TYPE_CHECKING:
     from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL, Engine, Inspector
 
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 T = TypeVar("T")

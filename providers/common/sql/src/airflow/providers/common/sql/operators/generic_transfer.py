@@ -29,11 +29,7 @@ from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 if TYPE_CHECKING:
     import jinja2
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GenericTransfer(BaseOperator):

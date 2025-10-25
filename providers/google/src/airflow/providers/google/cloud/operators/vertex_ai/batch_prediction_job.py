@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):

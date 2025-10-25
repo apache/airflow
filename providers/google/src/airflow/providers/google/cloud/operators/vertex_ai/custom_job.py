@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     )
     from google.cloud.aiplatform_v1.types import PscInterfaceConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):

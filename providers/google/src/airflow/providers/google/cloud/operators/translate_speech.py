@@ -34,7 +34,7 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 if TYPE_CHECKING:
     from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):

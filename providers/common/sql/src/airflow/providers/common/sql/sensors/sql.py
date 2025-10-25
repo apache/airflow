@@ -25,7 +25,7 @@ from airflow.providers.common.compat.sdk import BaseHook, BaseSensorOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SqlSensor(BaseSensorOperator):

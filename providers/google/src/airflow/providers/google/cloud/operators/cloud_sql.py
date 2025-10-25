@@ -39,8 +39,8 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 SETTINGS = "settings"

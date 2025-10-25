@@ -46,6 +46,15 @@ RUN pip install "apache-airflow=={}"
 
 """
 
+TASK_SDK_DOCKER = """\
+FROM python:3.10
+
+# Upgrade
+RUN pip install "apache-airflow-task-sdk=={}"
+
+"""
+
+
 DOCKER_UPGRADE = """\
 FROM apache/airflow:1.10.15
 
@@ -131,7 +140,7 @@ def check_all_files(actual_files, expected_files):
     return missing_list
 
 
-def check_release(files: list[str], version: str):
+def check_airflow_release(files: list[str], version: str):
     print(f"Checking airflow release for version {version}:\n")
     version = strip_rc_suffix(version)
 
@@ -142,6 +151,19 @@ def check_release(files: list[str], version: str):
             f"apache_airflow-{version}-py3-none-any.whl",
             f"apache_airflow_core-{version}.tar.gz",
             f"apache_airflow_core-{version}-py3-none-any.whl",
+        ]
+    )
+    return check_all_files(expected_files=expected_files, actual_files=files)
+
+
+def check_task_sdk_release(files: list[str], version: str):
+    print(f"Checking task-sdk release for version {version}:\n")
+    version = strip_rc_suffix(version)
+
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_task_sdk-{version}.tar.gz",
+            f"apache_airflow_task_sdk-{version}-py3-none-any.whl",
         ]
     )
     return check_all_files(expected_files=expected_files, actual_files=files)
@@ -225,8 +247,21 @@ def providers(ctx, path: str):
 @click.pass_context
 def airflow(ctx, path: str, version: str):
     files = os.listdir(os.path.join(path, version))
-    missing_files = check_release(files, version)
+    missing_files = check_airflow_release(files, version)
     create_docker(AIRFLOW_DOCKER.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files)
+    return
+
+
+@click.command(name="task-sdk")
+@path_option
+@version_option
+@click.pass_context
+def task_sdk(ctx, path: str, version: str):
+    files = os.listdir(os.path.join(path, version))
+    missing_files = check_task_sdk_release(files, version)
+    create_docker(TASK_SDK_DOCKER.format(version))
     if missing_files:
         warn_of_missing_files(missing_files)
     return
@@ -248,6 +283,7 @@ def upgrade_check(ctx, path: str, version: str):
 
 cli.add_command(providers)
 cli.add_command(airflow)
+cli.add_command(task_sdk)
 cli.add_command(upgrade_check)
 
 if __name__ == "__main__":
@@ -273,7 +309,7 @@ def test_check_release_pass():
         "apache_airflow_core-2.8.1.tar.gz.asc",
         "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
-    assert check_release(files, version="2.8.1rc2") == []
+    assert check_airflow_release(files, version="2.8.1rc2") == []
 
 
 def test_check_release_fail():
@@ -294,7 +330,7 @@ def test_check_release_fail():
         "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
 
-    missing_files = check_release(files, version="2.8.1rc2")
+    missing_files = check_airflow_release(files, version="2.8.1rc2")
     assert missing_files == ["apache_airflow-2.8.1.tar.gz", "apache_airflow_core-2.8.1.tar.gz"]
 
 

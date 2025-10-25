@@ -150,7 +150,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
         )
 
-    def get_uri(self) -> URL:
+    def get_uri(self) -> str:
         """Overridden to use the Athena dialect as driver name."""
         conn_params = self._get_conn_params()
         creds = self.get_credentials(region_name=conn_params["region_name"])
@@ -163,7 +163,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             port=443,
             database=conn_params["schema_name"],
             query={"aws_session_token": creds.token, **self.conn.extra_dejson},
-        )
+        ).render_as_string(hide_password=False)
 
     def get_conn(self) -> AthenaConnection:
         """Get a ``pyathena.Connection`` object."""

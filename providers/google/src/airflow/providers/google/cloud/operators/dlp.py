@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):
