@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -55,7 +56,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID, DAG4_ID, DAG5_ID]:
             dag_runs_count = 5 if dag_id in [DAG1_ID, DAG2_ID] else 2
             for i in range(dag_runs_count):
-                start_date = pendulum.datetime(2021 + i, 1, 1, 0, 0, 0, tz="UTC")
+                start_date = datetime(2021 + i, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
                 dag_run = DagRun(
                     dag_id=dag_id,
                     run_id=f"run_id_{i + 1}",
@@ -67,7 +68,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
                 if dag_run.start_date is not None:
-                    dag_run.end_date = dag_run.start_date.add(hours=1)
+                    dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)
         session.commit()
 
