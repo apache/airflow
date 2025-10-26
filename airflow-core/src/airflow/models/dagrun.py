@@ -669,7 +669,7 @@ class DagRun(Base, LoggingMixin):
                 coalesce(running_drs.c.num_running, text("0"))
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
                 # don't set paused dag runs as running
-                not_(coalesce(Backfill.is_paused, False)),
+                not_(func.coalesce(Backfill.__table__.c.is_paused, false())),
             )
             .order_by(
                 # ordering by backfill sort ordinal first ensures that backfill dag runs
