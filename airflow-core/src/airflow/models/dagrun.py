@@ -41,6 +41,7 @@ from sqlalchemy import (
     and_,
     case,
     func,
+    inspect,
     not_,
     or_,
     text,
@@ -1919,7 +1920,7 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, tasks)
+                session.bulk_insert_mappings(inspect(TI), tasks)
             else:
                 session.bulk_save_objects(tasks)
 
