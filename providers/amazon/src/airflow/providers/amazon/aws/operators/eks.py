@@ -1055,7 +1055,16 @@ class EksPodOperator(KubernetesPodOperator):
         super().__init__(
             in_cluster=self.in_cluster,
             namespace=self.namespace,
+     # Remove aws_conn_id and region from kwargs to avoid passing them to KubernetesPodOperator
+        kwargs.pop("aws_conn_id", None)
+        kwargs.pop("region", None)
+        super().__init__(
+            in_cluster=self.in_cluster,
+            namespace=self.namespace,
             name=self.pod_name,
+            trigger_kwargs={"eks_cluster_name": cluster_name},
+            **kwargs,
+        )        name=self.pod_name,
             trigger_kwargs={"eks_cluster_name": cluster_name},
             **k # Remove aws_conn_id and region from kwargs to avoid passing them to KubernetesPodOperator
         kwargs.pop("aws_conn_id", None)
@@ -1068,7 +1077,7 @@ wargs,
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
     def execute(self, context: Context):
-        eks_hook = EksHook(
+       eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
