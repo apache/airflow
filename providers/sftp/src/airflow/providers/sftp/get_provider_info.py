@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "SSH File Transfer Protocol (SFTP)",
                 "external-doc-url": "https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/",
+                "how-to-guide": ["/docs/apache-airflow-providers-sftp/sensors/sftp_sensor.rst"],
                 "logo": "/docs/integration-logos/SFTP.png",
                 "tags": ["protocol"],
             }
