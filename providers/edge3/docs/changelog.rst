@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Link to Dag in Plugin (#55642)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Extract prek hooks for Edge provider (#57104)``
+
 1.4.0
 .....
 
