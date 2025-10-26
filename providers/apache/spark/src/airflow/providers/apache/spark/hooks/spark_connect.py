@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, cast
 from urllib.parse import quote, urlparse, urlunparse
 
-from airflow.providers.apache.spark.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

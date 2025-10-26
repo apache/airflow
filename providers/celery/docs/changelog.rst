@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CLI command to remove all queues from Celery worker (#56195)``
+
+Misc
+~~~~
+
+* ``Remove CELERY_APP_NAME deprecation (#56835)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update celery broker_url config description (#56917)``
+* ``Update broken link for monkey-patch reference (#56862)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix use of DeprecationWarning in celery provider to AirflowProviderDeprecationWarning (#56526)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 3.12.4
 ......
 

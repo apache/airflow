@@ -72,7 +72,7 @@ export const DagCard = ({ dag }: Props) => {
             isPaused={dag.is_paused}
             withText={false}
           />
-          <FavoriteDagButton dagId={dag.dag_id} withText={false} />
+          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>

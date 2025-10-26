@@ -283,11 +283,15 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | None = None) -> Callable:
+        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+
+        all_attrs = self.allowed_attrs + to_replace_attrs
+
         def inner(
             order_by: list[str] = Query(
                 default=[default] if default is not None else [self.get_primary_key_string()],
                 description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
-                f"Supported attributes: `{', '.join(self.allowed_attrs) if self.allowed_attrs else self.get_primary_key_string()}`",
+                f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
             ),
         ) -> SortParam:
             return self.set_value(order_by)

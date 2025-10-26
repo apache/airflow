@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 
 
 def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_by: SortParam) -> Select:
-    query = select(DagModel)
+    query = select(DagModel).options(selectinload(DagModel.tags))
 
     max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
         select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))

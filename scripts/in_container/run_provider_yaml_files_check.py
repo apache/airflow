@@ -72,6 +72,7 @@ KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+    "airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook",
 ]
 
 if __name__ != "__main__":
