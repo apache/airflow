@@ -51,7 +51,10 @@ repos:
           - --no-sort-keys
           - --indent
           - "4"
-        files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
+        files:
+          (?x)
+          ^values\.schema\.json$|
+          ^values_schema\.schema\.json$
         pass_filenames: true
   - repo: local
     hooks:
