@@ -40,12 +40,6 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
-# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
-RUNNERS_TYPE_CROSS_MAPPING = {
-    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
-    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
-}
-
 ANSWER = ""
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"

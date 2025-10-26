@@ -18,20 +18,22 @@
 ---
 name: Tests
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 1,3,7,9,13,15,19,21 * * *'
-  push:
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-  pull_request:
-    branches:
-      - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-    types: [opened, reopened, synchronize, ready_for_review]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      architecture:
+        description: "Architecture for the build - 'ARM' or 'AMD'"
+        required: true
+        type: string
+    secrets:
+      SLACK_BOT_TOKEN:
+        description: "Slack bot token to use for notifications"
+        required: true
+      DOCS_AWS_ACCESS_KEY_ID:
+        description: "AWS Access Key ID for uploading docs (only needed for AMD builds)"
+        required: false
+      DOCS_AWS_SECRET_ACCESS_KEY:
+        description: "AWS Secret Access Key for uploading docs (only needed for AMD builds)"
+        required: false
 permissions:
   # All other permissions are set to none by default
   contents: read
@@ -160,6 +162,7 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+          ARCHITECTURE: ${{ inputs.architecture }}
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
@@ -167,23 +170,15 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
-  print-platform-arm:
-    name: "Platform: ARM"
+  print-platform:
+    name: "Platform: ${{ inputs.architecture }}"
     needs: [build-info]
     runs-on: ["ubuntu-22.04"]
-    if: needs.build-info.outputs.platform == 'linux/arm64'
     steps:
       - name: "Print architecture"
-        run: "echo '## Architecture: ARM' >> $GITHUB_STEP_SUMMARY"
-
-  print-platform-amd:
-    name: "Platform: AMD"
-    needs: [build-info]
-    runs-on: ["ubuntu-22.04"]
-    if: needs.build-info.outputs.platform == 'linux/amd64'
-    steps:
-      - name: "Print architecture"
-        run: "echo '## Architecture: AMD' >> $GITHUB_STEP_SUMMARY"
+        run: "echo \"## Architecture: ${ARCHITECTURE}\" >> $GITHUB_STEP_SUMMARY"
+    env:
+      ARCHITECTURE: ${{ inputs.architecture }}
 
   run-pin-versions-hook:
     name: "Pin actions"

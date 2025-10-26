@@ -42,6 +42,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--commit-ref",
                 "--pr-labels",
+                "--architecture",
                 "--default-branch",
                 "--default-constraints-branch",
             ],

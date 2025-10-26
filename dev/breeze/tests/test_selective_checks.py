@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
@@ -2479,72 +2479,6 @@ def test_ui_english_translation_changed_allowed_with_label():
         default_branch="main",
     )
     assert selective_checks.ui_english_translation_changed is True
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result == "ubuntu-22.04"
-
-
-def test_runner_type_pr():
-    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
-
-    result = selective_checks.runner_type
-
-    assert result == PUBLIC_AMD_RUNNERS
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_runner_type_schedule(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.SCHEDULE,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.runner_type
-
-    assert result == '["ubuntu-22.04-arm"]'
 
 
 @pytest.mark.parametrize(

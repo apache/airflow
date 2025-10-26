@@ -236,6 +236,13 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     type=str,
     default="",
 )
+@click.option(
+    "--architecture",
+    help="Architecture for which the selective check is run (AMD/ARM)",
+    type=BetterChoice(["AMD", "ARM"]),
+    envvar="ARCHITECTURE",
+    required=False,
+)
 @option_verbose
 @option_dry_run
 def selective_check(
@@ -247,6 +254,7 @@ def selective_check(
     github_repository: str,
     github_actor: str,
     github_context: str,
+    architecture: str | None,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -267,6 +275,7 @@ def selective_check(
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
+            architecture=architecture,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
