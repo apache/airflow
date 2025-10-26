@@ -692,6 +692,43 @@ def ti_put_rtif(
     return {"message": "Rendered task instance fields successfully set"}
 
 
+@ti_id_router.patch(
+    "/{task_instance_id}/rendered-map-index",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid rendered_map_index value"},
+    },
+)
+def ti_patch_rendered_map_index(
+    task_instance_id: UUID,
+    rendered_map_index: Annotated[str, Body()],
+    session: SessionDep,
+):
+    """Update rendered_map_index for a task instance, sent by the worker during task execution."""
+    ti_id_str = str(task_instance_id)
+    bind_contextvars(ti_id=ti_id_str)
+
+    if not rendered_map_index:
+        log.error("rendered_map_index cannot be empty")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="rendered_map_index cannot be empty",
+        )
+
+    log.debug("Updating rendered_map_index", length=len(rendered_map_index))
+
+    query = update(TI).where(TI.id == ti_id_str).values(rendered_map_index=rendered_map_index)
+    result = session.execute(query)
+
+    if result.rowcount == 0:
+        log.error("Task Instance not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task Instance not found",
+        )
+
+
 @ti_id_router.get(
     "/{task_instance_id}/previous-successful-dagrun",
     status_code=status.HTTP_200_OK,
