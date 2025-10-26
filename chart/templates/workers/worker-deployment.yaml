@@ -215,7 +215,7 @@ spec:
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             - name: logs
-              mountPath: {{ template "airflow_logs" . }}
+              mountPath: "/opt/airflow/logs"
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}

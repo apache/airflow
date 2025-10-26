@@ -118,6 +118,7 @@ class TestScheduler:
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'][0].volumeMounts",
             docs[0],
         )
+        assert mounts is not None, "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
         assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
         if expect_sub_path is not None:
             assert any(
