@@ -41,7 +41,7 @@ repos:
         require_serial: true
       - id: generate-airflowctl-help-images
         name: Generate SVG from Airflow CTL Commands
-        entry: ..scripts/ci/prek/capture_airflowctl_help.py
+        entry: ../scripts/ci/prek/capture_airflowctl_help.py
         language: python
         pass_filenames: false
         files:
