@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import warnings
 from typing import TYPE_CHECKING
 
@@ -106,6 +107,24 @@ def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
     )
 
 
+def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundleConfig]):
+    from airflow import providers
+
+    for provider_path in providers.__path__:
+        for name in os.listdir(provider_path):
+            example_dag_folder = os.path.join(provider_path, name, "example_dags")
+            if os.path.isdir(example_dag_folder):
+                bundle_config_list.append(
+                    _ExternalBundleConfig(
+                        name=f"airflow-provider-{name}-example-dags",
+                        classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
+                        kwargs={
+                            "path": example_dag_folder,
+                        },
+                    )
+                )
+
+
 def _is_safe_bundle_url(url: str) -> bool:
     """
     Check if a bundle URL is safe to use.
@@ -191,6 +210,7 @@ class DagBundlesManager(LoggingMixin):
         bundle_config_list = _parse_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(bundle_config_list)
+            _add_provider_example_dags_to_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):

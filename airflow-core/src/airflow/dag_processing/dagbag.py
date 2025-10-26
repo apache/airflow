@@ -477,13 +477,6 @@ class DagBag(LoggingMixin):
         registry = get_importer_registry()
         files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
 
-        if include_examples:
-            from airflow import example_dags
-
-            example_dag_folder = next(iter(example_dags.__path__))
-
-            files_to_parse.extend(registry.list_dag_files(example_dag_folder, safe_mode=safe_mode))
-
         for filepath in files_to_parse:
             try:
                 file_parse_start_dttm = timezone.utcnow()
