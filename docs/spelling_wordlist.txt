@@ -254,6 +254,8 @@ Changelog
 changelog
 charset
 chatbot
+chatbots
+Chatbots
 Checklicence
 checklicence
 CheckOperator
