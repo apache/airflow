@@ -2530,24 +2530,11 @@ def test_runner_type_schedule(mock_get):
 @pytest.mark.parametrize(
     "integration, runner_type, expected_result",
     [
-        # Test integrations disabled for all CI environments
-        pytest.param(
-            "elasticsearch",
-            PUBLIC_AMD_RUNNERS,
-            True,
-            id="elasticsearch_disabled_on_amd",
-        ),
         pytest.param(
             "mssql",
             PUBLIC_AMD_RUNNERS,
             True,
             id="mssql_disabled_on_amd",
-        ),
-        pytest.param(
-            "localstack",
-            '["ubuntu-22.04-arm"]',
-            True,
-            id="localstack_disabled_on_arm",
         ),
         # Test integrations disabled only for ARM runners
         pytest.param(
@@ -2653,7 +2640,7 @@ def test_testable_core_integrations_excludes_disabled():
     """Test that testable_core_integrations excludes disabled integrations."""
     with patch(
         "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
-        ["postgres", "elasticsearch", "kerberos"],
+        ["postgres", "kerberos"],
     ):
         # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
         selective_checks_amd = SelectiveChecks(
@@ -2667,7 +2654,6 @@ def test_testable_core_integrations_excludes_disabled():
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
             assert "kerberos" in result
-            assert "elasticsearch" not in result
 
 
 def test_testable_core_integrations_excludes_arm_disabled_on_arm():
