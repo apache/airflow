@@ -97,7 +97,7 @@ if TYPE_CHECKING:
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
-    from sqlalchemy.engine import ScalarResult
+    from sqlalchemy.engine import CursorResult, ScalarResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case
 
@@ -2066,40 +2066,46 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for id_chunk in schedulable_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(TI.id.in_(id_chunk))
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        scheduled_dttm=timezone.utcnow(),
-                        try_number=case(
-                            (
-                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
-                                TI.try_number + 1,
+                count += cast(
+                    "CursorResult[Any]",
+                    session.execute(
+                        update(TI)
+                        .where(TI.id.in_(id_chunk))
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            scheduled_dttm=timezone.utcnow(),
+                            try_number=case(
+                                (
+                                    or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                                    TI.try_number + 1,
+                                ),
+                                else_=TI.try_number,
                             ),
-                            else_=TI.try_number,
-                        ),
-                    )
-                    .execution_options(synchronize_session=False)
+                        )
+                        .execution_options(synchronize_session=False)
+                    ),
                 ).rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if empty_ti_ids:
             dummy_ti_ids_chunks = chunks(empty_ti_ids, max_tis_per_query or len(empty_ti_ids))
             for id_chunk in dummy_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(TI.id.in_(id_chunk))
-                    .values(
-                        state=TaskInstanceState.SUCCESS,
-                        start_date=timezone.utcnow(),
-                        end_date=timezone.utcnow(),
-                        duration=0,
-                        try_number=TI.try_number + 1,
-                    )
-                    .execution_options(
-                        synchronize_session=False,
-                    )
+                count += cast(
+                    "CursorResult[Any]",
+                    session.execute(
+                        update(TI)
+                        .where(TI.id.in_(id_chunk))
+                        .values(
+                            state=TaskInstanceState.SUCCESS,
+                            start_date=timezone.utcnow(),
+                            end_date=timezone.utcnow(),
+                            duration=0,
+                            try_number=TI.try_number + 1,
+                        )
+                        .execution_options(
+                            synchronize_session=False,
+                        )
+                    ),
                 ).rowcount
 
         return count
