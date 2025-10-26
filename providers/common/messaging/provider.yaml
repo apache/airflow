@@ -36,7 +36,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
+integrations:
+  - integration-name: Common Messaging
+    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/
+    tags: [software]
+
 triggers:
-  - integration-name: Message queue
+  - integration-name: Common Messaging
     python-modules:
       - airflow.providers.common.messaging.triggers.msg_queue

@@ -45,6 +45,7 @@ def get_provider_info():
                 "external-doc-url": "https://databricks.com/product/databricks-sql",
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-databricks/operators/sql.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
                 ],
                 "tags": ["service"],

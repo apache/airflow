@@ -31,6 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
     console,
     initialize_breeze_prek,
     pre_process_files,
@@ -46,7 +47,7 @@ if not files_to_test:
 
 # TODO(potiuk): add suspended providers exclusion
 
-repo_root = Path(__file__).parents[3].resolve()
+repo_root = AIRFLOW_ROOT_PATH.resolve()
 cmd = [
     "bash",
     "-c",

@@ -23,6 +23,7 @@ import os
 import re
 import textwrap
 import warnings
+from enum import Enum
 from io import StringIO
 from unittest import mock
 from unittest.mock import patch
@@ -528,6 +529,62 @@ key3 = one;two;three
         test_conf.read_string(config)
 
         assert test_conf.getjson("test", "json") == expected
+
+    def test_getenum(self):
+        class TestEnum(Enum):
+            option1 = 1
+            option2 = 2
+            option3 = 3
+            fallback = 4
+
+        config = """
+            [test1]
+            option = option1
+            [test2]
+            option = option2
+            [test3]
+            option = option3
+            [test4]
+            option = option4
+            """
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getenum("test1", "option", TestEnum) == TestEnum.option1
+        assert test_conf.getenum("test2", "option", TestEnum) == TestEnum.option2
+        assert test_conf.getenum("test3", "option", TestEnum) == TestEnum.option3
+        assert test_conf.getenum("test4", "option", TestEnum, fallback="fallback") == TestEnum.fallback
+        with pytest.raises(AirflowConfigException, match=re.escape("option1, option2, option3, fallback")):
+            test_conf.getenum("test4", "option", TestEnum)
+
+    def test_getenumlist(self):
+        class TestEnum(Enum):
+            option1 = 1
+            option2 = 2
+            option3 = 3
+            fallback = 4
+
+        config = """
+            [test1]
+            option = option1,option2,option3
+            [test2]
+            option = option1,option3
+            [test3]
+            option = option1,option4
+            [test4]
+            option =
+            """
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getenumlist("test1", "option", TestEnum) == [
+            TestEnum.option1,
+            TestEnum.option2,
+            TestEnum.option3,
+        ]
+        assert test_conf.getenumlist("test2", "option", TestEnum) == [TestEnum.option1, TestEnum.option3]
+        assert test_conf.getenumlist("test3", "option", TestEnum) == [TestEnum.option1]
+        assert test_conf.getenumlist("test4", "option", TestEnum) == []
 
     def test_getjson_empty_with_fallback(self):
         config = textwrap.dedent(

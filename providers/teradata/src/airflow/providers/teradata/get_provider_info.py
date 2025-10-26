@@ -36,7 +36,20 @@ def get_provider_info():
                 ],
                 "logo": "/docs/integration-logos/Teradata.png",
                 "tags": ["software"],
-            }
+            },
+            {
+                "integration-name": "Bteq",
+                "external-doc-url": "https://www.teradata.com/",
+                "how-to-guide": ["/docs/apache-airflow-providers-teradata/operators/bteq.rst"],
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
+            {
+                "integration-name": "Ttu",
+                "external-doc-url": "https://www.teradata.com/",
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
         ],
         "operators": [
             {

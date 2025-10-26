@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    PrestoTransferOperator types <gcs_to_presto>
+    PrestoTransferOperator types <transfer/gcs_to_presto>
     Connection types <connections>
     Operators <operators>
 
