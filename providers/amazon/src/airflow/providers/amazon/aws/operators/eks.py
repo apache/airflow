@@ -1068,7 +1068,7 @@ class EksPodOperator(KubernetesPodOperator):
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
     def execute(self, context: Context):
-       eks_hook = EksHook(
+        eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
