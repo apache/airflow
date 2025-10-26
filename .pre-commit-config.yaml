@@ -124,19 +124,11 @@ repos:
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add license for all Helm template files
-        files: ^chart/templates/.*
-        args:
-          - --comment-style
-          - "{{/*||*/}}"
-          - --license-filepath
-          - scripts/ci/license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-      - id: insert-license
         name: Add license for all YAML files except Helm templates
         exclude: >
           (?x)
-          ^\.github/.*$|^chart/templates/.*|
+          ^\.github/.*$|
+          ^chart/templates/.*|
           .*reproducible_build\.yaml$|
           ^.*/v2.*\.yaml$|
           ^.*/openapi/_private_ui.*\.yaml$|
@@ -195,14 +187,6 @@ repos:
         entry: ./dev/i18n/check_translations_completeness.py
         stages: ['manual']
         language: python
-        pass_filenames: false
-        require_serial: true
-      - id: update-chart-dependencies
-        name: Update chart dependencies to latest (manual)
-        entry: ./scripts/ci/prek/update_chart_dependencies.py
-        stages: ['manual']
-        language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/prek/update_build_dependencies\.py$
         pass_filenames: false
         require_serial: true
       - id: check-taskinstance-tis-attrs
@@ -264,15 +248,6 @@ repos:
           ^dev/breeze/doc/images/output.*$|
           ^.*/openapi-gen/.*$|
           ^airflow-ctl/docs/images/.*\.svg$
-      - id: pretty-format-json
-        name: Format JSON files
-        args:
-          - --autofix
-          - --no-sort-keys
-          - --indent
-          - "4"
-        files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
-        pass_filenames: true
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: 3a6eb0fadf60b3cccfd80bad9dbb6fae7e47b316  # frozen: v1.10.0
     hooks:
@@ -739,26 +714,6 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
         pass_filenames: false
-      - id: lint-helm-chart
-        name: Lint Helm Chart
-        entry: ./scripts/ci/prek/lint_helm.py
-        language: python
-        pass_filenames: false
-        files: ^chart
-        require_serial: true
-      - id: validate-chart-annotations
-        name: Validate chart annotations
-        entry: ./scripts/ci/prek/validate_chart_annotations.py
-        language: python
-        pass_filenames: false
-        files: ^chart/Chart\.yaml$
-      - id: kubeconform
-        name: Kubeconform check on our helm chart
-        entry: ./scripts/ci/prek/check_kubeconform.py
-        language: python
-        pass_filenames: false
-        files: ^chart
-        require_serial: true
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
@@ -879,34 +834,6 @@ repos:
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
       - id: lint-json-schema
-        name: Lint chart/values.schema.json
-        entry: ./scripts/ci/prek/lint_json_schema.py
-        args:
-          - --spec-file
-          - chart/values_schema.schema.json
-          - chart/values.schema.json
-        language: python
-        pass_filenames: false
-        files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
-        require_serial: true
-      - id: update-vendored-in-k8s-json-schema
-        name: Vendor k8s definitions into values.schema.json
-        entry: ./scripts/ci/prek/vendor_k8s_json_schema.py
-        language: python
-        files: ^chart/values\.schema\.json$
-      - id: lint-json-schema
-        name: Lint chart/values.yaml
-        entry: ./scripts/ci/prek/lint_json_schema.py
-        args:
-          - --enforce-defaults
-          - --spec-file
-          - chart/values.schema.json
-          - chart/values.yaml
-        language: python
-        pass_filenames: false
-        files: ^chart/values\.yaml$|^chart/values\.schema\.json$
-        require_serial: true
-      - id: lint-json-schema
         name: Lint config_templates/config.yml
         entry: ./scripts/ci/prek/lint_json_schema.py
         args:
@@ -943,13 +870,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/src/airflow/.*\.py$
-      - id: lint-chart-schema
-        name: Lint chart/values.schema.json file
-        entry: ./scripts/ci/prek/chart_schema.py
-        language: python
-        pass_filenames: false
-        files: ^chart/values\.schema\.json$
-        require_serial: true
       - id: update-inlined-dockerfile-scripts
         name: Inline Dockerfile and Dockerfile.ci scripts
         entry: ./scripts/ci/prek/inline_scripts_in_docker.py
