@@ -1052,10 +1052,7 @@ class EksPodOperator(KubernetesPodOperator):
         self.pod_name = pod_name
         self.aws_conn_id = aws_conn_id
         self.region = region
-        super().__init__(
-            in_cluster=self.in_cluster,
-            namespace=self.namespace,
-     # Remove aws_conn_id and region from kwargs to avoid passing them to KubernetesPodOperator
+        # Remove aws_conn_id and region from kwargs to avoid passing them to KubernetesPodOperator
         kwargs.pop("aws_conn_id", None)
         kwargs.pop("region", None)
         super().__init__(
@@ -1064,12 +1061,6 @@ class EksPodOperator(KubernetesPodOperator):
             name=self.pod_name,
             trigger_kwargs={"eks_cluster_name": cluster_name},
             **kwargs,
-        )        name=self.pod_name,
-            trigger_kwargs={"eks_cluster_name": cluster_name},
-            **k # Remove aws_conn_id and region from kwargs to avoid passing them to KubernetesPodOperator
-        kwargs.pop("aws_conn_id", None)
-        kwargs.pop("region", None)
-wargs,
         )
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the EksPodOperator.
