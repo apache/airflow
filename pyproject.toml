@@ -624,6 +624,7 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
+    "PLW0133", # Missing raise statement on exception
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
