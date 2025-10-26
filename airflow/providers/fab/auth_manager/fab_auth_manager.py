@@ -18,15 +18,19 @@
 from __future__ import annotations
 
 import argparse
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
+import packaging.version
 from connexion import FlaskApi
-from flask import Blueprint, url_for
+from flask import Blueprint, g, url_for
+from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
     AccessView,
@@ -34,7 +38,6 @@ from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
-    DatasetDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -44,9 +47,10 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    DB_COMMANDS,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -63,7 +67,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
     RESOURCE_DAG_WARNING,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
@@ -81,6 +84,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
@@ -89,7 +93,12 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import (
         CLICommand,
     )
+    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
@@ -132,7 +141,7 @@ class FabAuthManager(BaseAuthManager):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
+        commands: list[CLICommand] = [
             GroupCommand(
                 name="users",
                 help="Manage users",
@@ -145,6 +154,12 @@ class FabAuthManager(BaseAuthManager):
             ),
             SYNC_PERM_COMMAND,  # not in a command group
         ]
+        # If Airflow version is 3.0.0 or higher, add the fab-db command group
+        if packaging.version.parse(
+            packaging.version.parse(airflow_version).base_version
+        ) >= packaging.version.parse("3.0.0"):
+            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
+        return commands
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
@@ -168,8 +183,19 @@ class FabAuthManager(BaseAuthManager):
         return f"{first_name} {last_name}".strip()
 
     def get_user(self) -> User:
-        """Return the user associated to the user in session."""
+        """
+        Return the user associated to the user in session.
+
+        Attempt to find the current user in g.user, as defined by the kerberos authentication backend.
+        If no such user is found, return the `current_user` local proxy object, linked to the user session.
+
+        """
         from flask_login import current_user
+
+        # If a user has gone through the Kerberos dance, the kerberos authentication manager
+        # has linked it with a User model, stored in g.user, and not the session.
+        if current_user.is_anonymous and getattr(g, "user", None) is not None and not g.user.is_anonymous:
+            return g.user
 
         return current_user
 
@@ -179,7 +205,13 @@ class FabAuthManager(BaseAuthManager):
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return not self.get_user().is_anonymous
+        user = self.get_user()
+        if Version(Version(version).base_version) < Version("3.0.0"):
+            return not user.is_anonymous and user.is_active
+        else:
+            return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None) or (
+                not user.is_anonymous and user.is_active
+            )
 
     def is_authorized_configuration(
         self,
@@ -246,10 +278,20 @@ class FabAuthManager(BaseAuthManager):
                 for resource_type in resource_types
             )
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_DATASET, user=user)
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
+
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        warnings.warn(
+            "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the fab provider",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_authorized_asset(method=method, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
@@ -325,10 +367,7 @@ class FabAuthManager(BaseAuthManager):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                     else:
                         resources.add(resource)
-        return {
-            dag.dag_id
-            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
-        }
+        return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
@@ -364,9 +403,14 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view:
+        if not self.security_manager.user_view or self.appbuilder.get_app.config.get(
+            "AUTH_ROLE_PUBLIC", None
+        ):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
+
+    def register_views(self) -> None:
+        self.security_manager.register_views()
 
     def _is_authorized(
         self,
@@ -503,7 +547,7 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )
@@ -519,9 +563,11 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ):
+        if Version(Version(version).base_version) >= Version("3.0.0"):
+            fallback = None
+        else:
+            fallback = conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        if conf.getboolean("fab", "UPDATE_FAB_PERMS", fallback=fallback):
             self.security_manager.sync_roles()
 
 

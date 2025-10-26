@@ -391,11 +391,13 @@
   },
   "common.compat": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -550,16 +552,22 @@
   },
   "fab": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.5.2",
-      "flask-login>=0.6.2",
-      "flask>=2.2,<2.3",
+      "flask-appbuilder==4.5.3",
+      "flask-login>=0.6.3",
+      "flask-session>=0.8.0",
+      "flask>=2.2,<3",
       "google-re2>=1.0",
       "jmespath>=0.7.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1153,7 +1161,7 @@
       "apache-airflow-providers-ssh>=2.1.0",
       "apache-airflow>=2.7.0",
       "asyncssh>=2.12.0",
-      "paramiko>=2.9.0"
+      "paramiko>=2.9.0,<4.0.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1237,7 +1245,7 @@
   "ssh": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "paramiko>=2.9.0",
+      "paramiko>=2.9.0,<4.0.0",
       "sshtunnel>=0.3.2"
     ],
     "devel-deps": [],

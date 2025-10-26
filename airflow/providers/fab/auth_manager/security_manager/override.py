@@ -17,14 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import datetime
+import importlib
 import itertools
 import logging
 import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Mapping, Sequence
 
 import jwt
 import packaging.version
@@ -67,6 +69,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
+from packaging.version import Version
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
@@ -115,6 +118,9 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET  # type: ignore[attr-defined]
+else:
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 log = logging.getLogger(__name__)
 
@@ -234,7 +240,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -253,7 +259,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -273,7 +279,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_user_perms]
 
@@ -302,8 +308,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_op_perms]
 
@@ -552,7 +558,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
             interface = self.appbuilder.get_app.session_interface
-            session = interface.db.session
+            session = interface.client.session
             user_session_model = interface.sql_session_model
             num_sessions = session.query(user_session_model).count()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
@@ -572,6 +578,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     session_details = interface.serializer.loads(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
+                session.commit()
         else:
             self._cli_safe_flash(
                 "Since you are using `securecookie` session backend mechanism, we cannot prevent "
@@ -609,7 +616,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
 
     @property
     def oauth_providers(self):
@@ -843,6 +850,22 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
         app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
+        # Werkzeug prior to 3.0.0 does not support scrypt
+        parsed_werkzeug_version = Version(importlib.metadata.version("werkzeug"))
+        if parsed_werkzeug_version < Version("3.0.0"):
+            app.config.setdefault(
+                "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
+                "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
+                "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
+            )
+        else:
+            app.config.setdefault(
+                "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
+                "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
+                "8350189ffc4bcc71286edf1b8ad94a442c00f890224bf2b32153d0750c89ee9"
+                "401e62f9dcee5399065e4e5",
+            )
+
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
             if "AUTH_LDAP_SERVER" not in app.config:
@@ -955,7 +978,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.add_role(role_name)
             if self.auth_role_admin not in self._builtin_roles:
                 self.add_role(self.auth_role_admin)
-            self.add_role(self.auth_role_public)
+            if self.auth_role_public:
+                self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception:
@@ -1073,7 +1097,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
+            # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+            root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = self._resource_name(root_dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -1103,7 +1128,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]] | None = None,
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1124,7 +1149,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         if access_control is not None:
             self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
-            self._sync_dag_view_permissions(dag_id, access_control.copy())
+            self._sync_dag_view_permissions(dag_id, copy.copy(access_control))
         else:
             self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
@@ -1145,7 +1170,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _sync_dag_view_permissions(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]],
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]],
     ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
@@ -1171,7 +1196,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 for perm in existing_dag_perms:
                     non_admin_roles = [role for role in perm.role if role.name != "Admin"]
                     for role in non_admin_roles:
-                        target_perms_for_role = access_control.get(role.name, {}).get(resource_name, set())
+                        access_control_role = access_control.get(role.name)
+                        target_perms_for_role = set()
+                        if access_control_role:
+                            if isinstance(access_control_role, set):
+                                target_perms_for_role = access_control_role
+                            elif isinstance(access_control_role, dict):
+                                target_perms_for_role = access_control_role.get(resource_name, set())
                         if perm.action.name not in target_perms_for_role:
                             self.log.info(
                                 "Revoking '%s' on DAG '%s' for role '%s'",
@@ -1190,7 +1221,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if isinstance(resource_actions, (set, list)):
+            if not isinstance(resource_actions, dict):
                 # Support for old-style access_control where only the actions are specified
                 resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 
@@ -2196,8 +2227,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if user is None or (not user.is_active):
             # Balance failure and success
             check_password_hash(
-                "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
-                "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
+                self.appbuilder.get_app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"],
                 "password",
             )
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
@@ -2828,7 +2858,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ).all()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
-        if "." in dag_id:
+        # TODO: The "root_dag_id" check can be remove when the minimum version of Airflow is bumped to 3.0
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             dm = self.appbuilder.get_session.execute(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
             ).one()
