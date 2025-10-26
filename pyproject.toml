@@ -87,6 +87,9 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
+"memray" = [
+    "apache-airflow-core[memray]"
+]
 "otel" = [
     "apache-airflow-core[otel]"
 ]
@@ -388,7 +391,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -587,6 +590,8 @@ extend-select = [
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
+    # Warning (PLW) re-implemented in ruff from Pylint
+    "PLW0127", # Self-assignment of variable
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
