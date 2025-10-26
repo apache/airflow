@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Tests AMD/ARM
+name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 1,3,7,9,13,15,19,21 * * *'
@@ -166,8 +166,27 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
+
+  print-platform-arm:
+    name: "Platform: ARM"
+    needs: [build-info]
+    runs-on: ["ubuntu-22.04"]
+    if: needs.build-info.outputs.platform == 'linux/arm64'
+    steps:
+      - name: "Print architecture"
+        run: "echo '## Architecture: ARM' >> $GITHUB_STEP_SUMMARY"
+
+  print-platform-amd:
+    name: "Platform: AMD"
+    needs: [build-info]
+    runs-on: ["ubuntu-22.04"]
+    if: needs.build-info.outputs.platform == 'linux/amd64'
+    steps:
+      - name: "Print architecture"
+        run: "echo '## Architecture: AMD' >> $GITHUB_STEP_SUMMARY"
+
   run-pin-versions-hook:
-    name: "Run pin-versions hook"
+    name: "Pin actions"
     needs: [build-info]
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     if: needs.build-info.outputs.platform == 'linux/amd64'
