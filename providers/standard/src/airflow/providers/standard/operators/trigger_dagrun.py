@@ -21,6 +21,7 @@ import datetime
 import json
 import time
 from collections.abc import Sequence
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
@@ -202,9 +203,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
+            if self.conf and isinstance(self.conf, str):
+                self.conf = json.loads(self.conf)
             json.dumps(self.conf)
-        except TypeError:
-            raise ValueError("conf parameter should be JSON Serializable")
+        except (TypeError, JSONDecodeError):
+            raise ValueError("conf parameter should be JSON Serializable %s", self.conf)
 
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)

@@ -30,7 +30,7 @@ from airflow.providers.openlineage.plugins.macros import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 log = logging.getLogger(__name__)
 

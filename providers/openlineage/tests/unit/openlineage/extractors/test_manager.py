@@ -31,6 +31,7 @@ from openlineage.client.facet_v2 import (
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.lineage.entities import Column, File, Table, User
+from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectStoragePath
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
@@ -43,13 +44,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if TYPE_CHECKING:
     try:
         from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
-        from airflow.sdk.definitions.context import Context
-
     except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        # TIRunContext is only used in Airflow 3 tests
-        from airflow.utils.context import Context
-
         AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
 
@@ -66,23 +61,6 @@ def hook_lineage_collector():
     yield get_hook_lineage_collector()
 
     hook._hook_lineage_collector = None
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, ObjectStoragePath
-    from airflow.sdk.api.datamodels._generated import TaskInstance as SDKTaskInstance
-    from airflow.sdk.execution_time import task_runner
-    from airflow.sdk.execution_time.comms import StartupDetails
-    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
-else:
-    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
-    from airflow.models import BaseOperator
-
-    SDKTaskInstance = ...  # type: ignore
-    task_runner = ...  # type: ignore
-    StartupDetails = ...  # type: ignore
-    RuntimeTaskInstance = ...  # type: ignore
-    parse = ...  # type: ignore
 
 
 @pytest.mark.parametrize(

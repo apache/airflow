@@ -251,7 +251,7 @@ Doc-only
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix: allow users with specific DAG permissions to access DAGs when no pecific DAG is requested (#51462)``
+* ``Fix: allow users with specific DAG permissions to access DAGs when no specific DAG is requested (#51462)``
 * ``Fix fab asset compilation hashing script (#51446)``
 * ``Fix default setting for hash algorithm for FAB password hash (#51858)``
 

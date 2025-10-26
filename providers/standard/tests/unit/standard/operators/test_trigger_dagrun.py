@@ -200,7 +200,7 @@ class TestDagRunOperator:
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
         dr = dag_maker.create_dagrun()
-        with pytest.raises(ValueError, match="^conf parameter should be JSON Serializable$"):
+        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
             dag_maker.run_ti(task.task_id, dr)
 
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
@@ -266,6 +266,40 @@ class TestDagRunOperator:
                 conf={"foo": "bar"},
                 fail_when_dag_is_paused=True,
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_str_conf(self):
+        """
+        Test TriggerDagRunOperator conf is proper json string formatted
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf='{"foo": "bar"}',
+            )
+
+            # Ensure correct exception is raised
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+            assert exc_info.value.conf == {"foo": "bar"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_str_conf_error(self):
+        """
+        Test TriggerDagRunOperator conf is not proper json string formatted
+        """
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf="{'foo': 'bar', 'key': 123}",
+            )
+
+            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+                task.execute(context={})
 
 
 # TODO: To be removed once the provider drops support for Airflow 2

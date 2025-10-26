@@ -33,7 +33,7 @@ from airflow.providers.google.marketing_platform.hooks.campaign_manager import G
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GoogleCampaignManagerDeleteReportOperator(BaseOperator):

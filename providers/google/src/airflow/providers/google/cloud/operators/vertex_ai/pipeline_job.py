@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform import PipelineJob
     from google.cloud.aiplatform.metadata import experiment_resources
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class RunPipelineJobOperator(GoogleCloudBaseOperator):

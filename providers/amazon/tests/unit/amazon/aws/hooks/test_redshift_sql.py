@@ -26,8 +26,6 @@ from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.utils.types import NOTSET
 
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
-
 LOGIN_USER = "login"
 LOGIN_PASSWORD = "password"
 LOGIN_HOST = "host"
@@ -52,12 +50,9 @@ class TestRedshiftSQLHookConn:
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
-        x = self.db_hook.get_uri()
-        if SQLALCHEMY_V_1_4:
-            expected = "postgresql://login:password@host:5439/dev"
-        else:
-            expected = "postgresql://login:***@host:5439/dev"
-        assert str(x) == expected
+        db_uri = self.db_hook.get_uri()
+        expected = "postgresql://login:password@host:5439/dev"
+        assert db_uri == expected
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn(self, mock_connect):
