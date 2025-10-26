@@ -58,6 +58,12 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
 - Use ``--proxy-headers`` CLI flag to tell Uvicorn to respect these headers: ``airflow api-server --proxy-headers``
 
+  Add to the apiserver::
+
+      airflow-apiserver:
+        <<: *airflow-common
+        command: ["api-server", "--proxy-headers"]
+
 - If your proxy server is not on the same host (or in the same docker container) as Airflow, then you will need to
   set the ``FORWARDED_ALLOW_IPS`` environment variable so Uvicorn knows who to trust this header from. See
   `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
