@@ -362,7 +362,7 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
