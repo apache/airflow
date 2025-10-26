@@ -723,11 +723,13 @@ class DagRun(Base, LoggingMixin):
             qry = qry.where(cls.dag_id.in_(dag_ids))
 
         if is_container(run_id):
-            qry = qry.where(cls.run_id.in_(run_id))
+            run_ids = cast("Iterable[str]", run_id)
+            qry = qry.where(cls.run_id.in_(tuple(run_ids)))
         elif run_id is not None:
             qry = qry.where(cls.run_id == run_id)
         if is_container(logical_date):
-            qry = qry.where(cls.logical_date.in_(logical_date))
+            dates = cast("Iterable[datetime]", logical_date)
+            qry = qry.where(cls.logical_date.in_(tuple(dates)))
         elif logical_date is not None:
             qry = qry.where(cls.logical_date == logical_date)
         if logical_start_date and logical_end_date:
