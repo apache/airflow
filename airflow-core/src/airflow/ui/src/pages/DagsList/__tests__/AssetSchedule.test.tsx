@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { vi } from 'vitest';
-import { ChakraProvider } from '@chakra-ui/react';
-import { AssetSchedule } from '../AssetSchedule';
+import { describe, test, expect, vi } from 'vitest';
+import AssetSchedule from '../AssetSchedule';
+import { Wrapper } from 'src/utils/Wrapper';
 
 const longName = 'VeryLongAssetNameWhichShouldBeTruncatedBecauseItIsTooLongToFitInList';
 
@@ -33,14 +32,10 @@ vi.mock('openapi/queries', () => ({
 describe('AssetSchedule', () => {
   test('truncates long asset names using isTruncated', () => {
     render(
-      <ChakraProvider>
-        <MemoryRouter>
-          <AssetSchedule dagId="testDag" timetableSummary="test summary" />
-        </MemoryRouter>
-      </ChakraProvider>,
+      <AssetSchedule dagId="testDag" timetableSummary="test summary" />, 
+      { wrapper: Wrapper },
     );
     const linkElement = screen.getByText(longName);
-    // When isTruncated is used, Chakra sets a title attribute equal to the full text
     expect(linkElement).toHaveAttribute('title', longName);
   });
 });
