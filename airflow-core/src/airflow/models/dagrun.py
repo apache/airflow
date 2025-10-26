@@ -963,7 +963,7 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
-        if not dag_run.logical_date:
+        if dag_run is None or dag_run.logical_date is None:
             return None
         return session.scalar(
             select(DagRun)
@@ -1423,6 +1423,9 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
             task = dag.get_task(last_ti.task_id)
 
+            if self.start_date is None:
+                raise AirflowException("DagRun.start_date is required when building callback context")
+
             dag_run_data = DRDataModel(
                 dag_id=self.dag_id,
                 run_id=self.run_id,
@@ -1432,7 +1435,7 @@ class DagRun(Base, LoggingMixin):
                 run_after=self.run_after,
                 start_date=self.start_date,
                 end_date=self.end_date,
-                run_type=self.run_type,
+                run_type=DagRunType(self.run_type),
                 state=self.state,
                 conf=self.conf,
                 consumed_asset_events=[],
@@ -2184,13 +2187,13 @@ def get_or_create_dagrun(
 
     :return: The newly created DAG run.
     """
-    dr: DagRun = session.scalar(
+    existing: DagRun | None = session.scalars(
         select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
-    )
-    if dr:
-        session.delete(dr)
+    ).one_or_none()
+    if existing is not None:
+        session.delete(existing)
         session.commit()
-    dr = dag.create_dagrun(
+    dr: DagRun = dag.create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
         data_interval=data_interval,
