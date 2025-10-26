@@ -448,6 +448,24 @@ class TestTaskInstanceOperations:
 
         assert result == OKResponse(ok=True)
 
+    def test_taskinstance_set_rendered_map_index_success(self):
+        TI_ID = uuid6.uuid7()
+        rendered_map_index = "Label: task_1"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{TI_ID}/rendered-map-index":
+                actual_body = json.loads(request.read())
+                assert request.method == "PATCH"
+                # Body should be the string directly, not wrapped in JSON
+                assert actual_body == rendered_map_index
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.set_rendered_map_index(id=TI_ID, rendered_map_index=rendered_map_index)
+
+        assert result == OKResponse(ok=True)
+
     def test_get_count_basic(self):
         """Test basic get_count functionality with just dag_id."""
 
