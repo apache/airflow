@@ -129,7 +129,13 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         textWrap={wrap ? "pre" : "nowrap"}
         width="100%"
       >
-        <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
+        <VStack
+          alignItems="flex-start"
+          gap={0}
+          h={`${rowVirtualizer.getTotalSize()}px`}
+          minH="100%"
+          position="relative"
+        >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => (
             <Box
               _ltr={{
@@ -146,14 +152,23 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}
               key={virtualRow.key}
+              minWidth={wrap ? "100%" : "max-content"}
               position="absolute"
               ref={rowVirtualizer.measureElement}
               top={`${virtualRow.start}px`}
-              width={wrap ? "100%" : "max-content"}
+              width="100%"
             >
               {parsedLogs[virtualRow.index] ?? undefined}
             </Box>
           ))}
+          <Box
+            bottom={0}
+            left={0}
+            minH={`calc(100% - ${rowVirtualizer.getTotalSize()}px)`}
+            position="absolute"
+            top={`${rowVirtualizer.getTotalSize()}px`}
+            width="100%"
+          />
         </VStack>
       </Code>
 
