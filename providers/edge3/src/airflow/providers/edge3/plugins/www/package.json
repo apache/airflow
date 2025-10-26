@@ -66,11 +66,11 @@
     "eslint-plugin-react-refresh": "^0.4.21",
     "eslint-plugin-unicorn": "^61.0.2",
     "globals": "^16.4.0",
-    "happy-dom": "^18.0.1",
+    "happy-dom": "^20.0.2",
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.44.1",
-    "vite": "^7.1.7",
+    "vite": "^7.1.11",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"

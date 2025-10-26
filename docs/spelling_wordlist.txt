@@ -1885,6 +1885,8 @@ tsql
 tsv
 ttl
 ttlSecondsAfterFinished
+TTU
+Ttu
 TTY
 Tunables
 tunables
