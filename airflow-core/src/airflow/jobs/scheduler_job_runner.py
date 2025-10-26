@@ -38,6 +38,9 @@ from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, sele
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow._shared.observability.stats import Stats
+from airflow._shared.observability.traces import utils as trace_utils
+from airflow._shared.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.callbacks.callback_requests import (
@@ -73,11 +76,8 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
-from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin

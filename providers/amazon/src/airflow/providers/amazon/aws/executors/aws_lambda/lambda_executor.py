@@ -42,11 +42,12 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.stats import Stats
 
 try:
     from airflow.sdk import timezone
+    from airflow.sdk._shared.observability.stats import Stats
 except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS

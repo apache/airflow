@@ -150,6 +150,10 @@ dependencies = [
     "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     # End of shared logging dependencies
+    # Start of shared observability dependencies
+    "statsd>=3.3.0",
+    "datadog>=0.50.0",
+    # End of shared observability dependencies
 ]
 
 
@@ -223,6 +227,7 @@ exclude = [
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -293,4 +298,5 @@ shared_distributions = [
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

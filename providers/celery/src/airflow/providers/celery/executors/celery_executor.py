@@ -54,8 +54,12 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
+
+try:
+    from airflow.sdk._shared.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 log = logging.getLogger(__name__)
 

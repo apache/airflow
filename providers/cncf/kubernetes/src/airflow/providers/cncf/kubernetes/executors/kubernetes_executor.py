@@ -71,10 +71,14 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
-from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+try:
+    from airflow.sdk._shared.observability.stats import Stats
+except ImportError:
+    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     import argparse

@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
+from airflow._shared.observability.stats import Stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -66,7 +67,6 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 

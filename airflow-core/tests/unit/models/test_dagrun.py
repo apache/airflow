@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.observability.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -46,7 +47,6 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
@@ -562,7 +562,7 @@ class TestDagRun:
         active_spans = ThreadSafeDict()
         dag_run.set_active_spans(active_spans)
 
-        from airflow.traces.tracer import Trace
+        from airflow._shared.observability.traces.base_tracer import Trace
 
         dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
 
