@@ -1312,6 +1312,7 @@ repos:
           ^airflow-core/src/airflow/models/callback\.py$|
           ^airflow-core/src/airflow/models/connection\.py$|
           ^airflow-core/src/airflow/models/dag\.py$|
+          ^airflow-core/src/airflow/models/dagbag.py$|
           ^airflow-core/src/airflow/models/dagrun\.py$|
           ^airflow-core/src/airflow/models/deadline\.py$|
           ^airflow-core/src/airflow/models/expandinput\.py$|
