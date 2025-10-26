@@ -33,15 +33,7 @@ from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+BASEHOOK_PATCH_PATH = "airflow.providers.common.compat.sdk.BaseHook"
 
 OAUTH_TOKEN = "my_oauth_token"
 FOLDER_ID = "my_folder_id"

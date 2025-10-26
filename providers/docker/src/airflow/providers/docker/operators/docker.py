@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from docker import APIClient
     from docker.types import DeviceRequest
 
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.types import Logger
 
 

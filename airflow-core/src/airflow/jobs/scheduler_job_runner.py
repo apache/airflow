@@ -128,7 +128,7 @@ def _eager_load_dag_run_for_validation() -> tuple[Load, Load]:
         query = select(TI).options(asset_loader).options(alias_loader)
     """
     # Traverse TI → dag_run → consumed_asset_events once, then branch to asset/aliases
-    base = selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
+    base = joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
     return (
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
@@ -831,7 +831,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        asset_loader, _ = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
             .where(filter_for_tis)

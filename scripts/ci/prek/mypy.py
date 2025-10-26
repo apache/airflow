@@ -46,7 +46,12 @@ if not files_to_test:
 
 # TODO(potiuk): add suspended providers exclusion
 
-cmd = ["bash", "-c", f"TERM=ansi mypy {' '.join([shlex.quote(file) for file in files_to_test])}"]
+repo_root = Path(__file__).parents[3].resolve()
+cmd = [
+    "bash",
+    "-c",
+    f"TERM=ansi mypy {' '.join([shlex.quote(str(Path(file).absolute().relative_to(repo_root))) for file in files_to_test])}",
+]
 
 res = run_command_via_breeze_shell(
     cmd=cmd,

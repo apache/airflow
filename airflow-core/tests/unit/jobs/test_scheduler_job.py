@@ -642,6 +642,7 @@ class TestSchedulerJob:
         session.add(asset_event)
         session.flush()
         dr.consumed_asset_events.append(asset_event)
+        session.add(dr)
         session.flush()
 
         executor = MockExecutor(do_update=False)
@@ -736,6 +737,7 @@ class TestSchedulerJob:
         # Attach alias to event and event to dag run
         asset_event.source_aliases.append(asset_alias)
         dag_run.consumed_asset_events.append(asset_event)
+        session.add_all([asset_event, dag_run])
         session.flush()
 
         executor = MockExecutor()

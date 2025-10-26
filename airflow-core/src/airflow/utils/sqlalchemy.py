@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql import Select
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
@@ -56,6 +57,13 @@ except ImportError:
         from sqlalchemy import Column
 
         return Column(*args, **kwargs)
+
+
+def get_dialect_name(session: Session) -> str | None:
+    """Safely get the name of the dialect associated with the given session."""
+    if (bind := session.get_bind()) is None:
+        raise ValueError("No bind/engine is associated with the provided Session")
+    return getattr(bind.dialect, "name", None)
 
 
 class UtcDateTime(TypeDecorator):
@@ -312,7 +320,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     Other databases do not need it since NULL values are considered lower than
     any other values, and appear first when the order is ASC (ascending).
     """
-    if session.bind.dialect.name == "postgresql":
+    if get_dialect_name(session) == "postgresql":
         return nullsfirst(col)
     return col
 
@@ -321,14 +329,14 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Query,
+    query: Query[Any] | Select[Any],
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
     **kwargs,
-) -> Query:
+) -> Query[Any] | Select[Any]:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
