@@ -58,7 +58,7 @@ class ImpalaHook(DbApiHook):
             if getattr(conn, attr) is None:
                 raise ValueError(f"Impala Connection Error: '{attr}' is missing in the connection")
 
-        query = {k: str(v) for k, v in extra.items() if v is not None and k not in ["__extra__"]}
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
 
         return URL.create(
             drivername="impala",
