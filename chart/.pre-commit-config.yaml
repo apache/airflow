@@ -29,7 +29,7 @@ repos:
           - --comment-style
           - "{{/*||*/}}"
           - --license-filepath
-          - scripts/ci/license-templates/LICENSE.txt
+          - ../scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
   - repo: local
     hooks:
