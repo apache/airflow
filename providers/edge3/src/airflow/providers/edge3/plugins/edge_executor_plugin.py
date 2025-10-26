@@ -252,18 +252,10 @@ class EdgeExecutorPlugin(AirflowPlugin):
             fastapi_apps = [_get_api_endpoint()]
             react_apps = [
                 {
-                    "name": "Edge Worker",
+                    "name": "Edge Executor",
                     "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
                     "destination": "nav",
-                    "url_route": "edge_worker",
-                    "category": "admin",
-                    "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
-                    "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
-                },
-                {
-                    "name": "Edge Worker Jobs",
-                    "bundle_url": _get_base_url_path("/edge_worker/static/main.umd.cjs"),
-                    "url_route": "edge_jobs",
+                    "url_route": "edge_executor",
                     "category": "admin",
                     "icon": _get_base_url_path("/edge_worker/res/cloud-computer.svg"),
                     "icon_dark_mode": _get_base_url_path("/edge_worker/res/cloud-computer-dark.svg"),
