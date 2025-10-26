@@ -90,7 +90,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
@@ -106,7 +106,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-    from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -335,19 +334,23 @@ class DagRun(Base, LoggingMixin):
         else:
             self.data_interval_start, self.data_interval_end = data_interval
         self.bundle_version = bundle_version
-        self.dag_id = dag_id
-        self.run_id = run_id
+        if dag_id is not None:
+            self.dag_id = dag_id
+        if run_id is not None:
+            self.run_id = run_id
         self.logical_date = logical_date
-        self.run_after = run_after
+        if run_after is not None:
+            self.run_after = run_after
         self.start_date = start_date
         self.conf = conf or {}
         if state is not None:
             self.state = state
-        if queued_at is NOTSET:
+        if isinstance(queued_at, ArgNotSet):
             self.queued_at = timezone.utcnow() if state == DagRunState.QUEUED else None
         else:
             self.queued_at = queued_at
-        self.run_type = run_type
+        if run_type is not None:
+            self.run_type = run_type
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
@@ -561,7 +564,7 @@ class DagRun(Base, LoggingMixin):
         )
         if exclude_backfill:
             query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
-        return dict(iter(session.execute(query)))
+        return dict(session.execute(query).tuples().all())
 
     @classmethod
     @retry_db_transaction
