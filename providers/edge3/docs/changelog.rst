@@ -44,6 +44,7 @@ Misc
 
 * ``Bump vite from 7.1.7 to 7.1.11 in plugin integration (#56909)``
 * ``Bump happy-dom from 18.0.1 to 20.0.2 in plugin integration (#56686)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 23 updates (#57286)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
