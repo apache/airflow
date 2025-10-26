@@ -26,10 +26,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from tabulate import tabulate
-
-AIRFLOW_SOURCES = Path(__file__).resolve().parents[3]
-
 
 HEADERS = (
     "Version",
@@ -59,7 +57,7 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
 
 if __name__ == "__main__":
     replace_text_between(
-        file=AIRFLOW_SOURCES / "README.md",
+        file=AIRFLOW_ROOT_PATH / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",
         end="<!-- End of auto-generated table -->\n",
         replacement_text="\n"
@@ -69,7 +67,7 @@ if __name__ == "__main__":
         + "\n\n",
     )
     replace_text_between(
-        file=AIRFLOW_SOURCES / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
+        file=AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
         start=" .. Beginning of auto-generated table\n",
         end=" .. End of auto-generated table\n",
         replacement_text="\n"
