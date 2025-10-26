@@ -35,7 +35,10 @@ from common_prek_utils import (
 
 initialize_breeze_prek(__name__, __file__)
 
-files_to_test = sys.argv[1:]
+# Due to recent work to move provider prek hooks to providers/.pre-commit-config.yaml, paths are now relative to providers/
+# directory (e.g., "airbyte/provider.yaml"). Prepend "providers/" so they're relative to the Airflow root directory as expected
+# by run_provider_yaml_files_check.py prek hook
+files_to_test = [f"providers/{f}" for f in sys.argv[1:]]
 cmd_result = run_command_via_breeze_shell(
     ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
     backend="sqlite",
