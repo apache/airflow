@@ -499,7 +499,7 @@ class SerializedDagModel(Base):
             )
             .where(cls.dag_id.in_(dag_ids))
         ).all()
-        return latest_serdags or []
+        return list(latest_serdags) if latest_serdags else []
 
     @classmethod
     @provide_session
@@ -544,7 +544,7 @@ class SerializedDagModel(Base):
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:
-                self.__data_cache = self._data
+                self.__data_cache = self._data or {}
 
         return self.__data_cache
 
@@ -602,20 +602,20 @@ class SerializedDagModel(Base):
         if COMPRESS_SERIALIZED_DAGS is False:
             dialect = get_dialect_name(session)
             if dialect in ["sqlite", "mysql"]:
-                data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
+                data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")  # type: ignore[attr-defined]
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
             elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
-                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))  # type: ignore[attr-defined,assignment]
                 load_json = None
             else:
-                data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
+                data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")  # type: ignore[attr-defined]
                 load_json = None
         else:
-            data_col_to_select = cls._data_compressed
+            data_col_to_select = cls._data_compressed  # type: ignore[assignment]
 
             def load_json(deps_data):
                 return json.loads(zlib.decompress(deps_data))["dag"]["dag_dependencies"] if deps_data else []
@@ -633,11 +633,12 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        iterator = (
-            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
-            if load_json is not None
-            else query.all()
-        )
-        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        if load_json is not None:
+            iterator: Sequence[tuple[str, dict]] = [
+                (dag_id, load_json(deps_data)) for dag_id, deps_data in query
+            ]
+        else:
+            iterator = query.all()  # type: ignore[assignment]
+        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)  # type: ignore[arg-type]
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag

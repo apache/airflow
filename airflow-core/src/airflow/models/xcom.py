@@ -206,9 +206,10 @@ class XComModel(TaskInstanceDependencies):
                 "this message. See Dynamic Task Mapping documentation for "
                 "more information about lazy proxy objects."
             )
+            key_desc = "return value" if key == XCOM_RETURN_KEY else f"value {key}"
             log.warning(
                 warning_message,
-                "return value" if key == XCOM_RETURN_KEY else f"value {key}",
+                key_desc,
                 task_id,
                 dag_id,
                 run_id,
@@ -295,19 +296,19 @@ class XComModel(TaskInstanceDependencies):
             query = query.where(XComModel.key == key)
 
         if is_container(task_ids):
-            query = query.where(cls.task_id.in_(task_ids))
+            query = query.where(cls.task_id.in_(list(task_ids)))  # type: ignore[arg-type]
         elif task_ids is not None:
             query = query.where(cls.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.where(cls.dag_id.in_(dag_ids))
+            query = query.where(cls.dag_id.in_(list(dag_ids)))  # type: ignore[arg-type]
         elif dag_ids is not None:
             query = query.where(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
             query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
-            query = query.where(cls.map_index.in_(map_indexes))
+            query = query.where(cls.map_index.in_(list(map_indexes)))  # type: ignore[arg-type]
         elif map_indexes is not None:
             query = query.where(cls.map_index == map_indexes)
 
@@ -398,7 +399,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
-        return select(XComModel.value).from_statement(stmt)
+        return select(XComModel.value).from_statement(stmt)  # type: ignore[return-value]
 
     @staticmethod
     def _process_row(row: Row) -> Any:

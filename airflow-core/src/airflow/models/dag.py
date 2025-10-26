@@ -69,7 +69,6 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
@@ -139,6 +138,8 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
         return data_interval
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
+    if run.logical_date is None:
+        raise ValueError("Cannot infer data interval for run without logical_date")
     return infer_automated_data_interval(timetable, run.logical_date)
 
 
@@ -517,13 +518,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = session.execute(
+        paused_dag_result = session.execute(
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
+        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_result}
         return paused_dag_ids
 
     @property
@@ -585,7 +586,7 @@ class DagModel(Base):
         return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -666,8 +667,9 @@ class DagModel(Base):
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
+        locked_query = with_row_locks(query, of=cls, session=session, skip_locked=True)
         return (
-            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
+            session.scalars(locked_query),
             triggered_date_by_dag,
         )
 

@@ -214,7 +214,7 @@ class TaskMap(TaskInstanceDependencies):
                 else:
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
-                state = unmapped_ti.state
+                state = unmapped_ti.state  # type: ignore[assignment]
             dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
@@ -229,7 +229,7 @@ class TaskMap(TaskInstanceDependencies):
                     TaskInstance.run_id == run_id,
                 )
             )
-            indexes_to_map = range(current_max_mapping + 1, total_length)
+            indexes_to_map = range((current_max_mapping or -1) + 1, total_length)
 
         if unmapped_ti:
             dag_version_id = unmapped_ti.dag_version_id
@@ -265,8 +265,8 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        locked_query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
+        to_update = session.scalars(locked_query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()
