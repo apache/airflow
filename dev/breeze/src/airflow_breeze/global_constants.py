@@ -40,6 +40,12 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
+# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
+RUNNERS_TYPE_CROSS_MAPPING = {
+    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
+    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
+}
+
 ANSWER = ""
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
@@ -86,6 +92,14 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
+]
+DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
+    "kerberos",
+    "drill",
+    "tinkerpop",
+    "pinot",
+    "trino",
+    "ydb",
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -202,10 +216,10 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.2"
-UV_VERSION = "0.9.4"
+PIP_VERSION = "25.3"
+UV_VERSION = "0.9.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -800,7 +814,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.1.0",
-        "remove-providers": "",
+        "remove-providers": "edge3",  # Need to remove edge3 from tests until we have 3.1.1 used here.
         "run-unit-tests": "true",
     },
 ]

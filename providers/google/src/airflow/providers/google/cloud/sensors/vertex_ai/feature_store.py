@@ -28,7 +28,7 @@ from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class FeatureViewSyncSensor(BaseSensorOperator):

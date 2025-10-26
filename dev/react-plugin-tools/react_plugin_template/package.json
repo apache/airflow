@@ -2,7 +2,9 @@
   "name": "{{PROJECT_NAME}}",
   "private": true,
   "version": "0.0.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "main": "./dist/main.js",
   "module": "./dist/main.js",
@@ -62,7 +64,7 @@
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
-    "vite": "^7.1.5",
+    "vite": "^7.1.11",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^3.2.4"

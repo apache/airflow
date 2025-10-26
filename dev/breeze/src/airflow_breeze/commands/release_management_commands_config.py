@@ -370,10 +370,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Parallel running",
             "options": [
                 "--debug-resources",
-                "--include-success-outputs",
                 "--parallelism",
                 "--run-in-parallel",
-                "--skip-cleanup",
             ],
         },
     ],

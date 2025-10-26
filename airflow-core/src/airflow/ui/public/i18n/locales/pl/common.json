@@ -90,6 +90,11 @@
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
+  "download": {
+    "download": "Pobierz",
+    "hotkey": "d",
+    "tooltip": "Naciśnij {{hotkey}}, aby pobrać logi"
+  },
   "duration": "Czas trwania",
   "endDate": "Data zakończenia",
   "error": {

@@ -18,14 +18,17 @@
 
 [Unit]
 Description=Airflow API Server
-After=network.target
+After=network.target postgresql.service mysql.service redis.service rabbitmq-server.service
+Wants=postgresql.service mysql.service redis.service rabbitmq-server.service
 
 [Service]
-Environment=AIRFLOW_HOME=/home/airflow/airflow_home
+EnvironmentFile=/etc/sysconfig/airflow
 User=airflow
 Group=airflow
+Type=simple
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow api-server'
 Restart=always
-ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow api'
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

@@ -78,6 +78,11 @@
     "githubRepo": "GitHub 저장소",
     "restApiReference": "REST API 참조"
   },
+  "download": {
+    "download": "다운로드",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} 키를 눌러 로그를 다운로드하세요."
+  },
   "duration": "기간",
   "endDate": "종료일",
   "error": {

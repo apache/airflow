@@ -945,7 +945,14 @@ class S3Hook(AwsBaseHook):
             stacklevel=2,
         )
 
-        return list(self.iter_file_metadata(prefix=prefix, page_size=page_size, max_items=max_items))
+        return list(
+            self.iter_file_metadata(
+                prefix=prefix,
+                bucket_name=bucket_name,
+                page_size=page_size,
+                max_items=max_items,
+            )
+        )
 
     @provide_bucket_name
     def iter_file_metadata(
@@ -1774,6 +1781,8 @@ class S3Hook(AwsBaseHook):
         local_s3_objects = []
         s3_bucket = self.get_bucket(bucket_name)
         for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
+            if obj.key.endswith("/"):
+                continue
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             if not local_target_path.parent.exists():
