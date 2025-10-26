@@ -44,9 +44,7 @@ repos:
         language: python
         files: ^src/airflow/.*\.py$
         require_serial: true
-        exclude: >
-          (?x)
-          ^src/airflow/openlineage/|
+        exclude: ^src/airflow/openlineage/.*
         entry: ../scripts/ci/prek/check_airflow_imports.py
           --pattern '^openlineage\.client\.(facet|run)'
           --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
