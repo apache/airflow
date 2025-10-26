@@ -1857,7 +1857,7 @@ class DagRun(Base, LoggingMixin):
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
                     ti_mutation_hook(ti)
-                    created_counts[ti.operator] += 1
+                    created_counts[task.task_type] += 1
                     yield ti
 
             creator = create_ti
