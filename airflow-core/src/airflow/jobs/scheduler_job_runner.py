@@ -84,7 +84,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
+from airflow.utils.sqlalchemy import (
+    get_dialect_name,
+    is_lock_not_available_error,
+    prohibit_commit,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -340,8 +345,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executable_tis: list[TI] = []
 
-        bind = session.get_bind()
-        if bind is not None and bind.dialect.name == "postgresql":
+        if get_dialect_name(session) == "postgresql":
             # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
             # timeout", try to take out a transactional advisory lock (unlocks automatically on
             # COMMIT/ROLLBACK)
