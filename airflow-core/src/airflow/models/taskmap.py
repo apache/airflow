@@ -239,6 +239,21 @@ class TaskMap(TaskInstanceDependencies):
             dag_version_id = None
 
         for index in indexes_to_map:
+            # Check if task instance already exists to avoid duplicates
+            existing_ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == index,
+                )
+            ).one_or_none()
+
+            if existing_ti:
+                task.log.debug("Task instance already exists: %s", existing_ti)
+                all_expanded_tis.append(existing_ti)
+                continue
+
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
