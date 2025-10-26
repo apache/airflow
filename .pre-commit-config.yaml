@@ -964,24 +964,6 @@ repos:
           - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
-      - id: pylint
-        name: pylint
-        description: "Pylint is a static code analyser for Python 2 or 3."
-        entry: pylint
-        language: python
-        language_version: python3
-        types: [python]
-        additional_dependencies: ['pylint==3.1.0']
-        require_serial: true
-        files: ^airflow-core/src/airflow/.*
-        exclude:
-          airflow/example_dags/.*
-        args:
-          # Use pylint only for the specific check, which are not available into the ruff
-          - "--disable=all"
-          # W0133: "Exception statement has no effect"
-          # see: https://github.com/astral-sh/ruff/issues/10145
-          - "--enable=W0133"
       - id: check-no-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table
@@ -1087,22 +1069,6 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-      - id: mypy-airflow-ctl
-        stages: ['pre-push']
-        name: Run mypy for airflow-ctl
-        language: python
-        entry: ./scripts/ci/prek/mypy.py
-        files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests/.*\.py$
-        exclude: .*generated.py
-        require_serial: true
-      - id: mypy-airflow-ctl
-        stages: ['manual']
-        name: Run mypy for airflow-ctl (manual)
-        language: python
-        entry: ./scripts/ci/prek/mypy_folder.py airflow-ctl
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -1159,13 +1125,6 @@ repos:
         require_serial: true
         pass_filenames: false
         files: ^airflow-core/src/airflow/config_templates/config\.yml$
-      - id: generate-airflowctl-help-images
-        name: Generate SVG from Airflow CTL Commands
-        entry: ./scripts/ci/prek/capture_airflowctl_help.py
-        language: python
-        pass_filenames: false
-        files:
-          ^airflow-ctl/src/airflowctl/ctl/cli_config.py$|airflow-ctl/src/airflowctl/api/operations.py|airflow-ctl/src/airflowctl/ctl/commands/.*\.py
       - id: check-airflow-version-checks-in-core
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core
