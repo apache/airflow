@@ -32,8 +32,6 @@ from pathlib import Path
 import yaml
 from rich.console import Console
 
-AIRFLOW_SOURCES = Path(__file__).parents[3]
-
 console = Console(color_system="standard", width=200)
 
 if __name__ == "__main__":
