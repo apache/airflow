@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-26T15:49:18.175976
+# This constraints file was automatically generated on 2025-10-26T21:47:17.782475
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -528,8 +528,8 @@ pinotdb==5.7.0
 platformdirs==4.5.0
 pluggy==1.6.0
 ply==3.11
-polars-runtime-32==1.34.0
-polars==1.34.0
+polars-runtime-32==1.35.0
+polars==1.35.0
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
