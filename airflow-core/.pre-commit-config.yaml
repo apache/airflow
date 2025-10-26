@@ -165,7 +165,7 @@ repos:
       - id: check-tests-unittest-testcase
         name: Unit tests do not inherit from unittest.TestCase
         description: Check that unit tests do not inherit from unittest.TestCase
-        entry: ./scripts/ci/prek/unittest_testcase.py
+        entry: ../scripts/ci/prek/unittest_testcase.py
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
