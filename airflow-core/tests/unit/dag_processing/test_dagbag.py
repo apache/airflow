@@ -28,6 +28,7 @@ import warnings
 import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
@@ -41,6 +42,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard import example_dags as standard_example_dags
 from airflow.sdk import DAG, BaseOperator
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -51,7 +53,7 @@ from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
-example_dags_folder = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "standard"
+standard_example_dags_folder = Path(standard_example_dags.__file__).parent
 
 PY311 = sys.version_info >= (3, 11)
 PY313 = sys.version_info >= (3, 13)
@@ -211,9 +213,9 @@ class TestDagBag:
         """
         Test that we're able to parse some example DAGs and retrieve them
         """
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
+        dagbag = DagBag(dag_folder=standard_example_dags_folder, include_examples=False)
 
-        some_expected_dag_ids = ["example_bash_operator", "example_branch_operator"]
+        some_expected_dag_ids = ["example_bash_operator", "example_python_operator"]
 
         for dag_id in some_expected_dag_ids:
             dag = dagbag.get_dag(dag_id)
@@ -477,7 +479,7 @@ class TestDagBag:
                     _TestDagBag.process_file_calls += 1
                 super().process_file(filepath, only_if_updated, safe_mode)
 
-        dagbag = _TestDagBag(include_examples=True)
+        dagbag = _TestDagBag(dag_folder=standard_example_dags_folder)
         dagbag.process_file_calls
 
         # Should not call process_file again, since it's already loaded during init.
@@ -489,9 +491,9 @@ class TestDagBag:
         ("file_to_load", "expected"),
         (
             pytest.param(
-                pathlib.Path(example_dags_folder) / "example_bash_operator.py",
+                pathlib.Path(standard_example_dags_folder) / "example_bash_operator.py",
                 {
-                    "example_bash_operator": f"{example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
+                    "example_bash_operator": f"{standard_example_dags_folder.relative_to(AIRFLOW_ROOT_PATH) / 'example_bash_operator.py'}"
                 },
                 id="example_bash_operator",
             ),
@@ -553,7 +555,7 @@ class TestDagBag:
         Test that we can refresh an ordinary .py DAG
         """
         dag_id = "example_bash_operator"
-        fileloc = str(example_dags_folder / "example_bash_operator.py")
+        fileloc = str(standard_example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
@@ -567,7 +569,7 @@ class TestDagBag:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
 
-        dagbag = _TestDagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
+        dagbag = _TestDagBag(dag_folder=standard_example_dags_folder, include_examples=False)
 
         assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)

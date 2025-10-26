@@ -71,10 +71,10 @@ class TestDagCode:
 
     def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
-        bash_dag = example_dags["example_bash_operator"]
-        sync_dag_to_db(bash_dag, session=session)
-        dag_version = DagVersion.get_latest_version("example_bash_operator")
-        x = DagCode(dag_version, bash_dag.fileloc)
+        xcomargs_dag = example_dags["example_xcom_args"]
+        sync_dag_to_db(xcomargs_dag, session=session)
+        dag_version = DagVersion.get_latest_version("example_xcom_args")
+        x = DagCode(dag_version, xcomargs_dag.fileloc)
         session.add(x)
         session.commit()
         xcom_dag = example_dags["example_xcom"]
@@ -83,7 +83,7 @@ class TestDagCode:
         x = DagCode(dag_version, xcom_dag.fileloc)
         session.add(x)
         session.commit()
-        return [bash_dag, xcom_dag]
+        return [xcomargs_dag, xcom_dag]
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -128,7 +128,9 @@ class TestDagCode:
         Test that code can be retrieved from DB when you do not have access to Code file.
         Source Code should at least exist in one of DB or File.
         """
-        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        from airflow.providers.standard import example_dags
+
+        example_dag = make_example_dags(example_dags).get("example_bash_operator")
         sync_dag_to_db(example_dag)
 
         # Mock that there is no access to the Dag File
@@ -141,7 +143,9 @@ class TestDagCode:
 
     def test_db_code_created_on_serdag_change(self, session, testing_dag_bundle):
         """Test new DagCode is created in DB when ser dag is changed"""
-        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        from airflow.providers.standard import example_dags
+
+        example_dag = make_example_dags(example_dags).get("example_bash_operator")
         sync_dag_to_db(example_dag, session=session).create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
