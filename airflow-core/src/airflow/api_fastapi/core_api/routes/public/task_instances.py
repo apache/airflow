@@ -233,7 +233,7 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = session.scalars(task_instance_select)
+    task_instances = list(session.scalars(task_instance_select).all())
 
     return TaskInstanceCollectionResponse(
         task_instances=list(task_instances),
@@ -546,7 +546,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=TI.run_after,  # type: ignore[arg-type]
+        attribute=DagRun.run_after,
     )
     logical_date = RangeFilter(
         Range(
@@ -555,7 +555,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=TI.logical_date,  # type: ignore[arg-type]
+        attribute=DagRun.logical_date,
     )
     start_date = RangeFilter(
         Range(
@@ -597,7 +597,7 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = select(TI)
+    query = select(TI).join(TI.dag_run).outerjoin(TI.dag_version)
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -801,7 +801,7 @@ def post_clear_task_instances(
         )
 
     return TaskInstanceCollectionResponse(
-        task_instances=cast("list[TaskInstanceResponse]", task_instances),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
     )
 

@@ -976,10 +976,8 @@ def validate_inlets_and_outlets(
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)
 
-    inlets = [asset.asprofile() for asset in (ti.task.inlets if ti.task else []) if isinstance(asset, Asset)]
-    outlets = [
-        asset.asprofile() for asset in (ti.task.outlets if ti.task else []) if isinstance(asset, Asset)
-    ]
+    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)] if ti.task else []
+    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)] if ti.task else []
     if not (inlets or outlets):
         return InactiveAssetsResponse(inactive_assets=[])
 
