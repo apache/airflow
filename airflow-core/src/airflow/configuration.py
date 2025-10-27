@@ -590,6 +590,10 @@ class AirflowConfigParser(ConfigParser):
                 value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
+                if "\n" in value:
+                    indent = " " * 4
+                    lines = value.splitlines()
+                    value = "\n".join([lines[0]] + [f"{indent}{line}" for line in lines[1:]])
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
