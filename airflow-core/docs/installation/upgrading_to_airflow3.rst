@@ -16,12 +16,12 @@
     under the License.
 
 Upgrading to Airflow 3
-=======================
+======================
 
 Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking-changes>`. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
 
 Understanding Airflow 3.x Architecture Changes
------------------------------------------------
+----------------------------------------------
 
 Airflow 3.x introduces significant architectural changes that improve security, scalability, and maintainability. Understanding these changes helps you prepare for the upgrade and adapt your workflows accordingly.
 
@@ -69,7 +69,7 @@ Step 1: Take care of prerequisites
 
 
 Step 2: Clean and back up your existing Airflow Instance
----------------------------------------------------------
+--------------------------------------------------------
 
 - It is highly recommended that you make a backup of your Airflow instance, specifically your Airflow metadata database before starting the migration process.
 
@@ -87,7 +87,7 @@ Step 2: Clean and back up your existing Airflow Instance
   (and all errors gone) before you proceed with upgrade.
 
 Step 3: Dag authors - Check your Airflow Dags for compatibility
-----------------------------------------------------------------
+---------------------------------------------------------------
 
 To minimize friction for users upgrading from prior versions of Airflow, we have created a Dag upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_ combined with `AIR <https://docs.astral.sh/ruff/rules/#airflow-air>`_ rules.
 The rules AIR301 and AIR302 indicate breaking changes in Airflow 3, while AIR311 and AIR312 highlight changes that are not currently breaking but are strongly recommended for updates.
@@ -188,7 +188,7 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
 - **Future Airflow version**: Legacy imports will be **removed**
 
 Step 4: Install the Standard Provider
---------------------------------------
+-------------------------------------
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
   have now been split out into a separate package: ``apache-airflow-providers-standard``.
@@ -347,7 +347,7 @@ If you absolutely need direct database access for complex queries not covered by
    For more comprehensive examples and advanced migration patterns, see the detailed :doc:`/howto/migrating-database-access` guide.
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
-------------------------------------------------------------
+-----------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration.
 
