@@ -36,7 +36,9 @@ if TYPE_CHECKING:
 class _LazyLogRecordDict(collections.abc.Mapping):
     __slots__ = ("event", "styles", "level_styles", "method_name", "no_colors")
 
-    def __init__(self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: ColumnStyles):
+    def __init__(
+        self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: ColumnStyles
+    ):
         self.event = event
         self.method_name = method_name
         self.level_styles = level_styles
