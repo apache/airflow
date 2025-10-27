@@ -262,6 +262,12 @@ class TestSimpleAuthManager:
             is result
         )
 
+    def test_is_authorized_team(self, auth_manager):
+        result = auth_manager.is_authorized_team(
+            method="GET", user=SimpleAuthManagerUser(username="test", role=None)
+        )
+        assert result is True
+
     def test_filter_authorized_menu_items(self, auth_manager):
         items = [MenuItem.ASSETS]
         results = auth_manager.filter_authorized_menu_items(
