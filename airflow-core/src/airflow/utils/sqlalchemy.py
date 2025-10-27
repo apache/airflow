@@ -23,7 +23,7 @@ import datetime
 import logging
 from collections.abc import Generator
 from importlib import metadata
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
@@ -41,8 +41,8 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql import Select
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
