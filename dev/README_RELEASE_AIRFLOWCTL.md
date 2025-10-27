@@ -29,9 +29,9 @@
   - [Generate release notes](#generate-release-notes)
   - [Build airflow-ctl distributions for SVN apache upload](#build-airflow-ctl-distributions-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
+  - [Add tags in git](#add-tags-in-git)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for airflow-ctl release candidate](#prepare-voting-email-for-airflow-ctl-release-candidate)
@@ -130,10 +130,24 @@ export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
+## Add tags in git
+
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the airflow-ctl in the repo.
+
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+```shell script
+git tag -s "airflow-ctl/${VERSION_RC}"
+git push apache --tags "airflow-ctl/${VERSION_RC}"
+```
+
 * Release candidate packages:
 
 ```shell script
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION_RC}
 ```
 
 * Sign all your packages
@@ -205,7 +219,6 @@ you should clean up dist folder before generating the packages, so you will only
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-airflow-ctl-distributions --version-suffix rc1 --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -222,19 +235,6 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Confirm that the packages are available under the links printed and look good.
 
-
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the airflow-ctl in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-```shell script
-git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache --tags "airflow-ctl/${VERSION_RC}"
-```
 
 ## Prepare documentation in Staging
 
@@ -258,7 +258,7 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> apache-airflow-ctl
+breeze workflow-run publish-docs --ref airflow-ctl/${VERSION_RC} apache-airflow-ctl
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -351,11 +351,11 @@ The release candidate for **Apache Airflow Ctl**: ${VERSION_RC}  is now availabl
 This email is calling for a vote on the release, which will last at least until the
 DATE_HERE and until 3 binding +1 votes have been received.
 
-Consider this my +1 non-binding vote.
+Consider this my +1 (binding) vote.
 
 The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
 
-The "airflowctl" package:
+The "apache-airflow-ctl" packages are:
 
    - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
      with INSTALL instructions.
