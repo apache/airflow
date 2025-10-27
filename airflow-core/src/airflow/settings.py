@@ -121,13 +121,13 @@ Mapping of sync scheme to async scheme.
 :meta private:
 """
 
-engine: Engine | None = None
-Session: scoped_session | None = None
+engine: Engine = None  # type: ignore[assignment]
+Session: scoped_session = None  # type: ignore[assignment]
 # NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
 # additional precautions. The only use case is when the session lifecycle needs
 # custom handling. Most of the time we only want one unique thread local session object,
 # this is achieved by the Session factory above.
-NonScopedSession: sessionmaker | None = None
+NonScopedSession: sessionmaker = None  # type: ignore[assignment]
 async_engine: AsyncEngine | None = None
 AsyncSession: Callable[..., SAAsyncSession] | None = None
 
