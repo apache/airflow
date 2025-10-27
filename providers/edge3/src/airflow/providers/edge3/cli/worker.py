@@ -21,13 +21,13 @@ import os
 import signal
 import sys
 from datetime import datetime
+from functools import cache
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
 from subprocess import Popen
 from time import sleep
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 from lockfile.pidlockfile import remove_existing_pidfile
 from requests import HTTPError
@@ -176,6 +176,18 @@ class EdgeWorker:
         return EdgeWorkerState.IDLE
 
     @staticmethod
+    @cache
+    def _execution_api_server_url() -> str:
+        """Get the execution api server url from config or environment."""
+        api_url = conf.get("edge", "api_url")
+        execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+        if not execution_api_server_url and api_url:
+            # Derive execution api url from edge api url as fallback
+            execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
+        logger.info("Using execution api server url: %s", execution_api_server_url)
+        return execution_api_server_url
+
+    @staticmethod
     def _run_job_via_supervisor(workload) -> int:
         from airflow.sdk.execution_time.supervisor import supervise
 
@@ -186,12 +198,6 @@ class EdgeWorker:
         setproctitle(f"airflow edge worker: {workload.ti.key}")
 
         try:
-            api_url = conf.get("edge", "api_url")
-            execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-            if not execution_api_server_url:
-                parsed = urlparse(api_url)
-                execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
-
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 # Same like in airflow/executors/local_executor.py:_execute_work()
@@ -199,7 +205,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=execution_api_server_url,
+                server=EdgeWorker._execution_api_server_url(),
                 log_path=workload.log_path,
             )
             return 0
