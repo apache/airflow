@@ -128,8 +128,8 @@ class Connection(Base, LoggingMixin):
     __tablename__ = "connection"
 
     id: Mapped[int] = mapped_column(Integer(), primary_key=True)
-    conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
-    conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
+    conn_id: Mapped[str | None] = mapped_column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str | None] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(
         Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
     )
@@ -158,10 +158,7 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        sanitized_conn_id = sanitize_conn_id(conn_id)
-        if sanitized_conn_id is None:
-            raise ValueError("conn_id cannot be None after sanitization")
-        self.conn_id = sanitized_conn_id
+        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -174,8 +171,6 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
-            if conn_type is None:
-                raise ValueError("conn_type cannot be None")
             self.conn_type = conn_type
             self.host = host
             self.login = login
