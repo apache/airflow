@@ -223,6 +223,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         if self.fail_when_dag_is_paused:
             dag_model = DagModel.get_current(self.trigger_dag_id)
+            if not dag_model:
+                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
             if dag_model.is_paused:
                 # TODO: enable this when dag state endpoint available from task sdk
                 # if AIRFLOW_V_3_0_PLUS:
