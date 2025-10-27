@@ -133,36 +133,35 @@ class WorkflowTrigger(BaseTrigger):
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        params = {
-            "dag_id": self.external_dag_id,
-            "logical_dates": self.logical_dates,
-            "run_ids": self.run_ids,
-        }
         if self.external_task_ids:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
-                task_ids=self.external_task_ids,
-                states=states,
-                **params,
+                dag_id=self.external_dag_id,
+                task_ids=list(self.external_task_ids),
+                logical_dates=self.logical_dates,
+                run_ids=self.run_ids,
+                states=list(states) if states else None,
             )
+            return int(count / len(self.external_task_ids))
         elif self.external_task_group_id:
             run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                dag_id=self.external_dag_id,
                 task_group_id=self.external_task_group_id,
-                **params,
+                logical_dates=self.logical_dates,
+                run_ids=self.run_ids,
             )
             count = await sync_to_async(_get_count_by_matched_states)(
                 run_id_task_state_map=run_id_task_state_map,
-                states=states,
+                states=list(states) if states else [],
             )
+            return count
         else:
             count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
                 dag_id=self.external_dag_id,
                 logical_dates=self.logical_dates,
                 run_ids=self.run_ids,
-                states=states,
+                states=list(states) if states else None,
             )
-        if self.external_task_ids:
-            return count / len(self.external_task_ids)
-        return count
+            return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import typing
 import warnings
 from collections.abc import Callable, Collection, Iterable
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -255,13 +256,12 @@ class ExternalTaskSensor(BaseSensorOperator):
         logical_date = self._get_logical_date(context)
 
         if self.execution_delta:
-            dttm = logical_date - self.execution_delta
+            return [logical_date - self.execution_delta]
         elif self.execution_date_fn:
-            dttm = self._handle_execution_date_fn(context=context)
+            result = self._handle_execution_date_fn(context=context)
+            return result if isinstance(result, list) else [result]
         else:
-            dttm = logical_date
-
-        return dttm if isinstance(dttm, list) else [dttm]
+            return [logical_date]
 
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
@@ -416,27 +416,48 @@ class ExternalTaskSensor(BaseSensorOperator):
             super().execute(context)
         else:
             dttm_filter = self._get_dttm_filter(context)
-            logical_or_execution_dates = (
-                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_dates": dttm_filter}
-            )
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=WorkflowTrigger(
-                    external_dag_id=self.external_dag_id,
-                    external_task_group_id=self.external_task_group_id,
-                    external_task_ids=self.external_task_ids,
-                    allowed_states=self.allowed_states,
-                    failed_states=self.failed_states,
-                    skipped_states=self.skipped_states,
-                    poke_interval=self.poll_interval,
-                    soft_fail=self.soft_fail,
-                    **logical_or_execution_dates,
-                ),
-                method_name="execute_complete",
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=WorkflowTrigger(
+                        external_dag_id=self.external_dag_id,
+                        external_task_group_id=self.external_task_group_id,
+                        external_task_ids=self.external_task_ids,
+                        allowed_states=self.allowed_states,
+                        failed_states=self.failed_states,
+                        skipped_states=self.skipped_states,
+                        poke_interval=self.poll_interval,
+                        soft_fail=self.soft_fail,
+                        logical_dates=dttm_filter,
+                        run_ids=None,
+                        execution_dates=None,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=WorkflowTrigger(
+                        external_dag_id=self.external_dag_id,
+                        external_task_group_id=self.external_task_group_id,
+                        external_task_ids=self.external_task_ids,
+                        allowed_states=self.allowed_states,
+                        failed_states=self.failed_states,
+                        skipped_states=self.skipped_states,
+                        poke_interval=self.poll_interval,
+                        soft_fail=self.soft_fail,
+                        execution_dates=dttm_filter,
+                        logical_dates=None,
+                        run_ids=None,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, typing.Any] | None = None) -> None:
         """Execute when the trigger fires - return immediately."""
+        if event is None:
+            raise ExternalTaskNotFoundError("No event received from trigger")
+        
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
         elif event["status"] == "skipped":
@@ -513,6 +534,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         warnings.warn(
             "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
         )
+        if self.external_task_group_id is None:
+            return []
         return _get_external_task_group_task_ids(
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
         )
@@ -527,16 +550,20 @@ class ExternalTaskSensor(BaseSensorOperator):
         if AIRFLOW_V_3_0_PLUS:
             logical_date = context.get("logical_date")
             dag_run = context.get("dag_run")
-            if not (logical_date or (dag_run and dag_run.run_after)):
-                raise ValueError(
-                    "Either `logical_date` or `dag_run.run_after` must be provided in the context"
-                )
-            return logical_date or dag_run.run_after
+            if logical_date:
+                return logical_date
+            if dag_run and hasattr(dag_run, 'run_after') and dag_run.run_after:
+                return dag_run.run_after
+            raise ValueError(
+                "Either `logical_date` or `dag_run.run_after` must be provided in the context"
+            )
 
         # Airflow 2.x and earlier: contexts used "execution_date"
         execution_date = context.get("execution_date")
         if not execution_date:
             raise ValueError("Either `execution_date` must be provided in the context`")
+        if not isinstance(execution_date, datetime.datetime):
+            raise ValueError("execution_date must be a datetime object")
         return execution_date
 
     def _handle_execution_date_fn(self, context: Context) -> datetime.datetime | list[datetime.datetime]:
