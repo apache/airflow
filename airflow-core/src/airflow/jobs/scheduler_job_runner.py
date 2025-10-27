@@ -98,7 +98,8 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
-    from sqlalchemy.orm import Load, Query, Session
+    from sqlalchemy.orm import Session
+    from sqlalchemy.orm.interfaces import LoaderOption
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -115,7 +116,7 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
 
-def _eager_load_dag_run_for_validation() -> tuple[Load, Load]:
+def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
     Eager-load DagRun relations required for execution API datamodel validation.
 
@@ -431,8 +432,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine: list[TI] = session.scalars(query).all()
+                locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                task_instances_to_examine: list[TI] = list(session.scalars(locked_query).all())
 
                 timer.stop(send=True)
             except OperationalError as e:
@@ -663,6 +664,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
+            if filter_for_tis is None:
+                return []
             session.execute(
                 update(TI)
                 .where(filter_for_tis)
@@ -783,7 +786,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, job_id: str | None, scheduler_dag_bag: DBDagBag, session: Session
+        cls, executor: BaseExecutor, job_id: int | None, scheduler_dag_bag: DBDagBag, session: Session
     ) -> int:
         """
         Process task completion events from the executor and update task instance states.
@@ -838,6 +841,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
+        if filter_for_tis is None:
+            return len(event_buffer)
         asset_loader, _ = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
@@ -849,8 +854,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
-        tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-        tis: Iterator[TI] = session.scalars(tis_query)
+        locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        tis: Iterator[TI] = session.scalars(locked_query)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -961,7 +966,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # too, which would lead to double logging
                     cls.logger().error(msg)
                     request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc,
+                        filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=ti.dag_version.bundle_name,
                         bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
@@ -998,7 +1003,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti,
                     )
                     email_request = EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc,
+                        filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=ti.dag_version.bundle_name,
                         bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
@@ -1181,12 +1186,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # If another scheduler has finished processing a dag_run or a task and there is a reference
         # on the active_spans dictionary, then the current scheduler started the span,
         # and therefore must end it.
-        dag_runs_should_end: list[DagRun] = session.scalars(
-            select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END)
-        ).all()
-        tis_should_end: list[TaskInstance] = session.scalars(
-            select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END)
-        ).all()
+        dag_runs_should_end: list[DagRun] = list(
+            session.scalars(select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END)).all()
+        )
+        tis_should_end: list[TaskInstance] = list(
+            session.scalars(
+                select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END)
+            ).all()
+        )
 
         for dag_run in dag_runs_should_end:
             active_dagrun_span = self.active_spans.get("dr:" + str(dag_run.id))
@@ -1634,7 +1641,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag.create_dagrun(
                         run_id=dag.timetable.generate_run_id(
                             run_type=DagRunType.SCHEDULED,
-                            run_after=dag_model.next_dagrun,
+                            run_after=timezone.coerce_datetime(dag_model.next_dagrun),
                             data_interval=data_interval,
                         ),
                         logical_date=dag_model.next_dagrun,
@@ -1966,7 +1973,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
                 callback_to_execute = DagCallbackRequest(
-                    filepath=dag_model.relative_fileloc,
+                    filepath=dag_model.relative_fileloc or "",
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
                     bundle_name=dag_model.bundle_name,
@@ -1980,9 +1987,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 dag_run.notify_dagrun_state_changed()
-                duration = dag_run.end_date - dag_run.start_date
-                Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+                if dag_run.end_date and dag_run.start_date:
+                    duration = dag_run.end_date - dag_run.start_date
+                    Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
+                    Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
                 span.set_attribute("error", True)
                 if span.is_recording():
                     span.add_event(
@@ -2180,9 +2188,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor.fail(ti.key)
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
+        filter_for_tis = TI.filter_for_tis([ti])
+        if filter_for_tis is None:
+            return
         session.execute(
             update(TI)
-            .where(TI.filter_for_tis([ti]))
+            .where(filter_for_tis)
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
@@ -2318,7 +2329,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         .values(state=JobState.FAILED)
                     )
-                    num_failed = getattr(result, "rowcount", 0)
+                    num_failed: int = getattr(result, "rowcount", 0)
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
@@ -2336,8 +2347,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_adopt_or_reset = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                    tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
+                    tis_to_adopt_or_reset_query = with_row_locks(
+                        query, of=TI, session=session, skip_locked=True
+                    )
+                    tis_to_adopt_or_reset: list[TaskInstance] = list(
+                        session.scalars(tis_to_adopt_or_reset_query).all()
+                    )
 
                     to_reset: list[TaskInstance] = []
                     exec_to_tis = self._executor_to_tis(tis_to_adopt_or_reset)
@@ -2448,7 +2463,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 len(task_instances_without_heartbeats),
                 limit_dttm,
             )
-        return task_instances_without_heartbeats
+        return list(task_instances_without_heartbeats)
 
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
@@ -2465,7 +2480,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
             request = TaskCallbackRequest(
-                filepath=ti.dag_model.relative_fileloc,
+                filepath=ti.dag_model.relative_fileloc or "",
                 bundle_name=ti.dag_version.bundle_name,
                 bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
