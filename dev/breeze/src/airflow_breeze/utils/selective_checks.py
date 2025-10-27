@@ -1335,6 +1335,8 @@ class SelectiveChecks:
         for job in jobs:
             if job_name in job.get("name", ""):
                 runner_labels = job.get("labels", [])
+                if "windows-2025" in runner_labels:
+                    continue
                 return runner_labels[0]
 
         return None
