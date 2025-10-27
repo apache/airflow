@@ -2532,11 +2532,8 @@ export interface components {
       | "dummy"
       | "all_skipped"
       | "always";
-    /**
-     * @description Weight rule.
-     * @enum {string}
-     */
-    WeightRule: "downstream" | "upstream" | "absolute";
+    /** @description Weight rule. One of 'downstream', 'upstream', 'absolute', or the path of the custom priority weight strategy class. */
+    WeightRule: string;
     /**
      * @description Health status
      * @enum {string|null}
