@@ -2337,7 +2337,8 @@ def _create_orm_dagrun(
         bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
-    run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))
+    run.log_template_id = int(max_log_template_id) if max_log_template_id is not None else 0
     run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
@@ -3449,57 +3450,76 @@ class SerializedDAG(BaseSerialization):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = select(
+            tis_pk = select(
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.run_id,
                 TaskInstance.map_index,
             )
+            tis_pk = tis_pk.join(TaskInstance.dag_run)
         else:
-            tis = select(TaskInstance)
-        tis = tis.join(TaskInstance.dag_run)
+            tis_full = select(TaskInstance)
+            tis_full = tis_full.join(TaskInstance.dag_run)
 
-        if self.partial:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
-        else:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id)
-        if run_id:
-            tis = tis.where(TaskInstance.run_id == run_id)
-        if start_date:
-            tis = tis.where(DagRun.logical_date >= start_date)
-        if task_ids is not None:
-            tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
-        if end_date:
-            tis = tis.where(DagRun.logical_date <= end_date)
-
-        if state:
-            if isinstance(state, (str, TaskInstanceState)):
-                tis = tis.where(TaskInstance.state == state)
-            elif len(state) == 1:
-                tis = tis.where(TaskInstance.state == state[0])
+        # Apply common filters
+        def apply_filters(query):
+            if self.partial:
+                query = query.where(
+                    TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids)
+                )
             else:
-                # this is required to deal with NULL values
-                if None in state:
-                    if all(x is None for x in state):
-                        tis = tis.where(TaskInstance.state.is_(None))
-                    else:
-                        not_none_state = [s for s in state if s]
-                        tis = tis.where(
-                            or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
-                        )
-                else:
-                    tis = tis.where(TaskInstance.state.in_(state))
+                query = query.where(TaskInstance.dag_id == self.dag_id)
+            if run_id:
+                query = query.where(TaskInstance.run_id == run_id)
+            if start_date:
+                query = query.where(DagRun.logical_date >= start_date)
+            if task_ids is not None:
+                # Use the selector condition directly without intermediate variable
+                query = query.where(TaskInstance.ti_selector_condition(task_ids))
+            if end_date:
+                query = query.where(DagRun.logical_date <= end_date)
+            return query
 
-        if exclude_run_ids:
-            tis = tis.where(TaskInstance.run_id.not_in(exclude_run_ids))
+        if as_pk_tuple:
+            tis_pk = apply_filters(tis_pk)
+        else:
+            tis_full = apply_filters(tis_full)
+
+        def apply_state_filter(query):
+            if state:
+                if isinstance(state, (str, TaskInstanceState)):
+                    query = query.where(TaskInstance.state == state)
+                elif len(state) == 1:
+                    query = query.where(TaskInstance.state == state[0])
+                else:
+                    # this is required to deal with NULL values
+                    if None in state:
+                        if all(x is None for x in state):
+                            query = query.where(TaskInstance.state.is_(None))
+                        else:
+                            not_none_state = [s for s in state if s]
+                            query = query.where(
+                                or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
+                            )
+                    else:
+                        query = query.where(TaskInstance.state.in_(state))
+
+            if exclude_run_ids:
+                query = query.where(TaskInstance.run_id.not_in(exclude_run_ids))
+            return query
+
+        if as_pk_tuple:
+            tis_pk = apply_state_filter(tis_pk)
+        else:
+            tis_full = apply_state_filter(tis_full)
 
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results
             if as_pk_tuple:
-                tis_query = session.execute(tis).all()
+                tis_query = session.execute(tis_pk).all()
                 result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
             else:
-                result.update(ti.key for ti in session.scalars(tis))
+                result.update(ti.key for ti in session.scalars(tis_full))
 
             if exclude_task_ids is not None:
                 result = {
@@ -3515,15 +3535,18 @@ class SerializedDAG(BaseSerialization):
             # We've been asked for objects, lets combine it all back in to a result set
             ti_filters = TaskInstance.filter_for_tis(result)
             if ti_filters is not None:
-                tis = select(TaskInstance).where(ti_filters)
+                tis_final = select(TaskInstance).where(ti_filters)
+                return session.scalars(tis_final)
         elif exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
-            tis = tis.where(TaskInstance.task_id.notin_(exclude_task_ids))
+            tis_full = tis_full.where(TaskInstance.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.where(tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids))
+            tis_full = tis_full.where(
+                tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids)
+            )
 
-        return tis
+        return session.scalars(tis_full)
 
     @overload
     def clear(
@@ -3635,7 +3658,7 @@ class SerializedDAG(BaseSerialization):
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
 
-        tis = self._get_task_instances(
+        tis_result = self._get_task_instances(
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
@@ -3647,11 +3670,11 @@ class SerializedDAG(BaseSerialization):
         )
 
         if dry_run:
-            return session.scalars(tis).all()
+            return list(tis_result)
 
-        tis = session.scalars(tis).all()
+        tis = list(tis_result)
 
-        count = len(list(tis))
+        count = len(tis)
         if count == 0:
             return 0
 
