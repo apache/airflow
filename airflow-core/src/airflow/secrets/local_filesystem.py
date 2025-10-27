@@ -43,12 +43,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.sdk.definitions.connection import Connection
 
 
 def get_connection_parameter_names() -> set[str]:
-    """Return :class:`airflow.models.connection.Connection` constructor parameters."""
-    from airflow.models.connection import Connection
+    """Return :class:`airflow.sdk.definitions.connection.Connection` constructor parameters."""
+    from airflow.sdk.definitions.connection import Connection
 
     return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
 
@@ -195,7 +195,7 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
 
 def _create_connection(conn_id: str, value: Any):
     """Create a connection based on a URL or JSON object."""
-    from airflow.models.connection import Connection
+    from airflow.sdk.definitions.connection import Connection
 
     if isinstance(value, str):
         return Connection(conn_id=conn_id, uri=value)
