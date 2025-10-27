@@ -1930,6 +1930,7 @@ def supervise(
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
         client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
         close_client = True
+        log.info("Connecting to execution API server", server=server)
 
     start = time.monotonic()
 
