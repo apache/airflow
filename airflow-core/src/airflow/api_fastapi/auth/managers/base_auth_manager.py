@@ -280,7 +280,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         Return whether the user is authorized to perform a given action on a team.
 
         It is used primarily to check whether a user belongs to a team.
-        This function need to be overridden by an auth manager compatible with multi-team.
+        This function needs to be overridden by an auth manager compatible with multi-team.
 
         :param method: the method to perform
         :param user: the user to performing the action
