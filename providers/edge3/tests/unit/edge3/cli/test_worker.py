@@ -193,6 +193,7 @@ class TestEdgeWorker:
             url = EdgeWorker._execution_api_server_url()
             assert url == expected_url
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @patch("airflow.providers.edge3.cli.worker.Process")
     @patch("airflow.providers.edge3.cli.worker.Popen")
