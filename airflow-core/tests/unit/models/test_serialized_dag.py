@@ -138,14 +138,14 @@ class TestSerializedDagModel:
     def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
-        example_bash_op_dag = example_dags.get("example_bash_operator")
+        example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
         dag_updated = SDM.write_dag(
-            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
             bundle_name="testing",
         )
         assert dag_updated is True
 
-        s_dag = SDM.get(example_bash_op_dag.dag_id)
+        s_dag = SDM.get(example_params_trigger_ui.dag_id)
         s_dag.dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
@@ -157,28 +157,28 @@ class TestSerializedDagModel:
         # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
         # column is not updated
         dag_updated = SDM.write_dag(
-            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
             bundle_name="testing",
         )
-        s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
+        s_dag_1 = SDM.get(example_params_trigger_ui.dag_id)
 
         assert s_dag_1.dag_hash == s_dag.dag_hash
         assert s_dag.created_at == s_dag_1.created_at
         assert dag_updated is False
 
         # Update DAG
-        example_bash_op_dag.tags.add("new_tag")
-        assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
+        example_params_trigger_ui.tags.add("new_tag")
+        assert example_params_trigger_ui.tags == {"example", "new_tag", "params"}
 
         dag_updated = SDM.write_dag(
-            dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
+            dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
             bundle_name="testing",
         )
-        s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
+        s_dag_2 = SDM.get(example_params_trigger_ui.dag_id)
 
         assert s_dag.created_at != s_dag_2.created_at
         assert s_dag.dag_hash != s_dag_2.dag_hash
-        assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
+        assert s_dag_2.data["dag"]["tags"] == ["example", "new_tag", "params"]
         assert dag_updated is True
 
     def test_read_dags(self):
@@ -197,7 +197,7 @@ class TestSerializedDagModel:
         serialized_dags = SDM.read_all_dags()
         assert len(example_dags) == len(serialized_dags)
 
-        dag = example_dags.get("example_bash_operator")
+        dag = example_dags.get("example_params_trigger_ui")
         SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag)).create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),

@@ -349,7 +349,8 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-        dag2 = DagBag().dags["example_python_operator"]
+        from airflow.providers.standard.example_dags.example_python_operator import dag as dag2
+
         lazy_deserialized_dag2 = LazyDeserializedDAG.from_dag(dag2)
 
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")

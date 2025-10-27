@@ -618,12 +618,12 @@ class DagBag(LoggingMixin):
 
         files_to_parse = list_py_file_paths(dag_folder, safe_mode=safe_mode)
 
-        if include_examples:
-            from airflow import example_dags
+        # if include_examples:
+        #     from airflow import example_dags
 
-            example_dag_folder = next(iter(example_dags.__path__))
+        #     example_dag_folder = next(iter(example_dags.__path__))
 
-            files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
+        #     files_to_parse.extend(list_py_file_paths(example_dag_folder, safe_mode=safe_mode))
 
         for filepath in files_to_parse:
             try:
