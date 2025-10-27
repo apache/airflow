@@ -231,7 +231,6 @@ class TaskMap(TaskInstanceDependencies):
             )
             indexes_to_map = range((current_max_mapping or -1) + 1, total_length)
 
-        dag_version_id: str | None
         if unmapped_ti:
             dag_version_id = unmapped_ti.dag_version_id
         elif dag_version := DagVersion.get_latest_version(task.dag_id, session=session):
