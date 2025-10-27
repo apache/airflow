@@ -26,10 +26,11 @@ from io import StringIO
 from typing import TYPE_CHECKING, ClassVar
 
 import structlog.dev
-from structlog.dev import ColumnStyles, ConsoleRenderer
+from structlog.dev import ConsoleRenderer
 from structlog.processors import CallsiteParameter
 
 if TYPE_CHECKING:
+    from structlog.dev import ColumnStyles
     from structlog.typing import EventDict, WrappedLogger
 
 
