@@ -218,6 +218,7 @@ In Airflow 2, tasks could directly access the Airflow metadata database using da
     from airflow.utils.session import provide_session, create_session
     from airflow.models import TaskInstance, DagRun
 
+
     # Direct database session access
     @provide_session
     def my_task_function(session=None):
@@ -225,12 +226,14 @@ In Airflow 2, tasks could directly access the Airflow metadata database using da
         task_instances = session.query(TaskInstance).filter(...).all()
         return task_instances
 
+
     # Context manager approach
     def another_task_function():
         with create_session() as session:
             # This will fail in Airflow 3
             dag_runs = session.query(DagRun).filter(...).all()
             return dag_runs
+
 
     # Direct settings.Session usage
     def direct_session_task():
@@ -253,23 +256,18 @@ For most common database operations, use the Task SDK's API client instead:
     from airflow.sdk.api.client import Client
     from datetime import datetime
 
+
     class MyCustomOperator(BaseOperator):
         def execute(self, context):
             # Get API client from context
             client = context["task_instance"].task_sdk_client
-            
+
             # Get task instance count
-            count_result = client.task_instances.get_count(
-                dag_id="my_dag",
-                states=["success", "failed"]
-            )
-            
+            count_result = client.task_instances.get_count(dag_id="my_dag", states=["success", "failed"])
+
             # Get DAG run count
-            dag_run_count = client.dag_runs.get_count(
-                dag_id="my_dag",
-                states=["success"]
-            )
-            
+            dag_run_count = client.dag_runs.get_count(dag_id="my_dag", states=["success"])
+
             return {"ti_count": count_result.count, "dr_count": dag_run_count.count}
 
 **Alternative: Create Explicit Database Session (Advanced Users Only)**
@@ -284,29 +282,28 @@ If you absolutely need direct database access for complex queries not covered by
     from sqlalchemy.orm import sessionmaker
     import logging
 
+
     class DatabaseAccessOperator(BaseOperator):
         """
         WARNING: This approach bypasses Airflow 3's security model.
         Use only when the Task SDK API doesn't provide the needed functionality.
         """
-        
+
         def execute(self, context):
             # Create explicit database connection
             sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
             engine = create_engine(sql_alchemy_conn)
             Session = sessionmaker(bind=engine)
-            
+
             session = Session()
             try:
                 # Your database operations here
                 # Be extremely careful with write operations
-                result = session.execute(
-                    "SELECT COUNT(*) FROM task_instance WHERE state = 'success'"
-                ).scalar()
-                
+                result = session.execute("SELECT COUNT(*) FROM task_instance WHERE state = 'success'").scalar()
+
                 # Only commit if you're certain about the changes
                 # session.commit()  # Use with extreme caution
-                
+
                 return result
             except Exception as e:
                 session.rollback()
