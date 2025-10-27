@@ -237,10 +237,10 @@ REGULAR_DOC_PACKAGES = [
 
 # packages that are distributions of Airflow
 class DistributionType(Enum):
-    AIRFLOW_CORE = "airflow"
-    PROVIDERS = "providers"
-    TASK_SDK = "task-sdk"
-    AIRFLOW_CTL = "airflowctl"
+    AIRFLOW_CORE = "apache_airflow"
+    PROVIDERS = "apache_airflow_providers"
+    TASK_SDK = "apache_airflow_task_sdk"
+    AIRFLOW_CTL = "apache_airflow_ctl"
     HELM_CHART = "helm-chart"
 
 

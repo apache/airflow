@@ -661,7 +661,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
 breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-task-sdk-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
 ```
 
 The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
@@ -671,7 +671,7 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 ```bash
 breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
 ```
 
 This is generally faster and requires less resources/network bandwidth. Note that you have to
