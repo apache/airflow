@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
@@ -235,7 +235,7 @@ class XComModel(TaskInstanceDependencies):
             )
         )
 
-        new = cast("Any", cls)(  # Work around Mypy complaining model not defining '__init__'.
+        new = cls(
             dag_run_id=dag_run_id,
             key=key,
             value=value,
@@ -258,7 +258,7 @@ class XComModel(TaskInstanceDependencies):
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
-    ) -> Select:
+    ) -> Select[tuple[XComModel]]:
         """
         Composes a query to get one or more XCom entries.
 
@@ -348,7 +348,7 @@ class XComModel(TaskInstanceDependencies):
             raise ValueError("XCom value must be JSON serializable")
 
     @staticmethod
-    def deserialize_value(result) -> Any:
+    def deserialize_value(result: Any) -> Any:
         """
         Deserialize XCom value from a database result.
 
@@ -397,7 +397,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
+    def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
         return select(XComModel.value).from_statement(stmt)
 
     @staticmethod
