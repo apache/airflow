@@ -251,7 +251,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def _get_dttm_filter(self, context):
+    def _get_dttm_filter(self, context: Context) -> list[datetime.datetime]:
         logical_date = self._get_logical_date(context)
 
         if self.execution_delta:
@@ -435,7 +435,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, typing.Any] | None = None) -> None:
         """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
@@ -453,7 +453,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "name of executed task and Dag."
             )
 
-    def _check_for_existence(self, session) -> None:
+    def _check_for_existence(self, session: Session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
         if not dag_to_wait:
@@ -509,7 +509,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             session,
         )
 
-    def get_external_task_group_task_ids(self, session, dttm_filter):
+    def get_external_task_group_task_ids(self, session: Session, dttm_filter: list[datetime.datetime]) -> list[tuple[str, int]]:
         warnings.warn(
             "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
         )
@@ -517,7 +517,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
         )
 
-    def _get_logical_date(self, context) -> datetime.datetime:
+    def _get_logical_date(self, context: Context) -> datetime.datetime:
         """
         Handle backwards- and forwards-compatible retrieval of the date.
 
@@ -539,7 +539,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             raise ValueError("Either `execution_date` must be provided in the context`")
         return execution_date
 
-    def _handle_execution_date_fn(self, context) -> Any:
+    def _handle_execution_date_fn(self, context: Context) -> datetime.datetime | list[datetime.datetime]:
         """
         Handle backward compatibility.
 

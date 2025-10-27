@@ -129,7 +129,7 @@ class WorkflowTrigger(BaseTrigger):
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
 
-    async def _get_count_af_3(self, states):
+    async def _get_count_af_3(self, states: typing.Iterable[str] | None) -> int:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
@@ -228,8 +228,8 @@ class DagStateTrigger(BaseTrigger):
             runs_ids_or_dates = len(self.execution_dates)
 
         if AIRFLOW_V_3_0_PLUS:
-            event = await self.validate_count_dags_af_3(runs_ids_or_dates_len=runs_ids_or_dates)
-            yield TriggerEvent(event)
+            data = await self.validate_count_dags_af_3(runs_ids_or_dates_len=runs_ids_or_dates)
+            yield TriggerEvent(data)
             return
         else:
             while True:
@@ -239,7 +239,7 @@ class DagStateTrigger(BaseTrigger):
                     return
                 await asyncio.sleep(self.poll_interval)
 
-    async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
+    async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> dict[str, typing.Any]:
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         cls_path, data = self.serialize()
@@ -259,7 +259,7 @@ class DagStateTrigger(BaseTrigger):
                             run_id=run_id,
                         )
                         data[run_id] = state
-                        return cls_path, data
+                        return data
             await asyncio.sleep(self.poll_interval)
 
     if not AIRFLOW_V_3_0_PLUS:
