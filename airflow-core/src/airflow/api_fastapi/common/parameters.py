@@ -64,6 +64,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
 T = TypeVar("T")
@@ -321,13 +322,13 @@ class FilterParam(BaseParam[T]):
 
     def __init__(
         self,
-        attribute: ColumnElement,
+        attribute: InstrumentedAttribute,
         value: T | None = None,
         filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
         skip_none: bool = True,
     ) -> None:
         super().__init__(value, skip_none)
-        self.attribute: ColumnElement = attribute
+        self.attribute: InstrumentedAttribute = attribute
         self.value: T | None = value
         self.filter_option: FilterOptionEnum = filter_option
 
@@ -540,9 +541,9 @@ class Range(BaseModel, Generic[T]):
 class RangeFilter(BaseParam[Range]):
     """Filter on range in between the lower and upper bound."""
 
-    def __init__(self, value: Range | None, attribute: ColumnElement) -> None:
+    def __init__(self, value: Range | None, attribute: InstrumentedAttribute) -> None:
         super().__init__(value)
-        self.attribute: ColumnElement = attribute
+        self.attribute: InstrumentedAttribute = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:

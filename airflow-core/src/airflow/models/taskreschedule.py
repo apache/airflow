@@ -75,7 +75,7 @@ class TaskReschedule(Base):
         self.start_date = start_date
         self.end_date = end_date
         self.reschedule_date = reschedule_date
-        self.duration = (self.end_date - self.start_date).total_seconds()
+        self.duration = int((self.end_date - self.start_date).total_seconds())
 
     @classmethod
     def stmt_for_task_instance(
