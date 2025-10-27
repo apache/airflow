@@ -92,6 +92,8 @@ python dependencies for the provided package. The same extras are available as `
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| memray              | ``pip install 'apache-airflow[memray]'``            | Required for memory profiling with memray                                  |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
