@@ -142,7 +142,7 @@ class WorkflowTrigger(BaseTrigger):
                 states=list(states) if states else None,
             )
             return int(count / len(self.external_task_ids))
-        elif self.external_task_group_id:
+        if self.external_task_group_id:
             run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
                 dag_id=self.external_dag_id,
                 task_group_id=self.external_task_group_id,
@@ -154,14 +154,13 @@ class WorkflowTrigger(BaseTrigger):
                 states=list(states) if states else [],
             )
             return count
-        else:
-            count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
-                dag_id=self.external_dag_id,
-                logical_dates=self.logical_dates,
-                run_ids=self.run_ids,
-                states=list(states) if states else None,
-            )
-            return count
+        count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            dag_id=self.external_dag_id,
+            logical_dates=self.logical_dates,
+            run_ids=self.run_ids,
+            states=list(states) if states else None,
+        )
+        return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:

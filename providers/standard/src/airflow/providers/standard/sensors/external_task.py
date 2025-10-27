@@ -21,7 +21,7 @@ import os
 import typing
 import warnings
 from collections.abc import Callable, Collection, Iterable
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
@@ -257,11 +257,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.execution_delta:
             return [logical_date - self.execution_delta]
-        elif self.execution_date_fn:
+        if self.execution_date_fn:
             result = self._handle_execution_date_fn(context=context)
             return result if isinstance(result, list) else [result]
-        else:
-            return [logical_date]
+        return [logical_date]
 
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
@@ -457,7 +456,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Execute when the trigger fires - return immediately."""
         if event is None:
             raise ExternalTaskNotFoundError("No event received from trigger")
-        
+
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
         elif event["status"] == "skipped":
@@ -530,7 +529,9 @@ class ExternalTaskSensor(BaseSensorOperator):
             session,
         )
 
-    def get_external_task_group_task_ids(self, session: Session, dttm_filter: list[datetime.datetime]) -> list[tuple[str, int]]:
+    def get_external_task_group_task_ids(
+        self, session: Session, dttm_filter: list[datetime.datetime]
+    ) -> list[tuple[str, int]]:
         warnings.warn(
             "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
         )
@@ -552,11 +553,9 @@ class ExternalTaskSensor(BaseSensorOperator):
             dag_run = context.get("dag_run")
             if logical_date:
                 return logical_date
-            if dag_run and hasattr(dag_run, 'run_after') and dag_run.run_after:
+            if dag_run and hasattr(dag_run, "run_after") and dag_run.run_after:
                 return dag_run.run_after
-            raise ValueError(
-                "Either `logical_date` or `dag_run.run_after` must be provided in the context"
-            )
+            raise ValueError("Either `logical_date` or `dag_run.run_after` must be provided in the context")
 
         # Airflow 2.x and earlier: contexts used "execution_date"
         execution_date = context.get("execution_date")
