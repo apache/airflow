@@ -21,20 +21,35 @@ import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
+import { type PoolServiceGetPoolsDefaultResponse, useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { usePoolServiceGetPools } from "openapi/queries/queries";
+import type { ApiError } from "openapi/requests";
 import { PoolBar } from "src/components/PoolBar";
 import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
   const { t: translate } = useTranslation("dashboard");
-  const refetchInterval = useAutoRefresh({});
-  const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
-    refetchInterval,
-  });
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
+
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const hasPoolsAccess = authLinks?.authorized_menu_items.includes("Pools");
+
+  const { data, error, isLoading } = usePoolServiceGetPools<PoolServiceGetPoolsDefaultResponse, ApiError>(
+    undefined,
+    undefined,
+    {
+      refetchInterval: (query) => {
+        const apiError = query.state.error;
+
+        return apiError?.status === 403 ? false : refetchInterval;
+      },
+    },
+  );
+
+  if (error?.status === 403) {
+    return undefined;
+  }
 
   const pools = data?.pools;
   const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;

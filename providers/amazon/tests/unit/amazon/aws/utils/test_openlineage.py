@@ -164,5 +164,7 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
     field_names = ["field1", "field2"]
     input_datasets = []
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="When providing `field_names` You must provide at least one `input_dataset`."
+    ):
         get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)

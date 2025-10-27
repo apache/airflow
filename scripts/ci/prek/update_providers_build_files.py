@@ -40,7 +40,7 @@ console.print(f"[bright_blue]Determining providers to regenerate from: {file_lis
 
 
 def _find_all_providers(examined_file: Path) -> None:
-    console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
+    console.print(f"[bright_blue]Looking at {examined_file} for structure provider.yaml")
     # find the folder where provider.yaml is
     for parent in Path(examined_file).parents:
         console.print(f"[bright_blue]Checking {parent} for provider.yaml")
@@ -58,7 +58,7 @@ def _find_all_providers(examined_file: Path) -> None:
             console.print(f"[bright_blue]Found base folder {base_folder}")
             break
     else:
-        console.print(f"[red]\nCould not find new structure base folder for {provider_folder}")
+        console.print(f"[red]\nCould not find structure base folder for {provider_folder}")
         sys.exit(1)
     provider_name = ".".join(provider_folder.relative_to(base_folder).as_posix().split("/"))
     providers.add(provider_name)
@@ -66,7 +66,7 @@ def _find_all_providers(examined_file: Path) -> None:
 
 # get all folders from arguments
 for examined_file in file_list:
-    _find_all_providers(Path(examined_file))
+    _find_all_providers(Path(examined_file).absolute())
 
 console.print(f"[bright_blue]Regenerating build files for providers: {providers}[/]")
 

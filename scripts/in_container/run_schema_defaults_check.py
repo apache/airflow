@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +81,8 @@ def get_server_side_operator_defaults() -> dict[str, Any]:
                     if isinstance(default_value, (set, tuple)):
                         # Convert to list since schema.json is pure JSON
                         default_value = list(default_value)
+                    elif isinstance(default_value, timedelta):
+                        default_value = default_value.total_seconds()
                     server_defaults[field_name] = default_value
 
         return server_defaults

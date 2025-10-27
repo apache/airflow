@@ -17,16 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime
 
 from sqlalchemy import Integer, Text
+from sqlalchemy.orm import Mapped
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Mapped
 
 
 class LogTemplate(Base):
@@ -42,7 +40,7 @@ class LogTemplate(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     filename: Mapped[str] = mapped_column(Text, nullable=False)
     elasticsearch_id: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))

@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import XCom
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
@@ -29,6 +30,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
+
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"
@@ -128,3 +130,73 @@ class TestOperatorWithBaseGoogleLink:
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
+
+    @pytest.mark.db_test
+    @mock.patch.object(XCom, "get_value")
+    def test_get_link_uses_xcom_url_and_skips_get_config(
+        self,
+        mock_get_value,
+        create_task_instance_of_operator,
+        session,
+    ):
+        xcom_url = "https://console.cloud.google.com/some/service?project=test-proj"
+        mock_get_value.return_value = xcom_url
+
+        link = GoogleLink()
+        ti = create_task_instance_of_operator(
+            MyOperator,
+            dag_id="test_link_dag",
+            task_id="test_link_task",
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            project_id=TEST_PROJECT_ID,
+        )
+        session.add(ti)
+        session.commit()
+
+        with mock.patch.object(GoogleLink, "get_config", autospec=True) as m_get_config:
+            actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+
+        assert actual_url == xcom_url
+        m_get_config.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch.object(XCom, "get_value")
+    def test_get_link_falls_back_to_get_config_when_xcom_not_http(
+        self,
+        mock_get_value,
+        create_task_instance_of_operator,
+        session,
+    ):
+        mock_get_value.return_value = "gs://bucket/path"
+
+        link = GoogleLink()
+        ti = create_task_instance_of_operator(
+            MyOperator,
+            dag_id="test_link_dag",
+            task_id="test_link_task",
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            project_id=TEST_PROJECT_ID,
+        )
+        session.add(ti)
+        session.commit()
+
+        expected_formatted = "https://console.cloud.google.com/expected/link?project=test-proj"
+        with (
+            mock.patch.object(
+                GoogleLink,
+                "get_config",
+                return_value={
+                    "project_id": ti.task.project_id,
+                    "location": ti.task.location,
+                    "cluster_id": ti.task.cluster_id,
+                },
+            ) as m_get_config,
+            mock.patch.object(GoogleLink, "_format_link", return_value=expected_formatted) as m_fmt,
+        ):
+            actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+
+        assert actual_url == expected_formatted
+        m_get_config.assert_called_once()
+        m_fmt.assert_called_once()

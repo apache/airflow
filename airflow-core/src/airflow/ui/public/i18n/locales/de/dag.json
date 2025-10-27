@@ -10,6 +10,7 @@
     "hourly": "Stündlich",
     "legend": {
       "less": "Weniger",
+      "mixed": "Mittel",
       "more": "Mehr"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Vorheriges Jahr"
     },
     "noData": "Keine Daten verfügbar",
+    "noFailedRuns": "Keine fehlgeschlagenen Läufe",
     "noRuns": "Keine Läufe",
     "totalRuns": "Gesamtzahl der Läufe",
     "week": "Kalenderwoche {{weekNumber}}",

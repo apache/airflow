@@ -24,6 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -51,8 +52,6 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -99,6 +98,17 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class UnknownActiveBackfills(AirflowException):
+    """
+    Raised when the quantity of active backfills cannot be determined.
+
+    :meta private:
+    """
+
+    def __init__(self, dag_id: str):
+        super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -118,10 +128,10 @@ class Backfill(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    from_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
-    to_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    from_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    to_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     dag_run_conf: Mapped[JSONField] = mapped_column(JSONField(json=json), nullable=False, default={})
-    is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
     Controls whether new dag runs will be created for this backfill.
 
@@ -131,9 +141,9 @@ class Backfill(Base):
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
     triggering_user_name: Mapped[str | None] = mapped_column(
@@ -173,8 +183,8 @@ class BackfillDagRun(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    exception_reason: Mapped[str] = mapped_column(StringID())
-    logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
@@ -473,6 +483,8 @@ def _create_backfill(
                 Backfill.completed_at.is_(None),
             )
         )
+        if num_active is None:
+            raise UnknownActiveBackfills(dag_id)
         if num_active > 0:
             raise AlreadyRunningBackfill(
                 f"Another backfill is running for dag {dag_id}. "

@@ -259,13 +259,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.8.22"
+AIRFLOW_PIP_VERSION = "25.3"
+AIRFLOW_UV_VERSION = "0.9.5"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
-RICH_VERSION = "14.1.0"
-PREK_VERSION = "0.2.1"
-HATCH_VERSION = "1.14.2"
+RICH_VERSION = "14.2.0"
+PREK_VERSION = "0.2.11"
+HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -547,7 +547,9 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 
 def create_tarball_from_tag(
     version_suffix: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     if tag is not None:
@@ -610,7 +612,7 @@ def prepare_airflow_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflow",
+        distribution_name="apache_airflow",
         tag=tag,
     )
 
@@ -764,7 +766,7 @@ def prepare_task_sdk_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="task-sdk",
+        distribution_name="apache_airflow_task_sdk",
         tag=tag,
     )
 
@@ -802,7 +804,7 @@ def prepare_airflow_ctl_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflowctl",
+        distribution_name="apache_airflow_ctl",
         tag=tag,
     )
 
@@ -1202,7 +1204,7 @@ def prepare_provider_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="providers",
+        distribution_name="apache_airflow_providers",
         tag=tag,
     )
 
@@ -1775,9 +1777,7 @@ def run_publish_docs_in_parallel(
     distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
-    include_success_outputs: bool,
     parallelism: int,
-    skip_cleanup: bool,
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
@@ -1841,7 +1841,6 @@ def run_publish_docs_in_parallel(
 @option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
@@ -1861,13 +1860,11 @@ def run_publish_docs_in_parallel(
 )
 @option_parallelism
 @option_run_in_parallel
-@option_skip_cleanup
 @option_verbose
 def publish_docs(
     airflow_site_directory: str,
     debug_resources: bool,
     doc_packages: tuple[str, ...],
-    include_success_outputs: bool,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
@@ -1875,7 +1872,6 @@ def publish_docs(
     distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
-    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -1913,9 +1909,7 @@ def publish_docs(
         run_publish_docs_in_parallel(
             distributions_list=current_packages,
             parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
@@ -2554,10 +2548,8 @@ def generate_issue_content_providers(
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
-                    body_without_code_blocks = remove_code_blocks(body)
                     linked_issue_numbers = {
-                        int(issue_match.group(1))
-                        for issue_match in ISSUE_MATCH_IN_BODY.finditer(body_without_code_blocks)
+                        int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                     }
                     for linked_issue_number in linked_issue_numbers:
                         try:
@@ -3205,7 +3197,7 @@ FILES_TO_COPY_TO_CLIENT_REPO = [
 ]
 
 
-def _get_python_client_version(version_suffix):
+def _get_python_client_version(version_suffix=None):
     from packaging.version import Version
 
     python_client_version = VERSION_FILE.read_text().strip()
@@ -3219,7 +3211,8 @@ def _get_python_client_version(version_suffix):
                     f"suffix in the version ({version})[/]"
                 )
                 sys.exit(1)
-    return version.base_version + version_suffix
+        return version.base_version + version_suffix
+    return python_client_version
 
 
 def _generate_python_client_sources(python_client_version: str) -> None:
@@ -3438,7 +3431,6 @@ def prepare_python_client(
     for scheme in security_schemes.split(","):
         security.append({scheme: []})
     openapi_yaml["security"] = security
-    python_client_version = _get_python_client_version(version_suffix)
     TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
 
     def patch_trigger_dag_run_post_body():
@@ -3492,7 +3484,7 @@ def prepare_python_client(
         ast.fix_missing_locations(tree)
         TRIGGER_MODEL_PATH.write_text(ast.unparse(tree), encoding="utf-8")
 
-    _generate_python_client_sources(python_client_version=python_client_version)
+    _generate_python_client_sources(python_client_version=_get_python_client_version())
 
     # Call this after codegen and before packaging
     try:

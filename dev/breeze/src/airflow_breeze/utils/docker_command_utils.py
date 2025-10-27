@@ -642,9 +642,10 @@ def remove_docker_volumes(volumes: list[str] | None = None) -> None:
 # When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
 # because the docker socket to use is created in the .docker/ directory in the user's home directory
 # and it does not require the user to belong to the "docker" group.
+# The "rancher-desktop" context is the preferred context for the Rancher dockerd (moby) Container Engine.
 # The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
 # user running the docker command.
-PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "default"]
+PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "rancher-desktop", "default"]
 
 
 def autodetect_docker_context():

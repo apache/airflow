@@ -1142,6 +1142,26 @@ class TestBulkConnections(TestConnectionEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": [TEST_CONN_ID], "errors": []}},
+                id="test_connection_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": [TEST_CONN_ID],
                         }
@@ -1242,6 +1262,34 @@ class TestBulkConnections(TestConnectionEndpoint):
                     },
                 },
                 id="test_create_update_delete",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": [TEST_CONN_ID],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "update": {"success": [TEST_CONN_ID], "errors": []},
+                    "delete": {"success": [TEST_CONN_ID], "errors": []},
+                },
+                id="test_connection_create_update_delete_with_update_mask",
             ),
         ],
     )
