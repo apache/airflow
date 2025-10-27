@@ -158,7 +158,10 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        self.conn_id = sanitize_conn_id(conn_id)
+        sanitized_conn_id = sanitize_conn_id(conn_id)
+        if sanitized_conn_id is None:
+            raise ValueError("conn_id cannot be None after sanitization")
+        self.conn_id = sanitized_conn_id
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -171,6 +174,8 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
+            if conn_type is None:
+                raise ValueError("conn_type cannot be None")
             self.conn_type = conn_type
             self.host = host
             self.login = login
@@ -278,7 +283,7 @@ class Connection(Base, LoggingMixin):
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
             if protocol == self.conn_type:
-                host_to_use = self.host
+                host_to_use: str | None = self.host
                 protocol_to_add = None
             else:
                 # Different protocol, add it to the URI
