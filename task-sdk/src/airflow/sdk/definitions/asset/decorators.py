@@ -21,6 +21,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, cast
 
 import attrs
+from pydantic.types import JsonValue
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
@@ -218,7 +219,7 @@ class asset(_DAGFactory):
     name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
-    extra: dict[str, Any] = attrs.field(factory=dict)
+    extra: dict[str, JsonValue] = attrs.field(factory=dict)
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     @attrs.define(kw_only=True)
