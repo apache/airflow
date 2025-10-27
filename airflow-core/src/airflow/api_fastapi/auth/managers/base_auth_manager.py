@@ -283,7 +283,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         This function needs to be overridden by an auth manager compatible with multi-team.
 
         :param method: the method to perform
-        :param user: the user to performing the action
+        :param user: the user performing the action
         :param details: optional details about the pool
         """
         raise NotImplementedError(
