@@ -169,6 +169,11 @@ def post_variable(
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    if variable is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Variable with key: `{post_body.key}` was not found",
+        )
 
     return variable
 
