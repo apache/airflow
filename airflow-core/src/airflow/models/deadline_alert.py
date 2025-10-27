@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import uuid6
-from sqlalchemy import String, Text
+from sqlalchemy import JSON, Integer, String, Text
 from sqlalchemy.orm import Mapped
 from sqlalchemy_utils import UUIDType
 
@@ -38,14 +38,17 @@ class DeadlineAlert(Base):
 
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reference: Mapped[dict] = mapped_column(JSON, nullable=True)
+    interval: Mapped[int] = mapped_column(Integer, nullable=False)
+    callback: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     def __repr__(self):
-        max_str_len = 50  # Somewhat arbitrary limit to keep the repr output reasonable.
-        description_output = (
-            f"{self.description[:max_str_len]}..."
-            if self.description and (len(self.description) > max_str_len)
-            else self.description or "No description"
-        )
+        if self.interval >= 3600:
+            interval_display = f"{self.interval // 3600}h"
+        elif self.interval >= 60:
+            interval_display = f"{self.interval // 60}m"
+        else:
+            interval_display = f"{self.interval}s"
 
         return (
             f"[DeadlineAlert] "

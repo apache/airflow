@@ -45,6 +45,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_colum
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.deadline_alert import DeadlineAlert
     from airflow.sdk.definitions.deadline import Callback
     from airflow.triggers.base import TriggerEvent
 
@@ -122,6 +123,12 @@ class Deadline(Base):
     # The Trigger where the callback is running
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="deadline")
+
+    # The DeadlineAlert that generated this deadline
+    deadline_alert_id: Mapped[str | None] = mapped_column(
+        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=False
+    )
+    deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
     __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
 
