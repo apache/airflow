@@ -44,6 +44,8 @@ PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 RUNNERS_TYPE_CROSS_MAPPING = {
     "ubuntu-22.04": '["ubuntu-22.04-arm"]',
     "ubuntu-22.04-arm": '["ubuntu-22.04"]',
+    "windows-2022": '["windows-2022"]',
+    "windows-2025": '["windows-2025"]',
 }
 
 ANSWER = ""
