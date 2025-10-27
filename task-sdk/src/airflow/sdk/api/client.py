@@ -30,8 +30,13 @@ import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
-from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import (
+    before_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 from uuid6 import uuid7
 
 from airflow.configuration import conf
@@ -264,6 +269,11 @@ class TaskInstanceOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
+        return OKResponse(ok=True)
+
+    def set_rendered_map_index(self, id: uuid.UUID, rendered_map_index: str) -> OKResponse:
+        """Set rendered_map_index for a task instance via the API server."""
+        self.client.patch(f"task-instances/{id}/rendered-map-index", json=rendered_map_index)
         return OKResponse(ok=True)
 
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
@@ -832,6 +842,14 @@ API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 
 
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """Determine if an API request should be retried based on the exception type."""
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code >= 500
+
+    return isinstance(exception, httpx.RequestError)
+
+
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
@@ -864,21 +882,17 @@ class Client(httpx.Client):
             **kwargs,
         )
 
-    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
-
     def _update_auth(self, response: httpx.Response):
         if new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
     @retry(
-        reraise=True,
-        max_attempt_number=API_RETRIES,
-        wait_server_errors=_default_wait,
-        wait_network_errors=_default_wait,
-        wait_timeouts=_default_wait,
-        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        retry=retry_if_exception(_should_retry_api_request),
+        stop=stop_after_attempt(API_RETRIES),
+        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
         before_sleep=before_log(log, logging.WARNING),
+        reraise=True,
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
