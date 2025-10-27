@@ -863,6 +863,10 @@ class Client(httpx.Client):
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
+        # Set content type as convenience if not already set
+        if "content" in kwargs and "headers" not in kwargs:
+            kwargs["headers"] = {"content-type": "application/json"}
+
         return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
