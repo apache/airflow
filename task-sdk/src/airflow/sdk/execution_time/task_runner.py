@@ -1485,7 +1485,7 @@ def main():
             with suppress(Exception):
                 SUPERVISOR_COMMS.socket.close()
 
-def reinit_supervisor_comms() -> StartupDetails:
+def reinit_supervisor_comms() -> None:
     """
     Re-initialize supervisor comms and logging channel in subprocess.
 
