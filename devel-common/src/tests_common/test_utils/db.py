@@ -188,12 +188,11 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
                 from airflow.dag_processing.dagbag import sync_bag_to_db
             except ImportError:
                 from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
-
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
             for bundle in DagBundlesManager().get_all_dag_bundles():
                 dagbag = DagBag(dag_folder=bundle.path, include_examples=include_examples)
                 sync_bag_to_db(dagbag, bundle.name, None, session=session)
 
-            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
         elif AIRFLOW_V_3_0_PLUS:
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:

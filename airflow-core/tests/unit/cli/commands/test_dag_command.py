@@ -73,7 +73,8 @@ class TestCliDags:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        with conf_vars({("core", "load_examples"): "True"}):
+            parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -216,9 +217,8 @@ class TestCliDags:
 
         # Rebuild Test DB for other tests
         clear_db_dags()
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
         with stdout_capture as temp_stdout:
@@ -228,7 +228,6 @@ class TestCliDags:
         assert "airflow/example_dags/example_complex.py" in out
         assert "example_complex" in out
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self, stdout_capture):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
         with stdout_capture as temp_stdout:
@@ -245,7 +244,6 @@ class TestCliDags:
         for value in dag_details_values:
             assert value in out
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self, stdout_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json"])
         with stdout_capture as temp_stdout:
@@ -256,11 +254,12 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
-        args = self.parser.parse_args(["dags", "list", "--output", "json", "--local"])
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "example_dags"]
+        )
         with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
@@ -269,7 +268,7 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle, stdout_capture):
@@ -290,9 +289,8 @@ class TestCliDags:
                 str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list
             )
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_custom_cols(self, stdout_capture):
         args = self.parser.parse_args(
             ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
@@ -306,7 +304,6 @@ class TestCliDags:
         for key in ["fileloc", "owners", "is_paused"]:
             assert key not in dag_list[0]
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_invalid_cols(self, stderr_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
         with stderr_capture as temp_stderr:
@@ -350,9 +347,8 @@ class TestCliDags:
 
         assert "Failed to load all files." in out
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
     def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel, stdout_capture):
         mock_get_dagmodel.return_value = None
@@ -365,7 +361,6 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self, session):
         dagbag = DBDagBag()
         dag_details = dag_command._get_dagbag_dag_details(
