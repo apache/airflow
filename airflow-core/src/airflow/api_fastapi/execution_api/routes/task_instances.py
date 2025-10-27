@@ -210,7 +210,7 @@ def ti_run(
 
     try:
         result = session.execute(query)
-        log.info("Task instance state updated", rows_affected=result.rowcount)
+        log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
         dr = (
             session.scalars(
@@ -235,15 +235,15 @@ def ti_run(
         xcom_keys = []
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
-            query = select(XComModel.key).where(
+            xcom_query = select(XComModel.key).where(
                 XComModel.dag_id == ti.dag_id,
                 XComModel.task_id == ti.task_id,
                 XComModel.run_id == ti.run_id,
             )
             if map_index is not None:
-                query = query.where(XComModel.map_index == map_index)
+                xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
-            xcom_keys = list(session.scalars(query))
+            xcom_keys = list(session.scalars(xcom_query))
         task_reschedule_count = (
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
@@ -399,15 +399,21 @@ def ti_update_state(
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
         ti = session.get(TI, ti_id_str)
-        query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+        if session.bind is not None:
+            query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
         query = query.values(state=TaskInstanceState.FAILED)
-        _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+        if ti is not None:
+            _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
-        log.info("Task instance state updated", new_state=updated_state, rows_affected=result.rowcount)
+        log.info(
+            "Task instance state updated",
+            new_state=updated_state,
+            rows_affected=getattr(result, "rowcount", 0),
+        )
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
@@ -445,21 +451,25 @@ def _create_ti_state_update_query_and_update_state(
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
-        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        if session.bind is not None:
+            query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state, next_method=None, next_kwargs=None)
 
         if updated_state == TerminalTIState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload
-            _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+            if ti is not None:
+                _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
-            ti.prepare_db_for_next_try(session)
+            if ti is not None:
+                ti.prepare_db_for_next_try(session)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            TI.register_asset_changes_in_db(
-                ti,
-                ti_patch_payload.task_outlets,  # type: ignore
-                ti_patch_payload.outlet_events,
-                session,
-            )
+            if ti is not None:
+                TI.register_asset_changes_in_db(
+                    ti,
+                    ti_patch_payload.task_outlets,  # type: ignore
+                    ti_patch_payload.outlet_events,
+                    session,
+                )
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
@@ -516,26 +526,30 @@ def _create_ti_state_update_query_and_update_state(
                 )
                 data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
                 query = update(TI).where(TI.id == ti_id_str).values(data)
-                query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+                if session.bind is not None:
+                    query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
                 ti = session.get(TI, ti_id_str)
-                _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                if ti is not None:
+                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
                 return query, updated_state
 
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
-        session.add(
-            TaskReschedule(
-                task_instance.id,
-                actual_start_date,
-                ti_patch_payload.end_date,
-                ti_patch_payload.reschedule_date,
+        if task_instance is not None and task_instance.id is not None:
+            session.add(
+                TaskReschedule(
+                    UUID(str(task_instance.id)),
+                    actual_start_date,
+                    ti_patch_payload.end_date,
+                    ti_patch_payload.reschedule_date,
+                )
             )
-        )
 
         query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
-        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        if session.bind is not None:
+            query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         query = query.values(state=TaskInstanceState.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
@@ -565,7 +579,14 @@ def ti_skip_downstream(
     now = timezone.utcnow()
     tasks = ti_patch_payload.tasks
 
-    dag_id, run_id = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str)).fetchone()
+    query_result = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str))
+    row_result = query_result.fetchone()
+    if row_result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": "Task Instance not found"},
+        )
+    dag_id, run_id = row_result
     log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
 
     task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
@@ -579,7 +600,7 @@ def ti_skip_downstream(
     )
 
     result = session.execute(query)
-    log.info("Downstream tasks skipped", tasks_skipped=result.rowcount)
+    log.info("Downstream tasks skipped", tasks_skipped=getattr(result, "rowcount", 0))
 
 
 @ti_id_router.put(
@@ -955,8 +976,10 @@ def validate_inlets_and_outlets(
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)
 
-    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
-    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+    inlets = [asset.asprofile() for asset in (ti.task.inlets if ti.task else []) if isinstance(asset, Asset)]
+    outlets = [
+        asset.asprofile() for asset in (ti.task.outlets if ti.task else []) if isinstance(asset, Asset)
+    ]
     if not (inlets or outlets):
         return InactiveAssetsResponse(inactive_assets=[])
 
