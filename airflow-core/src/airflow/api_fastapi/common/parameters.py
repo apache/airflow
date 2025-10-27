@@ -228,7 +228,7 @@ class SortParam(BaseParam[list[str]]):
                 f"Ordering with more than {self.MAX_SORT_PARAMS} parameters is not allowed. Provided: {order_by_values}",
             )
 
-        columns: list[Column] = []
+        columns: list[ColumnElement] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
             column: Column | None = None
@@ -506,7 +506,7 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     """Search on dag_id."""
 
     def __init__(self, skip_none: bool = True) -> None:
-        super().__init__(AssetModel.scheduled_dags, skip_none)
+        super().__init__(skip_none=skip_none)
 
     @classmethod
     def depends(cls, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
@@ -518,10 +518,13 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
+
+        # At this point, self.value is either a list[str] or None -> coerce falsy None to an empty list
+        dag_ids = self.value or []
         return select.where(
-            (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
-            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
-            | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(self.value)))
+            (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(dag_ids)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dag_ids)))
+            | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(dag_ids)))
         )
 
 
