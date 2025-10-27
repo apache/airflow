@@ -21,10 +21,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.druid.hooks.druid import DruidHook, IngestionType
-from airflow.providers.apache.druid.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.apache.druid.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DruidOperator(BaseOperator):
