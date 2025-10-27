@@ -1423,7 +1423,7 @@ api:
       description: |
         Number of workers to run on the API server. Should be roughly equal to the number of
         cpu cores available. If you need to scale the API server, strongly consider deploying multiple API
-        servers instead of increasing the number of workers; See github.com/apache/airflow/issues/52270.
+        servers instead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.
       version_added: ~
       type: integer
       example: ~
