@@ -49,7 +49,7 @@ class GitDagBundle(BaseDagBundle):
 
         The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
         to share the object directory via hard links, but if you have a lot of current versions
-        running, or an especially large git repo setting this to True will save some disk space
+        running, or an especially large git repo leaving this as True will save some disk space
         at the expense of `git` operations not working in the bundle that Tasks run from.
     """
 
