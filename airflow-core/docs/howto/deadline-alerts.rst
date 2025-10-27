@@ -328,21 +328,21 @@ Custom References
 ^^^^^^^^^^^^^^^^^
 
 While the built-in references should cover most use cases, and more will be released over time, you
-can create custom references.  This may be useful if you have calendar integrations or other sources
-that you want to use as a reference.  You can create custom references by implementing a class that
-inherits from BaseDeadlineReference, give it am _evaluate_with() method, and register it.  There are
-two ways to accomplish this.  The recommended way is to use the ``@deadline_reference`` decorator
+can create custom references. This may be useful if you have calendar integrations or other sources
+that you want to use as a reference. You can create custom references by implementing a class that
+inherits from BaseDeadlineReference, give it am _evaluate_with() method, and register it. There are
+two ways to accomplish this. The recommended way is to use the ``@deadline_reference`` decorator
 but for more complicated implementations, the ``register_custom_reference()`` method is available.
 
-**Recommended: Using the decorator**
+**Recommended: Using the ``@deadline_reference`` decorator**
 
 .. code-block:: python
 
-    from airflow._shared.timezones.timezone import datetime
     from airflow.models.deadline import ReferenceModels
     from sqlalchemy.orm import Session
 
     from airflow.sdk.definitions.deadline import DeadlineReference, deadline_reference
+    from airflow.sdk.timezone import datetime
 
 
     # By default, the evaluate_with method will be executed when the dagrun is created.
