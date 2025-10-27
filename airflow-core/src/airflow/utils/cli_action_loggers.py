@@ -130,7 +130,7 @@ def default_action_log(
         # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
         # on in the CLI
         session.bulk_insert_mappings(
-            Log,
+            Log,  # type: ignore[arg-type]
             [
                 {
                     "event": f"cli_{sub_command}",

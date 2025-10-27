@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import Select
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
@@ -53,7 +54,7 @@ try:
     from sqlalchemy.orm import mapped_column
 except ImportError:
     # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):
+    def mapped_column(*args, **kwargs):  # type: ignore[misc]
         from sqlalchemy import Column
 
         return Column(*args, **kwargs)
@@ -312,7 +313,7 @@ class ExecutorConfigType(PickleType):
             return False
 
 
-def nulls_first(col, session: Session) -> dict[str, Any]:
+def nulls_first(col: ColumnElement, session: Session) -> ColumnElement:
     """
     Specify *NULLS FIRST* to the column ordering.
 
@@ -356,12 +357,19 @@ def with_row_locks(
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    dialect = session.bind.dialect
+    try:
+        dialect_name = get_dialect_name(session)
+    except ValueError:
+        return query
+    if not dialect_name:
+        return query
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
         return query
-    if dialect.name == "mysql" and not dialect.supports_for_update_of:
+    if dialect_name == "mysql" and not getattr(
+        session.bind.dialect if session.bind else None, "supports_for_update_of", False
+    ):
         return query
     if nowait:
         kwargs["nowait"] = True
@@ -448,7 +456,9 @@ def is_lock_not_available_error(error: OperationalError):
     #               is set.'
     # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
     #              (when NOWAIT isn't available)
-    db_err_code = getattr(error.orig, "pgcode", None) or error.orig.args[0]
+    db_err_code = getattr(error.orig, "pgcode", None) or (
+        error.orig.args[0] if error.orig and error.orig.args else None
+    )
 
     # We could test if error.orig is an instance of
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
