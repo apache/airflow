@@ -48,7 +48,7 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl", "dagRun"]);
+  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.AFTER]: {
