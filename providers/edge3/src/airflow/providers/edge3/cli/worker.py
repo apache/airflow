@@ -188,7 +188,7 @@ class EdgeWorker:
         return execution_api_server_url
 
     @staticmethod
-    def _run_job_via_supervisor(workload) -> int:
+    def _run_job_via_supervisor(workload, execution_api_server_url) -> int:
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
@@ -205,7 +205,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=EdgeWorker._execution_api_server_url(),
+                server=execution_api_server_url,
                 log_path=workload.log_path,
             )
             return 0
@@ -221,7 +221,7 @@ class EdgeWorker:
         workload: ExecuteTask = edge_job.command
         process = Process(
             target=EdgeWorker._run_job_via_supervisor,
-            kwargs={"workload": workload},
+            kwargs={"workload": workload, "execution_api_server_url": EdgeWorker._execution_api_server_url()},
         )
         process.start()
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
