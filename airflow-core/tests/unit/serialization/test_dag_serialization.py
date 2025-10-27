@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import dataclasses
 import importlib
@@ -67,12 +68,14 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     SerializedBaseOperator,
     SerializedDAG,
+    SerializedParam,
     XComOperatorLink,
 )
 from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
@@ -99,6 +102,43 @@ from tests_common.test_utils.timetables import (
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
+
+@contextlib.contextmanager
+def operator_defaults(overrides):
+    """
+    Temporarily patches OPERATOR_DEFAULTS, restoring original values after context exit.
+
+    Example:
+        with operator_defaults({"retries": 2, "retry_delay": 200.0}):
+            # Test code with modified operator defaults
+    """
+    from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
+
+    original_values = {}
+    try:
+        # Store original values and apply overrides
+        for key, value in overrides.items():
+            original_values[key] = OPERATOR_DEFAULTS.get(key)
+            OPERATOR_DEFAULTS[key] = value
+
+        # Clear the cache to ensure fresh generation
+        SerializedBaseOperator.generate_client_defaults.cache_clear()
+
+        yield
+    finally:
+        # Cleanup: restore original values
+        for key, original_value in original_values.items():
+            if original_value is None and key in OPERATOR_DEFAULTS:
+                # Key didn't exist originally, remove it
+                del OPERATOR_DEFAULTS[key]
+            else:
+                # Restore original value
+                OPERATOR_DEFAULTS[key] = original_value
+
+        # Clear cache again to restore normal behavior
+        SerializedBaseOperator.generate_client_defaults.cache_clear()
+
+
 AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
 
 
@@ -117,14 +157,13 @@ TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 3,
-    "client_defaults": {"tasks": {"retry_delay": 300.0}},
     "dag": {
         "default_args": {
             "__type": "dict",
             "__var": {
                 "depends_on_past": False,
                 "retries": 1,
-                "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                "retry_delay": {"__type": "timedelta", "__var": 240.0},
                 "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
             },
         },
@@ -165,7 +204,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "bash_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "ui_color": "#f0ede4",
                     "template_ext": [".sh", ".bash"],
@@ -224,7 +263,7 @@ serialized_simple_dag_ground_truth = {
                 "__var": {
                     "task_id": "custom_task",
                     "retries": 1,
-                    "retry_delay": 300.0,
+                    "retry_delay": 240.0,
                     "max_retry_delay": 600.0,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "template_fields": ["bash_command"],
@@ -294,7 +333,7 @@ def make_simple_dag():
         schedule=timedelta(days=1),
         default_args={
             "retries": 1,
-            "retry_delay": timedelta(minutes=5),
+            "retry_delay": timedelta(minutes=4),
             "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
         },
@@ -467,8 +506,6 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         with warnings.catch_warnings():
             dags, import_errors = collect_dags()
         serialized_dags = {}
@@ -1148,9 +1185,14 @@ class TestStringifiedDAGs:
 
         assert dag.params.get_param("my_param").value == param.value
         observed_param = dag.params.get_param("my_param")
-        assert isinstance(observed_param, Param)
+        assert isinstance(observed_param, SerializedParam)
         assert observed_param.description == param.description
         assert observed_param.schema == param.schema
+        assert observed_param.dump() == {
+            "value": None if param.value is NOTSET else param.value,
+            "schema": param.schema,
+            "description": param.description,
+        }
 
     @pytest.mark.parametrize(
         "val, expected_val",
@@ -2298,7 +2340,8 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None
-        assert isinstance(dag.params.get_param("none"), Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(dag.params.get_param("none"), SerializedParam)
         assert dag.params["str"] == "str"
 
     def test_params_serialization_from_dict_upgrade(self):
@@ -2324,7 +2367,8 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         param = dag.params.get_param("my_param")
-        assert isinstance(param, Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(param, SerializedParam)
         assert param.value == "str"
 
     def test_params_serialize_default_2_2_0(self):
@@ -2346,7 +2390,8 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert isinstance(dag.params.get_param("str"), Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(dag.params.get_param("str"), SerializedParam)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default(self):
@@ -2375,7 +2420,8 @@ class TestStringifiedDAGs:
 
         assert dag.params["my_param"] == "a string value"
         param = dag.params.get_param("my_param")
-        assert isinstance(param, Param)
+        # After decoupling, server-side deserialization uses SerializedParam
+        assert isinstance(param, SerializedParam)
         assert param.description == "hello"
         assert param.schema == {"type": "string"}
 
@@ -2491,7 +2537,7 @@ class TestStringifiedDAGs:
 
 
 def test_kubernetes_optional():
-    """Serialisation / deserialisation continues to work without kubernetes installed"""
+    """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
 
     def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
         if level == 0 and name.partition(".")[0] == "kubernetes":
@@ -2518,7 +2564,8 @@ def test_kubernetes_optional():
             "__var": PodGenerator.serialize_pod(executor_config_pod),
         }
 
-        with pytest.raises(RuntimeError):
+        # we should error if attempting to deserialize POD without kubernetes installed
+        with pytest.raises(RuntimeError, match="Cannot deserialize POD objects without kubernetes"):
             module.BaseSerialization.from_dict(pod_override)
 
         # basic serialization should succeed
@@ -3072,7 +3119,7 @@ def test_handle_v1_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                     "sla": {"__type": "timedelta", "__var": 100.0},
                 },
@@ -3110,7 +3157,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3173,7 +3220,7 @@ def test_handle_v1_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "sla": 100.0,
                         "downstream_task_ids": [],
@@ -3383,7 +3430,7 @@ def test_handle_v2_serdag():
                 "__var": {
                     "depends_on_past": False,
                     "retries": 1,
-                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "retry_delay": {"__type": "timedelta", "__var": 240.0},
                     "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
                 },
             },
@@ -3425,7 +3472,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "bash_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "ui_color": "#f0ede4",
@@ -3491,7 +3538,7 @@ def test_handle_v2_serdag():
                     "__var": {
                         "task_id": "custom_task",
                         "retries": 1,
-                        "retry_delay": 300.0,
+                        "retry_delay": 240.0,
                         "max_retry_delay": 600.0,
                         "downstream_task_ids": [],
                         "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
@@ -4004,8 +4051,9 @@ class TestDeserializationDefaultsResolution:
         result = SerializedBaseOperator._apply_defaults_to_encoded_op(encoded_op, None)
         assert result == encoded_op
 
+    @operator_defaults({"retries": 2})
     def test_multiple_tasks_share_client_defaults(self):
-        """Test that multiple tasks can share the same client_defaults."""
+        """Test that multiple tasks can share the same client_defaults when there are actually non-default values."""
         with DAG(dag_id="test_dag") as dag:
             BashOperator(task_id="task1", bash_command="echo 1")
             BashOperator(task_id="task2", bash_command="echo 2")
@@ -4024,6 +4072,10 @@ class TestDeserializationDefaultsResolution:
         deserialized_task1 = deserialized_dag.get_task("task1")
         deserialized_task2 = deserialized_dag.get_task("task2")
 
+        # Both tasks should have retries=2 from client_defaults
+        assert deserialized_task1.retries == 2
+        assert deserialized_task2.retries == 2
+
         # Both tasks should have the same default values from client_defaults
         for field in client_defaults:
             if hasattr(deserialized_task1, field) and hasattr(deserialized_task2, field):
@@ -4035,6 +4087,7 @@ class TestDeserializationDefaultsResolution:
 class TestMappedOperatorSerializationAndClientDefaults:
     """Test MappedOperator serialization with client defaults and callback properties."""
 
+    @operator_defaults({"retry_delay": 200.0})
     def test_mapped_operator_client_defaults_application(self):
         """Test that client_defaults are correctly applied to MappedOperator during deserialization."""
         with DAG(dag_id="test_mapped_dag") as dag:
@@ -4099,6 +4152,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
             ),
         ],
     )
+    @operator_defaults({"retry_delay": 200.0})
     def test_mapped_operator_client_defaults_optimization(
         self, task_config, dag_id, task_id, non_default_fields
     ):

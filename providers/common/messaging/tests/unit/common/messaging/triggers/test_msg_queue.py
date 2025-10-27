@@ -135,7 +135,7 @@ class TestMessageQueueTrigger:
         with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider1, provider2]):
             trigger = MessageQueueTrigger(queue=UNSUPPORTED_QUEUE)
 
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=UNSUPPORTED_QUEUE):
                 _ = trigger.trigger
 
     def test_trigger_kwargs_passed_correctly(self):

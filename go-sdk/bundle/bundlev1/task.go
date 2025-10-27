@@ -24,6 +24,8 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -43,6 +45,7 @@ func NewTaskFunction(fn any) (Task, error) {
 
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 	fnType := f.fn.Type()
+	sdkClient := sdk.NewClient()
 
 	reflectArgs := make([]reflect.Value, fnType.NumIn())
 	for i := range reflectArgs {
@@ -54,7 +57,7 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		case isLogger(in):
 			reflectArgs[i] = reflect.ValueOf(logger)
 		case isClient(in):
-			reflectArgs[i] = reflect.ValueOf(sdk.NewClient())
+			reflectArgs[i] = reflect.ValueOf(sdkClient)
 		default:
 			// TODO: deal with other value types. For now they will all be Zero values unless it's a context
 			reflectArgs[i] = reflect.Zero(in)
@@ -74,13 +77,24 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		}
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
-	var res any
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res = retValues[0].Interface()
+		res := retValues[0].Interface()
+		f.sendXcom(ctx, res, sdkClient, logger)
 	}
-	// TODO: send the result to XCom
-	_ = res
 	return err
+}
+
+func (f *taskFunction) sendXcom(
+	ctx context.Context,
+	value any,
+	c sdk.XComClient,
+	logger *slog.Logger,
+) {
+	workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
+	err := c.PushXCom(ctx, workload.TI, api.XComReturnValueKey, value)
+	if err != nil {
+		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+	}
 }
 
 func (f *taskFunction) validateFn(fnType reflect.Type) error {

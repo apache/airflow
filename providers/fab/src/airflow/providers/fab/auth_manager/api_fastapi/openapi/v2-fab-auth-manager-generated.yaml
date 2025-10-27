@@ -82,8 +82,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/roles:
+    post:
+      tags:
+      - FabAuthManager
+      summary: Create Role
+      description: Create a new role (actions can be empty).
+      operationId: create_role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
 components:
   schemas:
+    ActionResourceResponse:
+      properties:
+        action:
+          $ref: '#/components/schemas/ActionResponse'
+        resource:
+          $ref: '#/components/schemas/ResourceResponse'
+      type: object
+      required:
+      - action
+      - resource
+      title: ActionResourceResponse
+      description: Pairing of an action with a resource.
+    ActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: ActionResponse
+      description: Outgoing representation of an action (permission name).
     HTTPExceptionResponse:
       properties:
         detail:
@@ -130,6 +211,48 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
+    ResourceResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: ResourceResponse
+      description: Outgoing representation of a resource.
+    RoleBody:
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Name
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResourceResponse'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: RoleBody
+      description: Incoming payload for creating/updating a role.
+    RoleResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResourceResponse'
+          type: array
+          title: Actions
+      type: object
+      required:
+      - name
+      title: RoleResponse
+      description: Outgoing representation of a role and its permissions.
     ValidationError:
       properties:
         loc:
@@ -151,3 +274,21 @@ components:
       - msg
       - type
       title: ValidationError
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      description: To authenticate Airflow API requests, clients must include a JWT
+        (JSON Web Token) in the Authorization header of each request. This token is
+        used to verify the identity of the client and ensure that they have the appropriate
+        permissions to access the requested resources. You can use the endpoint ``POST
+        /auth/token`` in order to generate a JWT token. Upon successful authentication,
+        the server will issue a JWT token that contains the necessary information
+        (such as user identity and scope) to authenticate subsequent requests. To
+        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

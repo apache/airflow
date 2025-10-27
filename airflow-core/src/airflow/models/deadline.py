@@ -40,7 +40,7 @@ from airflow.stats import Stats
 from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -100,16 +100,18 @@ class Deadline(Base):
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
-    dagrun_id: Mapped[int] = mapped_column(Integer, ForeignKey("dag_run.id", ondelete="CASCADE"))
+    dagrun_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("dag_run.id", ondelete="CASCADE"), nullable=True
+    )
 
     # The time after which the Deadline has passed and the callback should be triggered.
-    deadline_time: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    deadline_time: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     # The (serialized) callback to be called when the Deadline has passed.
     _callback: Mapped[dict] = mapped_column(
         "callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False
     )
     # The state of the deadline callback
-    callback_state: Mapped[str] = mapped_column(String(20))
+    callback_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     dagrun = relationship("DagRun", back_populates="deadlines")
 
@@ -409,7 +411,7 @@ class ReferenceModels:
             dag_id = kwargs["dag_id"]
 
             # Get database dialect to use appropriate time difference calculation
-            dialect = session.bind.dialect.name
+            dialect = get_dialect_name(session)
 
             # Create database-specific expression for calculating duration in seconds
             if dialect == "postgresql":

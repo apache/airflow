@@ -356,3 +356,53 @@ class TestSQLParser:
             }
         )
         assert metadata.job_facets["sql"].query.replace(" ", "") == formatted_sql.replace(" ", "")
+
+    def test_generate_openlineage_metadata_from_sql_with_db_error(self):
+        parser = SQLParser(default_schema="ANOTHER_SCHEMA")
+        db_info = DatabaseInfo(scheme="myscheme", authority="host:port")
+
+        hook = MagicMock()
+
+        sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times -- irrelevant comment"""
+
+        hook.get_conn.side_effect = RuntimeError("Simulated DB error")
+
+        formatted_sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times"""
+        expected_schema = "ANOTHER_SCHEMA"
+        metadata = parser.generate_openlineage_metadata_from_sql(
+            sql=sql, hook=hook, database_info=db_info, use_connection=True
+        )
+
+        assert metadata.inputs == [
+            Dataset(
+                namespace="myscheme://host:port",
+                name=f"{expected_schema}.top_delivery_times",
+                facets={},
+            )
+        ]
+        assert len(metadata.outputs) == 1
+        assert metadata.outputs[0].namespace == "myscheme://host:port"
+        assert metadata.outputs[0].name == f"{expected_schema}.popular_orders_day_of_week"
+        assert len(metadata.outputs[0].facets) == 1
+        assert metadata.outputs[0].facets[
+            "columnLineage"
+        ] == column_lineage_dataset.ColumnLineageDatasetFacet(
+            fields={
+                "order_day_of_week": column_lineage_dataset.Fields(
+                    inputFields=[
+                        column_lineage_dataset.InputField(
+                            namespace="myscheme://host:port",
+                            name=f"{expected_schema}.top_delivery_times",
+                            field="order_placed_on",
+                        )
+                    ],
+                    transformationDescription="",
+                    transformationType="",
+                )
+            }
+        )
+        assert metadata.job_facets["sql"].query.replace(" ", "") == formatted_sql.replace(" ", "")

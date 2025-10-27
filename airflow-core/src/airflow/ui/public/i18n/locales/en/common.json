@@ -64,7 +64,7 @@
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By",
-    "triggeringUser": "Triggering User Name"
+    "triggeringUser": "Triggering User"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -77,6 +77,11 @@
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
+  },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
   },
   "duration": "Duration",
   "endDate": "End Date",
@@ -101,6 +106,8 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Duration From",
+    "durationTo": "Duration To",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
@@ -161,7 +168,6 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",

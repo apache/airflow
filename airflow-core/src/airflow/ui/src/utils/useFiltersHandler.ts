@@ -27,22 +27,35 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
   | SearchParamsKeys.BEFORE
+  | SearchParamsKeys.BODY_SEARCH
+  | SearchParamsKeys.CONF_CONTAINS
+  | SearchParamsKeys.CREATED_AT_GTE
+  | SearchParamsKeys.CREATED_AT_LTE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
+  | SearchParamsKeys.DAG_ID_PATTERN
+  | SearchParamsKeys.DAG_VERSION
+  | SearchParamsKeys.DURATION_GTE
+  | SearchParamsKeys.DURATION_LTE
   | SearchParamsKeys.END_DATE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.START_DATE
+  | SearchParamsKeys.STATE
+  | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
 

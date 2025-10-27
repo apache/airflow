@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import importlib
 import itertools
 import logging
 import uuid
@@ -59,6 +60,7 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
+from packaging.version import Version
 from sqlalchemy import delete, func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
@@ -790,10 +792,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         current_app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
         current_app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
-        from packaging.version import Version
-        from werkzeug import __version__ as werkzeug_version
-
-        parsed_werkzeug_version = Version(werkzeug_version)
+        parsed_werkzeug_version = Version(importlib.metadata.version("werkzeug"))
         if parsed_werkzeug_version < Version("3.0.0"):
             current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
             current_app.config.setdefault(

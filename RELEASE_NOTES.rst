@@ -319,6 +319,22 @@ You can also use ``structlog`` loggers at the top level of modules etc, and ``st
 
 (You can't add arbitrary key/value pairs to ``stdlib``, but the normal ``percent-formatter`` approaches still work fine.)
 
+Serialization Interface Changes
+"""""""""""""""""""""""""""""""
+
+The deserializer interface in ``airflow.serialization.serializers`` has changed for improved security.
+
+**Before 3.1.0:**
+
+``def deserialize(classname: str, version: int, data: Any)``
+
+**Starting with 3.1.0:**
+
+``def deserialize(cls: type, version: int, data: Any)``
+
+The class loading is now handled in ``serde.py``, and the deserializer receives the loaded class directly rather than a ``classname`` string.
+This update avoids the use of ``import_string`` in the deserializer, making deserialization more secure.
+
 New Features
 ^^^^^^^^^^^^
 
@@ -1209,7 +1225,7 @@ simplify onboarding:
 
 - ``catchup_by_default`` is now set to ``False`` by default. DAGs will not automatically backfill unless explicitly configured to do so.
 - ``create_cron_data_intervals`` is now set to ``False`` by default. As a result, cron expressions will be interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``.
-- ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-flask-appbuilder`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
+- ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-fab`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
 
 These changes represent the most significant evolution of the Airflow platform since the release of 2.0 — setting the
 stage for more scalable, event-driven, and language-agnostic orchestration in the years ahead.

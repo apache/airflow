@@ -55,7 +55,7 @@ class Variable(Base, LoggingMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     key: Mapped[str] = mapped_column(String(ID_LEN), unique=True)
     _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
