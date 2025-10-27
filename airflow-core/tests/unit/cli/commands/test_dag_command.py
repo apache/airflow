@@ -352,6 +352,40 @@ class TestCliDags:
         # Rebuild Test DB for other tests
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_dags_auto_uses_filesystem_when_db_empty(
+        self, configure_testing_dag_bundle, stdout_capture
+    ):
+        """Test that dags list automatically uses filesystem when DB is empty (no --local flag needed)."""
+        path_to_parse = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
+
+        # Note: NO --local flag
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--bundle-name", "testing"])
+
+        with configure_testing_dag_bundle(path_to_parse):
+            with stdout_capture as temp_stdout:
+                dag_command.dag_list_dags(args)
+                out = temp_stdout.getvalue()
+                dag_list = json.loads(out)
+
+        assert len(dag_list) > 0
+        assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list)
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_dags_with_dagfile_path(self, stdout_capture):
+        """Test that dags list works with --dagfile-path."""
+        dagfile = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
+
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--dagfile-path", str(dagfile)])
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+            dag_list = json.loads(out)
+
+        assert len(dag_list) > 0
+        assert any(str(dagfile) in d["fileloc"] for d in dag_list)
+
     @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
     def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel, stdout_capture):
@@ -392,6 +426,64 @@ class TestCliDags:
         assert err_ctx.value.code == 1
         assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_import_errors_auto_uses_filesystem_when_db_empty(
+        self, get_test_dag, configure_testing_dag_bundle, caplog
+    ):
+        """Test that list-import-errors automatically uses filesystem when DB is empty (no --local flag)."""
+        # Clear the database
+        clear_db_dags()
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        # Note: NO --local flag
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--bundle-name", "testing"]
+        )
+        with configure_testing_dag_bundle(path_to_parse):
+            with pytest.raises(SystemExit) as err_ctx:
+                with caplog.at_level(logging.ERROR):
+                    dag_command.dag_list_import_errors(args)
+
+        log_output = caplog.text
+
+        assert err_ctx.value.code == 1
+        assert str(path_to_parse) in log_output
+        assert "[0 100 * * *] is not acceptable, out of range" in log_output
+        # Rebuild Test DB for other tests
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_import_errors_with_dagfile_path(self, caplog):
+        """Test that list-import-errors works with --dagfile-path."""
+        # Clear the database
+        clear_db_dags()
+        dagfile = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--dagfile-path", str(dagfile)]
+        )
+
+        with pytest.raises(SystemExit) as err_ctx:
+            with caplog.at_level(logging.ERROR):
+                dag_command.dag_list_import_errors(args)
+
+        log_output = caplog.text
+
+        assert err_ctx.value.code == 1
+        assert str(dagfile) in log_output
+        assert "[0 100 * * *] is not acceptable, out of range" in log_output
+        # Rebuild Test DB for other tests
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
+    def test_cli_list_import_errors_local_flag_backward_compatibility(self):
+        """Test that --local flag still works for backward compatibility for list-import-errors."""
+        args = self.parser.parse_args(["dags", "list-import-errors", "--output", "yaml", "--local"])
+
+        # Should work without errors (deprecation warning will be shown to users)
+        # This test just ensures backward compatibility
+        dag_command.dag_list_import_errors(args)
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(

@@ -27,6 +27,7 @@ import operator
 import re
 import subprocess
 import sys
+import warnings
 from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
@@ -361,13 +362,46 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
+    # Deprecation warning for --local flag
+    if getattr(args, "local", False):
+        warnings.warn(
+            "The --local flag is deprecated and will be removed in Airflow 4.0. "
+            "The command now automatically loads from filesystem when appropriate.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     dagbag_import_errors = 0
     dags_list = []
-    if args.local:
+    use_filesystem = False
+
+    # Priority-based source detection:
+    # 1. --dagfile-path (specific file)
+    # 2. --bundle-name (specific bundle(s))
+    # 3. Local filesystem (default DAGs folder)
+    # 4. Database (fallback)
+
+    dagfile_path = getattr(args, "dagfile_path", None)
+
+    if dagfile_path or args.bundle_name or getattr(args, "local", False):
+        # Explicitly requested filesystem source
+        use_filesystem = True
+    else:
+        # Check if database has any DAGs, otherwise use filesystem
+        dag_count = session.scalar(select(func.count()).select_from(SerializedDagModel))
+        if dag_count == 0:
+            use_filesystem = True
+
+    if use_filesystem:
         from airflow.dag_processing.dagbag import DagBag
 
-        # Get import errors from the local area
-        if args.bundle_name:
+        if dagfile_path:
+            # Priority 1: Load from specific file
+            dagbag = DagBag(dag_folder=dagfile_path, include_examples=False)
+            dags_list.extend(list(dagbag.dags.values()))
+            dagbag_import_errors += len(dagbag.import_errors)
+        elif args.bundle_name:
+            # Priority 2: Load from specific bundle(s)
             manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
             all_bundles = list(manager.get_all_dag_bundles())
@@ -375,16 +409,19 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
-                    dagbag.collect_dags()
+                    dagbag = DagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
+                    )
                     dags_list.extend(list(dagbag.dags.values()))
                     dagbag_import_errors += len(dagbag.import_errors)
         else:
+            # Priority 3: Load from local filesystem (default DAGs folder)
+            # Use default DagBag which respects include_examples config
             dagbag = DagBag()
-            dagbag.collect_dags()
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
+        # Priority 4: Load from database
         dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
         pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
@@ -423,7 +460,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
     AirflowConsole().print_as(
         data=sorted(
-            filter_dags_by_bundle(dags_list, args.bundle_name if not args.local else None),
+            filter_dags_by_bundle(dags_list, args.bundle_name if not use_filesystem else None),
             key=operator.attrgetter("dag_id"),
         ),
         output=args.output,
@@ -459,12 +496,44 @@ def dag_details(args, session: Session = NEW_SESSION):
 @provide_session
 def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
+    # Deprecation warning for --local flag
+    if getattr(args, "local", False):
+        warnings.warn(
+            "The --local flag is deprecated and will be removed in Airflow 4.0. "
+            "The command now automatically loads from filesystem when appropriate.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     data = []
+    use_filesystem = False
 
-    if args.local:
-        # Get import errors from local areas
+    # Priority-based source detection:
+    # 1. --dagfile-path (specific file)
+    # 2. --bundle-name (specific bundle(s))
+    # 3. Local filesystem (default DAGs folder)
+    # 4. Database (fallback)
 
-        if args.bundle_name:
+    dagfile_path = getattr(args, "dagfile_path", None)
+
+    if dagfile_path or args.bundle_name or getattr(args, "local", False):
+        # Explicitly requested filesystem source
+        use_filesystem = True
+    else:
+        # Check if database has any import errors, otherwise check filesystem
+        error_count = session.scalar(select(func.count()).select_from(ParseImportError))
+        if error_count == 0:
+            use_filesystem = True
+
+    if use_filesystem:
+        # Get import errors from filesystem
+        if dagfile_path:
+            # Priority 1: Check specific file
+            dagbag = DagBag(dag_folder=dagfile_path, include_examples=False)
+            for filename, errors in dagbag.import_errors.items():
+                data.append({"filepath": filename, "error": errors})
+        elif args.bundle_name:
+            # Priority 2: Check specific bundle(s)
             manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
             all_bundles = list(manager.get_all_dag_bundles())
@@ -472,16 +541,18 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+                    dagbag = DagBag(
+                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
+                    )
                     for filename, errors in dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
-            dagbag = DagBag()
+            # Priority 3: Check local filesystem (default DAGs folder)
+            dagbag = DagBag(include_examples=False)
             for filename, errors in dagbag.import_errors.items():
                 data.append({"filepath": filename, "error": errors})
-
     else:
-        # Get import errors from the DB
+        # Priority 4: Get import errors from the DB
         query = select(ParseImportError)
         if args.bundle_name:
             validate_dag_bundle_arg(args.bundle_name)

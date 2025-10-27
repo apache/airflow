@@ -1,0 +1,32 @@
+Simplify DAG validation workflow by automatically using filesystem when database is empty
+
+The ``airflow dags list`` and ``airflow dags list-import-errors`` commands now automatically load from the filesystem when the database is empty or when specific paths are provided, eliminating the need for the ``--local`` flag in most cases.
+
+**New Features:**
+
+- Both commands now support ``--dagfile-path`` / ``-f`` to inspect a specific DAG file or directory (consistent with ``airflow dags test``)
+- Priority-based source detection: ``--dagfile-path`` > ``--bundle-name`` > local filesystem > database
+- Automatic filesystem fallback when database is empty (useful for local development and CI)
+
+**Deprecation:**
+
+The ``--local`` flag is now deprecated and will be removed in Airflow 4.0. The commands automatically determine the appropriate source, making the flag redundant.
+
+**Migration:**
+
+- If using ``airflow dags list --local``: Simply remove ``--local``, the command works the same way
+- For specific file or directory inspection: Use ``airflow dags list -f /path/to/dag.py`` or ``airflow dags list -f /path/to/dags_folder/``
+- The behavior remains unchanged - the ``--local`` flag still works with a deprecation warning
+
+This change provides a better user experience consistent with ``airflow dags test`` and simplifies DAG validation in CI/CD pipelines and pre-commit hooks.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

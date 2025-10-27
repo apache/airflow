@@ -167,6 +167,13 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
+ARG_DAGFILE_PATH = Arg(
+    (
+        "-f",
+        "--dagfile-path",
+    ),
+    help="Path to the dag file or directory. Can be absolute or relative to current directory",
+)
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
 ARG_OUTPUT_PATH = Arg(
@@ -233,7 +240,9 @@ ARG_SKIP_SERVE_LOGS = Arg(
 ARG_LIST_LOCAL = Arg(
     ("-l", "--local"),
     action="store_true",
-    help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
+    help="(DEPRECATED: Will be removed in Airflow 4.0) Shows local parsed DAGs and their import errors, "
+    "ignores content serialized in DB. This flag is now redundant as the command automatically uses "
+    "filesystem when appropriate.",
 )
 
 # list_dag_runs
@@ -361,13 +370,6 @@ ARG_TREAT_DAG_ID_AS_REGEX = Arg(
 )
 
 # test_dag
-ARG_DAGFILE_PATH = Arg(
-    (
-        "-f",
-        "--dagfile-path",
-    ),
-    help="Path to the dag file. Can be absolute or relative to current directory",
-)
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
     help=(
@@ -995,13 +997,20 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME, ARG_LIST_LOCAL),
+        args=(
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+            ARG_DAG_LIST_COLUMNS,
+            ARG_BUNDLE_NAME,
+            ARG_DAGFILE_PATH,
+            ARG_LIST_LOCAL,
+        ),
     ),
     ActionCommand(
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
-        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_DAGFILE_PATH, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="report",
