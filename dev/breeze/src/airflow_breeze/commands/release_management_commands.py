@@ -32,7 +32,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -1317,6 +1317,8 @@ def tag_providers(
         except subprocess.CalledProcessError:
             pass
 
+    release_date = datetime.now().strftime("%Y-%m-%d")
+
     if found_remote is None:
         raise ValueError("Could not find remote configured to push to apache/airflow")
 
@@ -1328,15 +1330,26 @@ def tag_providers(
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
                 try:
+                    get_console().print(f"[info]Creating tag: {tag}")
                     run_command(
-                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
+                        ["git", "tag", tag, "-m", f"Release {release_date} of providers"],
                         check=True,
                     )
                     tags.append(tag)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as e:
+                    get_console().print(f"[warning]Failed to create {tag}: {e}")
                     pass
-
+    providers_date_tag = f"providers/{release_date}"
     if tags:
+        run_command(
+            ["git", "tag", providers_date_tag, "-m", f"Release {release_date} of providers"],
+            check=True,
+        )
+        get_console().print()
+        get_console().print("\n[info]The providers release have been tagged with:[/]")
+        get_console().print(providers_date_tag)
+        get_console().print()
+        tags.append(providers_date_tag)
         try:
             push_result = run_command(
                 ["git", "push", found_remote, *tags],
