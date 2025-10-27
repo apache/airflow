@@ -284,7 +284,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         :param method: the method to perform
         :param user: the user performing the action
-        :param details: optional details about the pool
+        :param details: optional details about the team
         """
         raise NotImplementedError(
             "The auth manager you are using is not compatible with multi-team. "
