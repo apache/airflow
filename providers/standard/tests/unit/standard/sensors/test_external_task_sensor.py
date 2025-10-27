@@ -1415,7 +1415,7 @@ class TestExternalTaskAsyncSensor:
             external_dag_id=EXTERNAL_DAG_ID,
             deferrable=True,
         )
-        
+
         context = {"execution_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=context)
@@ -1508,7 +1508,7 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
             failed_states=failed_states,
         )
-        
+
         context = {"execution_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=context)
