@@ -31,6 +31,7 @@ configuring an Airflow environment.
 
     Using the CLI <usage-cli>
     Using the REST API <../security/api>
+    migrating-database-access
     add-dag-tags
     add-owner-links
     notifications

@@ -57,6 +57,9 @@ In Airflow 3, direct metadata database access from task code is now restricted. 
 - **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
 - **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
 
+.. note::
+   If your tasks currently use direct database access (e.g., ``settings.Session``, ``@provide_session``, or ``create_session``), see the detailed migration guide in :ref:`Step 5: Review custom operators for direct db access <migrating-database-access>` below.
+
 Step 1: Take care of prerequisites
 ----------------------------------
 
@@ -192,12 +195,156 @@ Step 4: Install the Standard Provider
 - For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
+.. _migrating-database-access:
+
 Step 5: Review custom operators for direct db access
 ----------------------------------------------------
 
 - In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
   If you have custom operators, review the code to make sure there are no direct db access.
   You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+Migrating Database Access in Tasks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In Airflow 2, tasks could directly access the Airflow metadata database using database sessions. This capability has been removed in Airflow 3 for security and architectural reasons. Here's how to migrate your code:
+
+**Airflow 2 Pattern (No longer supported in Airflow 3):**
+
+.. code-block:: python
+
+    # These patterns will NOT work in Airflow 3
+    from airflow import settings
+    from airflow.utils.session import provide_session, create_session
+    from airflow.models import TaskInstance, DagRun
+
+    # Direct database session access
+    @provide_session
+    def my_task_function(session=None):
+        # This will fail in Airflow 3
+        task_instances = session.query(TaskInstance).filter(...).all()
+        return task_instances
+
+    # Context manager approach
+    def another_task_function():
+        with create_session() as session:
+            # This will fail in Airflow 3
+            dag_runs = session.query(DagRun).filter(...).all()
+            return dag_runs
+
+    # Direct settings.Session usage
+    def direct_session_task():
+        session = settings.Session()
+        try:
+            # This will fail in Airflow 3
+            result = session.query(TaskInstance).count()
+            session.commit()
+        finally:
+            session.close()
+        return result
+
+**Airflow 3 Migration Path:**
+
+For most common database operations, use the Task SDK's API client instead:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, BaseOperator
+    from airflow.sdk.api.client import Client
+    from datetime import datetime
+
+    class MyCustomOperator(BaseOperator):
+        def execute(self, context):
+            # Get API client from context
+            client = context["task_instance"].task_sdk_client
+            
+            # Get task instance count
+            count_result = client.task_instances.get_count(
+                dag_id="my_dag",
+                states=["success", "failed"]
+            )
+            
+            # Get DAG run count
+            dag_run_count = client.dag_runs.get_count(
+                dag_id="my_dag",
+                states=["success"]
+            )
+            
+            return {"ti_count": count_result.count, "dr_count": dag_run_count.count}
+
+**Alternative: Create Explicit Database Session (Advanced Users Only)**
+
+If you absolutely need direct database access for complex queries not covered by the API, you can create an explicit database session. **Use this approach with extreme caution** as it bypasses Airflow 3's security model:
+
+.. code-block:: python
+
+    from airflow.sdk import BaseOperator
+    from airflow.configuration import conf
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import logging
+
+    class DatabaseAccessOperator(BaseOperator):
+        """
+        WARNING: This approach bypasses Airflow 3's security model.
+        Use only when the Task SDK API doesn't provide the needed functionality.
+        """
+        
+        def execute(self, context):
+            # Create explicit database connection
+            sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+            engine = create_engine(sql_alchemy_conn)
+            Session = sessionmaker(bind=engine)
+            
+            session = Session()
+            try:
+                # Your database operations here
+                # Be extremely careful with write operations
+                result = session.execute(
+                    "SELECT COUNT(*) FROM task_instance WHERE state = 'success'"
+                ).scalar()
+                
+                # Only commit if you're certain about the changes
+                # session.commit()  # Use with extreme caution
+                
+                return result
+            except Exception as e:
+                session.rollback()
+                logging.error(f"Database operation failed: {e}")
+                raise
+            finally:
+                session.close()
+                engine.dispose()
+
+**Migration Recommendations:**
+
+1. **Preferred Approach**: Use the Task SDK API client for all database operations when possible
+2. **Review Dependencies**: Check if your database access is actually necessary or if you can achieve the same result through other means
+3. **Security Considerations**: Direct database access bypasses Airflow 3's security improvements and should be avoided unless absolutely necessary
+4. **Testing**: Thoroughly test any custom database access code in a development environment before deploying to production
+5. **Future Compatibility**: Code using direct database access may break in future Airflow versions as the internal database schema evolves
+
+**Migration Patterns:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50, 50
+
+   * - **Airflow 2 Pattern**
+     - **Airflow 3 Migration**
+   * - ``session.query(TaskInstance).count()``
+     - ``client.task_instances.get_count(dag_id, ...)``
+   * - ``session.query(DagRun).filter(...)``
+     - ``client.dag_runs.get_count(dag_id, ...)``
+   * - ``session.query(Variable).filter(...)``
+     - ``client.variables.get(key)``
+   * - ``session.query(Connection).filter(...)``
+     - ``client.connections.get(conn_id)``
+   * - ``session.query(XCom).filter(...)``
+     - ``client.xcoms.get(dag_id, run_id, task_id, key)``
+
+.. note::
+   For more comprehensive examples and advanced migration patterns, see the detailed :doc:`/howto/migrating-database-access` guide.
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
