@@ -488,7 +488,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self._has_checked_existence = True
 
-    def get_count(self, dttm_filter, session, states) -> int:
+    def get_count(self, dttm_filter: list[datetime.datetime], session: Session, states: list[str]) -> int:
         """
         Get the count of records against dttm filter and states.
 
