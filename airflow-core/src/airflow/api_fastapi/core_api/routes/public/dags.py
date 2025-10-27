@@ -165,7 +165,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=list(dags),
         total_entries=total_entries,
     )
 
@@ -188,7 +188,7 @@ def get_dag(
 ) -> DAGResponse:
     """Get basic information about a DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    dag_model: DagModel = session.get(DagModel, dag_id)
+    dag_model = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
@@ -215,7 +215,7 @@ def get_dag_details(
     """Get details of DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    dag_model: DagModel = session.get(DagModel, dag_id)
+    dag_model = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
@@ -341,7 +341,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=list(dags),
         total_entries=total_entries,
     )
 

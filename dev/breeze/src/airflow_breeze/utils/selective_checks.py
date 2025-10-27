@@ -1345,7 +1345,7 @@ class SelectiveChecks:
             branch = self._github_context_dict.get("ref_name", "main")
             label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
 
-            return RUNNERS_TYPE_CROSS_MAPPING[label] if label else PUBLIC_AMD_RUNNERS
+            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
 
         return PUBLIC_AMD_RUNNERS
 
