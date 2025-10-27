@@ -661,7 +661,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
 breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-task-sdk-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
 ```
 
 The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
@@ -671,7 +671,7 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 ```bash
 breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-airflow-tarball --version ${VERSION}
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
 ```
 
 This is generally faster and requires less resources/network bandwidth. Note that you have to
@@ -763,7 +763,12 @@ uv run check_files.py task-sdk -v ${TASK_SDK_VERSION} -p ${PATH_TO_SVN}/task-sdk
 This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you:
+
+```shell script
 wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
