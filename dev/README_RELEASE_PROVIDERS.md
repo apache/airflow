@@ -840,13 +840,11 @@ How to verify it:
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
-   commands are:
+2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
 git fetch apache --tags
-git checkout providers-amazon/9.1.0rc1
+git checkout providers/2025-10-20
 ```
 
 3) Remove all the packages you have in dist folder
@@ -1345,6 +1343,13 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 breeze release-management tag-providers
+```
+
+The command should output all the tags it created. At the end it should also print the general tag
+applied for this provider's release wave - with current date in the format of:
+
+```
+providers/YYYY-MM-DD
 ```
 
 ## Publish documentation

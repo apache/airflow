@@ -346,21 +346,21 @@ Body:
 
 ```shell script
 cat <<EOF
-The release candidate for *Apache airflowctl** :  ${VERSION_RC} is now available for testing!
+The release candidate for **Apache Airflow Ctl**: ${VERSION_RC}  is now available for testing!
 
-This email is calling for a vote on the release, which will last at least until
-*October 30, 2025* and until 3 binding +1 votes have been received.
+This email is calling for a vote on the release, which will last at least until the
+DATE_HERE and until 3 binding +1 votes have been received.
 
 Consider this my +1 non-binding vote.
 
-airflowctl ${VERSION_RC} is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
+The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
 
-"airflowctl" package:
+The "airflowctl" package:
 
-   - *airflowctl-${VERSION}-source.tar.gz* is a source release that comes
+   - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
      with INSTALL instructions.
-   - *airflowctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
-   - *airflowctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+   - *apache_airfow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airfow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
 
@@ -377,22 +377,24 @@ The test procedure for PMC members is described in: https://github.com/apache/ai
 The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-contributors
 
-Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the airflowctl package.
+Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the apache-airflow-ctl package.
 This will allow us to rename the artifact without modifying the artifact checksums when we actually release.
 
-*Docs* (for preview): https://airflow.staged.apache.org/docs/airflowctl/${VERSION}
+*Docs* (for preview): https://airflow.staged.apache.org/docs/apache-airflow-ctl/${VERSION}/index.html
 
 *Release Notes*: https://github.com/apache/airflow/blob/airflow-ctl/${VERSION_RC}/airflow-ctl/RELEASE_NOTES.rst
 
 *Testing Instructions using PyPI*:
 
+The packages are available in PyPI: https://pypi.org/project/apache-airflow-ctl/${VERSION_RC}/
+
 You can build a virtualenv that installs this and other required packages like this:
 
 uv venv
-uv pip install -U airflowctl==${VERSION_RC}
+uv pip install -U apache-airflow-ctl==${VERSION_RC}
 
 Regards,
-<Your namee>
+<Your name>
 
 EOF
 ```
