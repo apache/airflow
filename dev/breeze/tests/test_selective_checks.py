@@ -2515,6 +2515,7 @@ def test_runner_type_schedule(mock_get):
     jobs_response = Mock()
     jobs_response.json.return_value = {
         "jobs": [
+            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
             {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
             {"name": "Other job", "labels": ["ubuntu-22.04"]},
         ]
