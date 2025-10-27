@@ -16,7 +16,7 @@
     under the License.
 
 Migrating Database Access from Airflow 2 to Airflow 3
-======================================================
+=====================================================
 
 This guide provides detailed examples for migrating database access patterns from Airflow 2 to Airflow 3.
 
@@ -88,7 +88,7 @@ Migration Strategies
 --------------------
 
 Strategy 1: Use Task SDK API Client (Recommended)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Task SDK provides API methods for most common database operations:
 
@@ -1709,7 +1709,7 @@ A safer alternative to direct table access is creating database views:
             super().__init__(query=query, read_only=True, **kwargs)
 
 Strategy 3: External Database for Custom Data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For storing and accessing custom application data, consider using a separate database:
 
