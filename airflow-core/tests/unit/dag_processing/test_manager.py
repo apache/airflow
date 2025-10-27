@@ -561,6 +561,7 @@ class TestDagFileProcessorManager:
                 {
                     "file": "/opt/airflow/dags/test_dag.py",
                     "bundle_path": "/opt/airflow/dags",
+                    "bundle_name": "testing",
                     "callback_requests": [],
                     "type": "DagFileParseRequest",
                 },
@@ -581,6 +582,7 @@ class TestDagFileProcessorManager:
                 {
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
                     "bundle_path": "/opt/airflow/dags",
+                    "bundle_name": "testing",
                     "callback_requests": [
                         {
                             "filepath": "dag_callback_dag.py",
@@ -603,7 +605,9 @@ class TestDagFileProcessorManager:
         from airflow.sdk.execution_time.comms import _ResponseFrame
 
         processor, read_socket = self.mock_processor()
-        processor._on_child_started(callbacks, path, bundle_path=Path("/opt/airflow/dags"))
+        processor._on_child_started(
+            callbacks, path, bundle_path=Path("/opt/airflow/dags"), bundle_name="testing"
+        )
 
         read_socket.settimeout(0.1)
         # Read response from the read end of the socket
@@ -1036,6 +1040,7 @@ class TestDagFileProcessorManager:
                     id=mock.ANY,
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
+                    bundle_name="testing",
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
@@ -1046,6 +1051,7 @@ class TestDagFileProcessorManager:
                     id=mock.ANY,
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
+                    bundle_name="testing",
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,
@@ -1368,3 +1374,28 @@ class TestDagFileProcessorManager:
         assert len(team1.dag_bundles) == 0
         team2 = session.scalars(select(Team).where(Team.name == team2_name)).one()
         assert len(team2.dag_bundles) == 0
+
+    @mock.patch.object(DagFileProcessorProcess, "start")
+    def test_create_process_passes_bundle_name_to_process_start(
+        self, mock_process_start, configure_testing_dag_bundle
+    ):
+        """Test that DagFileProcessorManager._create_process() passes bundle_name to DagFileProcessorProcess.start()"""
+        with configure_testing_dag_bundle("/tmp"):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+        # Setup test data
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("test_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        # Mock the process creation
+        mock_process_start.return_value = self.mock_processor()[0]
+
+        # Call _create_process (only takes one parameter: dag_file)
+        manager._create_process(file_info)
+
+        # Verify DagFileProcessorProcess.start was called with correct bundle_name
+        mock_process_start.assert_called_once()
+        call_kwargs = mock_process_start.call_args.kwargs
+        assert call_kwargs["bundle_name"] == "testing"

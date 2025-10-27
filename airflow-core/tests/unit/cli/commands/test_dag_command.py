@@ -784,6 +784,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
+            bundle_name="testing",
             include_examples=False,
         )
 
@@ -805,6 +806,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 
@@ -836,6 +838,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 
