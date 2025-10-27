@@ -450,6 +450,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
+            bundle_names = [bundle.name for bundle in self._dag_bundles]
             query = select(DbCallbackRequest)
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
@@ -457,8 +458,11 @@ class DagFileProcessorManager(LoggingMixin):
             query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
+                req = callback.get_callback_request()
+                if req.bundle_name not in bundle_names:
+                    continue
                 try:
-                    callback_queue.append(callback.get_callback_request())
+                    callback_queue.append(req)
                     session.delete(callback)
                 except Exception as e:
                     self.log.warning("Error adding callback for execution: %s, %s", callback, e)
