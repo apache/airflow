@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import atexit
 import functools
-import json
+import json as json_lib
 import logging
 import os
 import sys
@@ -122,7 +122,7 @@ async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json_lib
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users

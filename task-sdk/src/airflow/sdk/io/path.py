@@ -60,6 +60,11 @@ class _TrackingFileWrapper:
 
         return wrapper
 
+    # We need to explicitly implement `__iter__`
+    # because otherwise python iteration logic could use `__getitem__`
+    def __iter__(self):
+        return iter(self._obj)
+
     def __getitem__(self, key):
         # Intercept item access
         return self._obj[key]

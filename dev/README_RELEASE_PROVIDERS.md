@@ -359,6 +359,7 @@ brew install gnupg
 * Cleanup dist folder:
 
 ```shell script
+export PACKAGE_DATE=$(date "+%Y-%m-%d%n")
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
@@ -367,6 +368,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -374,6 +376,7 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -413,7 +416,7 @@ mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
 # Add and commit
 svn add *
-svn commit -m "Add artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
+svn commit -m "Add artifacts for Airflow Providers ${PACKAGE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
 ```
@@ -590,10 +593,10 @@ There are few special considerations when the list of provider is updated.
 
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
+branch="add-documentation-${PACKAGE_DATE}"
 git checkout -b "${branch}"
 git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git commit -m "Add documentation for packages - ${PACKAGE_DATE}"
 git push --set-upstream origin "${branch}"
 ```
 

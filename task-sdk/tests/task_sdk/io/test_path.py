@@ -215,6 +215,15 @@ class TestLocalPath:
         assert o.open("rb").read() == b"foo"
         o.unlink()
 
+    def test_read_line_by_line(self, target):
+        o = ObjectStoragePath(f"file://{target}")
+        with o.open("wb") as f:
+            f.write(b"foo\nbar\n")
+        with o.open("rb") as f:
+            lines = list(f)
+        assert lines == [b"foo\n", b"bar\n"]
+        o.unlink()
+
     def test_stat(self, target):
         o = ObjectStoragePath(f"file://{target}")
         assert o.stat().st_size == 0

@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+1.4.1
+.....
+
+.. warning::
+  The React Plugin integration in this release is incompatible with Airflow 3.1.0
+  It is recommended to use apache-airflow>=3.1.1
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Link to Dag in Plugin (#55642)``
+
+Misc
+~~~~
+
+* ``Bump vite from 7.1.7 to 7.1.11 in plugin integration (#56909)``
+* ``Bump happy-dom from 18.0.1 to 20.0.2 in plugin integration (#56686)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 23 updates (#57286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Extract prek hooks for Edge provider (#57104)``
+
 1.4.0
 .....
 
@@ -106,10 +129,10 @@ Misc
 
 * ``Pick/vite vitest full (#55623)``
 * ``Bump React and React-DOM (#55598)``
-* ``Bump axios from 1.11.0 to 1.12.0 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55550)``
+* ``Bump axios from 1.11.0 to 1.12.0 in plugin integration (#55550)``
 * ``Some small UI polishing for Edge React UI (#55545)``
 * ``Adjust Edge color scheme after merge of PR 53981 (#55485)``
-* ``Bump vite from 5.4.19 to 5.4.20 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55449)``
+* ``Bump vite from 5.4.19 to 5.4.20 in plugin integration (#55449)``
 
 Doc-only
 ~~~~~~~~

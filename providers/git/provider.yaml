@@ -44,11 +44,11 @@ integrations:
     tags: [software]
 
 hooks:
-  - integration-name: GIT
+  - integration-name: GIT (Git)
     python-modules:
       - airflow.providers.git.hooks.git
 bundles:
-  - integration-name: GIT
+  - integration-name: GIT (Git)
     python-modules:
       - airflow.providers.git.bundles.git
 

@@ -171,6 +171,9 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
+"memray" = [
+    "memray>=1.19.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]

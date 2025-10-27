@@ -61,7 +61,7 @@ Step 1: Take care of prerequisites
 ----------------------------------
 
 - Make sure that you are on Airflow 2.7 or later. It is recommended to upgrade to latest 2.x and then to Airflow 3.
-- Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
+- Make sure that your Python version is in the supported list.
 - Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
 
 

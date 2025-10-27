@@ -2170,7 +2170,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "celery cncf.kubernetes"},
+            {"docs-list-as-string": "celery cncf.kubernetes common.compat"},
             id="Celery python files changed",
         ),
         pytest.param(

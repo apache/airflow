@@ -43,7 +43,8 @@ import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import timeout
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname

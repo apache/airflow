@@ -271,6 +271,11 @@ class TaskInstanceOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
+    def set_rendered_map_index(self, id: uuid.UUID, rendered_map_index: str) -> OKResponse:
+        """Set rendered_map_index for a task instance via the API server."""
+        self.client.patch(f"task-instances/{id}/rendered-map-index", json=rendered_map_index)
+        return OKResponse(ok=True)
+
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
         """
         Get the previous successful dag run for a given task instance.
