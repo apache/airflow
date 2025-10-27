@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import certifi
 import httpx
 import pytest
 import time_machine
@@ -1376,19 +1377,15 @@ class TestSSLContextCaching:
         Client._get_ssl_context_cached.cache_clear()
 
     def test_cache_hit_on_same_parameters(self):
-        import certifi
-
         ca_file = certifi.where()
-        ctx1 = Client._get_ssl_context_cached(ca_file, "")
-        ctx2 = Client._get_ssl_context_cached(ca_file, "")
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
+        ctx2 = Client._get_ssl_context_cached(ca_file, None)
         assert ctx1 is ctx2
 
     def test_cache_miss_on_different_parameters(self):
-        import certifi
-
         ca_file = certifi.where()
 
-        ctx1 = Client._get_ssl_context_cached(ca_file, "")
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
         ctx2 = Client._get_ssl_context_cached(ca_file, ca_file)
 
         info = Client._get_ssl_context_cached.cache_info()
