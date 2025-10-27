@@ -68,6 +68,7 @@ else:
         HTTP_204_NO_CONTENT = 204
         HTTP_400_BAD_REQUEST = 400
         HTTP_403_FORBIDDEN = 403
+        HTTP_404_NOT_FOUND = 404
         HTTP_500_INTERNAL_SERVER_ERROR = 500
 
     class HTTPException(ProblemException):  # type: ignore[no-redef]

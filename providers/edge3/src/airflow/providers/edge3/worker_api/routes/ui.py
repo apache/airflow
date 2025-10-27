@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
@@ -44,6 +45,10 @@ from airflow.providers.edge3.worker_api.datamodels_ui import (
     Worker,
     WorkerCollectionResponse,
 )
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
 
 ui_router = AirflowRouter(tags=["UI"])
 
@@ -59,7 +64,7 @@ def worker(
 ) -> WorkerCollectionResponse:
     """Return Edge Workers."""
     query = select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)
-    workers: list[EdgeWorkerModel] = session.scalars(query)
+    workers: ScalarResult[EdgeWorkerModel] = session.scalars(query)
 
     result = [
         Worker(
@@ -91,7 +96,7 @@ def jobs(
 ) -> JobCollectionResponse:
     """Return Edge Jobs."""
     query = select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
-    jobs: list[EdgeJobModel] = session.scalars(query)
+    jobs: ScalarResult[EdgeJobModel] = session.scalars(query)
 
     result = [
         Job(
@@ -100,7 +105,7 @@ def jobs(
             run_id=j.run_id,
             map_index=j.map_index,
             try_number=j.try_number,
-            state=j.state,
+            state=TaskInstanceState(j.state),
             queue=j.queue,
             queued_dttm=j.queued_dttm,
             edge_worker=j.edge_worker,
