@@ -36,6 +36,7 @@ from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
@@ -89,6 +90,11 @@ class TestDagRunOperator:
             else:
                 session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
             session.commit()
+
+    def test_trigger_dagrun_operator_note_initialization():
+        """Ensure that note is correctly stored in the operator."""
+        op = TriggerDagRunOperator(task_id="test_task", trigger_dag_id="target_dag", note="Test note")
+        assert op.note == "Test note"
 
     def teardown_method(self):
         """Cleanup state after testing in DB."""
@@ -186,6 +192,24 @@ class TestDagRunOperator:
             task.execute(context={})
 
         assert exc_info.value.logical_date == timezone.datetime(2021, 1, 2, 3, 4, 5)
+
+    def test_trigger_dagrun_operator_passes_note(self, mocker):
+        """
+        Ensure that the note passed to the operator is correctly forwarded to the trigger call.
+        """
+        mock_trigger = mocker.patch(
+        "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator._trigger_dag_af_3"
+        )
+        operator = TriggerDagRunOperator(
+        task_id="test_trigger",
+        trigger_dag_id=TRIGGERED_DAG_ID,
+        note="Test note"
+    )
+        operator.execute(context={})
+
+        # Verify that the note was passed to the trigger call
+        _, kwargs = mock_trigger.call_args
+        assert kwargs["note"] == "Test note"
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""
