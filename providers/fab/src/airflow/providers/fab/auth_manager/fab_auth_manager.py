@@ -226,6 +226,7 @@ class FabAuthManager(BaseAuthManager[User]):
         from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
             login_router,
         )
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
 
         flask_app = create_app(enable_plugins=False)
 
@@ -241,6 +242,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         # Add the login router to the FastAPI app
         app.include_router(login_router)
+        app.include_router(roles_router)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
