@@ -726,6 +726,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    file_display_name?: string | null;
 };
 
 /**
