@@ -148,7 +148,7 @@ dependencies = [
     # Start of shared logging dependencies
     "msgspec>=0.19.0",
     "pygtrie>=2.5.0",
-    "structlog>=25.5.0",
+    "structlog>=25.4.0",
     # End of shared logging dependencies
 ]
 
