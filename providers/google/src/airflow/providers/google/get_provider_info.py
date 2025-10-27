@@ -219,7 +219,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Tasks",
                 "external-doc-url": "https://cloud.google.com/tasks/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/tasks.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/cloud/tasks.rst",
+                    "/docs/apache-airflow-providers-google/sensors/google-cloud-tasks.rst",
+                ],
                 "logo": "/docs/integration-logos/Cloud-Tasks.png",
                 "tags": ["gcp"],
             },
@@ -1064,7 +1067,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
             },
             {
-                "integration-name": "Google Cloud Logging",
+                "integration-name": "Google Cloud Logging Sink",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_logging"],
             },
             {

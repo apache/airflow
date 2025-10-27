@@ -84,7 +84,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
+from airflow.utils.sqlalchemy import (
+    get_dialect_name,
+    is_lock_not_available_error,
+    prohibit_commit,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -341,7 +346,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executable_tis: list[TI] = []
 
-        if session.get_bind().dialect.name == "postgresql":
+        if get_dialect_name(session) == "postgresql":
             # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
             # timeout", try to take out a transactional advisory lock (unlocks automatically on
             # COMMIT/ROLLBACK)
@@ -350,6 +355,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
                 )
             ).scalar()
+            if lock_acquired is None:
+                lock_acquired = False
             if not lock_acquired:
                 # Throw an error like the one that would happen with NOWAIT
                 raise OperationalError(
@@ -1131,18 +1138,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             prefix, sep, key = prefixed_key.partition(":")
 
             if prefix == "ti":
-                ti: TaskInstance | None = session.get(TaskInstance, key)
+                ti_result = session.get(TaskInstance, key)
+                if ti_result is None:
+                    continue
+                ti: TaskInstance = ti_result
 
-                if ti is not None:
-                    if ti.state in State.finished:
-                        self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
-                        span.end(end_time=datetime_to_nano(ti.end_date))
-                        ti.span_status = SpanStatus.ENDED
-                    else:
-                        span.end()
-                        ti.span_status = SpanStatus.NEEDS_CONTINUANCE
+                if ti.state in State.finished:
+                    self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
+                    span.end(end_time=datetime_to_nano(ti.end_date))
+                    ti.span_status = SpanStatus.ENDED
+                else:
+                    span.end()
+                    ti.span_status = SpanStatus.NEEDS_CONTINUANCE
             elif prefix == "dr":
-                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.id == int(key))).one()
+                dag_run_result = session.scalars(select(DagRun).where(DagRun.id == int(key))).one_or_none()
+                if dag_run_result is None:
+                    continue
+                dag_run: DagRun = dag_run_result
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=span)
 
@@ -1220,12 +1232,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             and dag_run.span_status == SpanStatus.ACTIVE
         ):
             initial_scheduler_id = dag_run.scheduled_by_job_id
-            job: Job = session.scalars(
+            job_result = session.scalars(
                 select(Job).where(
                     Job.id == initial_scheduler_id,
                     Job.job_type == "SchedulerJob",
                 )
-            ).one()
+            ).one_or_none()
+            if job_result is None:
+                return
+            job: Job = job_result
 
             if not job.is_alive():
                 # Start a new span for the dag_run.
@@ -1923,9 +1938,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+            if dag_model is None:
+                self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
+                return callback
 
-            if not dag or not dag_model:
-                self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            if not dag:
+                self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
+                return callback
+            if not dag_model:
+                self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
                 return callback
 
             if (
@@ -2034,6 +2055,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Return True if we determine that DAG still exists.
         """
         latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        if latest_dag_version is None:
+            return False
         if TYPE_CHECKING:
             assert latest_dag_version
 
@@ -2210,10 +2233,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
         )
 
-        if last_running_time:
+        if last_running_time is not None:
             query = query.where(Log.dttm > last_running_time)
 
-        return query.count()
+        count_result = query.count()
+        return count_result if count_result is not None else 0
 
     previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
 

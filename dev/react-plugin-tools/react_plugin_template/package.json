@@ -60,7 +60,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.15.0",
-    "happy-dom": "^17.4.6",
+    "happy-dom": "^20.0.8",
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
