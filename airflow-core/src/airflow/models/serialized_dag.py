@@ -145,7 +145,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_name_ref_to_ids_names(self, asset_ref_names) -> dict[str, tuple[int, str]]:
+    def collect_asset_name_ref_to_ids_names(self, asset_ref_names: set[str]) -> dict[str, tuple[int, str]]:
         return {
             name: (asset_id, name)
             for name, asset_id in self.session.execute(
@@ -155,7 +155,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris) -> dict[str, tuple[int, str]]:
+    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris: set[str]) -> dict[str, tuple[int, str]]:
         return {
             uri: (asset_id, name)
             for uri, name, asset_id in self.session.execute(
@@ -165,7 +165,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_alias_to_assets(self, asset_alias_names) -> dict[str, list[tuple[int, str]]]:
+    def collect_alias_to_assets(self, asset_alias_names: set[str]) -> dict[str, list[tuple[int, str]]]:
         return {
             aam.name: [(am.id, am.name) for am in aam.assets]
             for aam in self.session.scalars(
@@ -173,7 +173,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def resolve_asset_dag_dep(self, dep_data: dict) -> DagDependency:
+    def resolve_asset_dag_dep(self, dep_data: dict[str, Any]) -> DagDependency:
         dep_id = dep_data["dependency_id"]
         unique_key = AssetUniqueKey.from_str(dep_id)
         return DagDependency(
@@ -186,7 +186,7 @@ class _DagDependenciesResolver:
         )
 
     def resolve_asset_ref_dag_dep(
-        self, dep_data: dict, ref_type: Literal["asset-name-ref", "asset-uri-ref"]
+        self, dep_data: dict[str, Any], ref_type: Literal["asset-name-ref", "asset-uri-ref"]
     ) -> Iterator[DagDependency]:
         if ref_type == "asset-name-ref":
             ref_to_asset_id_name = self.asset_ref_name_to_asset_id_name
@@ -219,13 +219,13 @@ class _DagDependenciesResolver:
                 dependency_id=dep_id,
             )
 
-    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
+    def resolve_asset_name_ref_dag_dep(self, dep_data: dict[str, Any]) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
 
-    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
+    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict[str, Any]) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-uri-ref")
 
-    def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
+    def resolve_asset_alias_dag_dep(self, dep_data: dict[str, Any]) -> Iterator[DagDependency]:
         dep_id = dep_data["dependency_id"]
         assets = self.alias_names_to_asset_ids_names[dep_id]
         if assets:
@@ -294,13 +294,13 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore[has-type]
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore[has-type]
+        primaryjoin=dag_id == DagModel.dag_id,
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
@@ -339,7 +339,7 @@ class SerializedDagModel(Base):
         return f"<SerializedDag: {self.dag_id}>"
 
     @classmethod
-    def hash(cls, dag_data):
+    def hash(cls, dag_data: dict[str, Any]) -> str:
         """Hash the data to get the dag_hash."""
         dag_data = cls._sort_serialized_dag_dict(dag_data)
         data_ = dag_data.copy()
@@ -352,7 +352,7 @@ class SerializedDagModel(Base):
         return md5(data_json).hexdigest()
 
     @classmethod
-    def _sort_serialized_dag_dict(cls, serialized_dag: Any):
+    def _sort_serialized_dag_dict(cls, serialized_dag: Any) -> Any:
         """Recursively sort json_dict and its nested dictionaries and lists."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
@@ -460,7 +460,7 @@ class SerializedDagModel(Base):
         return True
 
     @classmethod
-    def latest_item_select_object(cls, dag_id):
+    def latest_item_select_object(cls, dag_id: str):
         from airflow.settings import engine
 
         if engine.dialect.name == "mysql":
@@ -538,7 +538,7 @@ class SerializedDagModel(Base):
         return dags
 
     @property
-    def data(self) -> dict | None:
+    def data(self) -> dict[str, Any] | None:
         # use __data_cache to avoid decompress and loads
         if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
@@ -598,7 +598,7 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        load_json: Callable | None
+        load_json: Callable[[Any], list[dict[str, Any]]] | None
         if COMPRESS_SERIALIZED_DAGS is False:
             dialect = get_dialect_name(session)
             if dialect in ["sqlite", "mysql"]:

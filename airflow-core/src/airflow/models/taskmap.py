@@ -70,7 +70,7 @@ class TaskMap(TaskInstanceDependencies):
     map_index: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     length: Mapped[int] = mapped_column(Integer, nullable=False)
-    keys: Mapped[list | None] = mapped_column(ExtendedJSON, nullable=True)
+    keys: Mapped[list[Any] | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
@@ -229,8 +229,9 @@ class TaskMap(TaskInstanceDependencies):
                     TaskInstance.run_id == run_id,
                 )
             )
-            indexes_to_map = range(current_max_mapping + 1, total_length)
+            indexes_to_map = range((current_max_mapping or -1) + 1, total_length)
 
+        dag_version_id: str | None
         if unmapped_ti:
             dag_version_id = unmapped_ti.dag_version_id
         elif dag_version := DagVersion.get_latest_version(task.dag_id, session=session):
