@@ -69,7 +69,7 @@ from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
@@ -921,9 +921,9 @@ def get_task_instance_states(
 @router.get("/breadcrumbs", status_code=status.HTTP_200_OK)
 def get_task_instance_breadcrumbs(dag_id: str, run_id: str, session: SessionDep) -> TaskBreadcrumbsResponse:
     result = session.execute(
-        select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration).where(
-            TI.dag_id == dag_id, TI.run_id == run_id
-        )
+        select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
+        .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
+        .order_by(TI.task_id, TI.map_index)
     ).mappings()
 
     def _iter_breadcrumbs() -> Iterator[dict[str, Any]]:
