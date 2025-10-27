@@ -763,7 +763,12 @@ uv run check_files.py task-sdk -v ${TASK_SDK_VERSION} -p ${PATH_TO_SVN}/task-sdk
 This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you:
+
+```shell script
 wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
