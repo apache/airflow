@@ -19,7 +19,7 @@ Audit Logs in Airflow
 =====================
 
 Understanding Audit Logs
--------------------------
+------------------------
 
 Audit logs serve as the historical record of an Airflow system, documenting who performed what actions and when they occurred. These logs are essential for maintaining system integrity, meeting compliance requirements, and conducting forensic analysis when issues arise.
 
@@ -41,7 +41,7 @@ The primary purposes of audit logs include:
 
 
 Understanding Event Logs
--------------------------
+------------------------
 
 Event logs represent the operational heartbeat of an Airflow system. Unlike audit logs, which focus on accountability and compliance, event logs capture the technical details of system behavior, application performance, and operational metrics.
 
@@ -61,7 +61,7 @@ Event logs are typically stored in log files or external logging systems and inc
 - Resource utilization data
 
 Audit Logs vs Event Logs
-------------------------------------------
+------------------------
 
 While both logging systems are crucial for system management, they serve distinct purposes and audiences:
 
@@ -85,11 +85,11 @@ While both logging systems are crucial for system management, they serve distinc
      - Structured database table (``log``)
      - Log files, external logging systems
    * - **Retention Requirements**
-     - Long-term (months to years for compliance)
+     - Long-term (months to years for compliance), if not purged from database
      - Short to medium-term (days to weeks)
    * - **Query Patterns**
-     - "Who modified this configuration?"
-     - "Why did this task execution fail?"
+     - "Who cleared the task instance for re-execution?"
+     - No query made except is a log aggregation framework is used. Usually logs are read on a per task execution basis and will describe: "Why did this task execution fail?"
 
 
 Accessing Audit Logs
@@ -103,8 +103,7 @@ Airflow provides multiple interfaces for accessing audit log data, each suited t
 **REST API Integration**
    For programmatic access and system integration, use the ``/eventLogs`` REST API endpoint. This approach enables automated monitoring, integration with external security tools, and custom reporting applications.
 
-**Direct Database Access**
-   Advanced users can query the ``log`` table directly using SQL. This method provides maximum flexibility for complex queries, custom reporting, and integration with business intelligence tools.
+
 
 Scope of Audit Logging
 ----------------------
@@ -137,7 +136,7 @@ Airflow's audit logging system captures events across three distinct operational
 
 
 Common Audit Log Scenarios
----------------------------
+--------------------------
 
 To facilitate audit log analysis, here are some frequently encountered scenarios and their corresponding queries:
 
@@ -169,7 +168,7 @@ To facilitate audit log analysis, here are some frequently encountered scenarios
    ORDER BY dttm DESC LIMIT 20;
 
 Event Catalog
---------------
+-------------
 
 The following section provides a complete reference of all events tracked by Airflow's audit logging system. Understanding these event types will help interpret audit logs and construct effective queries for specific use cases.
 
@@ -444,7 +443,7 @@ Airflow allows creating custom audit log entries programmatically:
 
 
 Anatomy of an Audit Log Entry
-------------------------------
+-----------------------------
 
 Each audit log record contains structured information that provides a complete picture of the logged event. Understanding these fields is essential for effective log analysis:
 
@@ -585,7 +584,7 @@ When using external logging systems (e.g., ELK stack, Splunk, CloudWatch):
 
 
 Practical Query Examples
--------------------------------------
+------------------------
 
 The following examples demonstrate practical applications of audit log queries for common operational and security scenarios. These queries serve as templates that can be adapted for specific requirements:
 
