@@ -24,6 +24,7 @@ import logging
 import os
 import sys
 import warnings
+from collections.abc import Callable
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -33,10 +34,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession as SAAsyncSession,
-    async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+try:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+except ImportError:
+    async_sessionmaker = sessionmaker  # type: ignore[assignment,misc]
+
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
@@ -123,7 +129,7 @@ Session: scoped_session | None = None
 # this is achieved by the Session factory above.
 NonScopedSession: sessionmaker | None = None
 async_engine: AsyncEngine | None = None
-AsyncSession: async_sessionmaker[SAAsyncSession] | None = None
+AsyncSession: Callable[..., SAAsyncSession] | None = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json_lib
@@ -369,9 +375,9 @@ def _configure_async_session() -> None:
         connect_args=_get_connect_args("async"),
         future=True,
     )
-
     AsyncSession = async_sessionmaker(
         bind=async_engine,
+        class_=SAAsyncSession,
         autoflush=False,
         expire_on_commit=False,
     )
