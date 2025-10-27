@@ -34,6 +34,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -295,7 +296,9 @@ def tarball_release(
 
 def create_tarball_release(
     version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     from packaging.version import Version
@@ -578,13 +581,15 @@ def remove_old_releases(version, repo_root):
 
 @release_management.command(
     name="prepare-airflow-tarball",
-    help="Prepare airflow's or airflow distribution source tarball.",
+    help="Prepare Airflow distribution source tarball.",
 )
 @click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
 @click.option(
     "--distribution-name",
     default="airflow",
-    help="The distribution name, airflow, task-sdk, providers, airflowctl",
+    type=BetterChoice(sorted([e.value for e in DistributionType])),
+    envvar="DISTRIBUTION_NAME",
+    help="The distribution name",
 )
 @click.option(
     "--tag",
@@ -595,7 +600,9 @@ def remove_old_releases(version, repo_root):
 @option_verbose
 def prepare_airflow_tarball(
     version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     create_tarball_release(
