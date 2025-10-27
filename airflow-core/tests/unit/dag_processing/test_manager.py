@@ -743,6 +743,97 @@ class TestDagFileProcessorManager:
         # and the DAG from test_dag2.py is deactivated
         assert session.get(DagModel, "test_dag2").is_stale is True
 
+    @pytest.mark.parametrize(
+        "rel_filelocs, expected_return, expected_dag1_stale, expected_dag2_stale",
+        [
+            pytest.param(
+                ["test_dag1.py"],  # Only dag1 present, dag2 deleted
+                True,  # Should return True
+                False,  # dag1 should not be stale
+                True,  # dag2 should be stale
+                id="dags_deactivated",
+            ),
+            pytest.param(
+                ["test_dag1.py", "test_dag2.py"],  # Both files present
+                False,  # Should return False
+                False,  # dag1 should not be stale
+                False,  # dag2 should not be stale
+                id="no_dags_deactivated",
+            ),
+        ],
+    )
+    def test_deactivate_deleted_dags_return_value(
+        self, dag_maker, session, rel_filelocs, expected_return, expected_dag1_stale, expected_dag2_stale
+    ):
+        """Test that DagModel.deactivate_deleted_dags returns correct boolean value."""
+        with dag_maker("test_dag1") as dag1:
+            dag1.relative_fileloc = "test_dag1.py"
+        with dag_maker("test_dag2") as dag2:
+            dag2.relative_fileloc = "test_dag2.py"
+        dag_maker.sync_dagbag_to_db()
+
+        any_deactivated = DagModel.deactivate_deleted_dags(
+            bundle_name="dag_maker",
+            rel_filelocs=rel_filelocs,
+            session=session,
+        )
+
+        assert any_deactivated is expected_return
+        assert session.get(DagModel, "test_dag1").is_stale is expected_dag1_stale
+        assert session.get(DagModel, "test_dag2").is_stale is expected_dag2_stale
+
+    @pytest.mark.parametrize(
+        "active_files, should_call_cleanup",
+        [
+            pytest.param(
+                [
+                    DagFileInfo(
+                        bundle_name="dag_maker",
+                        rel_path=Path("test_dag1.py"),
+                        bundle_path=TEST_DAGS_FOLDER,
+                    ),
+                    # test_dag2.py is deleted
+                ],
+                True,  # Should call cleanup
+                id="dags_deactivated",
+            ),
+            pytest.param(
+                [
+                    DagFileInfo(
+                        bundle_name="dag_maker",
+                        rel_path=Path("test_dag1.py"),
+                        bundle_path=TEST_DAGS_FOLDER,
+                    ),
+                    DagFileInfo(
+                        bundle_name="dag_maker",
+                        rel_path=Path("test_dag2.py"),
+                        bundle_path=TEST_DAGS_FOLDER,
+                    ),
+                ],
+                False,  # Should NOT call cleanup
+                id="no_dags_deactivated",
+            ),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.remove_references_to_deleted_dags")
+    def test_manager_deactivate_deleted_dags_cleanup_behavior(
+        self, mock_remove_references, dag_maker, session, active_files, should_call_cleanup
+    ):
+        """Test that manager conditionally calls remove_references_to_deleted_dags based on whether DAGs were deactivated."""
+        with dag_maker("test_dag1") as dag1:
+            dag1.relative_fileloc = "test_dag1.py"
+        with dag_maker("test_dag2") as dag2:
+            dag2.relative_fileloc = "test_dag2.py"
+        dag_maker.sync_dagbag_to_db()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.deactivate_deleted_dags("dag_maker", active_files)
+
+        if should_call_cleanup:
+            mock_remove_references.assert_called_once()
+        else:
+            mock_remove_references.assert_not_called()
+
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
         """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
