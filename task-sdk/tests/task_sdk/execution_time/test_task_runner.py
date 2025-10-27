@@ -2319,6 +2319,72 @@ class TestXComAfterTaskExecution:
         )
 
 
+class TestEmailNotifications:
+    def test_email_on_retry(self, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task retry."""
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class ZeroDivsionOperator(BaseOperator):
+            def execute(self, context):
+                1 // 0
+
+        task = ZeroDivsionOperator(
+            task_id="divide_by_zero_task",
+            email=["test@example.com"],
+            email_on_retry=True,
+            retries=2,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+            state, _, error = run(runtime_ti, context, log)
+            finalize(runtime_ti, state, context, log, error)
+
+            mock_smtp_notifier.assert_called_once()
+            kwargs = mock_smtp_notifier.call_args.kwargs
+            assert kwargs["from_email"] == "airflow@localhost"
+            assert kwargs["to"] == ["test@example.com"]
+            assert (
+                kwargs["html_content"]
+                == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+            )
+
+    def test_email_on_failure(self, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task failure."""
+        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="failing_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+            state, _, error = run(runtime_ti, context, log)
+            finalize(runtime_ti, state, context, log, error)
+
+            mock_smtp_notifier.assert_called_once()
+            kwargs = mock_smtp_notifier.call_args.kwargs
+            assert kwargs["from_email"] == "airflow@localhost"
+            assert kwargs["to"] == ["test@example.com"]
+            assert (
+                kwargs["html_content"]
+                == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+            )
+
+
 class TestDagParamRuntime:
     DEFAULT_ARGS = {
         "owner": "test",

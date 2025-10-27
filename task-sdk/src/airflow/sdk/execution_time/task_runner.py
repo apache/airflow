@@ -80,7 +80,6 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
-    SetRenderedMapIndex,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -812,19 +811,6 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
 
-    # Try to render map_index_template early with available context (will be re-rendered after execution)
-    # This provides a partial label during task execution for templates using pre-execution context
-    # If rendering fails here, we suppress the error since it will be re-rendered after execution
-    try:
-        if rendered_map_index := _render_map_index(context, ti=ti, log=log):
-            ti.rendered_map_index = rendered_map_index
-            log.debug("Sending early rendered map index", length=len(rendered_map_index))
-            SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=rendered_map_index))
-    except Exception:
-        log.debug(
-            "Early rendering of map_index_template failed, will retry after task execution", exc_info=True
-        )
-
     _validate_task_inlets_and_outlets(ti=ti, log=log)
 
     try:
@@ -941,20 +927,10 @@ def run(
 
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
                 with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                    previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                    # Send update only if value changed (e.g., user set context variables during execution)
-                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                        SUPERVISOR_COMMS.send(
-                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
-                        )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
-                previous_rendered_map_index = ti.rendered_map_index
                 ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                # Send update only if value changed (e.g., user set context variables during execution)
-                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1192,30 +1168,26 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
-def _get_email_subject_content(
-    *,
-    task_instance: RuntimeTaskInstance,
-    exception: BaseException | str | None,
+def _send_error_email_notification(
+    task: BaseOperator | MappedOperator,
+    ti: RuntimeTaskInstance,
+    context: Context,
+    error: BaseException | str | None,
     log: Logger,
-) -> tuple[str, str, str]:
-    """
-    Get the email subject content for exceptions.
+) -> None:
+    """Send email notification for task errors using SmtpNotifier."""
+    try:
+        from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    except ImportError:
+        log.error("Cannot send email notification: `apache-airflow-providers-smtp` is not installed.")
+        return
 
-    :param task_instance: the task instance
-    :param exception: the exception sent in the email
-    :param task:
-
-    :meta private:
-    """
-    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-    from airflow.sdk.definitions.context import Context, render_template_to_string
-
-    exception_html = str(exception).replace("\n", "<br>")
+    if not task.email:
+        return
 
     default_subject = "Airflow alert: {{ti}}"
     # For reporting purposes, we report based on 1-indexed,
-    # not 0-indexed lists (i.e. Try 1 instead of
-    # Try 0 for the first attempt).
+    # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
     default_html_content = (
         "Try {{try_number}} out of {{max_tries + 1}}<br>"
         "Exception:<br>{{exception_html}}<br>"
@@ -1224,67 +1196,35 @@ def _get_email_subject_content(
         'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
-    default_html_content_err = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>Failed attempt to attach error logs<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
-
-    additional_context: dict[str, Any] = {
-        "exception": exception,
+    # Add exception_html to context for template rendering
+    exception_html = str(error).replace("\n", "<br>")
+    additional_context = {
+        "exception": error,
         "exception_html": exception_html,
-        "try_number": task_instance.try_number,
-        "max_tries": task_instance.max_tries,
+        "try_number": ti.try_number,
+        "max_tries": ti.max_tries,
     }
+    email_context = {**context, **additional_context}
 
-    # Use the Dag's get_template_env() to set force_sandboxed. Don't add
-    # the flag to the function on task object -- that function can be
-    # overridden, and adding a flag breaks backward compatibility.
-    dag = task_instance.task.get_dag()
-    if dag:
-        jinja_env = dag.get_template_env(force_sandboxed=True)
-    else:
-        jinja_env = SandboxedEnvironment(cache_size=0)
-    jinja_context = task_instance.get_template_context()
-    if not jinja_context:
-        jinja_context = Context()
-    # Add additional fields to the context for email template rendering
-    jinja_context.update(additional_context)  # type: ignore[typeddict-item]
+    # task.email is Sequence[str] | None, but SmtpNotifier expects str | Iterable[str]
+    # Convert to list if it exists
+    to_emails = list(task.email) if task.email else []
+    if not to_emails:
+        return
 
-    def render(key: str, content: str) -> str:
-        if conf.has_option("email", key):
-            path = conf.get_mandatory_value("email", key)
-            try:
-                with open(path) as f:
-                    content = f.read()
-            except FileNotFoundError:
-                log.warning("Could not find email template file. Using defaults...", file=path)
-            except OSError:
-                log.exception("Error while using email template. Using defaults...", file=path)
-        return render_template_to_string(jinja_env.from_string(content), jinja_context)
-
-    subject = render("subject_template", default_subject)
-    html_content = render("html_content_template", default_html_content)
-    html_content_err = render("html_content_template", default_html_content_err)
-
-    return subject, html_content, html_content_err
-
-
-def _send_task_error_email(
-    to: Iterable[str],
-    ti: RuntimeTaskInstance,
-    exception: BaseException | str | None,
-    log: Logger,
-) -> None:
-    from airflow.utils.email import send_email
-
-    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception, log=log)
     try:
-        send_email(to, subject, content)
+        notifier = SmtpNotifier(
+            to=to_emails,
+            subject=default_subject,
+            html_content=default_html_content,
+            from_email="airflow@localhost",
+        )
+        # Cast to Context for type checker - email_context is a dict built from context
+        from typing import cast
+
+        notifier(cast("Context", email_context))
     except Exception:
-        send_email(to, subject, err)
+        log.exception("Failed to send email notification")
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
@@ -1346,10 +1286,9 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
-    log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
-    log.debug("Map index rendered", length=len(rendered_map_index))
+    log.info("Map index rendered as %s", rendered_map_index)
     return rendered_map_index
 
 
@@ -1445,7 +1384,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_task_error_email(task.email, ti, error, log)
+            _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
@@ -1455,7 +1394,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
-            _send_task_error_email(task.email, ti, error, log)
+            _send_error_email_notification(task, ti, context, error, log)
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
