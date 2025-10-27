@@ -21,19 +21,14 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.hooks.gcs import parse_json_from_gcs
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class MetastoreHivePartitionSensor(BaseSensorOperator):

@@ -26,17 +26,20 @@ from io import StringIO
 from typing import TYPE_CHECKING, ClassVar
 
 import structlog.dev
-from structlog.dev import ConsoleRenderer, Styles
+from structlog.dev import ConsoleRenderer
 from structlog.processors import CallsiteParameter
 
 if TYPE_CHECKING:
+    from structlog.dev import ColumnStyles
     from structlog.typing import EventDict, WrappedLogger
 
 
 class _LazyLogRecordDict(collections.abc.Mapping):
     __slots__ = ("event", "styles", "level_styles", "method_name", "no_colors")
 
-    def __init__(self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: Styles):
+    def __init__(
+        self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: ColumnStyles
+    ):
         self.event = event
         self.method_name = method_name
         self.level_styles = level_styles

@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow._shared.timezones import timezone
@@ -41,7 +42,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 
 class JobState(str, Enum):
@@ -57,8 +58,6 @@ class JobState(str, Enum):
 
 
 if TYPE_CHECKING:
-    import datetime
-
     from sqlalchemy.orm.session import Session
 
     from airflow.executors.base_executor import BaseExecutor
@@ -92,18 +91,18 @@ class Job(Base, LoggingMixin):
 
     __tablename__ = "job"
 
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dag_id: Mapped[str | None] = mapped_column(
         String(ID_LEN),
     )
-    state = Column(String(20))
-    job_type = Column(String(30))
-    start_date = Column(UtcDateTime())
-    end_date = Column(UtcDateTime())
-    latest_heartbeat = Column(UtcDateTime())
-    executor_class = Column(String(500))
-    hostname = Column(String(500))
-    unixname = Column(String(1000))
+    state: Mapped[str | None] = mapped_column(String(20))
+    job_type: Mapped[str | None] = mapped_column(String(30))
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    latest_heartbeat: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    executor_class: Mapped[str | None] = mapped_column(String(500))
+    hostname: Mapped[str | None] = mapped_column(String(500))
+    unixname: Mapped[str | None] = mapped_column(String(1000))
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -320,7 +319,7 @@ class Job(Base, LoggingMixin):
     def _is_alive(
         state: JobState | str | None,
         health_check_threshold_value: float | int,
-        latest_heartbeat: datetime.datetime,
+        latest_heartbeat: datetime,
     ) -> bool:
         return (
             state == JobState.RUNNING

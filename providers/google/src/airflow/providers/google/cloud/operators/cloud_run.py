@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from google.api_core import operation
     from google.cloud.run_v2.types import Execution
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
@@ -441,9 +441,10 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 self.service_name,
                 self.region,
             )
-            return hook.get_service(
+            service = hook.get_service(
                 service_name=self.service_name, region=self.region, project_id=self.project_id
             )
+            return Service.to_dict(service)
         except google.cloud.exceptions.GoogleCloudError as e:
             self.log.error("An error occurred. Exiting.")
             raise e

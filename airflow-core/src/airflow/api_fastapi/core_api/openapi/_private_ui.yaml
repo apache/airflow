@@ -2005,8 +2005,6 @@ components:
       description: DAG Run model for the Grid UI.
     HITLDetail:
       properties:
-        task_instance:
-          $ref: '#/components/schemas/TaskInstanceResponse'
         options:
           items:
             type: string
@@ -2070,12 +2068,14 @@ components:
           type: boolean
           title: Response Received
           default: false
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
       type: object
       required:
-      - task_instance
       - options
       - subject
       - created_at
+      - task_instance
       title: HITLDetail
       description: Schema for Human-in-the-loop detail.
     HITLUser:

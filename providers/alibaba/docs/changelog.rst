@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+3.2.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate alibaba provider to ''common.compat'' (#57000)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.2.3
 .....
 

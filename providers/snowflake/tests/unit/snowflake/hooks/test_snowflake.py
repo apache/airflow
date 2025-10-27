@@ -666,6 +666,44 @@ class TestPytestSnowflakeHook:
         assert "region" in conn_params_extra_keys
         assert "account" in conn_params_extra_keys
 
+    def test_get_conn_params_should_support_oauth_with_azure_conn_id(self, mocker):
+        azure_conn_id = "azure_test_conn"
+        mock_azure_token = "azure_test_token"
+        connection_kwargs = {
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "region": "af_region",
+                "warehouse": "af_wh",
+                "authenticator": "oauth",
+                "azure_conn_id": azure_conn_id,
+            },
+        }
+
+        mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
+        mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
+        mock_azure_base_hook.get_token.return_value.token = mock_azure_token
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+        # Check AzureBaseHook initialization and get_token call args
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)
+        mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
+
+        assert "authenticator" in conn_params
+        assert conn_params["authenticator"] == "oauth"
+        assert "token" in conn_params
+        assert conn_params["token"] == mock_azure_token
+
+        assert "user" not in conn_params
+        assert "password" not in conn_params
+        assert "refresh_token" not in conn_params
+        # Mandatory fields to generate account_identifier `https://<account>.<region>`
+        assert "region" in conn_params
+        assert "account" in conn_params
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
@@ -1054,3 +1092,44 @@ class TestPytestSnowflakeHook:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
         )
+
+    def test_get_azure_oauth_token(self, mocker):
+        """Test get_azure_oauth_token method gets token from provided connection id"""
+        azure_conn_id = "azure_test_conn"
+        mock_azure_token = "azure_test_token"
+
+        mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
+        mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
+        mock_azure_base_hook.get_token.return_value.token = mock_azure_token
+
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        token = hook.get_azure_oauth_token(azure_conn_id)
+
+        # Check AzureBaseHook initialization and get_token call args
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)
+        mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
+        assert token == mock_azure_token
+
+    def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
+        """Test get_azure_oauth_token method gets token from provided connection id"""
+
+        class MockAzureBaseHookWithoutGetToken:
+            def __init__(self):
+                pass
+
+        azure_conn_id = "azure_test_conn"
+        mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
+        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+        with pytest.raises(
+            AttributeError,
+            match=(
+                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Please upgrade apache-airflow-providers-microsoft-azure>="
+            ),
+        ):
+            hook.get_azure_oauth_token(azure_conn_id)
+
+        # Check AzureBaseHook initialization
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)

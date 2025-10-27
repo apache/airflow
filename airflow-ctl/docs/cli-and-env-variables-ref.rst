@@ -53,3 +53,10 @@ Environment Variables
     required if you have multiple environments set up and want to
     specify which one to use. If not set, the default environment
     will be used which is production.
+
+.. envvar:: AIRFLOW_CLI_DEBUG_MODE
+
+    This variable can be used to enable debug mode for the CLI.
+    It disables some features such as keyring integration and save credentials to file.
+    It is only meant to use if either you are developing airflowctl or running API integration tests.
+    Please do not use this variable unless you know what you are doing.

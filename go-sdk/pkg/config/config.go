@@ -116,7 +116,7 @@ func SetupViper(cfgFile string) (*viper.Viper, error) {
 			airflowHome = path.Join(home, "airflow")
 		}
 
-		// Search config in home directory with name ".go-sdk" (without extension).
+		// Search config in AIRFLOW_HOME directory with name
 		viper.AddConfigPath(airflowHome)
 		viper.SetConfigType("yaml")
 		viper.SetConfigName("go-sdk.yaml")
