@@ -163,6 +163,8 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            # Even though dag_id is filtered in base_query,
+            # adding this line here can improve the performance of this endpoint
             SerializedDagModel.dag_id == dag_id,
             SerializedDagModel.id != latest_serdag.id,
             SerializedDagModel.dag_version_id.in_(

@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.utils.types import NOTSET, ArgNotSet
 
 

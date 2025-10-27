@@ -29,6 +29,7 @@ import signal
 import subprocess
 import sys
 
+from airflow import DeprecatedImportWarning
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
@@ -173,7 +174,18 @@ def execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict | No
     :param env: Additional environment variables to set for the subprocess. If None,
         the subprocess will inherit the current environment variables of the parent process
         (``os.environ``)
+
+    .. deprecated:: 3.2.0
+        This function is deprecated. Please implement your own subprocess execution logic,
+        reference the one present in standard / google providers.
     """
+    import warnings
+
+    warnings.warn(
+        "The function `execute_in_subprocess` is deprecated and will be removed in a future version.",
+        DeprecatedImportWarning,
+        stacklevel=2,
+    )
     execute_in_subprocess_with_kwargs(cmd, cwd=cwd, env=env)
 
 
@@ -184,7 +196,18 @@ def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
     :param cmd: command and arguments to run
 
     All other keyword args will be passed directly to subprocess.Popen
+
+    .. deprecated:: 3.2.0
+        This function is deprecated. Please implement your own subprocess execution logic,
+        reference the one present in standard / google providers.
     """
+    import warnings
+
+    warnings.warn(
+        "The function `execute_in_subprocess_with_kwargs` is deprecated and will be removed in a future version.",
+        DeprecatedImportWarning,
+        stacklevel=2,
+    )
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, **kwargs

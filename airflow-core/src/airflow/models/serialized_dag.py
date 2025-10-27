@@ -461,6 +461,15 @@ class SerializedDagModel(Base):
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
+        from airflow.settings import engine
+
+        if engine.dialect.name == "mysql":
+            # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
+            # Details in https://github.com/apache/airflow/pull/55589
+            latest_item_id = (
+                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+            )
+            return select(cls).where(cls.id == latest_item_id)
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod

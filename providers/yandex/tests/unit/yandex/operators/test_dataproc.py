@@ -66,15 +66,7 @@ SSH_PUBLIC_KEYS = [
 # https://cloud.yandex.com/docs/logging/concepts/log-group
 LOG_GROUP_ID = "my_log_group_id"
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+BASEHOOK_PATCH_PATH = "airflow.providers.common.compat.sdk.BaseHook"
 
 
 class TestDataprocClusterCreateOperator:

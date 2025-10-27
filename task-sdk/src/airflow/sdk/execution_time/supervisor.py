@@ -103,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -1129,7 +1130,7 @@ class ActivitySubprocess(WatchedSubprocess):
         except Exception as e:
             self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self, exc: Exception | None):
+    def _handle_heartbeat_failures(self, exc: Exception):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1137,7 +1138,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exception=exc,
+            exc_info=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -1263,6 +1264,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, SetRenderedMapIndex):
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):

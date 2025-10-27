@@ -146,7 +146,7 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
             raise ValueError("Either name or uri must be provided")
 
         if asset is None:
-            raise ValueError(f"Asset not found with {'name=' + str(name) if name else 'uri=' + str(uri)}")
+            raise ValueError("No active asset found with either name or uri.")
         return asset.to_public()
 
 

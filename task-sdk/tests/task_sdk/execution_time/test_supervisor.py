@@ -104,6 +104,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
@@ -858,7 +859,7 @@ class TestWatchedSubprocess:
                 "level": "warning",
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
-                "exception": mocker.ANY,
+                "exc_info": mocker.ANY,
                 "loc": mocker.ANY,
             }
 
@@ -1603,6 +1604,15 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="set_rtif",
+    ),
+    RequestTestCase(
+        message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),
+        client_mock=ClientMock(
+            method_path="task_instances.set_rendered_map_index",
+            args=(TI_ID, "Label: task_1"),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_rendered_map_index",
     ),
     RequestTestCase(
         message=SucceedTask(

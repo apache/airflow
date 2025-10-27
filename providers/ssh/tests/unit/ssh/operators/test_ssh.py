@@ -27,21 +27,19 @@ from paramiko.client import SSHClient
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+datetime = timezone.datetime
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.timezone import datetime
-else:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
