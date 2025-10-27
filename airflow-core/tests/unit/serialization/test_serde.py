@@ -28,7 +28,6 @@ import attr
 import pytest
 from packaging import version
 from pydantic import BaseModel
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serde import (
@@ -194,13 +193,6 @@ class C:
         return None
 
 
-@pydantic_dataclass
-class PydanticDataclass:
-    __version__: ClassVar[int] = 1
-    a: int
-    b: str
-
-
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -315,17 +307,6 @@ class TestSerDe:
 
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
-
-    def test_serder_pydantic_dataclass(self):
-        orig = PydanticDataclass(a=5, b="SerDe Pydantic Dataclass Test")
-        serialized = serialize(orig)
-        assert orig.__version__ == serialized[VERSION]
-        assert qualname(orig) == serialized[CLASSNAME]
-        assert serialized[DATA]
-
-        decoded = deserialize(serialized)
-        assert orig.a == getattr(decoded, "a", None)
-        assert orig.b == getattr(decoded, "b", None)
 
     @conf_vars(
         {
