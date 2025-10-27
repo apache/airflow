@@ -196,7 +196,7 @@ def get_xcom_entries(
     )
     xcoms = session.scalars(query).all()
     return XComCollectionResponse(
-        xcom_entries=[XComResponse.from_orm(xcom) for xcom in xcoms], total_entries=total_entries
+        xcom_entries=session.scalars(query), total_entries=total_entries
     )
 
 
