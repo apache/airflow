@@ -149,12 +149,14 @@ export const Nav = () => {
         <Box mb={3}>
           <NavLink to="/">
             <AirflowPin
+              _motionSafe={{
+                _hover: {
+                  transform: "rotate(360deg)",
+                  transition: "transform 0.8s ease-in-out"
+                }
+              }}
               height="35px"
               width="35px"
-              _hover={{
-                transform: "rotate(360deg)",
-                transition: "transform 0.8s ease-in-out"
-              }}
             />
           </NavLink>
         </Box>
