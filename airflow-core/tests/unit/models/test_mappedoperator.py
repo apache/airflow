@@ -123,13 +123,13 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         )
     )
 
-    if num_existing_tis:
-        # Remove the map_index=-1 TI when we're creating other TIs
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == mapped.dag_id,
-            TaskInstance.task_id == mapped.task_id,
-            TaskInstance.run_id == dr.run_id,
-        ).delete()
+    # Clean up any existing TaskInstances to prevent UNIQUE constraint violations
+    session.query(TaskInstance).filter(
+        TaskInstance.dag_id == mapped.dag_id,
+        TaskInstance.task_id == mapped.task_id,
+        TaskInstance.run_id == dr.run_id,
+    ).delete()
+    session.flush()
 
     dag_version = DagVersion.get_latest_version(dr.dag_id)
 
@@ -275,13 +275,14 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         )
     )
 
-    if num_existing_tis:
-        # Remove the map_index=-1 TI when we're creating other TIs
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == mapped.dag_id,
-            TaskInstance.task_id == mapped.task_id,
-            TaskInstance.run_id == dr.run_id,
-        ).delete()
+    # Clean up any existing TaskInstances to prevent UNIQUE constraint violations
+    session.query(TaskInstance).filter(
+        TaskInstance.dag_id == mapped.dag_id,
+        TaskInstance.task_id == mapped.task_id,
+        TaskInstance.run_id == dr.run_id,
+    ).delete()
+    session.flush()
+
     dag_version = DagVersion.get_latest_version(dr.dag_id)
 
     for index in range(num_existing_tis):
@@ -329,6 +330,15 @@ def test_map_product_expansion(dag_maker, session):
         show.expand(number=emit_numbers(), letter=emit_letters())
 
     dr = dag_maker.create_dagrun()
+    
+    # Clean up any existing TaskInstances for the show task to prevent UNIQUE constraint violations
+    show_task = dag.get_task("show")
+    session.query(TaskInstance).filter(
+        TaskInstance.dag_id == show_task.dag_id,
+        TaskInstance.task_id == show_task.task_id,
+        TaskInstance.run_id == dr.run_id,
+    ).delete()
+    
     for fn in (emit_numbers, emit_letters):
         session.add(
             TaskMap(
@@ -342,7 +352,6 @@ def test_map_product_expansion(dag_maker, session):
         )
 
     session.flush()
-    show_task = dag.get_task("show")
     mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dr.run_id, session=session)
     assert max_map_index + 1 == len(mapped_tis) == 6
 
