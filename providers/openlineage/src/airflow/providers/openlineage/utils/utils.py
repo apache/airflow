@@ -742,7 +742,7 @@ def get_airflow_state_run_facet(
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
-            tasksState={ti.task_id: ti.state for ti in tis},
+            tasksState={ti.task_id: ti.state for ti in tis}, # type: ignore
             tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
         )
     }
