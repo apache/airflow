@@ -21,7 +21,6 @@ import inspect
 from typing import TYPE_CHECKING, Any, cast
 
 import attrs
-from pydantic.types import JsonValue
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
@@ -29,6 +28,8 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
+
+    from pydantic.types import JsonValue
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
     from airflow.sdk.bases.decorator import _TaskDecorator

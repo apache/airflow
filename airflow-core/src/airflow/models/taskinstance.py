@@ -1400,7 +1400,7 @@ class TaskInstance(Base, LoggingMixin):
                 if alias_name not in outlet_alias_names:
                     continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
-                extra_json = json.dumps(event["extra"], sort_keys=True, ensure_ascii=True)
+                extra_json = json.dumps(event["extra"], sort_keys=True)
                 d[asset_key, extra_json].add(alias_name)
             return d
 
@@ -1413,7 +1413,7 @@ class TaskInstance(Base, LoggingMixin):
                     task_instance=ti,
                     asset=asset_key,
                     source_alias_names=event_aliase_names,
-                    extra=dict(extra_key),
+                    extra=extra_key,
                     session=session,
                 )
                 if event is None:
@@ -1424,7 +1424,7 @@ class TaskInstance(Base, LoggingMixin):
                         task_instance=ti,
                         asset=asset_key,
                         source_alias_names=event_aliase_names,
-                        extra=dict(extra_key),
+                        extra=extra_key,
                         session=session,
                     )
 

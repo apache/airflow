@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic.types import JsonValue
+
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 
@@ -41,7 +43,7 @@ class AssetEventResponse(BaseModel):
 
     id: int
     timestamp: datetime
-    extra: dict | None = None
+    extra: dict[str, JsonValue] | None = None
 
     asset: AssetResponse
     created_dagruns: list[DagRunAssetReference]
