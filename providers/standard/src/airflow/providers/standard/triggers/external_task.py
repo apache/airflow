@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from typing import Any, Collection
+from collections.abc import Collection
+from typing import Any
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func, select
