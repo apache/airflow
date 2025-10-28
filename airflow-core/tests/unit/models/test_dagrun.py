@@ -1663,7 +1663,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
         TaskInstance.run_id == dr.run_id,
     ).delete()
     session.flush()
-    
+
     # We insert a faulty record
     session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id))
     session.flush()

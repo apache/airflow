@@ -248,13 +248,13 @@ class TaskMap(TaskInstanceDependencies):
                     TaskInstance.map_index == index,
                 )
             ).first()
-            
+
             if existing_ti is not None:
                 # TaskInstance already exists, reuse it
                 existing_ti.refresh_from_task(task)
                 all_expanded_tis.append(existing_ti)
                 continue
-            
+
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
