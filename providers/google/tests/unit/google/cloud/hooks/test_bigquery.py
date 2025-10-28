@@ -40,6 +40,7 @@ from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
 from airflow.exceptions import AirflowException
+from airflow.models import DagRun
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import Context
 from airflow.providers.google.cloud.hooks.bigquery import (
@@ -52,6 +53,7 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_src_fmt_configs,
     _validate_value,
 )
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -684,14 +686,44 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert job_id == expected_job_id
 
     def test_get_run_after_or_logical_date(self):
+        """Test get_run_after_or_logical_date for both Airflow 3.x and pre-3.0 behavior."""
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models import DagRun
+            ctx = Context(
+                dag_run=DagRun(
+                    run_type=DagRunType.MANUAL,
+                    start_date=pendulum.datetime(2025, 2, 2, tz="UTC"),
+                ),
+                logical_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            )
+            assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 2, 2, tz="UTC")
 
-            ctx = Context(dag_run=DagRun(run_after=pendulum.datetime(2025, 1, 1)))
+            ctx = Context(
+                dag_run=DagRun(
+                    run_type=DagRunType.SCHEDULED,
+                    start_date=pendulum.datetime(2025, 2, 2, tz="UTC"),
+                ),
+                logical_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            )
+            assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 2, 2, tz="UTC")
+
         else:
-            ctx = Context(logical_date=pendulum.datetime(2025, 1, 1))
+            ctx = Context(
+                dag_run=DagRun(
+                    run_type=DagRunType.MANUAL,
+                    start_date=pendulum.datetime(2025, 2, 2, tz="UTC"),
+                ),
+                logical_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            )
+            assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 1, 1, tz="UTC")
 
-        assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 1, 1)
+            ctx = Context(
+                dag_run=DagRun(
+                    run_type=DagRunType.SCHEDULED,
+                    start_date=pendulum.datetime(2025, 2, 2, tz="UTC"),
+                ),
+                logical_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            )
+            assert self.hook.get_run_after_or_logical_date(ctx) == pendulum.datetime(2025, 2, 2, tz="UTC")
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_job",
