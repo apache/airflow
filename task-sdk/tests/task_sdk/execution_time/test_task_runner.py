@@ -2320,7 +2320,29 @@ class TestXComAfterTaskExecution:
 
 
 class TestEmailNotifications:
-    def test_email_on_retry(self, create_runtime_ti, mock_supervisor_comms):
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_retry(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
         """Test email notification on task retry."""
         from airflow.sdk.execution_time.task_runner import finalize, run
 
@@ -2330,7 +2352,7 @@ class TestEmailNotifications:
 
         task = ZeroDivsionOperator(
             task_id="divide_by_zero_task",
-            email=["test@example.com"],
+            email=emails,
             email_on_retry=True,
             retries=2,
         )
@@ -2343,16 +2365,41 @@ class TestEmailNotifications:
             state, _, error = run(runtime_ti, context, log)
             finalize(runtime_ti, state, context, log, error)
 
-            mock_smtp_notifier.assert_called_once()
-            kwargs = mock_smtp_notifier.call_args.kwargs
-            assert kwargs["from_email"] == "airflow@localhost"
-            assert kwargs["to"] == ["test@example.com"]
-            assert (
-                kwargs["html_content"]
-                == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-            )
+            if not sent:
+                mock_smtp_notifier.assert_not_called()
+            else:
+                mock_smtp_notifier.assert_called_once()
+                kwargs = mock_smtp_notifier.call_args.kwargs
+                assert kwargs["from_email"] == "airflow@localhost"
+                assert kwargs["to"] == emails
+                assert (
+                    kwargs["html_content"]
+                    == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                )
 
-    def test_email_on_failure(self, create_runtime_ti, mock_supervisor_comms):
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_failure(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
         """Test email notification on task failure."""
         from airflow.exceptions import AirflowFailException
         from airflow.sdk.execution_time.task_runner import finalize, run
@@ -2363,7 +2410,7 @@ class TestEmailNotifications:
 
         task = FailingOperator(
             task_id="failing_task",
-            email=["test@example.com"],
+            email=emails,
             email_on_failure=True,
         )
 
@@ -2375,14 +2422,17 @@ class TestEmailNotifications:
             state, _, error = run(runtime_ti, context, log)
             finalize(runtime_ti, state, context, log, error)
 
-            mock_smtp_notifier.assert_called_once()
-            kwargs = mock_smtp_notifier.call_args.kwargs
-            assert kwargs["from_email"] == "airflow@localhost"
-            assert kwargs["to"] == ["test@example.com"]
-            assert (
-                kwargs["html_content"]
-                == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-            )
+            if not sent:
+                mock_smtp_notifier.assert_not_called()
+            else:
+                mock_smtp_notifier.assert_called_once()
+                kwargs = mock_smtp_notifier.call_args.kwargs
+                assert kwargs["from_email"] == "airflow@localhost"
+                assert kwargs["to"] == emails
+                assert (
+                    kwargs["html_content"]
+                    == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                )
 
 
 class TestDagParamRuntime:
