@@ -1,0 +1,16 @@
+Git provider: Remove '.git' folder from versions in GitDagBundle
+
+A new option(``prune_dotgit_folder``) has been added to the GitDagBundle to remove ``.git`` from
+versioned bundles by default to reduce disk usage; set prune_dotgit_folder=False to keep
+repo metadata in the dag bundle's versions folders.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
