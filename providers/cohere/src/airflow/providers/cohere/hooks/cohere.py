@@ -25,7 +25,7 @@ import cohere
 from cohere.types import UserChatMessageV2
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cohere.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions

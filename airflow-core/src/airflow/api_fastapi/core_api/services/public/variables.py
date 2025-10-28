@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -76,11 +78,14 @@ def update_orm_from_pydantic(
         )
 
     # Apply patch via utility
-    return BulkService.apply_patch_with_update_mask(
-        model=old_variable,
-        patch_body=patch_body,
-        update_mask=update_mask,
-        non_update_fields=non_update_fields,
+    return cast(
+        "Variable",
+        BulkService.apply_patch_with_update_mask(
+            model=old_variable,
+            patch_body=patch_body,
+            update_mask=update_mask,
+            non_update_fields=non_update_fields,
+        ),
     )
 
 

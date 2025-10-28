@@ -162,16 +162,14 @@ class RedshiftSQLHook(DbApiHook):
         port = conn_params.get("port")
         database = conn_params.get("database")
 
-        return str(
-            URL.create(
-                drivername="postgresql",
-                username=str(username) if username is not None else None,
-                password=str(password) if password is not None else None,
-                host=str(host) if host is not None else None,
-                port=int(port) if port is not None else None,
-                database=str(database) if database is not None else None,
-            )
-        )
+        return URL.create(
+            drivername="postgresql",
+            username=str(username) if username is not None else None,
+            password=str(password) if password is not None else None,
+            host=str(host) if host is not None else None,
+            port=int(port) if port is not None else None,
+            database=str(database) if database is not None else None,
+        ).render_as_string(hide_password=False)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overridden to pass Redshift-specific arguments."""

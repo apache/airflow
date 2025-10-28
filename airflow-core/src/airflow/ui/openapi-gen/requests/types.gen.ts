@@ -406,6 +406,9 @@ export type ClearTaskInstancesBody = {
     only_failed?: boolean;
     only_running?: boolean;
     reset_dag_runs?: boolean;
+    /**
+     * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
+     */
     task_ids?: Array<(string | [
     string,
     number
@@ -2017,6 +2020,22 @@ export type TaskInstanceStateCount = {
 };
 
 /**
+ * Team collection serializer for responses.
+ */
+export type TeamCollectionResponse = {
+    teams: Array<TeamResponse>;
+    total_entries: number;
+};
+
+/**
+ * Base serializer for Team.
+ */
+export type TeamResponse = {
+    id: string;
+    name: string;
+};
+
+/**
  * Optional alert to be shown at the top of the page.
  */
 export type UIAlert = {
@@ -3369,6 +3388,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type ListTeamsData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListTeamsResponse = TeamCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -6511,6 +6541,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/teams': {
+        get: {
+            req: ListTeamsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TeamCollectionResponse;
                 /**
                  * Validation Error
                  */

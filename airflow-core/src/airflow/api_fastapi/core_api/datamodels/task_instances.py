@@ -150,7 +150,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     only_failed: bool = True
     only_running: bool = False
     reset_dag_runs: bool = True
-    task_ids: list[str | tuple[str, int]] | None = None
+    task_ids: list[str | tuple[str, int]] | None = Field(
+        default=None,
+        description="A list of `task_id` or [`task_id`, `map_index`]. "
+        "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False

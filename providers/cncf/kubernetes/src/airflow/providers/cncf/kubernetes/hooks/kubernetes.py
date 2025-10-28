@@ -44,7 +44,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -722,8 +722,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             try:
                 deployment = self.get_deployment_status(name=name, namespace=namespace)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
+                msg = "Exception occurred while checking for Deployment status."
+                self.log.exception(msg)
+                raise ValueError(msg) from e
 
             deployment_status = V1Deployment.to_dict(deployment)["status"]
             replicas = deployment_status["replicas"]
