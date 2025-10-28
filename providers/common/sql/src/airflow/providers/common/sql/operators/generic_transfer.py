@@ -159,8 +159,8 @@ class GenericTransfer(BaseOperator):
             if isinstance(self.sql, str):
                 self.sql = [self.sql]
 
+            self.log.info("Extracting data from %s", self.source_conn_id)
             for sql in self.sql:
-                self.log.info("Extracting data from %s", self.source_conn_id)
                 self.log.info("Executing: \n %s", sql)
 
                 results = self.source_hook.get_records(sql)
