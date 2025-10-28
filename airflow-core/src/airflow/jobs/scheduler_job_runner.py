@@ -1109,17 +1109,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_runs = list(session.scalars(
-                select(DagRun)
-                .join(DagRun.dag_model)
-                .join(TI)
-                .where(
-                    DagModel.is_paused == expression.true(),
-                    DagRun.state == DagRunState.RUNNING,
+            paused_runs = list(
+                session.scalars(
+                    select(DagRun)
+                    .join(DagRun.dag_model)
+                    .join(TI)
+                    .where(
+                        DagModel.is_paused == expression.true(),
+                        DagRun.state == DagRunState.RUNNING,
+                    )
+                    .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
+                    .group_by(DagRun)
                 )
-                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
-                .group_by(DagRun)
-            ))
+            )
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1151,7 +1153,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     span.end()
                     ti.span_status = SpanStatus.NEEDS_CONTINUANCE
             elif prefix == "dr":
-                dag_run: DagRun | None = session.scalars(select(DagRun).where(DagRun.id == int(key))).one_or_none()
+                dag_run: DagRun | None = session.scalars(
+                    select(DagRun).where(DagRun.id == int(key))
+                ).one_or_none()
                 if dag_run is None:
                     continue
                 if dag_run.state in State.finished_dr_states:
@@ -1189,9 +1193,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.scalars(select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END))
         )
         tis_should_end: list[TaskInstance] = list(
-            session.scalars(
-                select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END)
-            )
+            session.scalars(select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END))
         )
 
         for dag_run in dag_runs_should_end:
@@ -1706,26 +1708,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
-            asset_events = list(session.scalars(
-                select(AssetEvent)
-                .where(
-                    or_(
-                        AssetEvent.asset_id.in_(
-                            select(DagScheduleAssetReference.asset_id).where(
-                                DagScheduleAssetReference.dag_id == dag.dag_id
-                            )
+            asset_events = list(
+                session.scalars(
+                    select(AssetEvent)
+                    .where(
+                        or_(
+                            AssetEvent.asset_id.in_(
+                                select(DagScheduleAssetReference.asset_id).where(
+                                    DagScheduleAssetReference.dag_id == dag.dag_id
+                                )
+                            ),
+                            AssetEvent.source_aliases.any(
+                                AssetAliasModel.scheduled_dags.any(
+                                    DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                                )
+                            ),
                         ),
-                        AssetEvent.source_aliases.any(
-                            AssetAliasModel.scheduled_dags.any(
-                                DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                            )
-                        ),
-                    ),
-                    AssetEvent.timestamp <= triggered_date,
-                    AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp <= triggered_date,
+                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                    )
+                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
-                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
-            ))
+            )
 
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -2441,20 +2445,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
-        task_instances_without_heartbeats = list(session.scalars(
-            select(TI)
-            .options(selectinload(TI.dag_model))
-            .options(asset_loader)
-            .options(alias_loader)
-            .options(selectinload(TI.dag_version))
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(DM, TI.dag_id == DM.dag_id)
-            .where(
-                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                TI.last_heartbeat_at < limit_dttm,
+        task_instances_without_heartbeats = list(
+            session.scalars(
+                select(TI)
+                .options(selectinload(TI.dag_model))
+                .options(asset_loader)
+                .options(alias_loader)
+                .options(selectinload(TI.dag_version))
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(DM, TI.dag_id == DM.dag_id)
+                .where(
+                    TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                    TI.last_heartbeat_at < limit_dttm,
+                )
+                .where(TI.queued_by_job_id == self.job.id)
             )
-            .where(TI.queued_by_job_id == self.job.id)
-        ))
+        )
         if task_instances_without_heartbeats:
             self.log.warning(
                 "Failing %s TIs without heartbeat after %s",
