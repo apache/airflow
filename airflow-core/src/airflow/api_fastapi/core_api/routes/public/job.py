@@ -130,6 +130,6 @@ def get_jobs(
         jobs = [job for job in jobs if job.is_alive()]
 
     return JobCollectionResponse(
-        jobs=jobs,
+        jobs=list(jobs),
         total_entries=total_entries,
     )

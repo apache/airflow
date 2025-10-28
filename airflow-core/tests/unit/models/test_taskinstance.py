@@ -221,7 +221,7 @@ class TestTaskInstance:
         op.dag = dag
 
         # no reassignment
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="can not be changed"):
             op.dag = dag2
 
         # but assigning the same dag is ok
@@ -243,7 +243,9 @@ class TestTaskInstance:
         assert [i.has_dag() for i in [op1, op2, op3, op4]] == [False, False, True, True]
 
         # can't combine operators with no dags
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="Tried to create relationships between tasks that don't have Dags yet"
+        ):
             op1.set_downstream(op2)
 
         # op2 should infer dag from op1

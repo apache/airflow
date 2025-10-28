@@ -377,7 +377,8 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2  # 1 in bare, 1 in main repo
+        # 1 in _clone_bare_repo_if_required, 1 in refresh() for bare repo, 1 in refresh() for working repo
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 3
         mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
@@ -730,7 +731,9 @@ class TestGitDagBundle:
         EXPECTED_ENV = {"GIT_SSH_COMMAND": "ssh -i /id_rsa -o StrictHostKeyChecking=no"}
 
         mock_gitRepo.clone_from.side_effect = _fake_clone_from
-        mock_gitRepo.return_value = types.SimpleNamespace()
+        # Mock needs to support the fetch operation called in _clone_bare_repo_if_required
+        mock_repo_instance = mock.MagicMock()
+        mock_gitRepo.return_value = mock_repo_instance
 
         with mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_githook:
             mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"

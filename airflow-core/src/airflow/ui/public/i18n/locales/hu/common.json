@@ -189,8 +189,6 @@
     "up_for_retry": "Újrapróbálkozásra vár",
     "upstream_failed": "Előfeltétel sikertelen"
   },
-  "switchToDarkMode": "Váltás sötét módra",
-  "switchToLightMode": "Váltás világos módra",
   "table": {
     "completedAt": "Befejezve ekkor",
     "createdAt": "Létrehozva ekkor",

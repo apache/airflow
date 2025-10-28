@@ -41,6 +41,7 @@ from google.cloud.exceptions import NotFound
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import Context
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
     BigQueryHook,
@@ -53,11 +54,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import Context
-else:
-    from airflow.utils.context import Context
 
 pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
 

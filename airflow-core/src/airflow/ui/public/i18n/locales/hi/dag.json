@@ -40,7 +40,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "जंप: Shift+{{arrow}}",
     "navigation": "नेवीगेशन: {{arrow}}",
     "toggleGroup": "ग्रुप टॉगल करें: Space"
   },
@@ -64,9 +63,7 @@
   },
   "panel": {
     "buttons": {
-      "options": "विकल्प",
-      "showGraph": "ग्राफ़ दिखाएं",
-      "showGrid": "ग्रिड दिखाएं"
+      "options": "विकल्प"
     },
     "dagRuns": {
       "label": "डैग रन्स की संख्या"
