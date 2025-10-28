@@ -809,8 +809,6 @@ class TestAsyncPodManager:
                 "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
-            # assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
-            # assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
             assert self.async_pod_manager.stop_watching_events is True
 
     @pytest.mark.asyncio
