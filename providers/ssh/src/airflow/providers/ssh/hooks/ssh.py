@@ -79,12 +79,10 @@ class SSHHook(BaseHook):
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
     )
 
     _host_key_mappings = {
         "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
         "ecdsa": paramiko.ECDSAKey,
         "ed25519": paramiko.Ed25519Key,
     }
@@ -422,9 +420,9 @@ class SSHHook(BaseHook):
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            "Private key provided cannot be read by paramiko."
-            "Ensure key provided is valid for one of the following"
-            "key formats: RSA, DSS, ECDSA, or Ed25519"
+            "Private key provided cannot be read by paramiko. "
+            "Ensure key provided is valid for one of the following "
+            "key formats: RSA, ECDSA, or Ed25519"
         )
 
     def exec_ssh_client_command(
