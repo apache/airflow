@@ -2014,7 +2014,8 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have its ``task`` attribute already set.
 
-        Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
+        Any EmptyOperator without ``on_execute_callback`` or ``on_success_callback`` or ``inlets`` or
+        ``outlets`` is instead set straight to the success state, without execution.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
@@ -2024,17 +2025,8 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
-            task = ti.task
-            if TYPE_CHECKING:
-                assert isinstance(task, Operator)
-            if (
-                task.inherits_from_empty_operator
-                and not task.has_on_execute_callback
-                and not task.has_on_success_callback
-                and not task.outlets
-                and not task.inlets
-            ):
-                empty_ti_ids.append(ti.id)
+            if ti.is_schedulable:
+                schedulable_ti_ids.append(ti.id)
             # Check "start_trigger_args" to see whether the operator supports
             # start execution from triggerer. If so, we'll check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
@@ -2053,7 +2045,7 @@ class DagRun(Base, LoggingMixin):
             #     else:
             #         schedulable_ti_ids.append(ti.id)
             else:
-                schedulable_ti_ids.append(ti.id)
+                empty_ti_ids.append(ti.id)
 
         count = 0
 
