@@ -641,7 +641,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
-                    dag=serialized_dag.data if serialized_dag else None,
+                    dag_data=serialized_dag.data if serialized_dag else None,
                 )
             return workloads.RunTrigger(
                 classpath=trigger.classpath,
@@ -984,7 +984,7 @@ class TriggerRunner:
                 deserialised_kwargs = {k: smart_decode_trigger_kwargs(v) for k, v in kw.items()}
 
                 if ti := workload.ti:
-                    runtime_ti = create_runtime_ti(workload.dag)
+                    runtime_ti = create_runtime_ti(workload.dag_data)
                     context = runtime_ti.get_template_context()
                     trigger_name = f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} (ID {trigger_id})"
                     trigger_instance = trigger_class(**deserialised_kwargs)
