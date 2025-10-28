@@ -239,6 +239,22 @@ class TaskMap(TaskInstanceDependencies):
             dag_version_id = None
 
         for index in indexes_to_map:
+            # Check if TaskInstance already exists to prevent UNIQUE constraint violations
+            existing_ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == index,
+                )
+            ).first()
+            
+            if existing_ti is not None:
+                # TaskInstance already exists, reuse it
+                existing_ti.refresh_from_task(task)
+                all_expanded_tis.append(existing_ti)
+                continue
+            
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
@@ -249,8 +265,8 @@ class TaskMap(TaskInstanceDependencies):
             )
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
-            ti = session.merge(ti)
-            ti.refresh_from_task(task)  # session.merge() loses task information.
+            session.add(ti)
+            ti.refresh_from_task(task)
             all_expanded_tis.append(ti)
 
         # Coerce the None case to 0 -- these two are almost treated identically,
