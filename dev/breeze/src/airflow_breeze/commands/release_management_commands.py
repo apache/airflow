@@ -32,7 +32,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -264,7 +264,7 @@ AIRFLOW_UV_VERSION = "0.9.5"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.11"
+PREK_VERSION = "0.2.12"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -1317,6 +1317,8 @@ def tag_providers(
         except subprocess.CalledProcessError:
             pass
 
+    release_date = datetime.now().strftime("%Y-%m-%d")
+
     if found_remote is None:
         raise ValueError("Could not find remote configured to push to apache/airflow")
 
@@ -1328,15 +1330,26 @@ def tag_providers(
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
                 try:
+                    get_console().print(f"[info]Creating tag: {tag}")
                     run_command(
-                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
+                        ["git", "tag", tag, "-m", f"Release {release_date} of providers"],
                         check=True,
                     )
                     tags.append(tag)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as e:
+                    get_console().print(f"[warning]Failed to create {tag}: {e}")
                     pass
-
+    providers_date_tag = f"providers/{release_date}"
     if tags:
+        run_command(
+            ["git", "tag", providers_date_tag, "-m", f"Release {release_date} of providers"],
+            check=True,
+        )
+        get_console().print()
+        get_console().print("\n[info]The providers release have been tagged with:[/]")
+        get_console().print(providers_date_tag)
+        get_console().print()
+        tags.append(providers_date_tag)
         try:
             push_result = run_command(
                 ["git", "push", found_remote, *tags],
@@ -3452,6 +3465,21 @@ def prepare_python_client(
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
         """
+        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            get_console().print(
+                f"[error]Python version mismatch: current version is {current_python_version}, "
+                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
+                f"reproducibility problems with prepared package.[/]"
+            )
+            get_console().print(
+                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
+            )
+            get_console().print(
+                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+            )
+            sys.exit(1)
+
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )

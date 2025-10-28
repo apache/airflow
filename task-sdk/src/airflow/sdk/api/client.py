@@ -851,6 +851,15 @@ def _should_retry_api_request(exception: BaseException) -> bool:
 
 
 class Client(httpx.Client):
+    @classmethod
+    @lru_cache()
+    def _get_ssl_context_cached(cls, ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
+        """Cache SSL context to prevent memory growth from repeated context creation."""
+        ctx = ssl.create_default_context(cafile=ca_file)
+        if ca_path:
+            ctx.load_verify_locations(ca_path)
+        return ctx
+
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
@@ -863,10 +872,7 @@ class Client(httpx.Client):
             kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
-            ctx = ssl.create_default_context(cafile=certifi.where())
-            if API_SSL_CERT_PATH:
-                ctx.load_verify_locations(API_SSL_CERT_PATH)
-            kwargs["verify"] = ctx
+            kwargs["verify"] = self._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
 
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)
@@ -896,6 +902,10 @@ class Client(httpx.Client):
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
+        # Set content type as convenience if not already set
+        if "content" in kwargs and "headers" not in kwargs:
+            kwargs["headers"] = {"content-type": "application/json"}
+
         return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
