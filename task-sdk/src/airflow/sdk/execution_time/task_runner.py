@@ -1213,16 +1213,31 @@ def _send_error_email_notification(
     if not task.email:
         return
 
-    default_subject = "Airflow alert: {{ti}}"
-    # For reporting purposes, we report based on 1-indexed,
-    # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
-    default_html_content = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>{{exception_html}}<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
+    subject_template_file = conf.get("email", "subject_template", fallback=None)
+
+    # Read the template file if configured
+    if subject_template_file and Path(subject_template_file).exists():
+        subject = Path(subject_template_file).read_text()
+    else:
+        # Fallback to default
+        subject = "Airflow alert: {{ti}}"
+
+    html_content_template_file = conf.get("email", "html_content_template", fallback=None)
+
+    # Read the template file if configured
+    if html_content_template_file and Path(html_content_template_file).exists():
+        html_content = Path(html_content_template_file).read_text()
+    else:
+        # Fallback to default
+        # For reporting purposes, we report based on 1-indexed,
+        # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
+        html_content = (
+            "Try {{try_number}} out of {{max_tries + 1}}<br>"
+            "Exception:<br>{{exception_html}}<br>"
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            "Host: {{ti.hostname}}<br>"
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
 
     # Add exception_html to context for template rendering
     import html
@@ -1242,8 +1257,8 @@ def _send_error_email_notification(
     try:
         notifier = SmtpNotifier(
             to=to_emails,
-            subject=default_subject,
-            html_content=default_html_content,
+            subject=subject,
+            html_content=html_content,
             from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
         )
         notifier(email_context)
