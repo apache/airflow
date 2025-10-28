@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from typing import Any
+from typing import Any, Container
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func, select
@@ -60,9 +60,9 @@ class WorkflowTrigger(BaseTrigger):
         logical_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
-        failed_states: typing.Iterable[str] | None = None,
-        skipped_states: typing.Iterable[str] | None = None,
-        allowed_states: typing.Iterable[str] | None = None,
+        failed_states: Container[str] | None = None,
+        skipped_states: Container[str] | None = None,
+        allowed_states: Container[str] | None = None,
         poke_interval: float = 2.0,
         soft_fail: bool = False,
         **kwargs,
@@ -129,7 +129,7 @@ class WorkflowTrigger(BaseTrigger):
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
 
-    async def _get_count_af_3(self, states: typing.Iterable[str] | None) -> int:
+    async def _get_count_af_3(self, states: Container[str] | None) -> int:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
@@ -163,7 +163,7 @@ class WorkflowTrigger(BaseTrigger):
         return count
 
     @sync_to_async
-    def _get_count(self, states: typing.Iterable[str] | None) -> int:
+    def _get_count(self, states: Container[str] | None) -> int:
         """
         Get the count of records against dttm filter and states. Async wrapper for _get_count.
 
