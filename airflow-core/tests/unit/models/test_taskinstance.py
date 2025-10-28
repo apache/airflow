@@ -1568,6 +1568,48 @@ class TestTaskInstance:
         expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op/mapped/1?try_number=2"
         assert ti.log_url == expected_url
 
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"inlets": [Asset(uri="file://some.txt")]},
+            {"outlets": [Asset(uri="file://some.txt")]},
+            {"on_success_callback": lambda *args, **kwargs: None},
+            {"on_execute_callback": lambda *args, **kwargs: None},
+        ],
+    )
+    def test_is_schedulable_task_empty_operator_evaluates_true(self, kwargs, create_task_instance):
+        ti = create_task_instance(
+            dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1), **kwargs
+        )
+        assert ti.is_schedulable
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"on_failure_callback": lambda *args, **kwargs: None},
+            {"on_skipped_callback": lambda *args, **kwargs: None},
+            {"on_retry_callback": lambda *args, **kwargs: None},
+        ],
+    )
+    def test_is_schedulable_task_empty_operator_evaluates_false(self, kwargs, create_task_instance):
+        ti = create_task_instance(
+            dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1), **kwargs
+        )
+        assert not ti.is_schedulable
+
+    def test_is_schedulable_task_non_empty_operator(self):
+        dag = DAG(dag_id="test_dag")
+
+        regular_task = BashOperator(task_id="regular", bash_command="echo test", dag=dag)
+        mapped_task = BashOperator.partial(task_id="mapped", dag=dag).expand(bash_command=["echo 1"])
+
+        regular_ti = TaskInstance(task=regular_task, dag_version_id=mock.MagicMock())
+        mapped_ti = TaskInstance(task=mapped_task, dag_version_id=mock.MagicMock())
+
+        assert regular_ti.is_schedulable
+        assert mapped_ti.is_schedulable
+
     def test_mark_success_url(self, create_task_instance):
         now = pendulum.now("Europe/Brussels")
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=now)

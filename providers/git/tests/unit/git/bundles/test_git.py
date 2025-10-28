@@ -165,6 +165,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
 
@@ -196,6 +197,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -222,6 +224,47 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_removes_git_dir_for_versioned_bundle_by_default(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+
+        assert not (bundle.repo_path / ".git").exists()
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_keeps_git_dir_when_disabled(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle.initialize()
+
+        assert (bundle.repo_path / ".git").exists()
+        assert bundle.get_current_version() == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
 

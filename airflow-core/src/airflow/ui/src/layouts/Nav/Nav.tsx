@@ -148,7 +148,16 @@ export const Nav = () => {
       <Flex alignItems="center" flexDir="column" width="100%">
         <Box mb={3}>
           <NavLink to="/">
-            <AirflowPin height="35px" width="35px" />
+            <AirflowPin
+              _motionSafe={{
+                _hover: {
+                  transform: "rotate(360deg)",
+                  transition: "transform 0.8s ease-in-out"
+                }
+              }}
+              height="35px"
+              width="35px"
+            />
           </NavLink>
         </Box>
         <NavButton icon={<FiHome size="28px" />} title={translate("nav.home")} to="/" />
