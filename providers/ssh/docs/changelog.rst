@@ -38,8 +38,6 @@ Breaking changes
 
   **Supported key types**: RSA, ECDSA, Ed25519
 
-  If you cannot migrate immediately, continue using ``apache-airflow-providers-ssh<5.0.0`` with ``paramiko<4.0.0``.
-
 4.1.5
 .....
 
