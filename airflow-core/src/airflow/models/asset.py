@@ -866,10 +866,17 @@ class AssetPartitionDagRun(Base):
     """
     Keep track of new runs of a dag run per partition key.
 
+    Think of AssetPartitionDagRun as a provisional dag run. This record is created
+    when there's an asset event that contributes to the creation of a dag run for
+    this dag_id / partition_key combo. It may need to wait for other events before
+    it's ready to be created though, and the scheduler will make this determination.
+
+    We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
+    with the PartitionedAssetKeyLog mapping table.
+
     Where dag_run_id is null, the dag run has not yet been created.
     We should not allow more than one like this. But to guard against
     an accident, we should always work on the latest one.
-
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -885,7 +892,12 @@ class AssetPartitionDagRun(Base):
 
 
 class PartitionedAssetKeyLog(Base):
-    """Model for storing asset events that need processing."""
+    """
+    Mapping table between AssetPartitionDagRun and AssetEvent.
+
+    PartitionedAssetKeyLog tells us which events contributed to a particular
+    AssetPartitionDagRun record.
+    """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
