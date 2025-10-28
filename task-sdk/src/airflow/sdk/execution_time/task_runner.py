@@ -80,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -90,7 +91,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
     TriggerDagRun,
-    ValidateInletsAndOutlets, SetRenderedMapIndex,
+    ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -1228,10 +1229,7 @@ def _send_error_email_notification(
         "max_tries": ti.max_tries,
     }
     email_context = {**context, **additional_context}
-
-    # task.email is Sequence[str] | None, but SmtpNotifier expects str | Iterable[str]
-    # Convert to list if it exists
-    to_emails = list(task.email) if task.email else []
+    to_emails = task.email
     if not to_emails:
         return
 
@@ -1242,10 +1240,7 @@ def _send_error_email_notification(
             html_content=default_html_content,
             from_email="airflow@localhost",
         )
-        # Cast to Context for type checker - email_context is a dict built from context
-        from typing import cast
-
-        notifier(cast("Context", email_context))
+        notifier(email_context)
     except Exception:
         log.exception("Failed to send email notification")
 
@@ -1309,9 +1304,10 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
+    log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
-    log.info("Map index rendered as %s", rendered_map_index)
+    log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
 
