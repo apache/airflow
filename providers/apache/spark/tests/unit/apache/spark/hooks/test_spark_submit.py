@@ -536,11 +536,11 @@ class TestSparkSubmitHook:
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
 
     def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError):
             SparkSubmitHook(conn_id="spark_custom_binary_set")
 
     def test_resolve_connection_spark_home_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError):
             SparkSubmitHook(conn_id="spark_home_set")
 
     def test_resolve_connection_spark_binary_default_value_override(self):

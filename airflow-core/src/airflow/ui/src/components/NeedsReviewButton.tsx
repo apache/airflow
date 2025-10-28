@@ -27,16 +27,15 @@ import { StatsCard } from "./StatsCard";
 
 export const NeedsReviewButton = ({
   dagId,
-  refreshInterval,
   runId,
   taskId,
 }: {
   readonly dagId?: string;
-  readonly refreshInterval?: number | false;
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-  const hookAutoRefresh = useAutoRefresh({ dagId });
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
+
   const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
@@ -47,7 +46,7 @@ export const NeedsReviewButton = ({
     },
     undefined,
     {
-      refetchInterval: refreshInterval ?? hookAutoRefresh,
+      refetchInterval,
     },
   );
 

@@ -792,6 +792,13 @@ class SetRenderedFields(BaseModel):
     type: Literal["SetRenderedFields"] = "SetRenderedFields"
 
 
+class SetRenderedMapIndex(BaseModel):
+    """Payload for setting rendered_map_index for a task instance."""
+
+    rendered_map_index: str
+    type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -824,11 +831,19 @@ class GetAssetByUri(BaseModel):
 class GetAssetEventByAsset(BaseModel):
     name: str | None
     uri: str | None
+    after: AwareDatetime | None = None
+    before: AwareDatetime | None = None
+    limit: int | None = None
+    ascending: bool = True
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
 class GetAssetEventByAssetAlias(BaseModel):
     alias_name: str
+    after: AwareDatetime | None = None
+    before: AwareDatetime | None = None
+    limit: int | None = None
+    ascending: bool = True
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
@@ -926,6 +941,7 @@ ToSupervisor = Annotated[
     | RescheduleTask
     | RetryTask
     | SetRenderedFields
+    | SetRenderedMapIndex
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

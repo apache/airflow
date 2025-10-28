@@ -78,8 +78,6 @@ apache-airflow-providers-dingding package
 
 Release: 3.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

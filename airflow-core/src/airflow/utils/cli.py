@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli_action_loggers
@@ -230,7 +231,8 @@ def process_subdir(subdir: str | None):
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
-    from airflow.models import DagBag, DagModel
+    from airflow.dag_processing.dagbag import DagBag
+    from airflow.models import DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
     dag_model = DagModel.get_current(dag_id)
@@ -271,14 +273,17 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models.dagbag import DagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import sync_bag_to_db
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
         bundle = manager.get_bundle(bundle_name)
         with _airflow_parsing_context_manager(dag_id=dag_id):
             dagbag = DagBag(
-                dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+                dag_folder=dagfile_path or bundle.path,
+                bundle_path=bundle.path,
+                bundle_name=bundle.name,
+                include_examples=False,
             )
         if dag := dagbag.dags.get(dag_id):
             return dag
@@ -288,7 +293,10 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
         bundle.initialize()
         with _airflow_parsing_context_manager(dag_id=dag_id):
             dagbag = DagBag(
-                dag_folder=dagfile_path or bundle.path, bundle_path=bundle.path, include_examples=False
+                dag_folder=dagfile_path or bundle.path,
+                bundle_path=bundle.path,
+                bundle_name=bundle.name,
+                include_examples=False,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
@@ -315,7 +323,7 @@ def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.models import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     bundle_names = bundle_names or []
 
@@ -325,7 +333,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
-        dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+        dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags
 

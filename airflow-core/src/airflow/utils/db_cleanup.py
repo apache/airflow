@@ -251,7 +251,7 @@ def _do_delete(
                 )
             else:
                 delete = source_table.delete().where(
-                    and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+                    and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
                 )
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
@@ -270,7 +270,7 @@ def _do_delete(
 
 def _subquery_keep_last(
     *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
-) -> Query:
+):
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
@@ -316,7 +316,7 @@ def _build_query(
     conditions = [base_table_recency_col < clean_before_timestamp]
     if keep_last:
         max_date_col_name = "max_date_per_group"
-        group_by_columns = [column(x) for x in keep_last_group_by]
+        group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
             recency_column=recency_column,
             keep_last_filters=keep_last_filters,
@@ -327,7 +327,7 @@ def _build_query(
         query = query.select_from(base_table).outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
                 base_table_recency_col == column(max_date_col_name),
             ),
         )
@@ -475,7 +475,7 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
     inspector = inspect(session.bind)
     db_table_names = [
         x
-        for x in inspector.get_table_names()
+        for x in (inspector.get_table_names() if inspector else [])
         if x.startswith(ARCHIVE_TABLE_PREFIX) or x in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
     ]
     effective_table_names, _ = _effective_table_names(table_names=table_names)

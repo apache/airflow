@@ -26,11 +26,25 @@
 Changelog
 ---------
 
+5.2.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate jdbc and jenkins providers to ''common.compat'' (#57012)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.2.3
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 import random
 import warnings
 from collections.abc import Callable
@@ -376,20 +377,24 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
     ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
+    conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
     service_name = conf.get("metrics", "otel_service")
 
     resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
-
     protocol = "https" if ssl_active else "http"
-    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
-
+    # Allow transparent support for standard OpenTelemetry SDK environment variables.
+    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
+    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", f"{protocol}://{host}:{port}")
+    metrics_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", f"{endpoint}/v1/metrics")
+    # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
+    if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
+        interval = float(interval)
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
-            OTLPMetricExporter(endpoint=endpoint),
-            export_interval_millis=interval,
+            OTLPMetricExporter(endpoint=metrics_endpoint),
+            export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]
 

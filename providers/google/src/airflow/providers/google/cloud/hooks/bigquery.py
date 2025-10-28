@@ -20,17 +20,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
 import time
 import uuid
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
+import pendulum
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
@@ -75,6 +76,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -85,6 +87,8 @@ if TYPE_CHECKING:
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
     from requests import Session
+
+    from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
 
@@ -1274,7 +1278,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_api_repr.result(timeout=timeout, retry=retry)
         return job_api_repr
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
+    def generate_job_id(
+        self,
+        job_id: str | None,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None,
+        configuration: dict,
+        run_after: pendulum.DateTime | None = None,
+        force_rerun: bool = False,
+    ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -1285,9 +1298,34 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
 
-        exec_date = logical_date.isoformat()
-        job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
+        if logical_date is not None:
+            if AIRFLOW_V_3_0_PLUS:
+                warnings.warn(
+                    "The 'logical_date' parameter is deprecated. Please use 'run_after' instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
+            job_id_timestamp = logical_date
+        elif run_after is not None:
+            job_id_timestamp = run_after
+        else:
+            job_id_timestamp = pendulum.now("UTC")
+
+        job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
+
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
+        if AIRFLOW_V_3_0_PLUS:
+            if dag_run := context.get("dag_run"):
+                run_after = pendulum.instance(dag_run.run_after)
+            else:
+                run_after = pendulum.now("UTC")
+        else:
+            if logical_date := context.get("logical_date"):
+                run_after = logical_date
+            else:
+                run_after = pendulum.now("UTC")
+        return run_after
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
@@ -1975,45 +2013,10 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def _get_job(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
     ) -> BigQueryJob | UnknownJob:
-        """
-        Get BigQuery job by its ID, project ID and location.
-
-        WARNING.
-        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
-            https://github.com/apache/airflow/issues/35833
-            https://github.com/talkiq/gcloud-aio/issues/584
-
-        This method was developed, because neither the `google-cloud-bigquery` nor the `gcloud-aio-bigquery`
-        provides asynchronous access to a BigQuery jobs with location parameter. That's why this method wraps
-        synchronous client call with the event loop's run_in_executor() method.
-
-        This workaround must be deleted along with the method _get_job_sync() and replaced by more robust and
-        cleaner solution in one of two cases:
-            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
-            optional parameter `location`
-            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
-        """
-        loop = asyncio.get_event_loop()
-        job = await loop.run_in_executor(None, self._get_job_sync, job_id, project_id, location)
+        """Get BigQuery job by its ID, project ID and location."""
+        sync_hook = await self.get_sync_hook()
+        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
         return job
-
-    def _get_job_sync(self, job_id, project_id, location):
-        """
-        Get BigQuery job by its ID, project ID and location synchronously.
-
-        WARNING
-        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
-            https://github.com/apache/airflow/issues/35833
-            https://github.com/talkiq/gcloud-aio/issues/584
-
-        This workaround must be deleted along with the method _get_job() and replaced by more robust and
-        cleaner solution in one of two cases:
-            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
-            optional parameter `location`
-            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
-        """
-        hook = BigQueryHook(**self._hook_kwargs)
-        return hook.get_job(job_id=job_id, project_id=project_id, location=location)
 
     async def get_job_status(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None

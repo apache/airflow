@@ -21,11 +21,12 @@ from typing import TYPE_CHECKING
 
 import uuid6
 from sqlalchemy import Column, ForeignKey, Index, String, Table, select
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -33,8 +34,13 @@ if TYPE_CHECKING:
 dag_bundle_team_association_table = Table(
     "dag_bundle_team",
     Base.metadata,
-    Column("dag_bundle_name", ForeignKey("dag_bundle.name", ondelete="CASCADE"), primary_key=True),
-    Column("team_id", ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "dag_bundle_name",
+        StringID(length=250),
+        ForeignKey("dag_bundle.name", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("team_id", UUIDType(binary=False), ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_dag_bundle_team_dag_bundle_name", "dag_bundle_name", unique=True),
     Index("idx_dag_bundle_team_team_id", "team_id"),
 )
@@ -49,8 +55,8 @@ class Team(Base):
 
     __tablename__ = "team"
 
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
-    name = Column(String(50), unique=True, nullable=False)
+    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     dag_bundles = relationship(
         "DagBundleModel", secondary=dag_bundle_team_association_table, back_populates="teams"
     )

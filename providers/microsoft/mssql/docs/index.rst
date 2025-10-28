@@ -80,8 +80,6 @@ apache-airflow-providers-microsoft-mssql package
 
 Release: 4.3.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

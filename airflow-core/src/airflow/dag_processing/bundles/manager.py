@@ -193,6 +193,13 @@ class DagBundlesManager(LoggingMixin):
             _add_example_dag_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
+            if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
+                raise AirflowConfigException(
+                    "Section `dag_processor` key `dag_bundle_config_list` "
+                    "cannot have a team name when multi-team mode is disabled."
+                    "To enable multi-team, you need to update section `core` key `multi_team` in your config."
+                )
+
             class_ = import_string(bundle_config.classpath)
             self._bundle_config[bundle_config.name] = _InternalBundleConfig(
                 bundle_class=class_,
@@ -236,9 +243,10 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
+            new_template, new_params = _extract_and_sign_template(name)
+
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                new_template, new_params = _extract_and_sign_template(name)
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
@@ -246,7 +254,6 @@ class DagBundlesManager(LoggingMixin):
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
-                new_template, new_params = _extract_and_sign_template(name)
                 bundle = DagBundleModel(name=name)
                 bundle.signed_url_template = new_template
                 bundle.template_params = new_params
@@ -272,12 +279,13 @@ class DagBundlesManager(LoggingMixin):
                 )
                 bundle.teams = []
 
+        # Import here to avoid circular import
+        from airflow.models.errors import ParseImportError
+
         for name, bundle in stored.items():
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            from airflow.models.errors import ParseImportError
-
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 

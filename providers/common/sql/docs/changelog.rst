@@ -25,11 +25,26 @@
 Changelog
 ---------
 
+1.28.2
+......
+
+Misc
+~~~~
+
+* ``fix mypy type errors in common/sql provider for sqlalchemy 2 upgrade (#56824)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56495)``
+
 1.28.1
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
@@ -43,8 +58,6 @@ Bug Fixes
 1.28.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~

@@ -25,7 +25,8 @@ import pytest
 from sqlalchemy import and_, func, select
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel

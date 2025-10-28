@@ -60,10 +60,12 @@ from airflow.sdk.execution_time.context import (
     _AssetRefResolutionMixin,
     _async_get_connection,
     _convert_variable_result_to_variable,
+    _get_connection,
     _process_connection_result_conn,
     context_to_airflow_vars,
     set_current_context,
 )
+from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 
 
 def test_convert_connection_result_conn():
@@ -655,12 +657,97 @@ class TestInletEventAccessor:
         events_result = AssetEventsResult(asset_events=[asset_event_resp])
         mock_supervisor_comms.send.side_effect = [events_result] * 4
 
-        assert sample_inlet_evnets_accessor[key] == [asset_event_resp]
+        assert list(sample_inlet_evnets_accessor[key]) == [asset_event_resp]
 
     @pytest.mark.usefixtures("mock_supervisor_comms")
     def test__get_item__out_of_index(self, sample_inlet_evnets_accessor):
         with pytest.raises(IndexError):
             sample_inlet_evnets_accessor[5]
+
+    def test__get_item__with_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
+        asset_event_resp = AssetEventResult(
+            id=1,
+            created_dagruns=[],
+            timestamp=timezone.utcnow(),
+            asset=AssetResponse(name="test_uri", uri="test_uri", group="asset"),
+        )
+        events_result = AssetEventsResult(asset_events=[asset_event_resp])
+        mock_supervisor_comms.send.side_effect = [events_result] * 10
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET])
+        list(sample_inlet_evnets_accessor[TEST_ASSET].after("2024-01-01T00:00:00Z"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].before("2024-01-01T00:00:00Z"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].limit(10))
+        list(
+            sample_inlet_evnets_accessor[TEST_ASSET]
+            .after("2024-01-01T00:00:00Z")
+            .before("2024-01-02T00:00:00Z")
+            .limit(10)
+        )
+        list(sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10))
+
+        assert mock_supervisor_comms.send.call_count == 6
+
+        # test accessing the accessor without list() or []
+        sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)
+
+        assert mock_supervisor_comms.send.call_count == 6
+
+        # test accessing one of the elements
+        res = sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)[0]
+        assert res == asset_event_resp
+        assert mock_supervisor_comms.send.call_count == 7
+
+        # test evaluating the accessor multiple times with the same filters
+        res = sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)
+        assert res[0] == asset_event_resp
+        assert res[0] == asset_event_resp
+
+        assert mock_supervisor_comms.send.call_count == 8
+
+        # test changing one of the filters
+        assert res.after("2024-01-01T00:00:00Z")[0] == asset_event_resp
+
+        assert mock_supervisor_comms.send.call_count == 9
+
+        # test len()
+        assert len(sample_inlet_evnets_accessor[TEST_ASSET].ascending(True).limit(10)) == 1
+        assert mock_supervisor_comms.send.call_count == 10
+
+        calls = mock_supervisor_comms.send.call_args_list
+        assert calls[0][0][0] == GetAssetEventByAsset(
+            name="test_uri", uri="test://test/", after=None, before=None, limit=None, ascending=True
+        )
+        assert calls[1][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after="2024-01-01T00:00:00Z",
+            before=None,
+            limit=None,
+            ascending=True,
+        )
+        assert calls[2][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before="2024-01-01T00:00:00Z",
+            limit=None,
+            ascending=True,
+        )
+        assert calls[3][0][0] == GetAssetEventByAsset(
+            name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=True
+        )
+        assert calls[4][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after="2024-01-01T00:00:00Z",
+            before="2024-01-02T00:00:00Z",
+            limit=10,
+            ascending=True,
+        )
+        assert calls[5][0][0] == GetAssetEventByAsset(
+            name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
+        )
 
     @pytest.mark.parametrize(
         "name, uri, expected_key",
@@ -703,8 +790,17 @@ class TestInletEventAccessor:
                 ],
             )
         ]
-        events = sample_inlet_evnets_accessor[Asset.ref(name="test_uri")]
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetEventByAsset(name="test_uri", uri=None))
+        events = list(sample_inlet_evnets_accessor[Asset.ref(name="test_uri")])
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(
+                name="test_uri",
+                uri=None,
+                after=None,
+                before=None,
+                limit=None,
+                ascending=True,
+            )
+        )
 
         assert len(events) == 2
         assert events[1].source_task_instance is None
@@ -765,3 +861,100 @@ class TestAsyncGetConnection:
             # Should not have tried SUPERVISOR_COMMS since secrets backend had the connection
             mock_supervisor_comms.send.assert_not_called()
             mock_supervisor_comms.asend.assert_not_called()
+
+
+class TestSecretsBackend:
+    """Test that connection resolution uses the backend chain correctly."""
+
+    def test_execution_api_backend_in_worker_chain(self):
+        """Test that ExecutionAPISecretsBackend is in the worker search path."""
+        from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+        assert (
+            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
+            in DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+        )
+
+    def test_metastore_backend_in_server_chain(self):
+        """Test that MetastoreBackend is in the API server search path."""
+        from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+
+        assert "airflow.secrets.metastore.MetastoreBackend" in DEFAULT_SECRETS_SEARCH_PATH
+        assert (
+            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
+            not in DEFAULT_SECRETS_SEARCH_PATH
+        )
+
+    def test_get_connection_uses_backend_chain(self, mock_supervisor_comms):
+        """Test that _get_connection properly iterates through backends."""
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse
+        from airflow.sdk.execution_time.comms import ConnectionResult
+
+        # Mock connection response
+        conn_response = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+            host="example.com",
+            port=443,
+        )
+        conn_result = ConnectionResult.from_conn_response(conn_response)
+        mock_supervisor_comms.send.return_value = conn_result
+
+        # Mock the backend loading to include our SupervisorComms backend
+        supervisor_backend = ExecutionAPISecretsBackend()
+
+        with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
+            mock_load.return_value = [supervisor_backend]
+
+            conn = _get_connection("test_conn")
+
+            assert conn is not None
+            assert conn.conn_id == "test_conn"
+            assert conn.host == "example.com"
+            mock_supervisor_comms.send.assert_called_once()
+
+    def test_get_connection_backend_fallback(self, mock_supervisor_comms):
+        """Test that _get_connection falls through backends correctly."""
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse
+        from airflow.sdk.execution_time.comms import ConnectionResult
+
+        # First backend returns nothing (simulating env var backend with no env var)
+        class EmptyBackend:
+            def get_connection(self, conn_id):
+                return None
+
+        # Second backend returns the connection
+        conn_response = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="db.example.com",
+        )
+        conn_result = ConnectionResult.from_conn_response(conn_response)
+        mock_supervisor_comms.send.return_value = conn_result
+
+        supervisor_backend = ExecutionAPISecretsBackend()
+
+        with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
+            mock_load.return_value = [EmptyBackend(), supervisor_backend]
+
+            conn = _get_connection("test_conn")
+
+            assert conn is not None
+            assert conn.conn_id == "test_conn"
+            # SupervisorComms backend was called (first backend returned None)
+            mock_supervisor_comms.send.assert_called_once()
+
+    def test_get_connection_not_found_raises_error(self, mock_supervisor_comms):
+        """Test that _get_connection raises error when no backend finds connection."""
+        from airflow.exceptions import AirflowNotFoundException
+
+        # Backend returns None (not found)
+        class EmptyBackend:
+            def get_connection(self, conn_id):
+                return None
+
+        with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
+            mock_load.return_value = [EmptyBackend()]
+
+            with pytest.raises(AirflowNotFoundException, match="isn't defined"):
+                _get_connection("nonexistent_conn")

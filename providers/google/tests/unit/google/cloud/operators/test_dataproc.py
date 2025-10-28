@@ -518,34 +518,31 @@ class DataprocClusterTestBase(DataprocTestBase):
 
 class TestsClusterGenerator:
     def test_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and image_version"):
             ClusterGenerator(
                 custom_image="custom_image",
                 image_version="image_version",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and image_version" in str(ctx.value)
 
     def test_custom_image_family_error_with_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="image_version and custom_image_family"):
             ClusterGenerator(
                 image_version="image_version",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "image_version and custom_image_family" in str(ctx.value)
 
     def test_custom_image_family_error_with_custom_image(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and custom_image_family"):
             ClusterGenerator(
                 custom_image="custom_image",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
         with pytest.raises(ValueError, match="Single node cannot have preemptible workers"):
@@ -554,19 +551,18 @@ class TestsClusterGenerator:
             )
 
     def test_min_num_workers_less_than_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError,
+            match="The value of min_num_workers must be less than or equal to num_workers. "
+            r"Provided 4\(min_num_workers\) and 3\(num_workers\).",
+        ):
             ClusterGenerator(
                 num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-        assert (
-            "The value of min_num_workers must be less than or equal to num_workers. "
-            "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
-        )
 
     def test_min_num_workers_without_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Must specify num_workers when min_num_workers are provided."):
             ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
-        assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
 
     def test_build(self):
         generator = ClusterGenerator(

@@ -210,6 +210,23 @@ else:
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
+
+IS_MOCK_PLUGINS_MANAGER = bool(
+    os.environ.get("_AIRFLOW_SKIP_DB_TESTS", "false") == "true" and importlib.util.find_spec("airflow")
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_plugins_manager_for_all_non_db_tests():
+    if not IS_MOCK_PLUGINS_MANAGER:
+        yield None
+        return
+    from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+    with mock_plugin_manager() as _fixture:
+        yield _fixture
+
+
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
@@ -1175,7 +1192,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
         def sync_dagbag_to_db(self):
             if AIRFLOW_V_3_1_PLUS:
-                from airflow.models.dagbag import sync_bag_to_db
+                try:
+                    from airflow.dag_processing.dagbag import sync_bag_to_db
+                except ImportError:
+                    from airflow.models.dagbag import sync_bag_to_db
 
                 sync_bag_to_db(self.dagbag, self.bundle_name, None)
             elif AIRFLOW_V_3_0_PLUS:
@@ -1622,10 +1642,14 @@ def session():
 def get_test_dag():
     def _get(dag_id: str):
         from airflow import settings
-        from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
 
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.dag_processing.dagbag import DagBag
+        else:
+            from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)

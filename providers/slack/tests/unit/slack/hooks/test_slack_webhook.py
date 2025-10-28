@@ -555,7 +555,7 @@ class TestSlackWebhookHookAsync:
         mock_async_get_conn_params.return_value = {"url": TEST_WEBHOOK_URL}
 
         hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
-        client = await hook.async_client
+        client = await hook.get_async_client()
 
         assert isinstance(client, AsyncWebhookClient)
         assert client.url == TEST_WEBHOOK_URL

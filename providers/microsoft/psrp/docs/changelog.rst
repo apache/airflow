@@ -27,11 +27,37 @@
 Changelog
 ---------
 
-3.1.3
+3.1.5
+.....
+
+Misc
+~~~~
+
+* ``Migrate microsoft providers to ''common.compat'' (#56995)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.1.4
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow arguments and parameters when powershell is used in PsrpOperator (#55976)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.1.3
+.....
+
 
 Misc
 ~~~~

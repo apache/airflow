@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable perfectionist/sort-objects */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
 import type { CSSProperties } from "react";

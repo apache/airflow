@@ -1108,7 +1108,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         if sla is not None:
             warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                "The SLA feature is removed in Airflow 3.0, replaced with Deadline Alerts in >=3.1",
                 stacklevel=2,
             )
 

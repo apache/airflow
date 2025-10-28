@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``18.0.0``
+Release: ``18.1.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/18.1.0/>`_.
 
 Installation
 ------------
@@ -61,7 +61,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.4.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
@@ -199,4 +199,4 @@ Extra                 Dependencies
 ====================  =========================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/18.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/18.1.0/changelog.html>`_.

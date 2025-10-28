@@ -63,8 +63,6 @@ apache-airflow-providers-segment package
 
 Release: 3.8.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

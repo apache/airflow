@@ -812,13 +812,13 @@ class TestDagOperations:
         response = client.dags.list()
         assert response == self.dag_collection_response
 
-    def test_patch(self):
+    def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
             return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.patch(dag_id="dag_id", dag_body=self.dag_patch_body)
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
     def test_delete(self):

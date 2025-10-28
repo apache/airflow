@@ -1176,7 +1176,7 @@ class TestDataProcJobBuilder:
         assert python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
 
     def test_set_main_error(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Set either main_jar or main_class"):
             self.builder.set_main("test", "test")
 
     def test_set_main_class(self):

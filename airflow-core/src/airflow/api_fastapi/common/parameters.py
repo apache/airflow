@@ -64,6 +64,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
 T = TypeVar("T")
@@ -228,7 +229,7 @@ class SortParam(BaseParam[list[str]]):
                 f"Ordering with more than {self.MAX_SORT_PARAMS} parameters is not allowed. Provided: {order_by_values}",
             )
 
-        columns: list[Column] = []
+        columns: list[ColumnElement] = []
         for order_by_value in order_by_values:
             lstriped_orderby = order_by_value.lstrip("-")
             column: Column | None = None
@@ -283,9 +284,15 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | None = None) -> Callable:
+        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+
+        all_attrs = self.allowed_attrs + to_replace_attrs
+
         def inner(
             order_by: list[str] = Query(
-                default=[default] if default is not None else [self.get_primary_key_string()]
+                default=[default] if default is not None else [self.get_primary_key_string()],
+                description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
+                f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
             ),
         ) -> SortParam:
             return self.set_value(order_by)
@@ -307,6 +314,7 @@ class FilterOptionEnum(Enum):
     ANY_EQUAL = "any_eq"
     ALL_EQUAL = "all_eq"
     IS_NONE = "is_none"
+    CONTAINS = "contains"
 
 
 class FilterParam(BaseParam[T]):
@@ -314,13 +322,13 @@ class FilterParam(BaseParam[T]):
 
     def __init__(
         self,
-        attribute: ColumnElement,
+        attribute: InstrumentedAttribute,
         value: T | None = None,
         filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
         skip_none: bool = True,
     ) -> None:
         super().__init__(value, skip_none)
-        self.attribute: ColumnElement = attribute
+        self.attribute: InstrumentedAttribute = attribute
         self.value: T | None = value
         self.filter_option: FilterOptionEnum = filter_option
 
@@ -364,6 +372,13 @@ class FilterParam(BaseParam[T]):
                 return select.where(self.attribute.is_not(None))
             if self.value is True:
                 return select.where(self.attribute.is_(None))
+        if self.filter_option == FilterOptionEnum.CONTAINS:
+            # For JSON/JSONB columns, convert to text before applying LIKE
+            from sqlalchemy import Text, cast
+
+            if str(self.attribute.type).upper() in ("JSON", "JSONB"):
+                return select.where(cast(self.attribute, Text).contains(self.value))
+            return select.where(self.attribute.contains(self.value))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
     @classmethod
@@ -492,7 +507,7 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     """Search on dag_id."""
 
     def __init__(self, skip_none: bool = True) -> None:
-        super().__init__(AssetModel.scheduled_dags, skip_none)
+        super().__init__(skip_none=skip_none)
 
     @classmethod
     def depends(cls, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
@@ -504,10 +519,13 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
+
+        # At this point, self.value is either a list[str] or None -> coerce falsy None to an empty list
+        dag_ids = self.value or []
         return select.where(
-            (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
-            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
-            | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(self.value)))
+            (AssetModel.scheduled_dags.any(DagScheduleAssetReference.dag_id.in_(dag_ids)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dag_ids)))
+            | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(dag_ids)))
         )
 
 
@@ -523,9 +541,9 @@ class Range(BaseModel, Generic[T]):
 class RangeFilter(BaseParam[Range]):
     """Filter on range in between the lower and upper bound."""
 
-    def __init__(self, value: Range | None, attribute: ColumnElement) -> None:
+    def __init__(self, value: Range | None, attribute: InstrumentedAttribute) -> None:
         super().__init__(value)
-        self.attribute: ColumnElement = attribute
+        self.attribute: InstrumentedAttribute = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:

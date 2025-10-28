@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, select, true
-from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.dag import DagModel
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -43,10 +44,10 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    dag_id = Column(StringID(), primary_key=True)
-    warning_type = Column(String(50), primary_key=True)
-    message = Column(Text, nullable=False)
-    timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    warning_type: Mapped[str] = mapped_column(String(50), primary_key=True)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
 

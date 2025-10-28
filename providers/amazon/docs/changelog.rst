@@ -26,11 +26,67 @@
 Changelog
 ---------
 
+9.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Separate Firehose and Kinesis hooks (#56276)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed incorrect path in EMR notebook waiter (#56584)``
+* ``Add poke_mode_only to version_compat to fix the incorrect deprecation warning (#56435)``
+* ``Refactor: deprecate wait_policy in EmrCreateJobFlowOperator in favor of wait_for_completion (#56158)``
+
+Misc
+~~~~
+
+* ``Migrate amazon provider to ''common.compat'' (#56994)``
+* ``Fix mypy errors for sqla2 in aws hooks (#56751)``
+* ``Update authentication to handle JWT token in backend (#56633)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix main. Fix 'test_athena_sql.py' (#56974)``
+   * ``Update example dms system tests for sqla 2 (#56744)``
+   * ``Enable PT011 rule to prvoider tests (#56698)``
+   * ``Enable PT011 rule to prvoider tests (#56642)``
+   * ``Enable PT011 rule to prvoider tests (#56608)``
+   * ``[AWS System Tests] Add task retries to deletion of EKS resources (#56308)``
+
+9.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add async support for Amazon SNS Notifier (#56133)``
+* ``Add async support for Amazon SQS Notifier (#56159)``
+* ``Add 'SesNotifier' - Amazon Simple Email Service Notifier (#56106)``
+* ``Implement 'filter_authorized_connections', 'filter_authorized_pools' and 'filter_authorized_variables' in AWS auth manager (#55687)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix wrong import of 'AIRFLOW_V_3_0_PLUS' in 'AwsLambdaExecutor' (#56280)``
+* ``Only defer 'EmrCreateJobFlowOperator' when 'wait_policy' is set (#56077)``
+* ``Reducing memory footprint for synchronous 'S3KeySensor' (#55070)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 9.14.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Features
 ~~~~~~~~
@@ -71,8 +127,6 @@ Doc-only
 9.13.0
 ......
 
-
-Release Date: ``|PypiReleaseDate|``
 
 .. note::
   * ``The experimental BatchExecutor added in 8.20.0 is now stable``

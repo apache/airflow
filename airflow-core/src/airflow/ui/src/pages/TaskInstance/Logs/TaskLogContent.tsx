@@ -116,7 +116,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       <Code
         css={{
           "& *::selection": {
-            bg: "brand.subtle",
+            bg: "blue.emphasized",
           },
         }}
         data-testid="virtualized-list"
@@ -148,8 +148,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               key={virtualRow.key}
               position="absolute"
               ref={rowVirtualizer.measureElement}
-              top={0}
-              transform={`translateY(${virtualRow.start}px)`}
+              top={`${virtualRow.start}px`}
               width={wrap ? "100%" : "max-content"}
             >
               {parsedLogs[virtualRow.index] ?? undefined}

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, overload
 
+from sqlalchemy.engine import URL
 from vertica_python import connect
 
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
@@ -133,6 +133,33 @@ class VerticaHook(DbApiHook):
 
         conn = connect(**conn_config)
         return conn
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a SQLAlchemy URL object with properly formatted query parameters."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        # Normalize query dictionary
+        query = {
+            k: ([str(x) for x in v] if isinstance(v, (list, tuple)) else str(v))
+            for k, v in extra.items()
+            if v is not None
+        }
+
+        return URL.create(
+            drivername="vertica-python",
+            username=conn.login,
+            password=conn.password or "",
+            host=conn.host or "localhost",
+            port=conn.port or 5433,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a URI string with password visible."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     @overload
     def run(

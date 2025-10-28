@@ -749,6 +749,81 @@ class TestBulkVariables(TestVariableEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "update_mask_value",
+                                    "description": "Updated variable 1",
+                                }
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": ["test_variable_key"], "errors": []}},
+                id="test_successful_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Updated description",
+                                }
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": ["test_variable_key"],
+                        "errors": [],
+                    }
+                },
+                id="test_variable_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Updated description",
+                                }
+                            ],
+                            "update_mask": ["key", "value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "Update not allowed: the following fields are immutable and cannot be modified: {'key'}",
+                                "status_code": 400,
+                            }
+                        ],
+                    }
+                },
+                id="test_bulk_update_should_fail_on_restricted_key",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": ["test_variable_key"],
                             "action_on_non_existence": "skip",
@@ -1063,6 +1138,38 @@ class TestBulkVariables(TestVariableEndpoint):
                     "delete": {"success": ["dictionary_password"], "errors": []},
                 },
                 id="test_repeated_actions",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"key": "var1", "value": "initial", "description": "Initial Description"}
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {"key": "var1", "value": "updated", "description": "Updated Description"}
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["var1"],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["var1"], "errors": []},
+                    "update": {"success": ["var1"], "errors": []},
+                    "delete": {"success": ["var1"], "errors": []},
+                },
+                id="test_variable_dependent_actions_with_update_mask",
             ),
         ],
     )

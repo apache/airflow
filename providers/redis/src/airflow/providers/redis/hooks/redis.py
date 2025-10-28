@@ -23,7 +23,7 @@ from typing import Any
 
 from redis import Redis
 
-from airflow.providers.redis.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]

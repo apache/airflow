@@ -25,7 +25,6 @@
   "dag_other": "डैग्स",
   "dagDetails": {
     "catchup": "पकड़ना",
-    "concurrency": "समानांतरता",
     "dagRunTimeout": "डैग रन टाइमआउट",
     "defaultArgs": "डिफ़ॉल्ट तर्क",
     "description": "विवरण",
@@ -154,7 +153,6 @@
     },
     "tooltip": "{{direction}} तक स्क्रॉल करने के लिए {{hotkey}} दबाएं"
   },
-  "seconds": "{{count}}सेकंड",
   "security": {
     "actions": "क्रियाएं",
     "permissions": "अनुमतियां",
@@ -189,8 +187,6 @@
     "up_for_retry": "पुनः प्रयास के लिए",
     "upstream_failed": "अपस्ट्रीम विफल"
   },
-  "switchToDarkMode": "डार्क मोड में स्विच करें",
-  "switchToLightMode": "लाइट मोड में स्विच करें",
   "table": {
     "completedAt": "पर पूर्ण",
     "createdAt": "पर बनाया",

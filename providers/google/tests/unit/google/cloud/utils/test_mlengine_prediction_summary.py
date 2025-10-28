@@ -77,7 +77,7 @@ class TestMakeSummary:
         non_callable_value = 1
         fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode("utf-8")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="--metric_fn_encoded must be an encoded callable."):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",
