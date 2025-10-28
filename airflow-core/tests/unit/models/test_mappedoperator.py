@@ -330,7 +330,7 @@ def test_map_product_expansion(dag_maker, session):
         show.expand(number=emit_numbers(), letter=emit_letters())
 
     dr = dag_maker.create_dagrun()
-    
+
     # Clean up any existing TaskInstances for the show task to prevent UNIQUE constraint violations
     show_task = dag.get_task("show")
     session.query(TaskInstance).filter(
@@ -338,7 +338,7 @@ def test_map_product_expansion(dag_maker, session):
         TaskInstance.task_id == show_task.task_id,
         TaskInstance.run_id == dr.run_id,
     ).delete()
-    
+
     for fn in (emit_numbers, emit_letters):
         session.add(
             TaskMap(
