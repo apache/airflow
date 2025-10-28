@@ -313,7 +313,6 @@ _DEPRECATED_EXCEPTIONS = {
     "AirflowSkipException": "airflow.sdk.exceptions.AirflowSkipException",
     "AirflowTaskTimeout": "airflow.sdk.exceptions.AirflowTaskTimeout",
     "AirflowFailException": "airflow.sdk.exceptions.AirflowFailException",
-    # TODO: This will be handled as part of https://github.com/apache/airflow/pull/55111
     "ParamValidationError": "airflow.sdk.exceptions.ParamValidationError",
     "TaskDeferred": "airflow.sdk.exceptions.TaskDeferred",
 }
