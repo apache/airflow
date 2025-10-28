@@ -851,9 +851,9 @@ def _should_retry_api_request(exception: BaseException) -> bool:
 
 
 class Client(httpx.Client):
-    @classmethod
     @lru_cache()
-    def _get_ssl_context_cached(cls, ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
+    @staticmethod
+    def _get_ssl_context_cached(ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
         """Cache SSL context to prevent memory growth from repeated context creation."""
         ctx = ssl.create_default_context(cafile=ca_file)
         if ca_path:
