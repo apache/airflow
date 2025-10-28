@@ -254,7 +254,7 @@ def get_asset_aliases(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
-def get_asset_alias(asset_alias_id: int, session: SessionDep):
+def get_asset_alias(asset_alias_id: int, session: SessionDep) -> AssetAliasResponse:
     """Get an asset alias."""
     alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.id == asset_alias_id))
     if alias is None:
@@ -602,7 +602,7 @@ def delete_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-):
+) -> None:
     """Delete queued asset events for an asset."""
     where_clause = _generate_queued_event_where_clause(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
@@ -636,7 +636,7 @@ def delete_dag_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-):
+) -> None:
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -669,7 +669,7 @@ def delete_dag_asset_queued_event(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-):
+) -> None:
     """Delete a queued asset event for a DAG."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value

@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, case, func, select
 
@@ -38,7 +40,7 @@ def next_run_assets(
     dag_id: str,
     dag_bag: DagBagDep,
     session: SessionDep,
-) -> dict:
+) -> dict[str, Any]:
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
     if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find associated dag_model {dag_id}")

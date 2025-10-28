@@ -162,6 +162,7 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
+    session.commit()
     return b
 
 

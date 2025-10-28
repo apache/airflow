@@ -60,7 +60,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 def delete_variable(
     variable_key: str,
     session: SessionDep,
-):
+) -> None:
     """Delete a variable entry."""
     if Variable.delete(variable_key, session) == 0:
         raise HTTPException(

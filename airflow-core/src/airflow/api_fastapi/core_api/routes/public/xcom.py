@@ -335,6 +335,6 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    xcom_entry.value = XComModel.serialize_value(xcom_new_value)
+    xcom_entry.value = xcom_new_value
 
     return XComResponseNative.model_validate(xcom_entry)
