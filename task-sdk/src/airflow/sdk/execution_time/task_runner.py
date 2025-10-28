@@ -1203,7 +1203,11 @@ def _send_error_email_notification(
     try:
         from airflow.providers.smtp.notifications.smtp import SmtpNotifier
     except ImportError:
-        log.error("Cannot send email notification: `apache-airflow-providers-smtp` is not installed.")
+        log.error(
+            "Failed to send task failure or retry email notification: "
+            "`apache-airflow-providers-smtp` is not installed. "
+            "Install this provider to enable email notifications."
+        )
         return
 
     if not task.email:
