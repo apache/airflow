@@ -77,8 +77,7 @@ def mock_time_fixture():
     with mock.patch("time.time") as mock_time:
         start_time = 1000
         mock_time.side_effect = [
-            start_time,
-            start_time + STARTUP_TIMEOUT_SECS,
+            *(start_time + STARTUP_TIMEOUT_SECS * n for n in range(5)),
         ]
         yield mock_time
 
@@ -383,7 +382,6 @@ class TestKubernetesPodTrigger:
             )
         )
         mock_method.return_value = container_state
-
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
