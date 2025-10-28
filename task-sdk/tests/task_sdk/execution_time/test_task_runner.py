@@ -126,6 +126,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -2320,6 +2321,8 @@ class TestXComAfterTaskExecution:
 
 
 class TestEmailNotifications:
+    FROM = "from@airflow"
+
     @pytest.mark.parametrize(
         "emails, sent",
         [
@@ -2361,21 +2364,22 @@ class TestEmailNotifications:
         context = runtime_ti.get_template_context()
         log = mock.MagicMock()
 
-        with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
-            state, _, error = run(runtime_ti, context, log)
-            finalize(runtime_ti, state, context, log, error)
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
 
-            if not sent:
-                mock_smtp_notifier.assert_not_called()
-            else:
-                mock_smtp_notifier.assert_called_once()
-                kwargs = mock_smtp_notifier.call_args.kwargs
-                assert kwargs["from_email"] == "airflow@localhost"
-                assert kwargs["to"] == emails
-                assert (
-                    kwargs["html_content"]
-                    == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-                )
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
 
     @pytest.mark.parametrize(
         "emails, sent",
@@ -2418,21 +2422,22 @@ class TestEmailNotifications:
         context = runtime_ti.get_template_context()
         log = mock.MagicMock()
 
-        with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
-            state, _, error = run(runtime_ti, context, log)
-            finalize(runtime_ti, state, context, log, error)
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
 
-            if not sent:
-                mock_smtp_notifier.assert_not_called()
-            else:
-                mock_smtp_notifier.assert_called_once()
-                kwargs = mock_smtp_notifier.call_args.kwargs
-                assert kwargs["from_email"] == "airflow@localhost"
-                assert kwargs["to"] == emails
-                assert (
-                    kwargs["html_content"]
-                    == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-                )
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
 
 
 class TestDagParamRuntime:

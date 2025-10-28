@@ -1242,7 +1242,7 @@ def _send_error_email_notification(
             to=to_emails,
             subject=default_subject,
             html_content=default_html_content,
-            from_email="airflow@localhost",
+            from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
         )
         notifier(email_context)
     except Exception:
