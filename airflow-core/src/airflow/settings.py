@@ -711,8 +711,6 @@ def initialize():
         conf.mask_secrets()
     configure_action_logging()
 
-
-
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
 

@@ -694,7 +694,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")):
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
         # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
         os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
@@ -734,7 +736,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         "core", "default_impersonation", fallback=None
     )
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and  run_as_user and run_as_user != getuser():
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
         # enters here for re-exec process
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
@@ -1485,6 +1487,7 @@ def main():
             with suppress(Exception):
                 SUPERVISOR_COMMS.socket.close()
 
+
 def reinit_supervisor_comms() -> None:
     """
     Re-initialize supervisor comms and logging channel in subprocess.
@@ -1507,6 +1510,7 @@ def reinit_supervisor_comms() -> None:
         configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
     else:
         print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
