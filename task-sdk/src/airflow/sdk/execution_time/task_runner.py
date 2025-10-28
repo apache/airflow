@@ -1225,7 +1225,9 @@ def _send_error_email_notification(
     )
 
     # Add exception_html to context for template rendering
-    exception_html = str(error).replace("\n", "<br>")
+    import html
+
+    exception_html = html.escape(str(error)).replace("\n", "<br>")
     additional_context = {
         "exception": error,
         "exception_html": exception_html,
