@@ -943,32 +943,21 @@ class KubernetesPodOperator(BaseOperator):
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
 
-                return xcom_sidecar_output
-
-            if event["status"] == "running":
+            if event["status"] == "success":
+                # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.log.info("Resuming logs read from time %r", last_log_time)
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
-                    pod_log_status = self.pod_manager.fetch_container_logs(
-                        pod=self.pod,
-                        container_name=self.base_container_name,
-                        follow=follow,
-                        since_time=last_log_time,
-                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
-                        log_formatter=self.log_formatter,
-                    )
-
-                    self.invoke_defer_method(pod_log_status.last_log_time)
-                else:
-                    self.invoke_defer_method()
+                if self.do_xcom_push:
+                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
+                    return xcom_sidecar_output
+                return
         except TaskDeferred:
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
-        if event["status"] == "running":
-            return
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
