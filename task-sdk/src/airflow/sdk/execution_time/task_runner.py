@@ -107,6 +107,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
 from airflow.stats import Stats
@@ -880,6 +881,7 @@ def _defer_task(
     return msg, state
 
 
+@Sentry.enrich_errors
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
