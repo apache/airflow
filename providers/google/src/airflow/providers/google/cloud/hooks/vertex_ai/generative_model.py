@@ -90,6 +90,11 @@ class GenerativeModelHook(GoogleBaseHook):
         cached_context_model = preview_generative_model.GenerativeModel.from_cached_content(cached_content)
         return cached_context_model
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.embed_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def text_embedding_model_get_embeddings(
         self,
@@ -114,6 +119,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.values
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def generative_model_generate_content(
         self,
@@ -156,6 +166,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.text
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.supervised_fine_tuning_train",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def supervised_fine_tuning_train(
         self,
@@ -209,6 +224,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return sft_tuning_job
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.count_tokens",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def count_tokens(
         self,
@@ -296,6 +316,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return eval_result
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.create_cached_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_cached_content(
         self,
         model_name: str,
@@ -330,6 +355,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
         return response.name
 
+    @deprecated(
+        planned_removal_date="January 3, 2026",
+        use_instead="airflow.providers.google.cloud.hooks.gen_ai.generative_model.GenAIGenerativeModelHook.generate_content",
+        category=AirflowProviderDeprecationWarning,
+    )
     def generate_from_cached_content(
         self,
         location: str,

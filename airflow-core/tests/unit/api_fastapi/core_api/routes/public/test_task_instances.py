@@ -119,12 +119,14 @@ class TestTaskInstanceEndpoint:
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         tis = []
         for i in range(counter):
-            if task_instances is None:
-                pass
-            elif update_extras:
-                self.ti_extras.update(task_instances[i])
-            else:
-                self.ti_init.update(task_instances[i])
+            map_indexes = (-1,)
+            if task_instances:
+                map_index = task_instances[i].get("map_index", -1)
+                map_indexes = task_instances[i].pop("map_indexes", (map_index,))
+                if update_extras:
+                    self.ti_extras.update(task_instances[i])
+                else:
+                    self.ti_init.update(task_instances[i])
 
             if "logical_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
@@ -143,14 +145,17 @@ class TestTaskInstanceEndpoint:
                 session.flush()
             if TYPE_CHECKING:
                 assert dag_version
-            ti = TaskInstance(task=tasks[i], **self.ti_init, dag_version_id=dag_version.id)
-            session.add(ti)
-            ti.dag_run = dr
-            ti.note = "placeholder-note"
 
-            for key, value in self.ti_extras.items():
-                setattr(ti, key, value)
-            tis.append(ti)
+            for mi in map_indexes:
+                kwargs = self.ti_init | {"map_index": mi}
+                ti = TaskInstance(task=tasks[i], **kwargs, dag_version_id=dag_version.id)
+                session.add(ti)
+                ti.dag_run = dr
+                ti.note = "placeholder-note"
+
+                for key, value in self.ti_extras.items():
+                    setattr(ti, key, value)
+                tis.append(ti)
 
         session.flush()
 
@@ -2502,10 +2507,116 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "example_python_operator",
                 {
                     "dry_run": False,
-                    "task_ids": [["print_the_context", 0], "sleep_for_1"],
+                    "task_ids": [["print_the_context", -1], "sleep_for_1"],
                 },
                 2,
-                id="clear mapped task and unmapped tasks together",
+                id="clear unmapped tasks with and without map index",
+            ),
+            pytest.param(
+                "example_task_mapping_second_order",
+                [
+                    {
+                        "logical_date": DEFAULT_DATETIME_1,
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_mapping_second_order",
+                {
+                    "dry_run": False,
+                    "task_ids": [["times_2", 0], ["add_10", 1]],
+                },
+                2,
+                id="clear multiple mapped tasks",
+            ),
+            pytest.param(
+                "example_task_mapping_second_order",
+                [
+                    {
+                        "logical_date": DEFAULT_DATETIME_1,
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_mapping_second_order",
+                {
+                    "dry_run": False,
+                    "task_ids": [["times_2", 0], ["add_10", 1]],
+                    "include_upstream": True,
+                },
+                5,
+                id="clear mapped tasks and upstream tasks",
+            ),
+            pytest.param(
+                "example_task_mapping_second_order",
+                [
+                    {
+                        "logical_date": DEFAULT_DATETIME_1,
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_mapping_second_order",
+                {
+                    "dry_run": False,
+                    "task_ids": [["times_2", 0], ["add_10", 1]],
+                    "include_downstream": True,
+                },
+                4,
+                id="clear mapped tasks and downstream tasks",
+            ),
+            pytest.param(
+                "example_task_mapping_second_order",
+                [
+                    {
+                        "logical_date": DEFAULT_DATETIME_1,
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_mapping_second_order",
+                {
+                    "dry_run": False,
+                    "task_ids": [["times_2", 0], "add_10"],
+                },
+                4,
+                id="clear mapped tasks with and without map index",
             ),
         ],
     )
@@ -3793,8 +3904,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ti = TaskInstance(
             task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
         )
+        ti_2 = TaskInstance(
+            task=tis[0].task,
+            run_id=tis[0].run_id,
+            map_index=map_index + 1,
+            dag_version_id=tis[0].dag_version_id,
+        )
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+        ti_2.rendered_task_instance_fields = RTIF(ti_2, render_templates=False)
         session.add(ti)
+        session.add(ti_2)
         session.commit()
 
         response = test_client.patch(
@@ -3808,6 +3927,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response2 = test_client.get(f"{self.ENDPOINT_URL}/{map_index}")
         assert response2.status_code == 200
         assert response2.json()["state"] == self.NEW_STATE
+
+        response3 = test_client.get(f"{self.ENDPOINT_URL}/{map_index + 1}")
+        assert response3.status_code == 200
+        assert response3.json()["state"] != self.NEW_STATE
+        assert response3.json()["state"] is None
 
     def test_should_update_mapped_task_instance_summary_state(self, test_client, session):
         tis = self.create_task_instances(session)

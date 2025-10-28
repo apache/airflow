@@ -17,13 +17,18 @@
 
 from __future__ import annotations
 
-# Re-export from lazy_compat for backward compatibility
-from airflow.providers.common.compat.lazy_compat import (
-    _SERIALIZERS,
-    BaseOperator,
-    PythonOperator,
-    ShortCircuitOperator,
-    get_current_context,
-)
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-__all__ = ["BaseOperator", "PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "BaseOperator": "airflow.providers.common.compat.sdk",
+    "get_current_context": "airflow.providers.common.compat.sdk",
+    # Standard provider items with direct fallbacks
+    "PythonOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "ShortCircuitOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "_SERIALIZERS": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+}
+
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
+
+__all__ = sorted(_IMPORT_MAP.keys())

@@ -22,14 +22,14 @@ from __future__ import annotations
 import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, joinedload, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -49,7 +49,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -286,8 +286,8 @@ class SerializedDagModel(Base):
         "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
     )
     _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -414,7 +414,14 @@ class SerializedDagModel(Base):
         serialized_dag_hash = session.scalars(
             select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
         ).first()
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        dag_version = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == dag.dag_id)
+            .options(joinedload(DagVersion.task_instances))
+            .options(joinedload(DagVersion.serialized_dag))
+            .order_by(DagVersion.created_at.desc())
+            .limit(1)
+        )
 
         if (
             serialized_dag_hash == new_serialized_dag.dag_hash
@@ -429,8 +436,8 @@ class SerializedDagModel(Base):
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
             latest_ser_dag = cls.get(dag.dag_id, session=session)
-            if TYPE_CHECKING:
-                assert latest_ser_dag is not None
+            if not latest_ser_dag:
+                return False
             # Update the serialized DAG with the new_serialized_dag
             latest_ser_dag._data = new_serialized_dag._data
             latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
@@ -461,6 +468,15 @@ class SerializedDagModel(Base):
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
+        from airflow.settings import engine
+
+        if engine.dialect.name == "mysql":
+            # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
+            # Details in https://github.com/apache/airflow/pull/55589
+            latest_item_id = (
+                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+            )
+            return select(cls).where(cls.id == latest_item_id)
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
@@ -591,12 +607,13 @@ class SerializedDagModel(Base):
         """
         load_json: Callable | None
         if COMPRESS_SERIALIZED_DAGS is False:
-            if session.bind.dialect.name in ["sqlite", "mysql"]:
+            dialect = get_dialect_name(session)
+            if dialect in ["sqlite", "mysql"]:
                 data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
-            elif session.bind.dialect.name == "postgresql":
+            elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
                 data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))

@@ -32,10 +32,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
+    from airflow.providers.common.compat.sdk import Connection
 
 
 @dataclass

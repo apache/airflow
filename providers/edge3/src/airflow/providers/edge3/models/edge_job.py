@@ -19,16 +19,17 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    Column,
     Index,
     Integer,
     String,
     text,
 )
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.edge3.version_compat import timezone
+from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -41,18 +42,20 @@ class EdgeJobModel(Base, LoggingMixin):
     """
 
     __tablename__ = "edge_job"
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    try_number = Column(Integer, primary_key=True, default=0)
-    state = Column(String(20))
-    queue = Column(String(256))
-    concurrency_slots = Column(Integer)
-    command = Column(String(2048))
-    queued_dttm = Column(UtcDateTime)
-    edge_worker = Column(String(64))
-    last_update = Column(UtcDateTime)
+    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    map_index: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
+    try_number: Mapped[int] = mapped_column(Integer, primary_key=True, default=0)
+    state: Mapped[str] = mapped_column(String(20))
+    queue: Mapped[str] = mapped_column(String(256))
+    concurrency_slots: Mapped[int] = mapped_column(Integer)
+    command: Mapped[str] = mapped_column(String(2048))
+    queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    edge_worker: Mapped[str | None] = mapped_column(String(64))
+    last_update: Mapped[datetime | None] = mapped_column(UtcDateTime)
 
     def __init__(
         self,
@@ -91,4 +94,4 @@ class EdgeJobModel(Base, LoggingMixin):
 
     @property
     def last_update_t(self) -> float:
-        return self.last_update.timestamp()
+        return self.last_update.timestamp() if self.last_update else datetime.now().timestamp()

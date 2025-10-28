@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
@@ -130,3 +131,44 @@ class TestPubsubPullTrigger:
             project_id=trigger.project_id,
         )
         assert async_hook_actual == mock_async_hook.return_value
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
+    async def test_async_pubsub_pull_trigger_exception_during_pull(self, mock_pull):
+        """Test that exceptions during pull are propagated and not caught."""
+        mock_pull.side_effect = GoogleAPICallError("Connection error")
+
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=False,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+
+        with pytest.raises(GoogleAPICallError, match="Connection error"):
+            await trigger.run().asend(None)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.acknowledge")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
+    async def test_async_pubsub_pull_trigger_exception_during_ack(self, mock_pull, mock_acknowledge):
+        """Test that exceptions during message acknowledgement are propagated."""
+        # Return a coroutine that can be awaited
+        mock_pull.return_value = generate_messages(1)
+        mock_acknowledge.side_effect = GoogleAPICallError("Acknowledgement failed")
+
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=True,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+
+        with pytest.raises(GoogleAPICallError, match="Acknowledgement failed"):
+            await trigger.run().asend(None)

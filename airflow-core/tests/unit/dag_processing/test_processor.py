@@ -68,8 +68,12 @@ from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import DagRunState
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
+    GetTaskStates,
+    GetTICount,
     GetXCom,
     GetXComSequenceSlice,
+    TaskStatesResult,
+    TICount,
     ToSupervisor,
     ToTask,
     XComResult,
@@ -117,6 +121,7 @@ class TestDagFileProcessor:
             DagFileParseRequest(
                 file=file_path,
                 bundle_path=TEST_DAG_FOLDER,
+                bundle_name="testing",
                 callback_requests=callback_requests or [],
             ),
             log=structlog.get_logger(),
@@ -156,6 +161,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -191,6 +197,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -224,6 +231,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -267,6 +275,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -304,6 +313,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -333,6 +343,7 @@ class TestDagFileProcessor:
             id=1,
             path=path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -366,6 +377,7 @@ class TestDagFileProcessor:
             id=1,
             path=dag1_path,
             bundle_path=tmp_path,
+            bundle_name="testing",
             callbacks=[],
             logger=MagicMock(spec=FilteringBoundLogger),
             logger_filehandle=MagicMock(spec=BinaryIO),
@@ -477,6 +489,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
         body={
             "file": "/files/dags/wait.py",
             "bundle_path": "/files/dags",
+            "bundle_name": "testing",
             "callback_requests": [
                 {
                     "filepath": "wait.py",
@@ -543,7 +556,9 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", bundle_path="no matter", callback_requests=requests),
+        DagFileParseRequest(
+            file="A", bundle_path="no matter", bundle_name="testing", callback_requests=requests
+        ),
         log=structlog.get_logger(),
     )
 
@@ -586,7 +601,7 @@ def test_parse_file_with_task_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", bundle_path="test", callback_requests=requests),
+        DagFileParseRequest(file="A", bundle_path="test", bundle_name="testing", callback_requests=requests),
         log=structlog.get_logger(),
     )
 
@@ -1045,6 +1060,98 @@ class TestExecuteDagCallbacks:
         _execute_dag_callbacks(dagbag, request, structlog.get_logger())
 
         mock_supervisor_comms.send.assert_called_once_with(msg=expected_message)
+
+    @pytest.mark.parametrize(
+        "request_operation,operation_type,mock_response,operation_response",
+        [
+            (
+                lambda context: context["task_instance"].get_ti_count(dag_id="test_dag"),
+                GetTICount(dag_id="test_dag"),
+                TICount(count=2),
+                "Got response 2",
+            ),
+            (
+                lambda context: context["task_instance"].get_task_states(
+                    dag_id="test_dag", task_ids=["test_task"]
+                ),
+                GetTaskStates(
+                    dag_id="test_dag",
+                    task_ids=["test_task"],
+                ),
+                TaskStatesResult(task_states={"test_run": {"task1": "running"}}),
+                "Got response {'test_run': {'task1': 'running'}}",
+            ),
+        ],
+    )
+    def test_dagfileprocessorprocess_request_handler_operations(
+        self,
+        spy_agency,
+        mock_supervisor_comms,
+        request_operation,
+        operation_type,
+        mock_response,
+        operation_response,
+        caplog,
+    ):
+        """Test that DagFileProcessorProcess Request Handler Operations"""
+
+        mock_supervisor_comms.send.return_value = mock_response
+
+        def callback_fn(context):
+            log = structlog.get_logger()
+            log.info("Callback started..")
+            log.info("Got response %s", request_operation(context))
+
+        with DAG(dag_id="test_dag", on_success_callback=callback_fn) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        current_time = timezone.utcnow()
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            context_from_server=DagRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date=current_time,
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="success",
+                    consumed_asset_events=[],
+                ),
+                last_ti=TIDataModel(
+                    id=uuid.uuid4(),
+                    dag_id="test_dag",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                    try_number=1,
+                    dag_version_id=uuid.uuid4(),
+                ),
+            ),
+            is_failure_callback=False,
+            msg="Test success message",
+        )
+
+        _execute_dag_callbacks(dagbag, request, structlog.get_logger())
+
+        mock_supervisor_comms.send.assert_called_once_with(msg=operation_type)
+        assert operation_response in caplog.text
 
 
 class TestExecuteTaskCallbacks:
@@ -1662,6 +1769,30 @@ class TestExecuteEmailCallbacks:
         with pytest.raises(ValueError, match=expected_error):
             _execute_email_callbacks(dagbag, request, log)
 
+    def test_parse_file_passes_bundle_name_to_dagbag(self):
+        """Test that _parse_file() creates DagBag with correct bundle_name parameter"""
+        # Mock the DagBag constructor to capture its arguments
+        with patch("airflow.dag_processing.processor.DagBag") as mock_dagbag_class:
+            # Create a mock instance with proper attributes for Pydantic validation
+            mock_dagbag_instance = MagicMock()
+            mock_dagbag_instance.dags = {}
+            mock_dagbag_instance.import_errors = {}  # Must be a dict, not MagicMock for Pydantic validation
+            mock_dagbag_class.return_value = mock_dagbag_instance
+
+            request = DagFileParseRequest(
+                file="/test/dag.py",
+                bundle_path=pathlib.Path("/test"),
+                bundle_name="test_bundle",
+                callback_requests=[],
+            )
+
+            _parse_file(request, log=structlog.get_logger())
+
+            # Verify DagBag was called with correct bundle_name
+            mock_dagbag_class.assert_called_once()
+            call_kwargs = mock_dagbag_class.call_args.kwargs
+            assert call_kwargs["bundle_name"] == "test_bundle"
+
 
 class TestDagProcessingMessageTypes:
     def test_message_types_in_dag_processor(self):
@@ -1707,6 +1838,7 @@ class TestDagProcessingMessageTypes:
             "CreateHITLDetailPayload",
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
+            "SetRenderedMapIndex",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
