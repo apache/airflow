@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import Integer, Row, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -233,10 +233,14 @@ class Trigger(Base):
         )
         if get_dialect_name(session) == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids = session.scalars(ids).all()
-        session.execute(
-            delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-        )
+            ids_list = list(session.scalars(ids).all())
+            session.execute(
+                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
+            )
+        else:
+            session.execute(
+                delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
+            )
 
     @classmethod
     @provide_session
@@ -308,7 +312,7 @@ class Trigger(Base):
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
         """Retrieve a list of trigger ids."""
-        return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
+        return list(session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all())
 
     @classmethod
     @provide_session
@@ -349,7 +353,7 @@ class Trigger(Base):
         if trigger_ids_query:
             session.execute(
                 update(cls)
-                .where(cls.id.in_([i.id for i in trigger_ids_query]))
+                .where(cls.id.in_([i[0] for i in trigger_ids_query]))
                 .values(triggerer_id=triggerer_id)
                 .execution_options(synchronize_session=False)
             )
@@ -365,7 +369,7 @@ class Trigger(Base):
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param session: The database session.
         """
-        result: list[int] = []
+        result: list[Row[Any]] = []
 
         # Add triggers associated to deadlines first, then tasks, then assets
         # It prioritizes deadline triggers, then DAGs over event driven scheduling which is fair
@@ -447,6 +451,8 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     def _submit_callback_if_necessary() -> None:
         """Submit a callback request if the task state is SUCCESS or FAILED."""
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+            if task_instance.dag_model.relative_fileloc is None:
+                raise RuntimeError("relative_fileloc should not be None for a finished task")
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
