@@ -94,4 +94,4 @@ class EdgeJobModel(Base, LoggingMixin):
 
     @property
     def last_update_t(self) -> float:
-        return self.last_update.timestamp()
+        return self.last_update.timestamp() if self.last_update else datetime.now().timestamp()

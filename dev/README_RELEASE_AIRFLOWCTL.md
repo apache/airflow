@@ -29,9 +29,9 @@
   - [Generate release notes](#generate-release-notes)
   - [Build airflow-ctl distributions for SVN apache upload](#build-airflow-ctl-distributions-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
+  - [Add tags in git](#add-tags-in-git)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for airflow-ctl release candidate](#prepare-voting-email-for-airflow-ctl-release-candidate)
@@ -130,10 +130,24 @@ export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
+## Add tags in git
+
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the airflow-ctl in the repo.
+
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+```shell script
+git tag -s "airflow-ctl/${VERSION_RC}"
+git push apache --tags "airflow-ctl/${VERSION_RC}"
+```
+
 * Release candidate packages:
 
 ```shell script
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION_RC}
 ```
 
 * Sign all your packages
@@ -163,12 +177,17 @@ cd asf-dist/dev/airflow/airflow-ctl
 # Remove previously released versions
 svn rm *
 
+mkdir -p ${VERSION_RC}
+cd ${VERSION_RC}
+
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
+cd ..
+
 # Add and commit
 svn add *
-svn commit -m "Add artifacts for Airflow CTL $(date "+%Y-%m-%d%n")"
+svn commit -m "Add artifacts for Airflow CTL ${VERSION_RC}"
 
 cd ${AIRFLOW_REPO_ROOT}
 ```
@@ -217,21 +236,6 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 * Confirm that the packages are available under the links printed and look good.
 
 
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the airflow-ctl in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
-
-```shell script
-git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache --tags
-```
-
 ## Prepare documentation in Staging
 
 Documentation is an essential part of the product and should be made available to users.
@@ -254,13 +258,14 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow-ctl
+breeze workflow-run publish-docs --ref airflow-ctl/${VERSION_RC} apache-airflow-ctl
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
 
-The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
-if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+You can also add the `--site-env` parameter should be set to `staging` for pre-release
+versions or `live` for final releases. The default option is `auto` if the tag is rc it
+publishes to `staging` bucket, otherwise it publishes to `live` bucket.
 
 One of the interesting features of publishing this way is that you can also rebuild historical version of
 the documentation with patches applied to the documentation (if they can be applied cleanly).
@@ -271,7 +276,7 @@ building it (don't forget to add --skip-write-to-stable-folder if you are publis
 previous version of the distribution). Example:
 
 ```shell script
-breeze workflow-run publish-docs --ref airflow-ctl/1.0.0rc1 --site-env live \
+breeze workflow-run publish-docs --ref airflow-ctl/1.0.0 --site-env live \
   --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
   apache.hive
 ```
@@ -328,7 +333,72 @@ TODO: prepare an issue
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/
 
-TODO: prepare email
+
+Subject:
+
+```shell script
+cat <<EOF
+[VOTE] Release Airflow CTL ${VERSION} from ${VERSION_RC}
+EOF
+```
+
+Body:
+
+```shell script
+cat <<EOF
+The release candidate for **Apache Airflow Ctl**: ${VERSION_RC}  is now available for testing!
+
+This email is calling for a vote on the release, which will last at least until the
+DATE_HERE and until 3 binding +1 votes have been received.
+
+Consider this my +1 (binding) vote.
+
+The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
+
+The "apache-airflow-ctl" packages are:
+
+   - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
+     with INSTALL instructions.
+   - *apache_airfow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airfow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+
+Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
+
+Only votes from PMC members are binding, but all members of the community are encouraged to test the release and vote with "(non-binding)".
+
+The test procedure for PMC members is described in: https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-pmc-members
+
+The test procedure for contributors and members of the community who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-contributors
+
+Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the apache-airflow-ctl package.
+This will allow us to rename the artifact without modifying the artifact checksums when we actually release.
+
+*Docs* (for preview): https://airflow.staged.apache.org/docs/apache-airflow-ctl/${VERSION}/index.html
+
+*Release Notes*: https://github.com/apache/airflow/blob/airflow-ctl/${VERSION_RC}/airflow-ctl/RELEASE_NOTES.rst
+
+*Testing Instructions using PyPI*:
+
+The packages are available in PyPI: https://pypi.org/project/apache-airflow-ctl/${VERSION_RC}/
+
+You can build a virtualenv that installs this and other required packages like this:
+
+uv venv
+uv pip install -U apache-airflow-ctl==${VERSION_RC}
+
+Regards,
+<Your name>
+
+EOF
+```
+
 
 ## Verify the release candidate by PMC members
 
@@ -360,31 +430,11 @@ svn update .
 Set an environment variable: PATH_TO_SVN to the root of folder where you have airflow-ctl
 
 ``` shell
-cd asf-dist/dev/airflow
+cd asf-dist/dev/airflow/airflow-ctl
 export PATH_TO_SVN=$(pwd -P)
 ```
 
 TODO: implement check in ``check_files.py``
-
-Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
-script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
-may help with verifying installation of the packages.
-
-Once you have cloned/updated the SVN repository, copy the pypi URLs shared in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
-directory and cd into it.
-
-```shell script
-uv run check_files.py airflow-ctl -p ${PATH_TO_SVN}
-```
-
-After the above script completes you can build `Dockerfile.pmc` to trigger an installation of airflow-ctl
-package and verify the correct versions are installed:
-
-```shell script
-docker build -f Dockerfile.pmc --tag local/airflow .
-docker run --rm --entrypoint "airflow-ctl" local/airflow info
-docker image rm local/airflow
-```
 
 ### Reproducible package builds checks
 
@@ -421,6 +471,7 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
@@ -466,8 +517,8 @@ fi
 # Cleanup old folders (if needed)
 find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
 cat /tmp/files.txt | xargs rm -rf
-# Unpack all packages
-for i in *.tar.gz
+# Unpack all source packages
+for i in *source.tar.gz
 do
    tar -xvzf $i
 done
@@ -571,9 +622,10 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-ctl-1.0.0rc1.tar.gz.sha512
-Checking apache_airflow-ctl-1.0.0rc1-py3-none-any.whl.sha512
-...
+Checking apache-airflow_ctl-1.0.0.tar.gz.sha512
+Checking apache_airflow_ctl-1.0.0-py3-none-any.whl.sha512
+Checking apache_airflow_ctl-1.0.0-source.tar.gz.sha512
+
 ```
 
 ## Verify the release candidate by Contributors
@@ -593,7 +645,7 @@ downloaded from the SVN).
 ### Installing in your local virtualenv
 
 ```shell
-pip install apache-airflow-ctl>==<VERSION>rc<X>
+pip install apache-airflow-ctl==<VERSION>rc<X>
 ```
 
 ### Additional Verification
