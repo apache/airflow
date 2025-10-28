@@ -621,7 +621,16 @@ def get_list_dag_runs_batch(
         {"dag_run_id": "run_id"},
     ).set_value([body.order_by] if body.order_by else None)
 
-    base_query = select(DagRun).options(joinedload(DagRun.dag_model))
+    base_query = select(DagRun).options(
+        joinedload(DagRun.dag_model),
+        selectinload(DagRun.task_instances)
+        .joinedload(TaskInstance.dag_version)
+        .joinedload(DagVersion.bundle),
+        selectinload(DagRun.task_instances_histories)
+        .joinedload(TaskInstanceHistory.dag_version)
+        .joinedload(DagVersion.bundle),
+        joinedload(DagRun.dag_run_note),
+    )
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
         filters=[

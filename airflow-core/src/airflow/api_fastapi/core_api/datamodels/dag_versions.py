@@ -35,7 +35,6 @@ class DagVersionResponse(BaseModel):
     created_at: datetime
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
-    # Read the ORM-side computed property to avoid an extra DB round-trip during serialization.
     bundle_url: str | None = Field(validation_alias="bundle_url")
 
 
