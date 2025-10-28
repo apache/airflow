@@ -7107,7 +7107,7 @@ class TestSchedulerJob:
             self.job_runner = SchedulerJobRunner(scheduler_job)
             self.job_runner._emit_running_dags_metric()
 
-        assert recorded == [("scheduler.running_dags", 2)]
+        assert recorded == [("scheduler.dagruns.running", 2)]
 
 
 @pytest.mark.need_serialized_dag
