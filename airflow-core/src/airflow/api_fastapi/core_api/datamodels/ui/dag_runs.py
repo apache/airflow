@@ -37,7 +37,6 @@ class DAGRunLightResponse(BaseModel):
     state: DagRunState
 
     @computed_field
-    @property
     def duration(self) -> float | None:
         if self.end_date and self.start_date:
             return (self.end_date - self.start_date).total_seconds()
