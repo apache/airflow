@@ -49,8 +49,8 @@ log = structlog.get_logger(logger_name=__name__)
 class ConfiguredSentry(NoopSentry):
     """Configure Sentry SDK."""
 
-    SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "logical_date"))
-    SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
+    SCOPE_DAG_RUN_TAGS = ("data_interval_start", "data_interval_end", "logical_date")
+    SCOPE_TASK_INSTANCE_TAGS = ("task_id", "dag_id", "try_number")
 
     UNSUPPORTED_SENTRY_OPTIONS = frozenset(
         (
@@ -107,7 +107,6 @@ class ConfiguredSentry(NoopSentry):
     def add_tagging(self, dag_run: DagRunProtocol, task_instance: RuntimeTaskInstanceProtocol) -> None:
         """Add tagging for a task_instance."""
         task = task_instance.task
-
         with sentry_sdk.configure_scope() as scope:
             for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
                 attribute = getattr(task_instance, tag_name)

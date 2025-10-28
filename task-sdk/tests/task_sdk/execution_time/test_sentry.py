@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import datetime
 import importlib
+import sys
+import types
 from unittest import mock
 
 import pytest
-import time_machine
 import uuid6
-from sentry_sdk import configure_scope
-from sentry_sdk.transport import Transport
 
 from airflow._shared.timezones import timezone
 from airflow.providers.standard.operators.python import PythonOperator
@@ -46,15 +45,6 @@ RUN_ID = "test_run"
 OPERATOR = "PythonOperator"
 TRY_NUMBER = 0
 STATE = State.SUCCESS
-TEST_SCOPE = {
-    "dag_id": DAG_ID,
-    "task_id": TASK_ID,
-    "data_interval_start": DATA_INTERVAL[0],
-    "data_interval_end": DATA_INTERVAL[1],
-    "logical_date": LOGICAL_DATE,
-    "operator": OPERATOR,
-    "try_number": TRY_NUMBER,
-}
 TASK_DATA = {
     "task_id": TASK_ID,
     "state": STATE,
@@ -62,22 +52,19 @@ TASK_DATA = {
     "duration": None,
 }
 
-CRUMB_DATE = datetime.datetime(2019, 5, 15, tzinfo=datetime.timezone.utc)
-CRUMB = {
-    "timestamp": CRUMB_DATE,
-    "type": "default",
-    "category": "completed_tasks",
-    "data": TASK_DATA,
-    "level": "info",
-}
-
 
 def before_send(_):
     pass
 
 
-class CustomTransport(Transport):
+class CustomTransport:
     pass
+
+
+def is_configured(obj):
+    from airflow.sdk.execution_time.sentry.configured import ConfiguredSentry
+
+    return isinstance(obj, ConfiguredSentry)
 
 
 class TestSentryHook:
@@ -113,13 +100,33 @@ class TestSentryHook:
             state=STATE,
         )
 
-    @pytest.fixture
-    def sentry_sdk(self):
-        with mock.patch("sentry_sdk.init") as sentry_sdk:
-            yield sentry_sdk
+    @pytest.fixture(scope="class", autouse=True)
+    def mock_sentry_sdk(self):
+        sentry_sdk_integrations_logging = types.ModuleType("sentry_sdk.integrations.logging")
+        sentry_sdk_integrations_logging.ignore_logger = mock.MagicMock()
+
+        sentry_sdk = types.ModuleType("sentry_sdk")
+        sentry_sdk.init = mock.MagicMock()
+        sentry_sdk.integrations = mock.Mock(logging=sentry_sdk_integrations_logging)
+        sentry_sdk.configure_scope = mock.MagicMock()
+        sentry_sdk.add_breadcrumb = mock.MagicMock()
+
+        sys.modules["sentry_sdk"] = sentry_sdk
+        sys.modules["sentry_sdk.integrations.logging"] = sentry_sdk_integrations_logging
+        yield sentry_sdk
+        del sys.modules["sentry_sdk"]
+        del sys.modules["sentry_sdk.integrations.logging"]
+
+    @pytest.fixture(autouse=True)
+    def remove_mock_sentry_sdk(self, mock_sentry_sdk):
+        yield
+        mock_sentry_sdk.integrations.logging.ignore_logger.reset_mock()
+        mock_sentry_sdk.init.reset_mock()
+        mock_sentry_sdk.configure_scope.reset_mock()
+        mock_sentry_sdk.add_breadcrumb.reset_mock()
 
     @pytest.fixture
-    def sentry(self):
+    def sentry(self, mock_sentry_sdk):
         with conf_vars(
             {
                 ("sentry", "sentry_on"): "True",
@@ -135,7 +142,7 @@ class TestSentryHook:
         importlib.reload(sentry)
 
     @pytest.fixture
-    def sentry_custom_transport(self):
+    def sentry_custom_transport(self, mock_sentry_sdk):
         with conf_vars(
             {
                 ("sentry", "sentry_on"): "True",
@@ -151,7 +158,7 @@ class TestSentryHook:
         importlib.reload(sentry)
 
     @pytest.fixture
-    def sentry_minimum(self):
+    def sentry_minimum(self, mock_sentry_sdk):
         """
         Minimum sentry config
         """
@@ -163,16 +170,37 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
-    def test_add_tagging(self, sentry, dag_run, task_instance):
+    def test_init(self, mock_sentry_sdk, sentry):
+        assert is_configured(sentry)
+        assert mock_sentry_sdk.integrations.logging.ignore_logger.mock_calls == [mock.call("airflow.task")]
+        assert mock_sentry_sdk.init.mock_calls == [
+            mock.call(
+                integrations=[],
+                default_integrations=False,
+                before_send=import_string("task_sdk.execution_time.test_sentry.before_send"),
+                transport=None,
+            ),
+        ]
+
+    def test_add_tagging(self, mock_sentry_sdk, sentry, dag_run, task_instance):
         """
         Test adding tags.
         """
         sentry.add_tagging(dag_run=dag_run, task_instance=task_instance)
-        with configure_scope() as scope:
-            assert scope._tags == TEST_SCOPE
+        assert mock_sentry_sdk.configure_scope.mock_calls == [
+            mock.call.__call__(),
+            mock.call.__call__().__enter__(),
+            mock.call.__call__().__enter__().set_tag("task_id", TASK_ID),
+            mock.call.__call__().__enter__().set_tag("dag_id", DAG_ID),
+            mock.call.__call__().__enter__().set_tag("try_number", TRY_NUMBER),
+            mock.call.__call__().__enter__().set_tag("data_interval_start", DATA_INTERVAL[0]),
+            mock.call.__call__().__enter__().set_tag("data_interval_end", DATA_INTERVAL[1]),
+            mock.call.__call__().__enter__().set_tag("logical_date", LOGICAL_DATE),
+            mock.call.__call__().__enter__().set_tag("operator", OPERATOR),
+            mock.call.__call__().__exit__(None, None, None),
+        ]
 
-    @time_machine.travel(CRUMB_DATE)
-    def test_add_breadcrumbs(self, mock_supervisor_comms, sentry, dag_run, task_instance):
+    def test_add_breadcrumbs(self, mock_supervisor_comms, mock_sentry_sdk, sentry, task_instance):
         """
         Test adding breadcrumbs.
         """
@@ -181,35 +209,35 @@ class TestSentryHook:
         )
 
         sentry.add_breadcrumbs(task_instance=task_instance)
-        with configure_scope() as scope:
-            collected_crumb = scope._breadcrumbs.pop()
-        assert collected_crumb == CRUMB
+        assert mock_sentry_sdk.add_breadcrumb.mock_calls == [
+            mock.call(category="completed_tasks", data=TASK_DATA, level="info"),
+        ]
 
         assert mock_supervisor_comms.send.mock_calls == [
             mock.call(GetTaskBreadcrumbs(dag_id=DAG_ID, run_id=RUN_ID)),
         ]
 
-    def test_before_send(self, sentry_sdk, sentry):
-        """
-        Test before send callable gets passed to the sentry SDK.
-        """
-        assert sentry
-        called = sentry_sdk.call_args.kwargs["before_send"]
-        expected = import_string("task_sdk.execution_time.test_sentry.before_send")
-        assert called == expected
-
-    def test_custom_transport(self, sentry_sdk, sentry_custom_transport):
+    def test_custom_transport(self, mock_sentry_sdk, sentry_custom_transport):
         """
         Test transport gets passed to the sentry SDK
         """
-        assert sentry_custom_transport
-        called = sentry_sdk.call_args.kwargs["transport"]
-        expected = import_string("task_sdk.execution_time.test_sentry.CustomTransport")
-        assert called == expected
+        assert is_configured(sentry_custom_transport)
+        assert mock_sentry_sdk.integrations.logging.ignore_logger.mock_calls == [mock.call("airflow.task")]
+        assert mock_sentry_sdk.init.mock_calls == [
+            mock.call(
+                integrations=[],
+                default_integrations=False,
+                before_send=None,
+                transport=import_string("task_sdk.execution_time.test_sentry.CustomTransport"),
+            ),
+        ]
 
-    def test_minimum_config(self, sentry_sdk, sentry_minimum):
+    def test_minimum_config(self, mock_sentry_sdk, sentry_minimum):
         """
         Test before_send doesn't raise an exception when not set
         """
-        assert sentry_minimum
-        sentry_sdk.assert_called_once()
+        assert is_configured(sentry_minimum)
+        assert mock_sentry_sdk.integrations.logging.ignore_logger.mock_calls == [mock.call("airflow.task")]
+        assert mock_sentry_sdk.init.mock_calls == [
+            mock.call(integrations=[], before_send=None, transport=None),
+        ]
