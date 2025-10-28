@@ -64,8 +64,8 @@ dependencies = [
     'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
     "pyarrow>=18.0.0; python_version >= '3.13'",
-    "snowflake-connector-python>=3.7.1",
-    "snowflake-sqlalchemy>=1.4.0",
+    "snowflake-connector-python>=3.16.0",
+    "snowflake-sqlalchemy>=1.7.0",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
     "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
