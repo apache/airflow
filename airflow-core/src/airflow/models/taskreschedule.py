@@ -66,16 +66,16 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        ti_id: uuid.UUID,
+        ti_id: uuid.UUID | str,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
     ) -> None:
-        self.ti_id = ti_id
+        self.ti_id = str(ti_id)
         self.start_date = start_date
         self.end_date = end_date
         self.reschedule_date = reschedule_date
-        self.duration = (self.end_date - self.start_date).total_seconds()
+        self.duration = int((self.end_date - self.start_date).total_seconds())
 
     @classmethod
     def stmt_for_task_instance(

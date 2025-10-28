@@ -236,20 +236,24 @@ def get_dag_run_dict(run: DagRun):
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
-        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date) if run.logical_date else None,
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
-        "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
+        "start_date": from_datetime_to_zulu_without_ms(run.start_date) if run.start_date else None,
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date) if run.end_date else None,
         "duration": run.duration,
-        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
-        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start)
+        if run.data_interval_start
+        else None,
+        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end)
+        if run.data_interval_end
+        else None,
         "last_scheduling_decision": (
             from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
         ),
         "run_type": run.run_type,
         "state": run.state,
-        "triggered_by": run.triggered_by.value,
+        "triggered_by": run.triggered_by.value if run.triggered_by else None,
         "triggering_user_name": run.triggering_user_name,
         "conf": run.conf,
         "note": run.note,

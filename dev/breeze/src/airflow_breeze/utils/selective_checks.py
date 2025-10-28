@@ -1335,6 +1335,11 @@ class SelectiveChecks:
         for job in jobs:
             if job_name in job.get("name", ""):
                 runner_labels = job.get("labels", [])
+                if "windows-2025" in runner_labels:
+                    continue
+                if not runner_labels:
+                    get_console().print("[yellow]No labels found for job {job_name}.\n", jobs_url)
+                    return None
                 return runner_labels[0]
 
         return None
@@ -1345,7 +1350,7 @@ class SelectiveChecks:
             branch = self._github_context_dict.get("ref_name", "main")
             label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
 
-            return RUNNERS_TYPE_CROSS_MAPPING[label] if label else PUBLIC_AMD_RUNNERS
+            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
 
         return PUBLIC_AMD_RUNNERS
 

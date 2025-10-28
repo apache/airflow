@@ -60,7 +60,7 @@ dependencies = [
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "packaging>=25.0",
-    "prek>=0.2.11",
+    "prek>=0.2.12",
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
@@ -76,7 +76,7 @@ dependencies = [
     "tomli>=2.0.1; python_version < '3.11'",
     "twine>=4.0.2",
     "tqdm>=4.67.1",
-    "boto3>=1.34.90",
+    "boto3>=1.37.2",
     "semver>=3.0.4"
 ]
 

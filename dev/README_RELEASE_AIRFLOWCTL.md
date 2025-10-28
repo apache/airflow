@@ -29,9 +29,9 @@
   - [Generate release notes](#generate-release-notes)
   - [Build airflow-ctl distributions for SVN apache upload](#build-airflow-ctl-distributions-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
+  - [Add tags in git](#add-tags-in-git)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for airflow-ctl release candidate](#prepare-voting-email-for-airflow-ctl-release-candidate)
@@ -130,10 +130,24 @@ export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
+## Add tags in git
+
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the airflow-ctl in the repo.
+
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+```shell script
+git tag -s "airflow-ctl/${VERSION_RC}"
+git push apache --tags "airflow-ctl/${VERSION_RC}"
+```
+
 * Release candidate packages:
 
 ```shell script
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION_RC}
 ```
 
 * Sign all your packages
@@ -205,7 +219,6 @@ you should clean up dist folder before generating the packages, so you will only
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-airflow-ctl-distributions --version-suffix rc1 --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -222,19 +235,6 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Confirm that the packages are available under the links printed and look good.
 
-
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the airflow-ctl in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-```shell script
-git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache --tags "airflow-ctl/${VERSION_RC}"
-```
 
 ## Prepare documentation in Staging
 
@@ -258,7 +258,7 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> apache-airflow-ctl
+breeze workflow-run publish-docs --ref airflow-ctl/${VERSION_RC} apache-airflow-ctl
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -346,21 +346,21 @@ Body:
 
 ```shell script
 cat <<EOF
-The release candidate for *Apache airflowctl** :  ${VERSION_RC} is now available for testing!
+The release candidate for **Apache Airflow Ctl**: ${VERSION_RC}  is now available for testing!
 
-This email is calling for a vote on the release, which will last at least until
-*October 30, 2025* and until 3 binding +1 votes have been received.
+This email is calling for a vote on the release, which will last at least until the
+DATE_HERE and until 3 binding +1 votes have been received.
 
-Consider this my +1 non-binding vote.
+Consider this my +1 (binding) vote.
 
-airflowctl ${VERSION_RC} is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
+The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
 
-"airflowctl" package:
+The "apache-airflow-ctl" packages are:
 
-   - *airflowctl-${VERSION}-source.tar.gz* is a source release that comes
+   - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
      with INSTALL instructions.
-   - *airflowctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
-   - *airflowctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+   - *apache_airfow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airfow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
 
@@ -377,22 +377,24 @@ The test procedure for PMC members is described in: https://github.com/apache/ai
 The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-contributors
 
-Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the airflowctl package.
+Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the apache-airflow-ctl package.
 This will allow us to rename the artifact without modifying the artifact checksums when we actually release.
 
-*Docs* (for preview): https://airflow.staged.apache.org/docs/airflowctl/${VERSION}
+*Docs* (for preview): https://airflow.staged.apache.org/docs/apache-airflow-ctl/${VERSION}/index.html
 
 *Release Notes*: https://github.com/apache/airflow/blob/airflow-ctl/${VERSION_RC}/airflow-ctl/RELEASE_NOTES.rst
 
 *Testing Instructions using PyPI*:
 
+The packages are available in PyPI: https://pypi.org/project/apache-airflow-ctl/${VERSION_RC}/
+
 You can build a virtualenv that installs this and other required packages like this:
 
 uv venv
-uv pip install -U airflowctl==${VERSION_RC}
+uv pip install -U apache-airflow-ctl==${VERSION_RC}
 
 Regards,
-<Your namee>
+<Your name>
 
 EOF
 ```

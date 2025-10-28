@@ -172,7 +172,7 @@ def register(
     """Register a new worker to the backend."""
     _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
     worker.state = redefine_state(worker.state, body.state)
@@ -194,7 +194,9 @@ def set_state(
 ) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
         worker.maintenance_comment, body.maintenance_comments
@@ -229,7 +231,9 @@ def update_queues(
     session: SessionDep,
 ) -> None:
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     if body.new_queues:
         worker.add_queues(body.new_queues)
     if body.remove_queues:

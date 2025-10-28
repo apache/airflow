@@ -24,6 +24,117 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.1 (2025-10-27)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix execution failures with NULL ``dag_run.conf`` during upgrades from earlier versions (#56729)
+- Fix memory leak in remote logging connection cache (#56695)
+- Fix DAG processor crash with pre-import module optimization enabled (#56779)
+- Fix scheduler crash with email notifications (#56431)
+- Fix scheduler crash during 3.0 to 3.1 migration when ``retry_delay`` is ``None`` (#56236)
+- Fix task retries executing wrong method after deferred state (#56737)
+- Fix retry callbacks not executing for externally killed tasks (#56607)
+- Fix custom timetable ``generate_run_id`` not called for manual triggers (#56699)
+- Fix ``KeyError`` when accessing ``retry_delay`` on ``MappedOperator`` without explicit value (#56605)
+- Fix ``task-sdk`` connection error handling to match ``airflow-core`` behavior (#56653)
+- Fix topological sort for Grid View (#56963)
+- Fix ``get_ti_count`` and ``get_task_states`` access in callback requests (#56860)
+- Fix ``Connection`` or ``Variable`` access in Server context (#56602)
+- Fix ``.airflowignore`` order precedence (#56832)
+- Fix migration errors for Pydantic 2.12.0 compatibility (#56581)
+- Fix: Correctly parse JSON for ``--dag_run_conf`` in ``airflow dags backfill`` CLI (#56599)
+- UI: Fix note modal does not change markdown text after change (#56092)
+- UI: Fix Grid for cleared runs when tasks were removed (#56297)
+- UI: Fix log text selection contrast in light mode (#56893)
+- UI: Fix Advanced Search button overlap in DAG List View (#56777)
+- UI: Fix view for many DAG tags (#55604)
+- UI: Fix asset name text overflow in DAGs list view (#55914)
+- UI: Fix auto refresh when only 1 dag run is running (#56649)
+- UI: Fix UI keeps poking pools API when no permission (#56626)
+- UI: Fix multi-line drag selection in task log view (#56300)
+- UI: Fix task named ``'root'`` causes blue screen on hover (#56926)
+- UI: Fix cron expression display for ``Day-of-Month`` and ``Day-of-Week`` conflicts (#56255)
+- UI: Fix Grid view performance issues with ``SerializedDagModel`` query optimization (#56938)
+- Fix: Gracefully handle FastAPI plugins with empty ``url_prefix`` (#55262)
+- Fix: Allow mapped tasks to accept zero-length inputs on rerun (#56162)
+- Fix: Enable API to clear task instances by specifying map indexes (#56945)
+- Fix: Add ``max_retry_delay`` to ``MappedOperator`` model (#56951)
+- Fix: Use name passed to ``@asset`` decorator when fetching the asset (#56611)
+- UI: Add English as a fallback locale (#56934)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Add Greek UI translation (#56724)
+- Add Thai UI translation (#56946)
+- Add Polish translations (#56825)
+- Close German translation gaps for full UI translation (#56981)
+- Fix Hebrew typo in translations (#56168)
+- Improve DAG and task missing error handling in callbacks (#56725)
+- Improve UI retry strategy on client errors (#56638)
+- Improve get dag grid structure endpoint speed (#56937)
+- Optimize grid structure query with ``DISTINCT`` for ``dag_version_id`` lookup (#56565)
+- Add configurable timeout for Execution API requests (#56969)
+- Prevent unnecessary kubernetes client imports in workers (#56692)
+- Lazy import ``PodGenerator`` for deserialization (#56733)
+- Serialize pydantic models in json mode for JSON serialization compatibility (#56939)
+- Update authentication to handle JWT token in backend (#56677)
+- Update bulk API permission check to handle ``action_on_existence`` (#56672)
+- Migrate ``CreateAssetEventsBody`` to Pydantic v2 ``ConfigDict`` (#56772)
+- Restore timetable ``active_runs_limit`` check (#56922)
+- Add ``is_favorite`` to UI dags list (#56341)
+- Add ``executor``, ``hostname``, and ``queue`` columns to ``TaskInstances`` page (#55922)
+- Add resize function for DAG Documentation (#56344)
+- Add optional pending dag runs check to auto refresh (#56648)
+- Add auto refresh to backfill banner (#56774)
+- UI: Add Expand/Collapse all to ``XComs`` page (#56285)
+- UI: Update recent runs bar chart and improve responsiveness (#56314)
+- UI: Update duration format to show milliseconds (#56961)
+- UI: Modify min width for task names in grid view (#56952)
+- UI: Use Task Display Name in Graph if existing (#56511)
+- UI: Use Task Display Name in Grid if existing (#56410)
+- UI: Use TI duration from database instead of UI calculated (#56329)
+- UI: Make DAG Run ID visible in DAG Header Card (#56409)
+- UI: Modify calendar cell colors (#56161)
+- UI: Modify log highlight color (#56894)
+- UI: Fix show appropriate time units in grid view (#56414)
+- UI: Reduce default columns of DAG Run and Task Instance lists (#55968)
+- UI: Add expand and collapse functionality for task groups (#56334)
+- UI: Avoid using rem for icons for Safari compatibility (#56304)
+- UI: Add ANSI support to log viewer (#56721)
+- UI: Support Dynamic UI Alerts (#56259)
+- UI: Disable Gantt view by default (#56242)
+- UI: Use welcome on dashboard instead of airflow (#56074)
+- UI: Improve clipboard button visibility with hover effect (#56484)
+- UI: Allow sub-pages in React UI plugins (#56485)
+- Include task instance id in log printed by supervisor (#56383)
+- Emit log stream stopped warning as ``ndjson`` (#56480)
+- Detect interactive terminal to set colored logging with override env variable support (#56157)
+- Add back deprecation warning for ``sla_miss_callback`` (#56127)
+- Move ``natsort`` dependency to ``airflow-core`` (#56582)
+- Added missing ``babel`` dependency in Task SDK (#56592)
+- Remove unused ``dagReports`` API endpoint (#56621)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Improve API sort documentation (#56617)
+- Improve API doc for ordering query param (#55988)
+- Add Audit Logs detailed documentation (#56719)
+- Update serializer document to reflect latest changes in codebase (#56857)
+- Update ASF logos in documentation to the new Oak logo (#56601)
+- Enhance ``triggering_asset_event`` retrieval documentation in DAGs (#56957)
+- Remove self-reference in best practices documentation (#56111)
+- Fix supported Python versions in README (#56734)
+
 Airflow 3.1.0 (2025-09-25)
 --------------------------
 

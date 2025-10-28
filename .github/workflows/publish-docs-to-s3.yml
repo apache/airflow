@@ -192,6 +192,10 @@ jobs:
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Move docker to /mnt"
+        run: ./scripts/ci/move_docker_to_mnt.sh
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then

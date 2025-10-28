@@ -205,16 +205,18 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
-            dag_run = session.get(DagRun, dag_run.id)
-            if dag_run.dag_run_note is None:
-                dag_run.note = (attr_value, user.get_id())
-            else:
-                dag_run.dag_run_note.content = attr_value
-                dag_run.dag_run_note.user_id = user.get_id()
+            updated_dag_run = session.get(DagRun, dag_run.id)
+            if updated_dag_run and updated_dag_run.dag_run_note is None:
+                updated_dag_run.note = (attr_value, user.get_id())
+            elif updated_dag_run:
+                updated_dag_run.dag_run_note.content = attr_value
+                updated_dag_run.dag_run_note.user_id = user.get_id()
 
-    dag_run = session.get(DagRun, dag_run.id)
+    final_dag_run = session.get(DagRun, dag_run.id)
+    if not final_dag_run:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG run not found after update")
 
-    return dag_run
+    return final_dag_run
 
 
 @dag_run_router.get(
@@ -303,6 +305,8 @@ def clear_dag_run(
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    if not dag_run_cleared:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG run not found after clearing")
     return dag_run_cleared
 
 
@@ -401,7 +405,7 @@ def get_dag_runs(
     dag_runs = session.scalars(dag_run_select)
 
     return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
+        dag_runs=list(dag_runs),
         total_entries=total_entries,
     )
 
@@ -537,7 +541,7 @@ def get_list_dag_runs_batch(
     session: SessionDep,
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
     logical_date = RangeFilter(
         Range(
             lower_bound_gte=body.logical_date_gte,
@@ -545,7 +549,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=DagRun.logical_date,
+        attribute=DagRun.logical_date,  # type: ignore[arg-type]
     )
     run_after = RangeFilter(
         Range(
@@ -554,7 +558,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=DagRun.run_after,
+        attribute=DagRun.run_after,  # type: ignore[arg-type]
     )
     start_date = RangeFilter(
         Range(
@@ -563,7 +567,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=DagRun.start_date,
+        attribute=DagRun.start_date,  # type: ignore[arg-type]
     )
     end_date = RangeFilter(
         Range(
@@ -572,7 +576,7 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=DagRun.end_date,
+        attribute=DagRun.end_date,  # type: ignore[arg-type]
     )
     duration = RangeFilter(
         Range(
@@ -581,10 +585,10 @@ def get_list_dag_runs_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=DagRun.duration,
+        attribute=DagRun.duration,  # type: ignore[arg-type]
     )
-    conf_contains = FilterParam(DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS)
-    state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
+    conf_contains = FilterParam(DagRun.conf, body.conf_contains, FilterOptionEnum.CONTAINS)  # type: ignore[arg-type]
+    state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -629,6 +633,6 @@ def get_list_dag_runs_batch(
     dag_runs = session.scalars(dag_runs_select)
 
     return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
+        dag_runs=list(dag_runs),
         total_entries=total_entries,
     )

@@ -256,11 +256,11 @@ def tarball_release(
     distribution_name: DistributionType,
     tag: str | None = None,
 ):
-    console_print(f"[info]Creating tarball for Apache {distribution_name.value} {version}")
+    console_print(f"[info]Creating tarball for {distribution_name.value} {version}")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    archive_name = f"apache-{distribution_name.value}-{version_without_rc}-source.tar.gz"
+    archive_name = f"{distribution_name.value}-{version_without_rc}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
@@ -270,7 +270,7 @@ def tarball_release(
             "archive",
             "--format=tar.gz",
             f"{version if tag is None else tag}",
-            f"--prefix=apache-{distribution_name.value}-{version_without_rc}/",
+            f"--prefix={distribution_name.value}-{version_without_rc}/",
             "-o",
             temporary_archive.as_posix(),
         ],
@@ -308,19 +308,25 @@ def create_tarball_release(
         if distribution_name == DistributionType.AIRFLOW_CORE:
             version = get_airflow_version()
         elif distribution_name == DistributionType.TASK_SDK:
-            version = get_task_sdk_version()
+            version = f"task-sdk/{get_task_sdk_version()}"
         elif distribution_name == DistributionType.AIRFLOW_CTL:
-            version = get_airflowctl_version()
+            version = f"airflow-ctl/{get_airflowctl_version()}"
         elif distribution_name == DistributionType.PROVIDERS:
-            version = get_airflow_version()
-    distribution_version = Version(version)
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    version_without_rc = (
-        distribution_version.base_version
-        if distribution_name != DistributionType.PROVIDERS
-        else f"{datetime.now().strftime('%Y-%m-%d')}"
-    )
+            version = f"providers/{datetime.now().strftime('%Y-%m-%d')}"
+    else:
+        if distribution_name == DistributionType.TASK_SDK:
+            version = f"task-sdk/{version}"
+        elif distribution_name == DistributionType.AIRFLOW_CTL:
+            version = f"airflow-ctl/{version}"
+        elif distribution_name == DistributionType.PROVIDERS:
+            version = f"providers/{version}"
+    if distribution_name != DistributionType.PROVIDERS:
+        distribution_version = Version(version.split("/")[-1])
+        version_without_rc = distribution_version.base_version
+    else:
+        version_without_rc = version.split("/")[-1]
 
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     # Create the tarball
     tarball_release(
         version=version,

@@ -193,8 +193,7 @@ def get_xcom_entries(
     query = query.order_by(
         XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
     )
-    xcoms = session.scalars(query)
-    return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)
+    return XComCollectionResponse(xcom_entries=session.scalars(query), total_entries=total_entries)
 
 
 @xcom_router.post(

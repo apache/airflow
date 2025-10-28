@@ -63,6 +63,7 @@ from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -460,6 +461,30 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
         )
 
     return inner
+
+
+class PermittedTeamFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted teams for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Team.name.in_(self.value))
+
+
+def permitted_team_filter_factory() -> Callable[[Request, BaseUser], PermittedTeamFilter]:
+    """Create a callable for Depends in FastAPI that returns a filter of the permitted teams for the user."""
+
+    def depends_permitted_teams_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedTeamFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        authorized_teams: set[str] = auth_manager.get_authorized_teams(user=user, method="GET")
+        return PermittedTeamFilter(authorized_teams)
+
+    return depends_permitted_teams_filter
+
+
+ReadableTeamsFilterDep = Annotated[PermittedTeamFilter, Depends(permitted_team_filter_factory())]
 
 
 class PermittedVariableFilter(OrmClause[set[str]]):
