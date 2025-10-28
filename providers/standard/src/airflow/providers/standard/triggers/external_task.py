@@ -21,7 +21,7 @@ import typing
 from typing import Any
 
 from asgiref.sync import sync_to_async
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
@@ -272,13 +272,10 @@ class DagStateTrigger(BaseTrigger):
                 if AIRFLOW_V_3_0_PLUS
                 else DagRun.execution_date.in_(self.execution_dates)
             )
-            count = (
-                session.query(func.count("*"))  # .count() is inefficient
-                .filter(
-                    DagRun.dag_id == self.dag_id,
-                    DagRun.state.in_(self.states),
-                    _dag_run_date_condition,
-                )
-                .scalar()
+            stmt = select(func.count()).select_from(DagRun).where(
+                DagRun.dag_id == self.dag_id,
+                DagRun.state.in_(self.states),
+                _dag_run_date_condition,
             )
-            return typing.cast("int", count or 0)
+            result = session.execute(stmt).scalar()
+            return typing.cast(int, result or 0)
