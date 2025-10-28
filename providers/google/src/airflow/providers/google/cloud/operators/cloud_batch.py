@@ -58,7 +58,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "job")
 
     def __init__(
         self,
