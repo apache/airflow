@@ -88,7 +88,7 @@ class GenericTransfer(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.sql = sql
+        self.sql = [sql] if isinstance(sql, str) else sql
         self.destination_table = destination_table
         self.source_conn_id = source_conn_id
         self.source_hook_params = source_hook_params
@@ -156,10 +156,8 @@ class GenericTransfer(BaseOperator):
                 method_name=self.execute_complete.__name__,
             )
         else:
-            if isinstance(self.sql, str):
-                self.sql = [self.sql]
-
             self.log.info("Extracting data from %s", self.source_conn_id)
+
             for sql in self.sql:
                 self.log.info("Executing: \n %s", sql)
 
