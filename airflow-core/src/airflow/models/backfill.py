@@ -24,6 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -276,7 +277,7 @@ def _do_dry_run(
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
-) -> list[datetime]:
+) -> Sequence[datetime]:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -298,7 +299,7 @@ def _do_dry_run(
         to_date=to_date,
         reverse=reverse,
     )
-    logical_dates = []
+    logical_dates: list[datetime] = []
     for info in dagrun_info_list:
         dr = session.scalar(
             statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info, session=session),
