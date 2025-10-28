@@ -61,6 +61,24 @@ class TestSsmRunCommandTrigger:
         assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
         assert kwargs.get("command_id") == COMMAND_ID
 
+    def test_serialization_with_region(self):
+        """Test that region_name and other AWS parameters are properly serialized."""
+        trigger = SsmRunCommandTrigger(
+            command_id=COMMAND_ID,
+            region_name="us-east-1",
+            aws_conn_id="test_conn",
+            verify=True,
+            botocore_config={"retries": {"max_attempts": 3}},
+        )
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
+        assert kwargs.get("command_id") == COMMAND_ID
+        assert kwargs.get("region_name") == "us-east-1"
+        assert kwargs.get("aws_conn_id") == "test_conn"
+        assert kwargs.get("verify") is True
+        assert kwargs.get("botocore_config") == {"retries": {"max_attempts": 3}}
+
     @pytest.mark.asyncio
     @mock.patch.object(SsmHook, "get_async_conn")
     @mock.patch.object(SsmHook, "get_waiter")
