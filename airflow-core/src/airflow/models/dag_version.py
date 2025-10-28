@@ -51,6 +51,13 @@ class DagVersion(Base):
     dag_model = relationship("DagModel", back_populates="dag_versions")
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    bundle = relationship(
+        "DagBundleModel",
+        primaryjoin="foreign(DagVersion.bundle_name) == DagBundleModel.name",
+        uselist=False,
+        viewonly=True,
+        lazy="noload",
+    )
     dag_code = relationship(
         "DagCode",
         back_populates="dag_version",
@@ -78,6 +85,24 @@ class DagVersion(Base):
     def __repr__(self):
         """Represent the object as a string."""
         return f"<DagVersion {self.dag_id} {self.version}>"
+
+    @property
+    def bundle_url(self) -> str | None:
+        """Render the bundle URL using the joined bundle metadata if available."""
+        if not self.bundle_name:
+            return None
+        # Prefer using the joined bundle relationship when present to avoid extra queries
+        if getattr(self, "bundle", None) is not None and hasattr(self.bundle, "signed_url_template"):
+            return self.bundle.render_url(self.bundle_version)
+
+        # fallback to the deprecated option if the bundle model does not have a signed_url_template
+        # attribute
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+        except ValueError:
+            return None
 
     @classmethod
     @provide_session

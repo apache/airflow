@@ -26,7 +26,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -82,7 +82,10 @@ from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
+from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -235,10 +238,12 @@ def get_upstream_asset_events(
 ) -> AssetEventCollectionResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
-        select(DagRun).where(
+        select(DagRun)
+        .where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
+        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
     )
     if dag_run is None:
         raise HTTPException(
@@ -368,11 +373,20 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    query = select(DagRun)
+    query = select(DagRun).options(
+        joinedload(DagRun.dag_model),
+        selectinload(DagRun.task_instances)
+        .joinedload(TaskInstance.dag_version)
+        .joinedload(DagVersion.bundle),
+        selectinload(DagRun.task_instances_histories)
+        .joinedload(TaskInstanceHistory.dag_version)
+        .joinedload(DagVersion.bundle),
+        joinedload(DagRun.dag_run_note),
+    )
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
-        query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
+        query = query.filter(DagRun.dag_id == dag_id).options()
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:
