@@ -186,7 +186,7 @@ def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
     skip_none: bool = True,
-) -> Callable[[str | None], _SearchParam]:
+) -> Callable[..., _SearchParam]:
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
         "Regular expressions are **not** supported."
@@ -397,7 +397,7 @@ def filter_param_factory(
     transform_callable: Callable[[T | None], Any] | None = None,
     *,
     description: str | None = None,
-) -> Callable[[T | None], FilterParam[T | None]]:
+) -> Callable[..., FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
     # can only set either default_value or default_factory
@@ -579,7 +579,7 @@ class RangeFilter(BaseParam[Range]):
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
-) -> Callable[[datetime | None, datetime | None], RangeFilter]:
+) -> Callable[..., RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -602,9 +602,7 @@ def datetime_range_filter_factory(
     return depends_datetime
 
 
-def float_range_filter_factory(
-    filter_name: str, model: Base
-) -> Callable[[float | None, float | None], RangeFilter]:
+def float_range_filter_factory(filter_name: str, model: Base) -> Callable[..., RangeFilter]:
     def depends_float(
         lower_bound_gte: float | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),

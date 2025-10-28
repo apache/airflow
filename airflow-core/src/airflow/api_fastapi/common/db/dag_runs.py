@@ -17,12 +17,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import func, select
 
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 
-dagruns_select_with_state_count = (
+if TYPE_CHECKING:
+    from sqlalchemy.sql import Select
+
+dagruns_select_with_state_count: Select = (
     select(
         DagRun.dag_id,
         DagRun.state,
