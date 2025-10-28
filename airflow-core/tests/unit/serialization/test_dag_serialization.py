@@ -4291,3 +4291,65 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert "owner" in deserialized_task.partial_kwargs
         assert deserialized_task.partial_kwargs["retry_delay"] == timedelta(seconds=600)
         assert deserialized_task.partial_kwargs["owner"] == "custom_owner"
+
+
+@pytest.mark.parametrize(
+    ["callbacks", "expected_has_flags", "absent_keys"],
+    [
+        pytest.param(
+            {
+                "on_failure_callback": lambda ctx: None,
+                "on_success_callback": lambda ctx: None,
+                "on_retry_callback": lambda ctx: None,
+            },
+            ["has_on_failure_callback", "has_on_success_callback", "has_on_retry_callback"],
+            ["on_failure_callback", "on_success_callback", "on_retry_callback"],
+            id="multiple_callbacks",
+        ),
+        pytest.param(
+            {"on_failure_callback": lambda ctx: None},
+            ["has_on_failure_callback"],
+            ["on_failure_callback", "has_on_success_callback", "on_success_callback"],
+            id="single_callback",
+        ),
+        pytest.param(
+            {"on_failure_callback": lambda ctx: None, "on_execute_callback": None},
+            ["has_on_failure_callback"],
+            ["on_failure_callback", "has_on_execute_callback", "on_execute_callback"],
+            id="callback_with_none",
+        ),
+        pytest.param(
+            {},
+            [],
+            [
+                "has_on_execute_callback",
+                "has_on_failure_callback",
+                "has_on_success_callback",
+                "has_on_retry_callback",
+                "has_on_skipped_callback",
+            ],
+            id="no_callbacks",
+        ),
+    ],
+)
+def test_dag_default_args_callbacks_serialization(callbacks, expected_has_flags, absent_keys):
+    """Test callbacks in DAG default_args are serialized as boolean flags."""
+    default_args = {"owner": "test_owner", "retries": 2, **callbacks}
+
+    with DAG(dag_id="test_default_args_callbacks", default_args=default_args) as dag:
+        BashOperator(task_id="task1", bash_command="echo 1", dag=dag)
+
+    serialized_dag_dict = SerializedDAG.serialize_dag(dag)
+    default_args_dict = serialized_dag_dict["default_args"][Encoding.VAR]
+
+    for flag in expected_has_flags:
+        assert default_args_dict.get(flag) is True
+
+    for key in absent_keys:
+        assert key not in default_args_dict
+
+    assert default_args_dict["owner"] == "test_owner"
+    assert default_args_dict["retries"] == 2
+
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag_dict)
+    assert deserialized_dag.dag_id == "test_default_args_callbacks"
