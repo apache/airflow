@@ -217,3 +217,43 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         return None
+
+
+class PartitionMapper:
+    """
+    Base partition mapper class.
+
+    Maps keys from asset events to target dag run partitions.
+    """
+
+    def map(self, key): ...
+
+    def inverse_map(self, key): ...
+
+
+class IdentityMapper(PartitionMapper):
+    "Partition mapper that does not change the key."
+
+    def map(self, key):
+        return key
+
+    def inverse_map(self, key):
+        return key
+
+
+class PartitionedAssetTimetable(AssetTriggeredTimetable):
+    @property
+    def summary(self) -> str:
+        return "Partitioned Asset"
+
+    def __init__(self, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
+        super().__init__(assets=assets)
+        self.asset_condition = assets
+        self.partition_mapper = partition_mapper
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_asset_condition
+
+        # todo: AIP-76 need to properly serialize / deserialize
+        return cls(decode_asset_condition(data["asset_condition"]), partition_mapper=IdentityMapper())
