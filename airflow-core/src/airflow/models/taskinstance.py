@@ -2183,6 +2183,41 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
+    @property
+    def is_schedulable(self):
+        """Determine if the task_instance should be scheduled or short-circuited to ``success``."""
+        return self.is_task_schedulable(self.task)
+
+    @staticmethod
+    def is_task_schedulable(task: Operator) -> bool:
+        """
+        Determine if the task should be scheduled instead of being short-circuited to ``success``.
+
+        A task requires scheduling if it is not a trivial EmptyOperator, i.e. one of the
+        following conditions holds:
+
+        * it does **not** inherit from ``EmptyOperator``
+        * it defines an ``on_execute_callback``
+        * it defines an ``on_success_callback``
+        * it declares any ``outlets``
+        * it declares any ``inlets``
+
+        If none of these are true, the task is considered empty and is immediately marked
+        successful without being scheduled.
+
+        Note: keeping this check as a separate public method is important so it can also be used
+        by listeners (when a task is not scheduled, listeners are never called). For example,
+        the OpenLineage listener checks all tasks at DAG start, and using this method lets
+        it consistently determine whether the listener will run for each task.
+        """
+        return bool(
+            not task.inherits_from_empty_operator
+            or task.has_on_execute_callback
+            or task.has_on_success_callback
+            or task.outlets
+            or task.inlets
+        )
+
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> SerializedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""
