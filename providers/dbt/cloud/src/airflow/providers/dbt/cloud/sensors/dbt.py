@@ -55,6 +55,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         run_id: int,
         account_id: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         if deferrable:
@@ -68,13 +69,13 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.run_id = run_id
         self.account_id = account_id
-
+        self.hook_params = hook_params or {}
         self.deferrable = deferrable
 
     @cached_property
     def hook(self):
         """Returns DBT Cloud hook."""
-        return DbtCloudHook(self.dbt_cloud_conn_id)
+        return DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
 
     def poke(self, context: Context) -> bool:
         job_run_status = self.hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
@@ -110,6 +111,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                         account_id=self.account_id,
                         poll_interval=self.poke_interval,
                         end_time=end_time,
+                        hook_params=self.hook_params,
                     ),
                     method_name="execute_complete",
                 )

@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     )
     from google.cloud.translate_v3.types.translation_service import Glossary, GlossaryInputConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudTranslateTextOperator(GoogleCloudBaseOperator):
