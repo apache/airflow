@@ -59,8 +59,8 @@ def downgrade():
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("log") as batch_op:
             batch_op.drop_index("idx_log_event")
-            batch_op.alter_column("event", type_=sa.String(30), nullable=False)
+            batch_op.alter_column("event", type_=sa.String(30))
             batch_op.create_index("idx_log_event", ["event"])
     else:
         with op.batch_alter_table("log") as batch_op:
-            batch_op.alter_column("event", type_=sa.String(30), nullable=False)
+            batch_op.alter_column("event", type_=sa.String(30))
