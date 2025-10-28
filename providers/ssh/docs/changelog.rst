@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The SSH provider now requires ``paramiko>=4.0.0``, which removes support for DSA (DSS) keys.
+
+  DSA keys have been deprecated due to security concerns and were removed from both OpenSSH and Paramiko.
+  If you are using DSA keys, you must migrate to Ed25519 (recommended), ECDSA, or RSA keys before upgrading.
+
+  **Supported key types**: RSA, ECDSA, Ed25519
+
+  If you cannot migrate immediately, continue using ``apache-airflow-providers-ssh<5.0.0`` with ``paramiko<4.0.0``.
+
 4.1.5
 .....
 

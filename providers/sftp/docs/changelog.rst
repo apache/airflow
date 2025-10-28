@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The SFTP provider now requires ``paramiko>=4.0.0``, which removes support for DSA (DSS) keys.
+
+  DSA keys have been deprecated due to security concerns and were removed from both OpenSSH and Paramiko.
+  If you are using DSA keys, you must migrate to Ed25519 (recommended), ECDSA, or RSA keys before upgrading.
+
+  **Supported key types**: RSA, ECDSA, Ed25519
+
 5.4.1
 .....
 
