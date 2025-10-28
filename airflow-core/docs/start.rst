@@ -90,7 +90,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
       # Restart computer, then in WSL Ubuntu terminal:
       sudo apt update
       sudo apt install python3-pip python3-venv
-     
+
       bash # Go to Linux home directory (not Windows mount)
       cd ~
 
@@ -112,7 +112,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       # Verify installation
       airflow version
-  
+
 5. Run Airflow Standalone:
 
    The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
