@@ -1643,7 +1643,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return perm
         resource = self.create_resource(resource_name)
         if resource is None:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, "Resource creation failed %s", resource_name)
             return None
         action = self.create_action(action_name)
         perm = self.permission_model()

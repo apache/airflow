@@ -272,10 +272,14 @@ class DagStateTrigger(BaseTrigger):
                 if AIRFLOW_V_3_0_PLUS
                 else DagRun.execution_date.in_(self.execution_dates)
             )
-            stmt = select(func.count()).select_from(DagRun).where(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state.in_(self.states),
-                _dag_run_date_condition,
+            stmt = (
+                select(func.count())
+                .select_from(DagRun)
+                .where(
+                    DagRun.dag_id == self.dag_id,
+                    DagRun.state.in_(self.states),
+                    _dag_run_date_condition,
+                )
             )
             result = session.execute(stmt).scalar()
-            return typing.cast(int, result or 0)
+            return typing.cast("int", result or 0)
