@@ -43,7 +43,7 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse, TaskInstance
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -1152,6 +1152,11 @@ class TriggerRunner:
         try:
             if context:
                 trigger.render_template_fields(context=context)
+
+            # Set RuntimeTaskInstance needed to be able to render templated fields back to base datamodel
+            # until we get a proper split of the trigger
+            if isinstance(trigger.task_instance, RuntimeTaskInstance):
+                trigger.task_instance = trigger.task_instance.to_task_instance()
 
             async for event in trigger.run():
                 await self.log.ainfo(
