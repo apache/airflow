@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -551,13 +552,12 @@ class TestDeadlineReference:
     def test_deadline_missing_required_kwargs(self, reference, session):
         """Test that deadlines raise appropriate errors for missing required parameters."""
         if reference.required_kwargs:
-            with pytest.raises(ValueError) as raised_exception:
+            with pytest.raises(
+                ValueError, match=re.escape(f"{reference.__class__.__name__} is missing required parameters:")
+            ) as raised_exception:
                 reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
-            expected_substrings = {
-                f"{reference.__class__.__name__} is missing required parameters: ",
-                *reference.required_kwargs,
-            }
-            assert all(substring in str(raised_exception.value) for substring in expected_substrings)
+
+            assert all(substring in str(raised_exception.value) for substring in reference.required_kwargs)
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with(session=session, **self.DEFAULT_ARGS)

@@ -2805,7 +2805,7 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
         if result:
             dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
         else:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=r"The run_id provided '.+' does not match regex pattern"):
                 dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
 
 
