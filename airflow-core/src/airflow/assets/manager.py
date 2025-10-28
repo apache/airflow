@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -31,10 +32,12 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    PartitionedAssetKeyLog,
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -46,6 +49,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+    from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
 
@@ -115,6 +119,7 @@ class AssetManager(LoggingMixin):
         extra=None,
         source_alias_names: Collection[str] = (),
         session: Session,
+        partition_key: str | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -145,9 +150,22 @@ class AssetManager(LoggingMixin):
             alias_names=source_alias_names, asset_model=asset_model, session=session
         )
 
+        # todo: AIP-76 this needs to change. need proper interface for inferring key from log date
+        eff_key = None
+        if partition_key is not None:
+            eff_key = partition_key
+        elif task_instance.dag_run.partition_key is not None:
+            eff_key = task_instance.dag_run.partition_key
+        else:
+            try:
+                logical_date: datetime = task_instance.dag_run.logical_date
+                eff_key = logical_date.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                log.exception("no logical date to string", logical_date=task_instance.dag_run.logical_date)
         event_kwargs = {
             "asset_id": asset_model.id,
             "extra": extra,
+            "partition_key": eff_key,
         }
         if task_instance:
             event_kwargs.update(
@@ -160,7 +178,6 @@ class AssetManager(LoggingMixin):
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
-
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
         }
@@ -206,7 +223,14 @@ class AssetManager(LoggingMixin):
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
         )
-        cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
+        log.info("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
+        cls._queue_dagruns(
+            asset_id=asset_model.id,
+            dags_to_queue=dags_to_queue,
+            partition_key=eff_key,
+            event=asset_event,
+            session=session,
+        )
         return asset_event
 
     @staticmethod
@@ -229,12 +253,24 @@ class AssetManager(LoggingMixin):
     def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
         try:
+            # todo: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
+            #  maybe we should just add the event to the signature
+            #  or add a new hook `on_asset_event`
             get_listener_manager().hook.on_asset_changed(asset=asset)
         except Exception:
             log.exception("error calling listener")
 
     @classmethod
-    def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns(
+        cls,
+        asset_id: int,
+        dags_to_queue: set[DagModel],
+        partition_key: str | None,
+        event: AssetEvent,
+        session: Session,
+    ) -> None:
+        from airflow.models.serialized_dag import SerializedDagModel
+
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
@@ -246,9 +282,53 @@ class AssetManager(LoggingMixin):
         if not dags_to_queue:
             return
 
-        if get_dialect_name(session) == "postgresql":
-            return cls._postgres_queue_dagruns(asset_id, dags_to_queue, session)
-        return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
+        # here we can distinguish between partition-driven dags and otherwise
+        log.info("dags to queue", dags_to_queue=dags_to_queue)
+        partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
+        if partition_dags:
+            log.info("found partitioned dags", partition_dags=partition_dags)
+        else:
+            log.info("no partitioned dags")
+        for target_dag in partition_dags:
+            dags_to_queue.remove(target_dag)  # don't double process
+            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
+            timetable = serdag.dag.timetable
+            if TYPE_CHECKING:
+                assert isinstance(timetable, PartitionedAssetTimetable)
+            target_key = timetable.partition_mapper.map(partition_key)
+
+            latest_apdr: AssetPartitionDagRun = session.scalar(
+                select(AssetPartitionDagRun)
+                .where(
+                    AssetPartitionDagRun.partition_key == target_key,
+                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                )
+                .order_by(AssetPartitionDagRun.id.desc())
+                .limit(1)
+            )
+            if latest_apdr and latest_apdr.target_dag_run_id is None:
+                apdr = latest_apdr
+            else:
+                apdr = AssetPartitionDagRun(
+                    target_dag_id=target_dag.dag_id,
+                    target_dag_run_id=None,
+                    partition_key=partition_key,
+                )
+                session.add(apdr)
+                session.flush()
+            log_record = PartitionedAssetKeyLog(
+                asset_id=asset_id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=apdr.id,
+                source_partition_key=partition_key,
+                target_dag_id=target_dag.dag_id,
+                target_partition_key=target_key,
+            )
+            session.add(log_record)
+        if dags_to_queue:
+            if get_dialect_name(session) == "postgresql":
+                return cls._postgres_queue_dagruns(asset_id, dags_to_queue, session)
+            return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
 
     @classmethod
     def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
