@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Container, cast
 
 from sqlalchemy import func, select, tuple_
 
@@ -139,7 +139,7 @@ def _get_external_task_group_task_ids(
 
 def _get_count_by_matched_states(
     run_id_task_state_map: dict[str, dict[str, Any]],
-    states: list[str],
+    states: Container[str],
 ):
     count = 0
     for _, task_states in run_id_task_state_map.items():

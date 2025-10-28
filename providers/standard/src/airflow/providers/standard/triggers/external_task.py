@@ -151,7 +151,7 @@ class WorkflowTrigger(BaseTrigger):
             )
             count = await sync_to_async(_get_count_by_matched_states)(
                 run_id_task_state_map=run_id_task_state_map,
-                states=list(states) if states else [],
+                states=states or [],
             )
             return count
         count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
