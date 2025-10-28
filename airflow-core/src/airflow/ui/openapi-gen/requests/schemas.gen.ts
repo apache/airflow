@@ -848,7 +848,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/ConnectionBody'
                     }
                 ]
             },
@@ -882,7 +882,7 @@ export const $BulkDeleteAction_PoolBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/PoolBody'
                     }
                 ]
             },
@@ -916,7 +916,7 @@ export const $BulkDeleteAction_VariableBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/VariableBody'
                     }
                 ]
             },
@@ -1038,6 +1038,28 @@ export const $BulkTaskInstanceBody = {
                 }
             ],
             title: 'Map Index'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
         }
     },
     additionalProperties: false,

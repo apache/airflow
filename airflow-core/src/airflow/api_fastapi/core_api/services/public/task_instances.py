@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import structlog
 from fastapi import HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -167,31 +169,149 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self.dag_bag = dag_bag
         self.user = user
 
-    def categorize_task_instances(
-        self, task_keys: set[tuple[str, int]]
-    ) -> tuple[dict[tuple[str, int], TI], set[tuple[str, int]], set[tuple[str, int]]]:
-        """
-        Categorize the given task_ids into matched_task_keys and not_found_task_keys based on existing task_ids.
+    def _extract_task_identifiers(
+        self, entity: str | BulkTaskInstanceBody
+    ) -> tuple[str, str, str, int | None]:
+        """Extract task identifiers from an id or entity object."""
+        if isinstance(entity, str):
+            dag_id = self.dag_id
+            dag_run_id = self.dag_run_id
+            task_id = entity
+            map_index = None
+        else:
+            dag_id = entity.dag_id if entity.dag_id else self.dag_id
+            dag_run_id = entity.dag_run_id if entity.dag_run_id else self.dag_run_id
+            task_id = entity.task_id
+            map_index = entity.map_index
 
-        :param task_keys: set of task_keys (tuple of task_id and map_index)
+        return dag_id, dag_run_id, task_id, map_index
+
+    def _categorize_entities(
+        self,
+        entities: Sequence[str | BulkTaskInstanceBody],
+        results: BulkActionResponse,
+    ) -> tuple[set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
+        """
+        Validate entities and categorize them into specific and "all" update sets.
+
+        Returns:
+        - specific_task_keys: set of (dag_id, dag_run_id, task_id, map_index) for specific updates
+        - all_map_index_task_keys: set of (dag_id, dag_run_id, task_id) for "update all" cases
+        """
+        specific_map_index_task_keys = set()
+        all_map_index_task_keys = set()
+
+        for entity in entities:
+            dag_id, dag_run_id, task_id, map_index = self._extract_task_identifiers(entity)
+
+            # Validate that we have specific values, not wildcards
+            if dag_id == "~" or dag_run_id == "~":
+                if isinstance(entity, str):
+                    error_msg = f"When using wildcard in path, dag_id and dag_run_id must be specified in BulkTaskInstanceBody object, not as string for task_id: {entity}"
+                else:
+                    error_msg = f"When using wildcard in path, dag_id and dag_run_id must be specified in request body for task_id: {entity.task_id}"
+                results.errors.append(
+                    {
+                        "error": error_msg,
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            # Separate logic for "update all" vs "update specific"
+            if map_index is not None:
+                specific_map_index_task_keys.add((dag_id, dag_run_id, task_id, map_index))
+            else:
+                all_map_index_task_keys.add((dag_id, dag_run_id, task_id))
+
+        return specific_map_index_task_keys, all_map_index_task_keys
+
+    def _categorize_task_instances(
+        self, task_keys: set[tuple[str, str, str, int]]
+    ) -> tuple[
+        dict[tuple[str, str, str, int], TI], set[tuple[str, str, str, int]], set[tuple[str, str, str, int]]
+    ]:
+        """
+        Categorize the given task_keys into matched and not_found based on existing task instances.
+
+        :param task_keys: set of task_keys (tuple of dag_id, dag_run_id, task_id, and map_index)
         :return: tuple of (task_instances_map, matched_task_keys, not_found_task_keys)
         """
-        query = select(TI).where(
-            TI.dag_id == self.dag_id,
-            TI.run_id == self.dag_run_id,
-            TI.task_id.in_([task_id for task_id, _ in task_keys]),
-        )
+        # Build a query that handles potentially multiple dag_id/dag_run_id combinations
+        query = select(TI)
+
+        # If path params are specific, use them for filtering
+        if self.dag_id != "~":
+            query = query.where(TI.dag_id == self.dag_id)
+        if self.dag_run_id != "~":
+            query = query.where(TI.run_id == self.dag_run_id)
+
+        # Extract unique dag_ids, run_ids, and task_ids from task_keys
+        dag_ids = {dag_id for dag_id, _, _, _ in task_keys}
+        run_ids = {run_id for _, run_id, _, _ in task_keys}
+        task_ids = {task_id for _, _, task_id, _ in task_keys}
+
+        # Apply filters based on the extracted values when using wildcards
+        if self.dag_id == "~" and dag_ids:
+            query = query.where(TI.dag_id.in_(dag_ids))
+        if self.dag_run_id == "~" and run_ids:
+            query = query.where(TI.run_id.in_(run_ids))
+        if task_ids:
+            query = query.where(TI.task_id.in_(task_ids))
+
         task_instances = self.session.scalars(query).all()
         task_instances_map = {
-            (ti.task_id, ti.map_index if ti.map_index is not None else -1): ti for ti in task_instances
+            (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1): ti
+            for ti in task_instances
         }
         matched_task_keys = {
-            (task_id, map_index)
-            for (task_id, map_index) in task_instances_map.keys()
-            if (task_id, map_index) in task_keys
+            (dag_id, run_id, task_id, map_index)
+            for (dag_id, run_id, task_id, map_index) in task_instances_map.keys()
+            if (dag_id, run_id, task_id, map_index) in task_keys
         }
-        not_found_task_keys = {(task_id, map_index) for task_id, map_index in task_keys} - matched_task_keys
+        not_found_task_keys = {
+            (dag_id, run_id, task_id, map_index) for dag_id, run_id, task_id, map_index in task_keys
+        } - matched_task_keys
         return task_instances_map, matched_task_keys, not_found_task_keys
+
+    def _perform_update(
+        self,
+        entity: BulkTaskInstanceBody,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int,
+        results: BulkActionResponse,
+        update_mask: list[str] | None = Query(None),
+    ) -> None:
+        dag, tis, data = _patch_ti_validate_request(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            dag_bag=self.dag_bag,
+            body=entity,
+            session=self.session,
+            update_mask=update_mask,
+        )
+
+        for key, _ in data.items():
+            if key == "new_state":
+                _patch_task_instance_state(
+                    task_id=task_id,
+                    dag_run_id=dag_run_id,
+                    dag=dag,
+                    task_instance_body=entity,
+                    session=self.session,
+                    data=data,
+                )
+            elif key == "note":
+                _patch_task_instance_note(
+                    task_instance_body=entity,
+                    tis=tis,
+                    user=self.user,
+                )
+
+        results.success.append(f"{task_id}[{map_index}]")
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
@@ -207,55 +327,91 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk Update Task Instances."""
-        to_update_task_keys = {
-            (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
-            for task_instance in action.entities
-        }
-        _, _, not_found_task_keys = self.categorize_task_instances(to_update_task_keys)
+        # Validate and categorize entities into specific and "all" update sets
+        update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
+            action.entities, results
+        )
 
         try:
-            for task_instance_body in action.entities:
-                task_key = (
-                    task_instance_body.task_id,
-                    task_instance_body.map_index if task_instance_body.map_index is not None else -1,
+            # Handle updates for specific map_index task instances
+            if update_specific_map_index_task_keys:
+                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                    update_specific_map_index_task_keys
                 )
 
-                if task_key in not_found_task_keys:
-                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found",
-                        )
-                    if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
-                        continue
+                if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
+                    not_found_task_ids = [
+                        {"dag_id": dag_id, "dag_run_id": run_id, "task_id": task_id, "map_index": map_index}
+                        for dag_id, run_id, task_id, map_index in not_found_task_keys
+                    ]
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"The task instances with these identifiers: {not_found_task_ids} were not found",
+                    )
 
-                dag, tis, data = _patch_ti_validate_request(
-                    dag_id=self.dag_id,
-                    dag_run_id=self.dag_run_id,
-                    task_id=task_instance_body.task_id,
-                    dag_bag=self.dag_bag,
-                    body=task_instance_body,
-                    session=self.session,
-                    map_index=task_instance_body.map_index,
-                    update_mask=None,
+                for dag_id, dag_run_id, task_id, map_index in matched_task_keys:
+                    entity = next(
+                        (
+                            entity
+                            for entity in action.entities
+                            if entity.dag_id == dag_id
+                            and entity.dag_run_id == dag_run_id
+                            and entity.task_id == task_id
+                            and entity.map_index == map_index
+                        ),
+                        None,
+                    )
+
+                    if entity is not None:
+                        self._perform_update(
+                            dag_id=dag_id,
+                            dag_run_id=dag_run_id,
+                            task_id=task_id,
+                            map_index=map_index,
+                            entity=entity,
+                            results=results,
+                            update_mask=action.update_mask,
+                        )
+
+            # Handle updates for all map indexes
+            for dag_id, run_id, task_id in update_all_map_index_task_keys:
+                all_task_instances = self.session.scalars(
+                    select(TI).where(
+                        TI.dag_id == dag_id,
+                        TI.run_id == run_id,
+                        TI.task_id == task_id,
+                    )
+                ).all()
+
+                if not all_task_instances and action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
+                    )
+
+                entity = next(
+                    (
+                        entity
+                        for entity in action.entities
+                        if entity.dag_id == dag_id
+                        and entity.dag_run_id == run_id
+                        and entity.task_id == task_id
+                    ),
+                    None,
                 )
 
-                for key, _ in data.items():
-                    if key == "new_state":
-                        _patch_task_instance_state(
-                            task_id=task_instance_body.task_id,
-                            dag_run_id=self.dag_run_id,
-                            dag=dag,
-                            task_instance_body=task_instance_body,
-                            session=self.session,
-                            data=data,
-                        )
-                    elif key == "note":
-                        _patch_task_instance_note(
-                            task_instance_body=task_instance_body, tis=tis, user=self.user
+                if entity is not None:
+                    for ti in all_task_instances:
+                        self._perform_update(
+                            dag_id=dag_id,
+                            dag_run_id=run_id,
+                            task_id=task_id,
+                            map_index=ti.map_index if ti.map_index is not None else -1,
+                            entity=entity,
+                            results=results,
+                            update_mask=action.update_mask,
                         )
 
-                results.success.append(task_instance_body.task_id)
         except ValidationError as e:
             results.errors.append({"error": f"{e.errors()}"})
         except HTTPException as e:
@@ -265,41 +421,35 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete task instances."""
-        delete_all_map_indexes: set[str] = set()
-        delete_specific_task_keys: set[tuple[str, int]] = set()
-
-        for entity in action.entities:
-            if isinstance(entity, str):
-                # String task ID - remove all task instances for this task
-                delete_all_map_indexes.add(entity)
-            else:
-                # BulkTaskInstanceBody object
-                if entity.map_index is None:
-                    delete_all_map_indexes.add(entity.task_id)
-                else:
-                    delete_specific_task_keys.add((entity.task_id, entity.map_index))
+        # Validate and categorize entities into specific and "all" delete sets
+        delete_specific_map_index_task_keys, delete_all_map_index_task_keys = self._categorize_entities(
+            action.entities, results
+        )
 
         try:
-            # Handle deletion of specific (task_id, map_index) pairs
-            if delete_specific_task_keys:
-                _, matched_task_keys, not_found_task_keys = self.categorize_task_instances(
-                    delete_specific_task_keys
+            # Handle deletion of specific (dag_id, dag_run_id, task_id, map_index) tuples
+            if delete_specific_map_index_task_keys:
+                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                    delete_specific_map_index_task_keys
                 )
-                not_found_task_ids = [f"{task_id}[{map_index}]" for task_id, map_index in not_found_task_keys]
+                not_found_task_ids = [
+                    {"dag_id": dag_id, "dag_run_id": run_id, "task_id": task_id, "map_index": map_index}
+                    for dag_id, run_id, task_id, map_index in not_found_task_keys
+                ]
 
                 if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_task_keys:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"The task instances with these task_ids: {not_found_task_ids} were not found",
+                        detail=f"The task instances with these identifiers: {not_found_task_ids} were not found",
                     )
 
-                for task_id, map_index in matched_task_keys:
+                for dag_id, run_id, task_id, map_index in matched_task_keys:
                     result = (
                         self.session.execute(
                             select(TI).where(
+                                TI.dag_id == dag_id,
+                                TI.run_id == run_id,
                                 TI.task_id == task_id,
-                                TI.dag_id == self.dag_id,
-                                TI.run_id == self.dag_run_id,
                                 TI.map_index == map_index,
                             )
                         )
@@ -312,20 +462,20 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                         self.session.delete(existing_task_instance)
                         results.success.append(f"{task_id}[{map_index}]")
 
-            # Handle deletion of all map indexes for certain task_ids
-            for task_id in delete_all_map_indexes:
+            # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
+            for dag_id, run_id, task_id in delete_all_map_index_task_keys:
                 all_task_instances = self.session.scalars(
                     select(TI).where(
+                        TI.dag_id == dag_id,
+                        TI.run_id == run_id,
                         TI.task_id == task_id,
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.dag_run_id,
                     )
                 ).all()
 
                 if not all_task_instances and action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"No task instances found for task_id: {task_id}",
+                        detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                     )
 
                 for ti in all_task_instances:
