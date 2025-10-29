@@ -63,7 +63,6 @@ const CustomEdge = ({ data }: Props) => {
           stroke={rest.isSelected ? blueColor : strokeColor}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
           strokeWidth={rest.isSelected ? 3 : 1}
-          style={rest.isSelected ? { filter: `drop-shadow(0 0 4px ${blueColor})` } : undefined}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}
         />
