@@ -129,6 +129,9 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
+  provider:docling:
+    - providers/docling/**
+
   provider:edge:
     - providers/edge3/**
 

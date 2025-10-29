@@ -63,6 +63,7 @@ services:
       - ../../../empty:/opt/airflow/providers/dingding/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
+      - ../../../empty:/opt/airflow/providers/docling/src
       - ../../../empty:/opt/airflow/providers/edge3/src
       - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
