@@ -22,12 +22,20 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    # yamllint disable rule:line-length
+    AIRFLOW__CORE__AUTH_MANAGER: 'airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager'
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: 'true'
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DAGS_FOLDER: '/opt/airflow/dags'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__API__BASE_URL: 'http://airflow-apiserver:8080/'
+    AIRFLOW__API_AUTH__JWT_SECRET: 'test-secret-key-for-testing'
   user: "${AIRFLOW_UID:-50000}:0"
+  volumes:
+    - ${PWD}/dags:/opt/airflow/dags
+    - ${PWD}/logs:/opt/airflow/logs
   depends_on:
     &airflow-common-depends-on
     postgres:
@@ -101,5 +109,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    depends_on:
+      <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Index, Integer, String, Text
@@ -37,17 +38,17 @@ class Log(Base):
     __tablename__ = "log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dttm: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    dag_id: Mapped[str] = mapped_column(StringID())
-    task_id: Mapped[str] = mapped_column(StringID())
-    map_index: Mapped[int] = mapped_column(Integer)
+    dttm: Mapped[datetime] = mapped_column(UtcDateTime)
+    dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     event: Mapped[str] = mapped_column(String(60))
-    logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime)
-    run_id: Mapped[str] = mapped_column(StringID())
-    owner: Mapped[str] = mapped_column(String(500))
-    owner_display_name: Mapped[str] = mapped_column(String(500))
-    extra: Mapped[str] = mapped_column(Text)
-    try_number: Mapped[int] = mapped_column(Integer)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    owner: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    owner_display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    extra: Mapped[str | None] = mapped_column(Text, nullable=True)
+    try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     dag_model = relationship(
         "DagModel",

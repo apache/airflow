@@ -105,7 +105,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
-      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="100px">
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">

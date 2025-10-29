@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
     from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
@@ -41,11 +41,6 @@ except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for 
         next_kwargs: dict[str, Any] | None = None
         timeout: datetime.timedelta | None = None
 
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

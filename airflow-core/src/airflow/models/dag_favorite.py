@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped  # noqa: TC002
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import mapped_column

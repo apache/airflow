@@ -25,7 +25,7 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
-from sqlalchemy.orm import Mapped  # noqa: TC002
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion

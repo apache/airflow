@@ -27,9 +27,18 @@ import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
   const [urlSearchParams] = useSearchParams();
-  const responseReceived = urlSearchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
 
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+    const fixedKeys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.RESPONSE_RECEIVED,
+      SearchParamsKeys.RESPONDED_BY_USER_NAME,
+      SearchParamsKeys.MAP_INDEX,
+      SearchParamsKeys.SUBJECT_SEARCH,
+      SearchParamsKeys.BODY_SEARCH,
+      SearchParamsKeys.CREATED_AT_GTE,
+      SearchParamsKeys.CREATED_AT_LTE,
+    ];
+
     const keys: Array<FilterableSearchParamsKeys> = [];
 
     if (dagId === "~") {
@@ -40,9 +49,7 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
       keys.push(SearchParamsKeys.TASK_ID_PATTERN);
     }
 
-    keys.push(SearchParamsKeys.RESPONSE_RECEIVED);
-
-    return keys;
+    return [...keys, ...fixedKeys];
   }, [dagId, taskId]);
 
   const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
@@ -64,10 +71,16 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
       }
     });
 
-    values[SearchParamsKeys.RESPONSE_RECEIVED] = responseReceived;
+    searchParamKeys.forEach((key) => {
+      const value = urlSearchParams.get(key);
+
+      if (value !== null && value.trim() !== "") {
+        values[key] = value;
+      }
+    });
 
     return values;
-  }, [filterConfigs, responseReceived, searchParams]);
+  }, [filterConfigs, searchParamKeys, searchParams, urlSearchParams]);
 
   return (
     <VStack align="start" pt={2}>

@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 from collections import abc
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -36,6 +36,9 @@ from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.param import SerializedParamsDict
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -157,6 +160,7 @@ class DAGDetailsResponse(DAGResponse):
     last_parsed: datetime | None
     default_args: abc.Mapping | None
     owner_links: dict[str, str] | None = None
+    is_favorite: bool = False
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -176,7 +180,7 @@ class DAGDetailsResponse(DAGResponse):
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.Mapping | None) -> dict | None:
+    def get_params(cls, params: SerializedParamsDict | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None

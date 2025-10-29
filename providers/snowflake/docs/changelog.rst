@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure IAM/Entra ID support for SnowflakeHook (#55874)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'snowflake-snowpark-python' pip resolver hint for Python 3.13 (#56606)``
+
+Misc
+~~~~
+
+* ``Migrate snowflake provider to ''common.compat'' (#57003)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix path of how-to-guide docs for copy_into_snowflake.rst(#56527)``
+* ``Update Snowflake docs with breaking change (#56516)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 6.5.4
 .....
 
@@ -192,10 +221,17 @@ Features
 
 * ``Adding OAuth support for SnowflakeHook  (#47191)``
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Existing connections using key pairs break as a result of changing the connection string to be base64 encoded.
+
+  * ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
+
 Bug Fixes
 ~~~~~~~~~
 
-* ``make 'private_key_content' in snowflake connection to be a base64 encoded string (#49467)``
 * ``Fix SnowflakeSqlApiHook backwards compatibility for get_oauth_token method (#49482)``
 * ``Fix mypy for get_oauth_token signature in SnowflakeSqlApiHook (#49449)``
 * ``Fix infinite recursive call of _get_conn_params while getting oauth token from snowflake (#50344)``

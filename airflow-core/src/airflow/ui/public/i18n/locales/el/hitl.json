@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "Όλα",
+      "pending": "Σε εκκρεμότητα",
+      "received": "Εξετασμένα"
+    }
+  },
+  "requiredAction_one": "Απαιτούμενη Ενέργεια",
+  "requiredAction_other": "Απαιτούμενες Ενέργειες",
+  "requiredActionCount_one": "Απαιτούμενη Ενέργεια ({{count}})",
+  "requiredActionCount_other": "Απαιτούμενες Ενέργειες ({{count}})",
+  "requiredActionState": "Κατάσταση Απαιτούμενης Ενέργειας",
+  "response": {
+    "error": "Αποτυχημένη απάντηση",
+    "optionsDescription": "Επιλέξτε τις επιλογές σας για αυτήν την εκτέλεση εργασίας",
+    "optionsLabel": "Επιλογές",
+    "received": "Η απάντηση ελήφθη στις ",
+    "respond": "Απάντηση",
+    "success": "Η απάντηση για το {{taskId}} ήταν επιτυχής",
+    "title": "Εκτέλεση Εργασίας με Παρέμβαση Χρήστη - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Έγκριση Ελήφθη",
+    "approvalRequired": "Απαιτείται Έγκριση",
+    "choiceReceived": "Επιλογή Ελήφθη",
+    "choiceRequired": "Απαιτείται Επιλογή",
+    "noResponseReceived": "Δεν Ελήφθη Απάντηση",
+    "rejectionReceived": "Απόρριψη Ελήφθη",
+    "responseReceived": "Απάντηση Ελήφθη",
+    "responseRequired": "Απαιτείται Απάντηση"
+  },
+  "subject": "Θέμα"
+}

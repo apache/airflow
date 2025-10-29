@@ -45,6 +45,7 @@ class TestDbtCloudRunJobTrigger:
             end_time=self.END_TIME,
             run_id=self.RUN_ID,
             account_id=self.ACCOUNT_ID,
+            hook_params={"retry_delay": 10},
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger"
@@ -54,6 +55,7 @@ class TestDbtCloudRunJobTrigger:
             "conn_id": self.CONN_ID,
             "end_time": self.END_TIME,
             "poll_interval": self.POLL_INTERVAL,
+            "hook_params": {"retry_delay": 10},
         }
 
     @pytest.mark.asyncio

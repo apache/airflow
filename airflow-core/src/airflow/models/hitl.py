@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlalchemy_jsonfield
@@ -80,56 +81,12 @@ class HITLUser(TypedDict):
     name: str
 
 
-class HITLDetail(Base):
-    """Human-in-the-loop request and corresponding response."""
+class HITLDetailPropertyMixin:
+    """The property part of HITLDetail and HITLDetailHistory."""
 
-    __tablename__ = "hitl_detail"
-    ti_id: Mapped[str] = mapped_column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        primary_key=True,
-        nullable=False,
-    )
-
-    # User Request Detail
-    options: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    subject: Mapped[str] = mapped_column(Text, nullable=False)
-    body: Mapped[str | None] = mapped_column(Text, nullable=True)
-    defaults: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    multiple: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    params: Mapped[dict] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
-    assignees: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
-    # Response Content Detail
-    responded_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    responded_by: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
-    )
-    chosen_options: Mapped[dict | None] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json),
-        nullable=True,
-        default=None,
-    )
-    params_input: Mapped[dict] = mapped_column(
-        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
-    )
-    task_instance = relationship(
-        "TaskInstance",
-        lazy="joined",
-        back_populates="hitl_detail",
-    )
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            (ti_id,),
-            ["task_instance.id"],
-            name="hitl_detail_ti_fkey",
-            ondelete="CASCADE",
-            onupdate="CASCADE",
-        ),
-    )
+    responded_at: datetime | None
+    responded_by: dict[str, Any] | None
+    assignees: list[dict[str, str]] | None
 
     @hybrid_property
     def response_received(self) -> bool:
@@ -175,3 +132,57 @@ class HITLDetail(Base):
             id=self.responded_by["id"],
             name=self.responded_by["name"],
         )
+
+
+class HITLDetail(Base, HITLDetailPropertyMixin):
+    """Human-in-the-loop request and corresponding response."""
+
+    __tablename__ = "hitl_detail"
+    ti_id: Mapped[str] = mapped_column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
+
+    # User Request Detail
+    options: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    defaults: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    multiple: Mapped[bool | None] = mapped_column(Boolean, unique=False, default=False, nullable=True)
+    params: Mapped[dict] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
+    )
+    assignees: Mapped[list[dict[str, str]] | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    # Response Content Detail
+    responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    responded_by: Mapped[dict | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
+    chosen_options: Mapped[dict | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json),
+        nullable=True,
+        default=None,
+    )
+    params_input: Mapped[dict] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
+    )
+    task_instance = relationship(
+        "TaskInstance",
+        lazy="joined",
+        back_populates="hitl_detail",
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (ti_id,),
+            ["task_instance.id"],
+            name="hitl_detail_ti_fkey",
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        ),
+    )

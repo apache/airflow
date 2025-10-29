@@ -20,6 +20,7 @@
       "previousYear": "Previous year"
     },
     "noData": "No data available",
+    "noFailedRuns": "No failed runs",
     "noRuns": "No runs",
     "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
