@@ -35,8 +35,8 @@ T = TypeVar("T", bound=Exception)
 log = logging.getLogger(__name__)
 
 
-class BaseErrorHandler(Generic[T], ABC):
-    """Base class for error handlers."""
+class BaseExceptionHandler(Generic[T], ABC):
+    """Base class for exception handlers."""
 
     def __init__(self, exception_cls: T) -> None:
         self.exception_cls = exception_cls
@@ -53,7 +53,7 @@ class _DatabaseDialect(Enum):
     POSTGRES = "postgres"
 
 
-class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
+class _UniqueConstraintExceptionHandler(BaseExceptionHandler[IntegrityError]):
     """Exception raised when trying to insert a duplicate value in a unique column."""
 
     unique_constraint_error_prefix_dict: dict[_DatabaseDialect, str] = {
@@ -104,8 +104,8 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
-class DagErrorHandler(BaseErrorHandler[DeserializationError]):
-    """Handler for Dag related errors."""
+class DagExceptionHandler(BaseExceptionHandler[DeserializationError]):
+    """Handler for Dag related exceptions."""
 
     def __init__(self):
         super().__init__(DeserializationError)
@@ -118,4 +118,4 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
-ERROR_HANDLERS = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
+EXCEPTION_HANDLERS = [_UniqueConstraintExceptionHandler(), DagExceptionHandler()]
