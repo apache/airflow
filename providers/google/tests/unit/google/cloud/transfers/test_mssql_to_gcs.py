@@ -57,14 +57,14 @@ SCHEMA_FILENAME = "schema_test.json"
 SCHEMA_JSON = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
     b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, ',
-    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOLEAN"}, ',
-    b'{"mode": "NULLABLE", "name": "some_bit", "type": "BOOLEAN"}]',
+    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOL"}, ',
+    b'{"mode": "NULLABLE", "name": "some_bit", "type": "BOOL"}]',
 ]
 
 SCHEMA_JSON_BIT_FIELDS = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
     b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, ',
-    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOLEAN"}, ',
+    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOL"}, ',
     b'{"mode": "NULLABLE", "name": "some_bit", "type": "INTEGER"}]',
 ]
 
