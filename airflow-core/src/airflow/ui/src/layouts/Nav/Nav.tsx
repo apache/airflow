@@ -143,7 +143,7 @@ export const Nav = () => {
       py={3}
       top={0}
       width={20}
-      zIndex={2}
+      zIndex="docked"
     >
       <Flex alignItems="center" flexDir="column" width="100%">
         <Box mb={3}>
