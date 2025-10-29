@@ -159,7 +159,8 @@ def setup(request, dag_maker, session=None):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
         ti.task = task
         ti.state = State.SUCCESS
-        session.merge(ti)
+        ti = session.merge(ti)
+        ti.dag_version.bundle_version = "some_commit_hash"
         ti.xcom_push("return_value", f"result_{i}")
 
     dag_run2 = dag_maker.create_dagrun(
@@ -185,7 +186,7 @@ def setup(request, dag_maker, session=None):
     ti2.state = State.FAILED
 
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
-        EmptyOperator(task_id="task_2")
+        task = EmptyOperator(task_id="task_2")
 
     dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
@@ -201,6 +202,10 @@ def setup(request, dag_maker, session=None):
     # Set conf for testing conf_contains filter
     dag_run3.conf = {"env": "staging", "test_mode": True}
 
+    ti3 = dag_run3.get_task_instance(task_id=task.task_id)
+    ti3 = session.merge(ti3)
+    ti3.dag_version.bundle_version = "some_commit_hash"
+
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
@@ -214,6 +219,10 @@ def setup(request, dag_maker, session=None):
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
+
+    ti4 = dag_run4.get_task_instance(task_id=task.task_id)
+    ti4 = session.merge(ti4)
+    ti4.dag_version.bundle_version = "some_commit_hash"
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -328,7 +337,14 @@ class TestGetDagRun:
 
 
 class TestGetDagRuns:
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    @pytest.mark.parametrize(
+        "dag_id, total_entries",
+        [
+            (DAG1_ID, 2),
+            (DAG2_ID, 2),
+            ("~", 4),
+        ],
+    )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/dags/{dag_id}/dagRuns")
@@ -1570,6 +1586,7 @@ class TestTriggerDagRun:
         run = (
             session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
         )
+
         expected_response_json = {
             "bundle_version": None,
             "conf": {},

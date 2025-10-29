@@ -27,6 +27,7 @@ from sqlalchemy.orm import Mapped, joinedload, relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
@@ -98,8 +99,6 @@ class DagVersion(Base):
         # fallback to the deprecated option if the bundle model does not have a signed_url_template
         # attribute
         try:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
             return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
         except ValueError:
             return None
