@@ -41,7 +41,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, backref, load_only, relationship
+from sqlalchemy.orm import Mapped, Session, backref, load_only, relationship
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -68,9 +68,6 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from typing import TypeAlias
-
-    from sqlalchemy.orm.query import Query
-    from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -206,7 +203,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def get_last_dagrun(dag_id, session, include_manually_triggered=False):
+def get_last_dagrun(dag_id: str, session: Session, include_manually_triggered: bool = False) -> DagRun | None:
     """
     Return the last dag run for a dag, None if there was none.
 
@@ -300,7 +297,7 @@ class DagOwnerAttributes(Base):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
 
     @classmethod
-    def get_all(cls, session) -> dict[str, dict[str, str]]:
+    def get_all(cls, session: Session) -> dict[str, dict[str, str]]:
         dag_links: dict = defaultdict(dict)
         for obj in session.scalars(select(cls)):
             dag_links[obj.dag_id].update({obj.owner: obj.link})
@@ -322,12 +319,12 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
     # Last time the scheduler started
-    last_parsed_time: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
     last_parse_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_expired: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
@@ -375,14 +372,14 @@ class DagModel(Base):
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    next_dagrun_data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
@@ -494,11 +491,13 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel:
+    def get_current(cls, dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
+    def get_last_dagrun(
+        self, session: Session = NEW_SESSION, include_manually_triggered: bool = False
+    ) -> DagRun | None:
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
@@ -553,13 +552,14 @@ class DagModel(Base):
         bundle_name: str,
         rel_filelocs: list[str],
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> bool:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param bundle_name: bundle for filelocs
         :param rel_filelocs: relative filelocs for bundle
         :param session: ORM Session
+        :return: True if any DAGs were marked as stale, False otherwise
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
@@ -575,12 +575,16 @@ class DagModel(Base):
             )
         )
 
+        any_deactivated = False
         for dm in dag_models:
             if dm.relative_fileloc not in rel_filelocs:
                 dm.is_stale = True
+                any_deactivated = True
+
+        return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -701,7 +705,9 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
+    def get_asset_triggered_next_run_info(
+        self, *, session: Session = NEW_SESSION
+    ) -> dict[str, int | str] | None:
         if self.asset_expression is None:
             return None
 
@@ -711,7 +717,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_team_name(dag_id: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(dag_id: str, session: Session = NEW_SESSION) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
             select(Team.name)
@@ -723,7 +729,9 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dag_id_to_team_name_mapping(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_dag_id_to_team_name_mapping(
+        dag_ids: list[str], session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = (
             select(DagModel.dag_id, Team.name)
             .join(DagBundleModel.teams)
@@ -750,10 +758,12 @@ def __getattr__(name: str):
 
     import warnings
 
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     warnings.warn(
         f"Import {name!r} directly from the airflow module is deprecated and "
         f"will be removed in the future. Please import it from 'airflow.sdk'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 

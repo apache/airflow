@@ -184,7 +184,7 @@ class DAGDetailsResponse(DAGResponse):
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {k: v.resolve(suppress_exception=True) for k, v in params.items()}
+        return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field(deprecated=True)  # type: ignore[prop-decorator]

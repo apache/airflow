@@ -43,7 +43,10 @@ from elasticsearch.exceptions import NotFoundError
 import airflow.logging_config as alc
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import (
     AIRFLOW_V_3_0_PLUS,
@@ -55,17 +58,20 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
 if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogMetadata, LogSourceInfo
+
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    EsLogMsgType = list[StructuredLogMessage] | str
+else:
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}

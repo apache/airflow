@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+6.1.6
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix broken DataflowJobLink for Java operators (#56286)``
+
+Misc
+~~~~
+
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 6.1.5
 .....
 

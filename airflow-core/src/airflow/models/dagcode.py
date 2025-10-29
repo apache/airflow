@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import uuid6
@@ -58,8 +59,8 @@ class DagCode(Base):
     dag_id: Mapped[str] = mapped_column(String(ID_LEN), nullable=False)
     fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     source_code: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)

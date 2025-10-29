@@ -78,6 +78,11 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "Duration",
   "endDate": "End Date",
   "error": {

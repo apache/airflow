@@ -406,6 +406,9 @@ export type ClearTaskInstancesBody = {
     only_failed?: boolean;
     only_running?: boolean;
     reset_dag_runs?: boolean;
+    /**
+     * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
+     */
     task_ids?: Array<(string | [
     string,
     number
@@ -1795,6 +1798,7 @@ export type DAGRunLightResponse = {
     start_date: string | null;
     end_date: string | null;
     state: DagRunState;
+    readonly duration: number | null;
 };
 
 /**
@@ -1857,7 +1861,7 @@ export type DAGWithLatestDagRunsResponse = {
     asset_expression: {
     [key: string]: unknown;
 } | null;
-    latest_dag_runs: Array<DAGRunResponse>;
+    latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**
@@ -2014,6 +2018,22 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+};
+
+/**
+ * Team collection serializer for responses.
+ */
+export type TeamCollectionResponse = {
+    teams: Array<TeamResponse>;
+    total_entries: number;
+};
+
+/**
+ * Base serializer for Team.
+ */
+export type TeamResponse = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -2979,7 +2999,7 @@ export type GetHitlDetailsData = {
     mapIndex?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, run_after, rendered_map_index, task_instance_operator, task_instance_state`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      */
     orderBy?: Array<(string)>;
     respondedByUserId?: Array<(string)>;
@@ -3369,6 +3389,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type ListTeamsData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListTeamsResponse = TeamCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -6511,6 +6542,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/teams': {
+        get: {
+            req: ListTeamsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TeamCollectionResponse;
                 /**
                  * Validation Error
                  */

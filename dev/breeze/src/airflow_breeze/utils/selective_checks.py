@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
@@ -48,6 +49,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -1215,23 +1217,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        # Skip all mypy "individual" file checks if we are running mypy checks in CI
-        # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
-        # The prek will semi-randomly skip such list of files into several groups and we want
-        # to make sure that such checks are always run in CI for whole "group" of files - i.e.
-        # whole package rather than for individual files. That's why we skip those checks in CI
-        # and run them via `mypy-all` command instead and dedicated CI job in matrix
-        # This will also speed up static-checks job usually as the jobs will be running in parallel
-        prek_hooks_to_skip.update(
-            {
-                "mypy-providers",
-                "mypy-airflow-core",
-                "mypy-dev",
-                "mypy-task-sdk",
-                "mypy-airflow-ctl",
-                "mypy-devel-common",
-            }
-        )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(
@@ -1318,6 +1303,63 @@ class SelectiveChecks:
             return ""
         return " ".join(sorted(affected_providers))
 
+    def get_job_label(self, event_type: str, branch: str):
+        import requests
+
+        job_name = "Basic tests"
+        workflow_name = "ci-amd-arm.yml"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if os.environ.get("GITHUB_TOKEN"):
+            headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
+
+        url = f"https://api.github.com/repos/{self._github_repository}/actions/workflows/{workflow_name}/runs"
+        payload = {"event": event_type, "status": "completed", "branch": branch}
+
+        response = requests.get(url, headers=headers, params=payload)
+        if response.status_code != 200:
+            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            return None
+        runs = response.json().get("workflow_runs", [])
+        if not runs:
+            get_console().print(
+                f"[yellow]No runs information found for workflow {workflow_name}, params: {payload}.\n"
+            )
+            return None
+        jobs_url = runs[0].get("jobs_url")
+        jobs_response = requests.get(jobs_url, headers=headers)
+        jobs = jobs_response.json().get("jobs", [])
+        if not jobs:
+            get_console().print("[yellow]No jobs information found for jobs %s.\n", jobs_url)
+            return None
+
+        for job in jobs:
+            if job_name in job.get("name", ""):
+                runner_labels = job.get("labels", [])
+                if "windows-2025" in runner_labels:
+                    continue
+                if not runner_labels:
+                    get_console().print("[yellow]No labels found for job {job_name}.\n", jobs_url)
+                    return None
+                return runner_labels[0]
+
+        return None
+
+    @cached_property
+    def runner_type(self):
+        if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+            branch = self._github_context_dict.get("ref_name", "main")
+            label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
+
+            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
+
+        return PUBLIC_AMD_RUNNERS
+
+    @cached_property
+    def platform(self):
+        if "arm" in self.runner_type:
+            return "linux/arm64"
+        return "linux/amd64"
+
     @cached_property
     def amd_runners(self) -> str:
         return PUBLIC_AMD_RUNNERS
@@ -1353,6 +1395,13 @@ class SelectiveChecks:
         )  # ^ sort by Python minor version
         return json.dumps(sorted_providers_to_exclude)
 
+    def _is_disabled_integration(self, integration: str) -> bool:
+        return (
+            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            or integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM
+            and self.runner_type in PUBLIC_ARM_RUNNERS
+        )
+
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
@@ -1360,7 +1409,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_CORE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
@@ -1370,7 +1419,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property

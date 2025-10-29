@@ -22,19 +22,14 @@ from typing import TYPE_CHECKING, TypeVar
 
 from airflow.models import Param
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.sdk import DAG
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import BaseOperator, MappedOperator
     from airflow.providers.openlineage.utils.utils import AnyOperator
-    from airflow.sdk import DAG, BaseOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedDAG
 
     T = TypeVar("T", bound=DAG | BaseOperator | MappedOperator)
-else:
-    try:
-        from airflow.sdk import DAG
-    except ImportError:
-        from airflow.models import DAG
 
 ENABLE_OL_PARAM_NAME = "_selective_enable_ol"
 ENABLE_OL_PARAM = Param(True, const=True)

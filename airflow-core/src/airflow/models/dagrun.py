@@ -79,7 +79,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.span_status import SpanStatus
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column, nulls_first, with_row_locks
+from airflow.utils.sqlalchemy import (
+    ExtendedJSON,
+    UtcDateTime,
+    get_dialect_name,
+    mapped_column,
+    nulls_first,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -149,10 +156,10 @@ class DagRun(Base, LoggingMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    queued_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    logical_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    queued_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     creating_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -168,12 +175,12 @@ class DagRun(Base, LoggingMixin):
         JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True
     )
     # These two must be either both NULL or both datetime.
-    data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Earliest time when this DagRun can start running.
-    run_after: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
+    run_after: Mapped[datetime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
-    last_scheduling_decision: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_scheduling_decision: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -182,7 +189,7 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     # Keeps track of the number of times the dagrun had been cleared.
@@ -399,7 +406,7 @@ class DagRun(Base, LoggingMixin):
     @duration.expression  # type: ignore[no-redef]
     @provide_session
     def duration(cls, session: Session = NEW_SESSION) -> Case:
-        dialect_name = session.bind.dialect.name
+        dialect_name = get_dialect_name(session)
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)
 
@@ -2007,7 +2014,8 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have its ``task`` attribute already set.
 
-        Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
+        Any EmptyOperator without ``on_execute_callback`` or ``on_success_callback`` or ``inlets`` or
+        ``outlets`` is instead set straight to the success state, without execution.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
@@ -2017,17 +2025,8 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
-            task = ti.task
-            if TYPE_CHECKING:
-                assert isinstance(task, Operator)
-            if (
-                task.inherits_from_empty_operator
-                and not task.has_on_execute_callback
-                and not task.has_on_success_callback
-                and not task.outlets
-                and not task.inlets
-            ):
-                empty_ti_ids.append(ti.id)
+            if ti.is_schedulable:
+                schedulable_ti_ids.append(ti.id)
             # Check "start_trigger_args" to see whether the operator supports
             # start execution from triggerer. If so, we'll check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
@@ -2046,7 +2045,7 @@ class DagRun(Base, LoggingMixin):
             #     else:
             #         schedulable_ti_ids.append(ti.id)
             else:
-                schedulable_ti_ids.append(ti.id)
+                empty_ti_ids.append(ti.id)
 
         count = 0
 
@@ -2125,8 +2124,8 @@ class DagRunNote(Base):
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dag_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     content: Mapped[str | None] = mapped_column(String(1000).with_variant(Text(1000), "mysql"))
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
 
