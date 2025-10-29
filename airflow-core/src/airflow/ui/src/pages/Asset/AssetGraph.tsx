@@ -19,6 +19,7 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -28,7 +29,6 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
-import { getReactFlowThemeStyle } from "src/theme";
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { assetId } = useParams();
@@ -46,9 +46,14 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
     node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
 
-  const [selectedDarkColor, selectedLightColor] = useToken("colors", ["bg.muted", "bg.emphasized"]);
-
-  const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const [selectedStroke, bg, pattern, controlsBg, controlsHover, minimapBg] = useToken("colors", [
+    "asset-graph.selected.stroke",
+    "asset-graph.bg",
+    "asset-graph.pattern",
+    "asset-graph.controls.bg.default",
+    "asset-graph.controls.bg.hover",
+    "asset-graph.minimap.bg",
+  ]);
 
   const edges = (graphData?.edges ?? []).map((edge) => ({
     ...edge,
@@ -60,6 +65,14 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       },
     },
   }));
+
+  const reactFlowStyle: CSSProperties = {
+    "--xy-background-color": bg,
+    "--xy-background-pattern-color": pattern,
+    "--xy-controls-button-background-color": controlsBg,
+    "--xy-controls-button-background-color-hover": controlsHover,
+    "--xy-minimap-background-color": minimapBg,
+  } as CSSProperties;
 
   return (
     <ReactFlow
@@ -75,13 +88,13 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
-      style={getReactFlowThemeStyle(colorMode)}
+      style={reactFlowStyle}
     >
       <Background />
       <Controls showInteractive={false} />
       <MiniMap
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-          node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+          node.data.isSelected && selectedStroke !== undefined ? selectedStroke : ""
         }
         nodeStrokeWidth={15}
         pannable

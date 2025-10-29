@@ -154,7 +154,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         </InputGroup>
         {isParsing ? (
           <Center mt={2}>
-            <Spinner color="brand.solid" marginRight={2} size="sm" /> Parsing file...
+            <Spinner color="import-variables.spinner.color" marginRight={2} size="sm" /> Parsing file...
           </Center>
         ) : undefined}
       </FileUpload.Root>
@@ -186,7 +186,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         {isPending ? (
           <Box bg="bg.muted" inset="0" pos="absolute">
             <Center h="full">
-              <Spinner borderWidth="4px" color="brand.solid" size="xl" />
+              <Spinner borderWidth="4px" color="import-variables.spinner.color" size="xl" />
             </Center>
           </Box>
         ) : undefined}

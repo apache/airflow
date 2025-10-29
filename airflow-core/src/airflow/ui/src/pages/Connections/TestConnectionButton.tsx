@@ -31,8 +31,8 @@ type Props = {
 };
 
 const defaultIcon = <FiActivity />;
-const connectedIcon = <FiWifi color="green" />;
-const disconnectedIcon = <FiWifiOff color="red" />;
+const connectedIcon = <FiWifi color="test-connection.icon.connected" />;
+const disconnectedIcon = <FiWifiOff color="test-connection.icon.disconnected" />;
 
 const TestConnectionButton = ({ connection }: Props) => {
   const { t: translate } = useTranslation("admin");

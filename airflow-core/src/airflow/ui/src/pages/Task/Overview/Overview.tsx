@@ -84,7 +84,7 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette={(failedTaskInstances?.total_entries ?? 0) === 0 ? "green" : "red"}
+          colorPalette={(failedTaskInstances?.total_entries ?? 0) === 0 ? "success" : "failed"}
           count={failedTaskInstances?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTaskInstances?.task_instances ?? []).map((ti) => ({

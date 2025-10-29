@@ -113,10 +113,10 @@ export const FilterPill = ({
     <Box
       _hover={{ bg: "colorPalette.subtle" }}
       as="button"
-      bg={hasValue ? "blue.muted" : "gray.muted"}
+      bg="colorPalette.muted"
       borderRadius="full"
       color="colorPalette.fg"
-      colorPalette={hasValue ? "blue" : "gray"}
+      colorPalette={hasValue ? "brand" : "gray"}
       cursor="pointer"
       display="flex"
       fontSize="sm"
@@ -133,14 +133,13 @@ export const FilterPill = ({
 
         <Box
           _hover={{
-            bg: "gray.100",
-            color: "gray.600",
+            bg: "filter-bar.pill.close.bg.hover",
           }}
           alignItems="center"
           aria-label={`Remove ${filter.config.label} filter`}
           bg="transparent"
           borderRadius="full"
-          color="gray.400"
+          color="filter-bar.pill.close.color"
           cursor="pointer"
           display="flex"
           h={6}

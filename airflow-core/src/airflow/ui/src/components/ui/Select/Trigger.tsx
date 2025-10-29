@@ -32,7 +32,12 @@ export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
 
   return (
     <ChakraSelect.Control {...rest}>
-      <ChakraSelect.Trigger ref={ref} {...triggerProps}>
+      <ChakraSelect.Trigger
+        _hover={{ bg: "colorPalette.emphasized" }}
+        cursor="pointer"
+        ref={ref}
+        {...triggerProps}
+      >
         {children}
       </ChakraSelect.Trigger>
       <ChakraSelect.IndicatorGroup _rtl={{ bottom: 0, left: 0, right: "auto", top: 0 }}>

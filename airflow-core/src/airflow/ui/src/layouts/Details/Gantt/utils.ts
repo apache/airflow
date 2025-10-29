@@ -89,6 +89,7 @@ export const createHandleBarClick =
 export const createHandleBarHover = (
   data: Array<GanttDataItem>,
   setHoveredTaskId: (taskId: string | undefined) => void,
+  hoverColor: string,
 ) => {
   let lastHoveredTaskId: string | undefined = undefined;
 
@@ -117,7 +118,7 @@ export const createHandleBarHover = (
         );
 
         tasks.forEach((task) => {
-          task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+          task.style.backgroundColor = hoverColor;
         });
       }
     } else {

@@ -55,7 +55,7 @@ export const Stats = () => {
         <NeedsReviewButton />
 
         <StatsCard
-          colorScheme="failed"
+          colorPalette="failed"
           count={failedDagsCount}
           isLoading={isStatsLoading}
           isRTL={isRTL}
@@ -70,7 +70,7 @@ export const Stats = () => {
 
         {queuedDagsCount > 0 ? (
           <StatsCard
-            colorScheme="queued"
+            colorPalette="queued"
             count={queuedDagsCount}
             isLoading={isStatsLoading}
             isRTL={isRTL}
@@ -81,7 +81,7 @@ export const Stats = () => {
         ) : undefined}
 
         <StatsCard
-          colorScheme="running"
+          colorPalette="running"
           count={runningDagsCount}
           isLoading={isStatsLoading}
           isRTL={isRTL}
@@ -91,7 +91,7 @@ export const Stats = () => {
         />
 
         <StatsCard
-          colorScheme="active"
+          colorPalette="active"
           count={activeDagsCount}
           icon={<FiZap />}
           isLoading={isStatsLoading}
