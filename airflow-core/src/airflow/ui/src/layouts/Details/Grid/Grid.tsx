@@ -29,7 +29,6 @@ import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import type { FilterMode } from "src/layouts/Details/LineageFilter";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -44,9 +43,10 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
-  readonly filterMode: FilterMode;
-  readonly filterRoot: string | undefined;
+  readonly includeDownstream: boolean;
+  readonly includeUpstream: boolean;
   readonly limit: number;
+  readonly root: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
@@ -54,9 +54,10 @@ type Props = {
 
 export const Grid = ({
   dagRunState,
-  filterMode,
-  filterRoot,
+  includeDownstream,
+  includeUpstream,
   limit,
+  root,
   runType,
   showGantt,
   triggeringUser,
@@ -92,43 +93,45 @@ export const Grid = ({
 
   const selectedVersion = useSelectedVersion();
 
-  // Fetch lineage-filtered structure when filter is active
-  const { data: lineageStructure } = useStructureServiceStructureData(
+  const hasActiveFilter = includeUpstream || includeDownstream;
+
+  // fetch filtered structure when filter is active
+  const { data: taskStructure } = useStructureServiceStructureData(
     {
       dagId,
       externalDependencies: false,
-      includeDownstream: filterMode === "downstream" || filterMode === "both",
-      includeUpstream: filterMode === "upstream" || filterMode === "both",
-      root: filterMode !== "none" && filterRoot !== undefined ? filterRoot : undefined,
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && root !== undefined ? root : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
     {
-      enabled: selectedVersion !== undefined && filterMode !== "none" && filterRoot !== undefined,
+      enabled: selectedVersion !== undefined && hasActiveFilter && root !== undefined,
     },
   );
 
-  // Extract allowed task IDs from lineage structure when filter is active
+  // extract allowed task IDs from task structure when filter is active
   const allowedTaskIds = useMemo(() => {
-    if (filterMode === "none" || filterRoot === undefined || lineageStructure === undefined) {
+    if (!hasActiveFilter || root === undefined || taskStructure === undefined) {
       return undefined;
     }
 
     const taskIds = new Set<string>();
 
-    lineageStructure.nodes.forEach((node) => {
-      const addNodeAndChildren = (currentNode: typeof node) => {
-        taskIds.add(currentNode.id);
-        if (currentNode.children) {
-          currentNode.children.forEach((child) => addNodeAndChildren(child));
-        }
-      };
+    const addNodeAndChildren = <T extends { children?: Array<T> | null; id: string }>(currentNode: T) => {
+      taskIds.add(currentNode.id);
+      if (currentNode.children) {
+        currentNode.children.forEach((child) => addNodeAndChildren(child));
+      }
+    };
 
+    taskStructure.nodes.forEach((node) => {
       addNodeAndChildren(node);
     });
 
     return taskIds;
-  }, [filterMode, filterRoot, lineageStructure]);
+  }, [hasActiveFilter, root, taskStructure]);
 
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
@@ -143,7 +146,7 @@ export const Grid = ({
   const { flatNodes } = useMemo(() => {
     const nodes = flattenNodes(dagStructure, openGroupIds);
 
-    // Filter nodes based on lineage filter if active
+    // filter nodes based on task stream filter if active
     if (allowedTaskIds !== undefined) {
       return {
         ...nodes,
