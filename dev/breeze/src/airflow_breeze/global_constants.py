@@ -542,6 +542,7 @@ COMMITTERS = [
     "feng-tao",
     "ferruzzi",
     "gopidesupavan",
+    "guan404ming",
     "houqp",
     "hussein-awala",
     "jason810496",
