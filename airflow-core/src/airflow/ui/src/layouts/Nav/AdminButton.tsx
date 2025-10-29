@@ -79,7 +79,7 @@ export const AdminButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiSettings size={28} />} title={translate("nav.admin")} />
+        <NavButton icon={FiSettings} title={translate("nav.admin")} />
       </Menu.Trigger>
       <Menu.Content>
         {menuItems}
