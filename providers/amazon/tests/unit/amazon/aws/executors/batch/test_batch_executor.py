@@ -744,10 +744,8 @@ class TestBatchExecutorConfig:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "command'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
-
-        assert raised.match('Executor Config should never override "command')
 
     def test_config_defaults_are_applied(self):
         submit_kwargs = batch_executor_config.build_submit_kwargs()
