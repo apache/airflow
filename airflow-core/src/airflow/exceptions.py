@@ -27,12 +27,7 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from airflow.models import DagRun
 
-try:
-    from airflow.sdk.exceptions import AirflowException
-except ModuleNotFoundError:
-    # The shared libraries are unable to see the 'sdk' package, so redefine here
-    class AirflowException(Exception):  # type: ignore[no-redef]
-        """Base class for all Airflow exceptions."""
+from airflow.sdk.exceptions import AirflowException
 
 
 class TaskNotFound(AirflowException):
