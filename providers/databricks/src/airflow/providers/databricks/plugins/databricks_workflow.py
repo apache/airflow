@@ -148,10 +148,7 @@ if not AIRFLOW_V_3_0_PLUS:
         if not session:
             raise AirflowException("Session not provided.")
 
-        dag_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).first()
-        if not dag_run:
-            raise AirflowException("DagRun not found.")
-        return dag_run
+        return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).one()
 
     @provide_session
     def _clear_task_instances(
