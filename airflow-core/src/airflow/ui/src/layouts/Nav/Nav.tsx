@@ -152,8 +152,8 @@ export const Nav = () => {
               _motionSafe={{
                 _hover: {
                   transform: "rotate(360deg)",
-                  transition: "transform 0.8s ease-in-out"
-                }
+                  transition: "transform 0.8s ease-in-out",
+                },
               }}
               height="35px"
               width="35px"
