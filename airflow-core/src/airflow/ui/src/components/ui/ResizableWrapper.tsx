@@ -68,6 +68,8 @@ export const ResizableWrapper = ({
       style={{
         backgroundColor: "inherit",
         borderRadius: "inherit",
+        display: "flex",
+        flexDirection: "column",
         overflow: "hidden",
         position: "relative",
       }}
