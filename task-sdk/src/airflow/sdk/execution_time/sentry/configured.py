@@ -34,13 +34,13 @@ import sentry_sdk.integrations.logging
 import structlog
 
 from airflow.sdk.execution_time.sentry.noop import NoopSentry
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
     from airflow.sdk import Context
     from airflow.sdk.execution_time.sentry.noop import Run, RunReturn
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol, RuntimeTaskInstanceProtocol
 
 log = structlog.get_logger(logger_name=__name__)
@@ -118,6 +118,8 @@ class ConfiguredSentry(NoopSentry):
 
     def add_breadcrumbs(self, task_instance: RuntimeTaskInstanceProtocol) -> None:
         """Add breadcrumbs inside of a task_instance."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
         breadcrumbs = RuntimeTaskInstance.get_task_breadcrumbs(
             dag_id=task_instance.dag_id,
             run_id=task_instance.run_id,
