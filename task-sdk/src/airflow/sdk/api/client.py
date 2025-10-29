@@ -778,7 +778,7 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-# This exists as a aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
+# This exists as an aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
     path = request.url.path

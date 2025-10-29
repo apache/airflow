@@ -344,7 +344,7 @@ class CeleryExecutor(BaseExecutor):
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
         first_task = next(t[-1] for t in task_tuples_to_send)
 
-        # Celery state queries will stuck if we do not use one same backend
+        # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
         cached_celery_backend = first_task.backend
 

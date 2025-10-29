@@ -502,7 +502,7 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
         default project id taken from the Google Cloud connection.
     :param sql_proxy_version: Specific version of SQL proxy to download
-        (for example 'v1.13'). By default latest version is downloaded.
+        (for example 'v1.13'). By default, latest version is downloaded.
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
@@ -687,7 +687,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.log.info("Skipped removing proxy - it was not downloaded: %s", self.sql_proxy_path)
         if os.path.isfile(self.credentials_path):
             self.log.info("Removing generated credentials file %s", self.credentials_path)
-            # Here file cannot be delete by concurrent task (each task has its own copy)
+            # Here file cannot be deleted by concurrent task (each task has its own copy)
             os.remove(self.credentials_path)
 
     def get_proxy_version(self) -> str | None:
