@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-cassandra``
 
-Release: ``3.8.2``
+Release: ``3.8.3``
 
 
 `Apache Cassandra <https://cassandra.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.cassandra`` provider. All classes for th
 are in ``airflow.providers.apache.cassandra`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.3/>`_.
 
 Installation
 ------------
@@ -57,5 +57,14 @@ PIP package           Version required
 ``cassandra-driver``  ``>=3.29.1``
 ====================  ==================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.3/changelog.html>`_.

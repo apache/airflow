@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-slack"
-version = "9.3.0"
+version = "9.4.0"
 description = "Provider package apache-airflow-providers-slack for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -58,9 +58,10 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.6.1",
+    "apache-airflow-providers-common-compat>=1.8.0",
     "apache-airflow-providers-common-sql>=1.27.0",
     "slack-sdk>=3.36.0",
+    "asgiref>=2.3.0",
 ]
 
 [dependency-groups]
@@ -102,8 +103,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.4.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.4.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, Integer, MetaData, String, text
-from sqlalchemy.orm import registry
+from sqlalchemy import Integer, MetaData, String, text
+from sqlalchemy.orm import Mapped, registry
 
 from airflow.configuration import conf
-from airflow.utils.sqlalchemy import is_sqlalchemy_v1
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1, mapped_column
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
@@ -94,7 +94,7 @@ class TaskInstanceDependencies(Base):
 
     __abstract__ = True
 
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))

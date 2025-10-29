@@ -21,6 +21,7 @@ import datetime
 import json
 import time
 from collections.abc import Sequence
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
@@ -37,13 +38,9 @@ from airflow.exceptions import (
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom, timezone
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.providers.standard.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    BaseOperator,
-    BaseOperatorLink,
-    timezone,
-)
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
@@ -55,17 +52,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstancekey import TaskInstanceKey
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DagIsPaused(AirflowException):
@@ -203,6 +190,9 @@ class TriggerDagRunOperator(BaseOperator):
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
+        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
+            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
             # If no logical_date is provided we will set utcnow()
@@ -213,9 +203,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
+            if self.conf and isinstance(self.conf, str):
+                self.conf = json.loads(self.conf)
             json.dumps(self.conf)
-        except TypeError:
-            raise ValueError("conf parameter should be JSON Serializable")
+        except (TypeError, JSONDecodeError):
+            raise ValueError("conf parameter should be JSON Serializable %s", self.conf)
 
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
@@ -231,9 +223,12 @@ class TriggerDagRunOperator(BaseOperator):
 
         if self.fail_when_dag_is_paused:
             dag_model = DagModel.get_current(self.trigger_dag_id)
+            if not dag_model:
+                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
             if dag_model.is_paused:
-                if AIRFLOW_V_3_0_PLUS:
-                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                # TODO: enable this when dag state endpoint available from task sdk
+                # if AIRFLOW_V_3_0_PLUS:
+                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
                 raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:

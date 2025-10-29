@@ -97,6 +97,7 @@ __lazy_imports = {
     "BaseOperator": "airflow.sdk",
     "BaseOperatorLink": "airflow.sdk",
     "BaseXCom": "airflow.sdk.bases.xcom",
+    "Callback": "airflow.models.callback",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
@@ -125,6 +126,7 @@ if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
+    from airflow.models.callback import Callback
     from airflow.models.connection import Connection
     from airflow.models.dag import DagModel, DagTag
     from airflow.models.dagbag import DagBag

@@ -19,6 +19,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import time
+from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
@@ -108,9 +110,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
-    def get_url_refresh(self) -> str | None:
-        base_url = conf.get("api", "base_url", fallback="/")
-        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/refresh")
+    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        if self._token_expired(user.access_token):
+            client = self.get_keycloak_client()
+            tokens = client.refresh_token(user.refresh_token)
+            user.refresh_token = tokens["refresh_token"]
+            user.access_token = tokens["access_token"]
+            return user
+
+        return None
 
     def is_authorized_configuration(
         self,
@@ -366,3 +374,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_expired(token: str) -> bool:
+        """
+        Check whether a JWT token is expired.
+
+        :meta private:
+
+        :param token: the token
+        """
+        payload_b64 = token.split(".")[1] + "=="
+        payload_bytes = urlsafe_b64decode(payload_b64)
+        payload = json.loads(payload_bytes)
+        return payload["exp"] < int(time.time())
