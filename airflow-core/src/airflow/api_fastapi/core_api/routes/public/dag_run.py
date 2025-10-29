@@ -80,7 +80,6 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_version import DagVersion
@@ -472,8 +471,6 @@ def trigger_dag_run(
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
-    except ParamValidationError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
