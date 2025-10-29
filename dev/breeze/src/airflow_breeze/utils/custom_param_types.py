@@ -242,11 +242,14 @@ class UseAirflowVersionType(BetterChoice):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.all_choices = [*self.choices, "<airflow_version>", "<owner/repo:branch>"]
+        self.all_choices = [*self.choices, "<airflow_version>", "<owner/repo:branch>", "<pr_number>"]
 
     def convert(self, value, param, ctx):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
         if re.match(GITHUB_REPO_BRANCH_PATTERN, value):
+            return value
+        # Check if it's a PR number (digits only)
+        if re.match(r"^\d+$", value):
             return value
         return super().convert(value, param, ctx)
