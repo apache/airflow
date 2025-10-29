@@ -184,13 +184,13 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             "catalog": self.catalog,
             "schema": self.schema,
         }
-        url_query = {k: v for k, v in url_query.items() if v is not None}
+        filtered_query = {k: v for k, v in url_query.items() if v is not None}
         return URL.create(
             drivername="databricks",
             username="token",
             password=self._get_token(raise_error=True),
             host=self.host,
-            query=url_query,
+            query=filtered_query,
         )
 
     def get_uri(self) -> str:
