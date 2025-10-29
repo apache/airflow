@@ -38,16 +38,6 @@ if sys.version_info >= (3,6):
         {# Airflow is not available in this environment, therefore we won't
          # be able to integrate any plugin macros. #}
         pass
-
-try:
-    from airflow.sdk.execution_time import task_runner
-except ModuleNotFoundError:
-    pass
-else:
-  {#- We are in an Airflow 3.x env, try and set up supervisor comms so virtual env can still access tasks etc! #}
-  reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
-  if reinit_supervisor_comms:
-      reinit_supervisor_comms()
 {% endif %}
 
 # Script
@@ -59,10 +49,12 @@ else:
 import types
 
 {{ modified_dag_module_name }}  = types.ModuleType("{{ modified_dag_module_name }}")
+
 {{ modified_dag_module_name }}.{{ python_callable }} = {{ python_callable }}
+
 sys.modules["{{modified_dag_module_name}}"] = {{modified_dag_module_name}}
 
-{%- endif -%}
+{% endif%}
 
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
