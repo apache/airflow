@@ -96,8 +96,8 @@ dependencies = [
     "sphinxcontrib-spelling>=8.0.0",
 ]
 "docs-gen" = [
-    "diagrams>=0.23.4",
-    "eralchemy>=1.5",
+    "diagrams>=0.24.4",
+    "eralchemy>=1.6",
 ]
 "mypy" = [
     # Mypy dependencies
