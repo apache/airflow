@@ -66,14 +66,14 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 router = VersionedAPIRouter()
 
@@ -254,7 +254,11 @@ def ti_run(
 
         if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
             upstream_map_indexes = dict(
-                _get_upstream_map_indexes(dag.get_task(ti.task_id), ti.map_index, ti.run_id, session=session)
+                _get_upstream_map_indexes(
+                    serialized_dag=dag,
+                    ti=ti,
+                    session=session,
+                )
             )
         else:
             upstream_map_indexes = None
@@ -285,30 +289,41 @@ def ti_run(
 
 
 def _get_upstream_map_indexes(
-    task: MappedOperator | SerializedBaseOperator, ti_map_index: int, run_id: str, session: SessionDep
+    *,
+    serialized_dag: SerializedDAG,
+    ti: TI,
+    session: SessionDep,
 ) -> Iterator[tuple[str, int | list[int] | None]]:
-    task_mapped_group = task.get_closest_mapped_task_group()
+    task = serialized_dag.get_task(ti.task_id)
     for upstream_task in task.upstream_list:
-        upstream_mapped_group = upstream_task.get_closest_mapped_task_group()
         map_indexes: int | list[int] | None
-        if upstream_mapped_group is None:
+        if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task_mapped_group == upstream_mapped_group:
+        elif task.get_closest_mapped_task_group() == upstream_mapped_group:
             # tasks in the same mapped task group hierarchy
-            map_indexes = ti_map_index
+            map_indexes = ti.map_index
         else:
             # tasks not in the same mapped task group
             # the upstream mapped task group should combine the return xcom as a list and return it
-            mapped_ti_count: int
+            mapped_ti_count: int | None = None
+
             try:
-                # for cases that does not need to resolve xcom
+                # First try: without resolving XCom
                 mapped_ti_count = upstream_mapped_group.get_parse_time_mapped_ti_count()
             except NotFullyPopulated:
-                # for cases that needs to resolve xcom to get the correct count
-                mapped_ti_count = cast(
-                    "SchedulerExpandInput", upstream_mapped_group._expand_input
-                ).get_total_map_length(run_id, session=session)
+                # Second try: resolve XCom for correct count
+                try:
+                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
+                    mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
+                except NotFullyPopulated:
+                    # For these trigger rules, unresolved map indexes are acceptable.
+                    # The success of the upstream task is not the main reason for triggering the current task.
+                    # Therefore, whether the upstream task is fully populated can be ignored.
+                    if task.trigger_rule != TriggerRule.ALL_SUCCESS:
+                        mapped_ti_count = None
+
+            # Compute map indexes if we have a valid count
             map_indexes = list(range(mapped_ti_count)) if mapped_ti_count is not None else None
 
         yield upstream_task.task_id, map_indexes
