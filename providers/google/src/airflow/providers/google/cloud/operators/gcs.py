@@ -33,7 +33,7 @@ import pendulum
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError

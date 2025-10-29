@@ -22,6 +22,7 @@
 
 - [What the provider distributions are](#what-the-provider-distributions-are)
 - [Provider distributions](#provider-distributions)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
 - [Decide when to release](#decide-when-to-release)
 - [Provider distributions versioning](#provider-distributions-versioning)
@@ -80,6 +81,19 @@ The prerequisites to release Apache Airflow are described in [README.md](README.
 
 You can read more about the command line tools used to generate the packages in the
 [Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
+
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
 
 # Bump min Airflow version for providers
 
@@ -345,6 +359,7 @@ brew install gnupg
 * Cleanup dist folder:
 
 ```shell script
+export PACKAGE_DATE=$(date "+%Y-%m-%d%n")
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
@@ -353,6 +368,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -360,6 +376,7 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -399,7 +416,7 @@ mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
 # Add and commit
 svn add *
-svn commit -m "Add artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
+svn commit -m "Add artifacts for Airflow Providers ${PACKAGE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
 ```
@@ -576,10 +593,10 @@ There are few special considerations when the list of provider is updated.
 
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
+branch="add-documentation-${PACKAGE_DATE}"
 git checkout -b "${branch}"
 git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git commit -m "Add documentation for packages - ${PACKAGE_DATE}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -782,7 +799,7 @@ Set an environment variable: PATH_TO_SVN to the root of folder where you have pr
 
 ``` shell
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=${pwd -P)
+export PATH_TO_SVN=$(pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -823,13 +840,11 @@ How to verify it:
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
-   commands are:
+2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
 git fetch apache --tags
-git checkout providers-amazon/9.1.0rc1
+git checkout providers/2025-10-20
 ```
 
 3) Remove all the packages you have in dist folder
@@ -916,7 +931,7 @@ This can be done with the Apache RAT tool.
 # Get rat if you do not have it
 if command -v wget >/dev/null 2>&1; then
     echo "Using wget to download Apache RAT..."
-    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
 else
     echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
     exit 1
@@ -932,15 +947,27 @@ done
 # Generate list of unpacked providers
 find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
 # Check licences
-for d in $(cat /tmp/files.txt)
+for d in $(cat /tmp/files.txt | sort)
 do
-  pushd $d
-  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
-  popd >/dev/null
+  pushd $d 2>&1 >/dev/null
+  echo "Checking licences for $d"
+  java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes .  2>/dev/null | grep '! '
+  popd 2>&1 >/dev/null
 done
 ```
 
-You should see only '0 Unknown licences"
+You should see output similar to:
+
+```
+Checking licences for ./apache_airflow_providers_airbyte-5.2.4
+Checking licences for ./apache_airflow_providers_alibaba-3.2.4
+Checking licences for ./apache_airflow_providers_amazon-9.16.0
+Checking licences for ./apache_airflow_providers_apache_beam-6.1.6
+Checking licences for ./apache_airflow_providers_apache_cassandra-3.8.3
+...
+```
+
+You will see there files that are considered problematic by RAT tool (RAT prints such files preceding them with "! ").
 
 Cleanup:
 
@@ -1041,6 +1068,7 @@ You should get output similar to:
 ```
 Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
+...
 ```
 
 ## Verify the release candidate by Contributors
@@ -1315,6 +1343,13 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 breeze release-management tag-providers
+```
+
+The command should output all the tags it created. At the end it should also print the general tag
+applied for this provider's release wave - with current date in the format of:
+
+```
+providers/YYYY-MM-DD
 ```
 
 ## Publish documentation

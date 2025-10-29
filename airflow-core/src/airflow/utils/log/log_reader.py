@@ -57,10 +57,12 @@ class TaskLogReader:
     @staticmethod
     def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
         """Yield standardized no-log messages for a given TI state."""
-        msg = {
-            TaskInstanceState.SKIPPED: "Task was skipped — no logs available.",
-            TaskInstanceState.UPSTREAM_FAILED: "Task did not run because upstream task(s) failed.",
-        }.get(ti.state, "No logs available for this task.")
+        if ti.state == TaskInstanceState.SKIPPED:
+            msg = "Task was skipped — no logs available."
+        elif ti.state == TaskInstanceState.UPSTREAM_FAILED:
+            msg = "Task did not run because upstream task(s) failed."
+        else:
+            msg = "No logs available for this task."
 
         yield StructuredLogMessage(
             timestamp=None,

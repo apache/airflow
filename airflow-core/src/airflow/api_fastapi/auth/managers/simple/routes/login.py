@@ -94,6 +94,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
         secure=secure,
+        httponly=True,
     )
     return response
 

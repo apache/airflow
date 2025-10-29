@@ -42,6 +42,8 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
 
+CHUNK_SIZE_POSITIVE_INT = "Chunk size must be a positive integer"
+
 
 @pytest.fixture
 def clear_db():
@@ -72,10 +74,10 @@ class TestHelpers:
         assert rendered_filename == expected_filename
 
     def test_chunks(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHUNK_SIZE_POSITIVE_INT):
             list(helpers.chunks([1, 2, 3], 0))
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHUNK_SIZE_POSITIVE_INT):
             list(helpers.chunks([1, 2, 3], -3))
 
         assert list(helpers.chunks([], 5)) == []
@@ -188,7 +190,7 @@ class TestHelpers:
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Not supported for iterable args"):
             exactly_one([True, False])
 
     def test_at_most_one(self):

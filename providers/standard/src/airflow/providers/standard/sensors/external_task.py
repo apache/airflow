@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DagModel
+from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOperator
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -42,8 +43,6 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     BaseOperator,
-    BaseOperatorLink,
-    BaseSensorOperator,
 )
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
@@ -60,11 +59,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstancekey import TaskInstanceKey
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.definitions.context import Context
-    else:
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -493,7 +488,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self._has_checked_existence = True
 
-    def get_count(self, dttm_filter, session, states) -> int:
+    def get_count(self, dttm_filter: list[datetime.datetime], session: Session, states: list[str]) -> int:
         """
         Get the count of records against dttm filter and states.
 

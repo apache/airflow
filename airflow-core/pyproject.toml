@@ -95,6 +95,7 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
+    "natsort>=8.4.0",
     "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
     # opentelemetry-proto is a transitive dependency of
@@ -169,6 +170,9 @@ dependencies = [
     "pykerberos>=1.1.13",
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
+]
+"memray" = [
+    "memray>=1.19.0",
 ]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",

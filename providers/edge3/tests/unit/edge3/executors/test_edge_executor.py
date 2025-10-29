@@ -25,14 +25,10 @@ import time_machine
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 

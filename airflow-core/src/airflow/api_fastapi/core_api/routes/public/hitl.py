@@ -220,6 +220,7 @@ def get_hitl_details(
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
+                    "task_display_name": TI.task_display_name,
                     "run_after": DagRun.run_after,
                     "rendered_map_index": TI.rendered_map_index,
                     "task_instance_operator": TI.operator,
@@ -288,6 +289,6 @@ def get_hitl_details(
     hitl_details = session.scalars(hitl_detail_select)
 
     return HITLDetailCollection(
-        hitl_details=hitl_details,
+        hitl_details=list(hitl_details),
         total_entries=total_entries,
     )
