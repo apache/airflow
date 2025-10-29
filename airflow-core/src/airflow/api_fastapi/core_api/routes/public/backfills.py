@@ -208,8 +208,7 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
     )
     session.execute(query)
 
-    # this is in separate transaction just to avoid potential conflicts
-    session.refresh(b)
+    # Set completion time
     b.completed_at = timezone.utcnow()
     return b
 

@@ -336,4 +336,10 @@ def update_xcom_entry(
     # Update XCom entry
     xcom_entry.value = XComModel.serialize_value(patch_body.value)
 
-    return XComResponseNative.model_validate(xcom_entry)
+    # Create a copy and set the raw value like in the GET endpoint
+    import copy
+
+    item = copy.copy(xcom_entry)
+    item.value = xcom_entry.value
+
+    return XComResponseNative.model_validate(item)
