@@ -47,7 +47,15 @@ else:
   {#- We are in an Airflow 3.x env, try and set up supervisor comms so virtual env can still access tasks etc! #}
   reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
   if reinit_supervisor_comms:
-      reinit_supervisor_comms()
+      try:
+          reinit_supervisor_comms()
+      except OSError as e:
+          if e.errno == 88:  # Socket operation on non-socket
+              # In subprocess environments (like PythonVirtualenvOperator), stdin may not be a socket
+              # This is expected behavior, supervisor communication is not available
+              pass
+          else:
+              raise
 {% endif %}
 
 # Script
