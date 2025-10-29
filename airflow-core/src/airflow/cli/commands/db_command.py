@@ -81,8 +81,7 @@ def _get_version_revision(version: str, revision_heads_map: dict[str, str] | Non
 
         if current < wanted:
             return head
-    else:
-        return None
+    return None
 
 
 def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):

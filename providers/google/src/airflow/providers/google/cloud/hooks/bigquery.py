@@ -1846,15 +1846,14 @@ class BigQueryCursor(BigQueryBaseCursor):
                             "must be a dict with {'projectId':'', "
                             "'datasetId':'', 'tableId':''}"
                         )
-                else:
-                    configuration["query"].update(
-                        {
-                            "allowLargeResults": allow_large_results,
-                            "flattenResults": flatten_results,
-                            "writeDisposition": write_disposition,
-                            "createDisposition": create_disposition,
-                        }
-                    )
+                configuration["query"].update(
+                    {
+                        "allowLargeResults": allow_large_results,
+                        "flattenResults": flatten_results,
+                        "writeDisposition": write_disposition,
+                        "createDisposition": create_disposition,
+                    }
+                )
 
         if (
             "useLegacySql" in configuration["query"]

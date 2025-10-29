@@ -122,8 +122,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
             for providers_root_candidate in parent.parents:
                 if providers_root_candidate.name == "providers":
                     return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
-            else:
-                return None
+            return None
     return None
 
 
