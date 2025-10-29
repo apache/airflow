@@ -116,7 +116,8 @@ def get_all_files(folder: str) -> list[str]:
         ) and not file.as_posix().endswith("src/airflow/providers/__init__.py"):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     file_spec = "@/files/mypy_files.txt"
-    console.print(f"[info]Running mypy with {file_spec}")
+    if console:
+        console.print(f"[info]Running mypy with {file_spec}")
     return files_to_check
 
 
@@ -126,11 +127,12 @@ for mypy_folder in mypy_folders:
     all_files_to_check.extend(get_all_files(mypy_folder))
 MYPY_FILE_LIST.write_text("\n".join(all_files_to_check))
 
-if os.environ.get("CI"):
-    console.print("[info]The content of the file is:")
-    console.print(all_files_to_check)
-else:
-    console.print(f"[info]You cand check the list of files in:[/] {MYPY_FILE_LIST}")
+if console:
+    if os.environ.get("CI"):
+        console.print("[info]The content of the file is:")
+        console.print(all_files_to_check)
+    else:
+        console.print(f"[info]You cand check the list of files in:[/] {MYPY_FILE_LIST}")
 
 print(f"Running mypy with {FILE_ARGUMENT}")
 
@@ -164,7 +166,7 @@ res = run_command_via_breeze_shell(
     },
 )
 ci_environment = os.environ.get("CI")
-if res.returncode != 0:
+if res.returncode != 0 and console:
     if ci_environment:
         console.print(
             "[yellow]You are running mypy with the folders selected. If you want to "
