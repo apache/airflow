@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Iterator
 from typing import TYPE_CHECKING, TypeAlias, cast
 
 from sqlalchemy import and_, or_, select
@@ -122,7 +122,9 @@ def get_all_dag_task_query(
     return qry_dag
 
 
-def find_task_relatives(tasks, downstream, upstream):
+def find_task_relatives(
+    tasks: Collection[Operator | tuple[Operator, int]], downstream: bool, upstream: bool
+) -> Iterator[str | tuple[str, int]]:
     """Yield task ids and optionally ancestor and descendant ids."""
     for item in tasks:
         if isinstance(item, tuple):
