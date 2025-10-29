@@ -105,13 +105,13 @@ Airflow provides several built-in reference points that you can use with Deadlin
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
 ``DeadlineReference.AVERAGE_RUNTIME``
-    Calculates deadlines based on the average runtime of previous DAG runs. This reference
+    Calculates deadlines based on the average runtime of previous Dag runs. This reference
     analyzes historical execution data to predict when the current run should complete.
     The deadline is set to the current time plus the calculated average runtime plus the interval.
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``max_runs`` (int, optional): Maximum number of recent DAG runs to analyze. Defaults to 10.
+        * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
         * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
@@ -138,7 +138,7 @@ Here's an example using average runtime:
             interval=timedelta(minutes=30),  # Alert if 30 minutes past average runtime
             callback=AsyncCallback(
                 SlackWebhookNotifier,
-                kwargs={"text": "🚨 DAG {{ dag_run.dag_id }} is running longer than expected!"},
+                kwargs={"text": "🚨 Dag {{ dag_run.dag_id }} is running longer than expected!"},
             ),
         ),
     ):
@@ -327,14 +327,14 @@ you to create deadlines that suit a wide variety of operational requirements.
 Custom References
 ^^^^^^^^^^^^^^^^^
 
-While the built-in references should cover most use cases, and more will be released over time, you
-can create custom references. This may be useful if you have calendar integrations or other sources
-that you want to use as a reference. You can create custom references by implementing a class that
-inherits from BaseDeadlineReference, give it am _evaluate_with() method, and register it. There are
-two ways to accomplish this. The recommended way is to use the ``@deadline_reference`` decorator
-but for more complicated implementations, the ``register_custom_reference()`` method is available.
 
-**Recommended: Using the ``@deadline_reference`` decorator**
+The built-in references handle most common scenarios. However, you may need to create custom
+references for specific integrations like calendars or other data sources. To do this, create
+a class that inherits from BaseDeadlineReference, add the @deadline_reference decorator, and
+implement an _evaluate_with() method.
+
+
+**Creating a Custom Reference**
 
 .. code-block:: python
 
@@ -348,7 +348,7 @@ but for more complicated implementations, the ``register_custom_reference()`` me
     # By default, the evaluate_with method will be executed when the dagrun is created.
     @deadline_reference()
     class MyCustomDecoratedReference(ReferenceModels.BaseDeadlineReference):
-        """A custom reference evaluated when DAG runs are created."""
+        """A custom reference evaluated when Dag runs are created."""
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
             # Add your business logic here
@@ -358,7 +358,7 @@ but for more complicated implementations, the ``register_custom_reference()`` me
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
     @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
     class MyQueuedReference(ReferenceModels.BaseDeadlineReference):
-        """A custom reference evaluated when DAG runs are queued."""
+        """A custom reference evaluated when Dag runs are queued."""
 
         required_kwargs = {"custom_param"}
 
@@ -367,34 +367,10 @@ but for more complicated implementations, the ``register_custom_reference()`` me
             # Use custom_value in your calculation
             return your_datetime
 
-**Alternative: Manual Registration**
 
-For advanced use cases requiring conditional or dynamic registration, you may wish use the registration method directly.
-In this case, the plugin file will look something like this:
+**Using a Custom Reference in a Dag**
 
-.. code-block:: python
-
-    from sqlalchemy.orm import Session
-
-    from airflow.models.deadline import ReferenceModels
-    from airflow.sdk.definitions.deadline import DeadlineReference
-
-
-    class MyManualReference(ReferenceModels.BaseDeadlineReference):
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            # Add your business logic here
-            return your_datetime
-
-
-    # Register with specific timing based on configuration
-    timing = (
-        DeadlineReference.TYPES.DAGRUN_QUEUED if use_queued_timing else DeadlineReference.TYPES.DAGRUN_CREATED
-    )
-    DeadlineReference.register_custom_reference(MyManualReference, timing)
-
-**Using Custom References in DAGs**
-
-Once registered, use your custom references in DAG definitions like any other reference:
+Once registered [see notes below], use your custom references in Dag definitions like any other reference:
 
 .. code-block:: python
 
@@ -415,8 +391,8 @@ Once registered, use your custom references in DAG definitions like any other re
 
 **Important Notes:**
 
-* **Timezone Awareness**: Always return timezone-aware datetime objects
-* **Plugin Placement**: Place custom references in plugin files (e.g., ``plugins/my_deadline_references.py``)
-* **Scheduler Restart**: Restart the Airflow scheduler after adding or modifying custom references
-* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs
-* **Database Access**: Use the ``session`` parameter for Airflow database queries if needed
+* **Timezone Awareness**: Always return timezone-aware datetime objects.
+* **Plugin Placement**: One convenient place for custom references is in the plugins directory.
+* **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
+* **Required Parameters**: Use ``required_kwargs`` to specify parameters your reference needs.
+* **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.
