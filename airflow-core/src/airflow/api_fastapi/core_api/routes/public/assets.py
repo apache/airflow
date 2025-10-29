@@ -590,6 +590,7 @@ def get_dag_asset_queued_event(
 @assets_router.delete(
     "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
@@ -619,6 +620,7 @@ def delete_asset_queued_events(
 @assets_router.delete(
     "/dags/{dag_id}/assets/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -651,6 +653,7 @@ def delete_dag_asset_queued_events(
 @assets_router.delete(
     "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
