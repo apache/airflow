@@ -1489,6 +1489,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_execute_callback=None,
         on_failure_callback=None,
         on_retry_callback=None,
+        on_skipped_callback=None,
+        inlets=None,
+        outlets=None,
         email=None,
         map_index=-1,
         hostname=None,
@@ -1518,6 +1521,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                     on_execute_callback=on_execute_callback,
                     on_failure_callback=on_failure_callback,
                     on_retry_callback=on_retry_callback,
+                    on_skipped_callback=on_skipped_callback,
+                    inlets=inlets,
+                    outlets=outlets,
                     email=email,
                     pool=pool,
                     trigger_rule=trigger_rule,
@@ -1527,6 +1533,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 task.dag = dag
             task.start_from_trigger = start_from_trigger
             task.start_trigger_args = start_trigger_args
+
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
                 "logical_date": logical_date,
