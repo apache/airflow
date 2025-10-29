@@ -224,6 +224,12 @@ def build_docs_for_packages(
             builder = AirflowDocsBuilder(package_name=package_name)
             builder.is_autobuild = is_autobuild
             builder.clean_files()
+
+            if package_name == "apache-airflow":
+                # Read the registry yaml and create a rst file with the metric tables.
+                from airflow.metrics import metrics_registry
+
+                metrics_registry.generate_metrics_rst_from_registry()
     if jobs > 1 and len(packages_to_build) > 1:
         run_in_parallel(
             all_build_errors=all_build_errors,
