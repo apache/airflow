@@ -153,5 +153,5 @@ class TestBigQueryDataTransferRunTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current job status is: {TransferState.RUNNING}"
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert f"Current job status is: {TransferState.RUNNING}" in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
