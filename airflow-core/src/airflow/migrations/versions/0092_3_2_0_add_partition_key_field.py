@@ -53,6 +53,17 @@ def upgrade():
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("partitioned_asset_key_log_pkey")),
     )
+    op.create_table(
+        "asset_partition_dag_run",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("target_dag_id", sa.String(length=250), nullable=False),
+        sa.Column("target_dag_run_id", sa.String(length=250), nullable=True),
+        sa.Column("partition_key", sa.String(length=250), nullable=False),
+        sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("asset_partition_dag_run_pkey")),
+    )
+
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
         batch_op.add_column(sa.Column("partition_key", sa.String(length=250), nullable=True))
 
@@ -69,3 +80,4 @@ def downgrade():
         batch_op.drop_column("partition_key")
 
     op.drop_table("partitioned_asset_key_log")
+    op.drop_table("asset_partition_dag_run")
