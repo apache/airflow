@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from attrs import define
 from openlineage.client.event_v2 import Dataset
@@ -173,7 +173,9 @@ def create_information_schema_query(
             information_schema_table,
             uppercase_names=uppercase_names,
         )
-        select_statements.append(information_schema_table.select().filter(filter_clauses))  # type: ignore[arg-type]
+        select_statements.append(
+            information_schema_table.select().filter(cast("ColumnElement[bool]", filter_clauses))
+        )
     else:
         for db, schema_mapping in tables_hierarchy.items():
             # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
@@ -198,7 +200,9 @@ def create_information_schema_query(
                 information_schema_table,
                 uppercase_names=uppercase_names,
             )
-            select_statements.append(information_schema_table.select().filter(filter_clauses))  # type: ignore[arg-type]
+            select_statements.append(
+                information_schema_table.select().filter(cast("ColumnElement[bool]", filter_clauses))
+            )
     return str(
         union_all(*select_statements).compile(sqlalchemy_engine, compile_kwargs={"literal_binds": True})
     )
