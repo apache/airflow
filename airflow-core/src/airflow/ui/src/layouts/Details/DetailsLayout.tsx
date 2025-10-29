@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -39,7 +41,7 @@ import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
-import { useLineageFilter } from "src/hooks/useLineageFilter";
+import { useTaskStreamFilter } from "src/hooks/useTaskStreamFilter";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -77,14 +79,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
 
-  // Lineage filter state and handlers
   const {
-    handleClearLineageFilter,
-    handleLineageFilterModeChange,
-    lineageFilterMode,
-    lineageFilterRoot,
-    setLineageFilterRoot,
-  } = useLineageFilter({ dagId, taskId });
+    includeDownstream,
+    includeUpstream,
+    setIncludeDownstream,
+    setIncludeUpstream,
+    setTaskStreamFilterRoot,
+    taskStreamFilterRoot,
+  } = useTaskStreamFilter({ dagId, taskId });
 
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
@@ -148,35 +150,38 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 <PanelButtons
                   dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
+                  includeDownstream={includeDownstream}
+                  includeUpstream={includeUpstream}
                   limit={limit}
-                  lineageFilterMode={lineageFilterMode}
-                  lineageFilterRoot={lineageFilterRoot}
-                  onClearLineageFilter={handleClearLineageFilter}
+                  onIncludeDownstreamChange={setIncludeDownstream}
+                  onIncludeUpstreamChange={setIncludeUpstream}
                   panelGroupRef={panelGroupRef}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
-                  setLineageFilterMode={handleLineageFilterModeChange}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setTriggeringUserFilter={setTriggeringUserFilter}
                   showGantt={showGantt}
+                  taskStreamFilterRoot={taskStreamFilterRoot}
                   triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
                   <Graph
-                    filterMode={lineageFilterMode}
-                    filterRoot={lineageFilterRoot}
-                    setFilterRoot={setLineageFilterRoot}
+                    includeDownstream={includeDownstream}
+                    includeUpstream={includeUpstream}
+                    root={taskStreamFilterRoot}
+                    setFilterRoot={setTaskStreamFilterRoot}
                   />
                 ) : (
                   <HStack alignItems="flex-end" gap={0}>
                     <Grid
                       dagRunState={dagRunStateFilter}
-                      filterMode={lineageFilterMode}
-                      filterRoot={lineageFilterRoot}
+                      includeDownstream={includeDownstream}
+                      includeUpstream={includeUpstream}
                       limit={limit}
+                      root={taskStreamFilterRoot}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}

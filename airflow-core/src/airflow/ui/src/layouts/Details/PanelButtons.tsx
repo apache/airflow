@@ -53,27 +53,27 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
-import type { FilterMode } from "./LineageFilter";
-import { LineageFilter } from "./LineageFilter";
+import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: string;
+  readonly includeDownstream: boolean;
+  readonly includeUpstream: boolean;
   readonly limit: number;
-  readonly lineageFilterMode: FilterMode;
-  readonly lineageFilterRoot: string | undefined;
-  readonly onClearLineageFilter: () => void;
+  readonly onIncludeDownstreamChange: (include: boolean) => void;
+  readonly onIncludeUpstreamChange: (include: boolean) => void;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
-  readonly setLineageFilterMode: (mode: FilterMode) => void;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
+  readonly taskStreamFilterRoot: string | undefined;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -113,20 +113,21 @@ type Dependency = (typeof deps)[number];
 export const PanelButtons = ({
   dagRunStateFilter,
   dagView,
+  includeDownstream,
+  includeUpstream,
   limit,
-  lineageFilterMode,
-  lineageFilterRoot,
-  onClearLineageFilter,
+  onIncludeDownstreamChange,
+  onIncludeUpstreamChange,
   panelGroupRef,
   runTypeFilter,
   setDagRunStateFilter,
   setDagView,
   setLimit,
-  setLineageFilterMode,
   setRunTypeFilter,
   setShowGantt,
   setTriggeringUserFilter,
   showGantt,
+  taskStreamFilterRoot,
   triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
@@ -269,13 +270,13 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
-          <LineageFilter
+          <TaskStreamFilter
             currentTaskId={taskId}
-            filterMode={lineageFilterMode}
-            filterRoot={lineageFilterRoot}
-            onClearFilter={onClearLineageFilter}
-            onFilterModeChange={setLineageFilterMode}
-            translate={translate}
+            filterRoot={taskStreamFilterRoot}
+            includeDownstream={includeDownstream}
+            includeUpstream={includeUpstream}
+            onIncludeDownstreamChange={onIncludeDownstreamChange}
+            onIncludeUpstreamChange={onIncludeUpstreamChange}
           />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>

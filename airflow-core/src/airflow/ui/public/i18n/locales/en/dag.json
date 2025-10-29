@@ -115,11 +115,11 @@
     "graphDirection": {
       "label": "Graph Direction"
     },
-    "lineage": {
+    "taskStreamFilter": {
       "activeFilter": "Active filter",
       "clearFilter": "Clear Filter",
       "clickTask": "Click a task to select it as the filter root",
-      "label": "Lineage",
+      "label": "Filter",
       "options": {
         "both": "Both upstream & downstream",
         "downstream": "Downstream",

@@ -32,7 +32,6 @@ import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
-import type { FilterMode } from "src/layouts/Details/LineageFilter";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
@@ -60,19 +59,22 @@ const nodeColor = (
 };
 
 type GraphProps = {
-  readonly filterMode: FilterMode;
-  readonly filterRoot: string | undefined;
+  readonly includeDownstream: boolean;
+  readonly includeUpstream: boolean;
+  readonly root: string | undefined;
   readonly setFilterRoot: (root: string | undefined) => void;
 };
 
-export const Graph = ({ filterMode, filterRoot, setFilterRoot }: GraphProps) => {
+export const Graph = ({ includeDownstream, includeUpstream, root, setFilterRoot }: GraphProps) => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();
 
+  const hasActiveFilter = includeUpstream || includeDownstream;
+
   const handleNodeClick = (_event: React.MouseEvent, node: ReactFlowNode<CustomNodeProps>) => {
-    if (filterMode !== "none") {
+    if (hasActiveFilter) {
       return;
     }
     // Only set filter root for actual tasks, not DAGs or other node types
@@ -102,9 +104,9 @@ export const Graph = ({ filterMode, filterRoot, setFilterRoot }: GraphProps) => 
     {
       dagId,
       externalDependencies: dependencies === "immediate",
-      includeDownstream: filterMode === "downstream" || filterMode === "both",
-      includeUpstream: filterMode === "upstream" || filterMode === "both",
-      root: filterMode !== "none" && filterRoot !== undefined ? filterRoot : undefined,
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && root !== undefined ? root : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
