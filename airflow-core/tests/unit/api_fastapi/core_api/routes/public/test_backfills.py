@@ -35,6 +35,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dag_bundles,
@@ -124,7 +125,10 @@ class TestListBackfills(TestBackfillEndpoint):
         b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(b)
         session.commit()
-        response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
         assert response.status_code == 200
         assert response.json() == {
             "backfills": [
