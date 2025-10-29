@@ -195,9 +195,76 @@ Step 4: Install the Standard Provider
 Step 5: Review custom operators for direct db access
 ----------------------------------------------------
 
-- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
-  If you have custom operators, review the code to make sure there are no direct db access.
-  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
+If you have custom operators, review the code to make sure there are no direct db access.
+You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+
+If you have custom operators or task code that previously accessed the metadata database directly, you need to migrate to one of the following recommended approaches:
+
+Recommended Approach 1: Use Airflow Python Client
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the official Airflow Python Client to interact with Airflow metadata via REST API. The Python
+Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
+
+Recommended Approach 2: Use DbApiHook (PostgresHook or MySqlHook)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If your use case cannot be catered using the Python Client OR you are not in a position to install
+that package, you can use database hooks to query your metadata database directly. Create a database
+connection (PostgreSQL or MySQL, matching your metadata database type) and use Airflow's standard
+database hooks:
+
+**Example using PostgresHook (MySql has similar interface too)**
+
+.. code-block:: python
+
+   from airflow.sdk import task
+   from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+
+   @task
+   def get_connections_from_db():
+       hook = PostgresHook(postgres_conn_id="metadata_postgres")
+       records = hook.get_records(
+           sql="""
+           SELECT conn_id, conn_type, host, schema, login
+           FROM connection
+           WHERE conn_type = 'postgres'
+           LIMIT 10;
+           """
+       )
+
+       return records
+
+**Example using SQLExecuteQueryOperator**
+
+You can also use ``SQLExecuteQueryOperator`` if you prefer to use operators instead of hooks:
+
+.. code-block:: python
+
+   from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+   query_task = SQLExecuteQueryOperator(
+       task_id="query_metadata",
+       conn_id="metadata_postgres",
+       sql="SELECT conn_id, conn_type FROM connection WHERE conn_type = 'postgres'",
+       do_xcom_push=True,
+   )
+
+.. note::
+   Always use **read-only database credentials** for metadata database connections and it is recommended to use temporary credentials.
+
+Last Resort: Direct Database Access with Special Credentials
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**WARNING:** This approach bypasses Airflow's default protection and should only be used when the above methods cannot meet your requirements.
+
+If you absolutely must access the metadata database directly from task code:
+
+1. Use read-only or temporary credentials that are rotated regularly
+2. Set a separate environment variable with the connection string before the worker process starts (not in task code)
+3. Create SQLAlchemy engine and session directly using the environment variable in your task code
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
