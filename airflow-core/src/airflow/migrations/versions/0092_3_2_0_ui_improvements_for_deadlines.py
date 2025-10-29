@@ -54,9 +54,9 @@ def upgrade():
         sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("name", sa.String(250), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("reference", sa.JSON(), nullable=True),
+        sa.Column("reference", sa.JSON(), nullable=False),
         sa.Column("interval", sa.Integer(), nullable=False),
-        sa.Column("callback", sa.JSON(), nullable=True),
+        sa.Column("callback", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
     )
 

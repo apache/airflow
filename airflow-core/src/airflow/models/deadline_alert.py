@@ -38,9 +38,9 @@ class DeadlineAlert(Base):
 
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reference: Mapped[dict] = mapped_column(JSON, nullable=True)
+    reference: Mapped[dict] = mapped_column(JSON, nullable=False)
     interval: Mapped[int] = mapped_column(Integer, nullable=False)
-    callback: Mapped[dict] = mapped_column(JSON, nullable=True)
+    callback: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     def __repr__(self):
         if self.interval >= 3600:
