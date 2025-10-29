@@ -2058,6 +2058,7 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids.append(ti.id)
             else:
                 empty_ti_ids.append(ti.id)
+
         count = 0
 
         if schedulable_ti_ids:
