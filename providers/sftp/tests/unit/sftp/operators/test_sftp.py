@@ -653,3 +653,20 @@ class TestSFTPOperator:
 
         assert lineage.inputs == expected[0]
         assert lineage.outputs == expected[1]
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook")
+    def test_delete_non_existent_file_should_log_warning(self, mock_hook_class):
+        mock_hook_instance = mock_hook_class.return_value
+        mock_hook_instance.isdir.side_effect = OSError("No such file")
+        mock_hook_instance.delete_file.side_effect = OSError("No such file")
+
+        operator = SFTPOperator(
+            task_id="test_sftp_delete_non_existent",
+            sftp_conn_id="ssh_default",
+            remote_filepath="/path/to/non_existent_file.txt",
+            operation="delete",
+        )
+
+        with pytest.assertlogs(operator.log, level="WARNING") as cm:
+            operator.execute(context={})
+            assert "File or directory not found" in cm.output[0]
