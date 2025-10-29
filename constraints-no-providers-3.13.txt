@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-26T21:44:09.891875
+# This constraints file was automatically generated on 2025-10-29T21:46:33.179387
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -8,7 +8,7 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-Deprecated==1.2.18
+Deprecated==1.3.0
 Jinja2==3.1.6
 Mako==1.3.10
 MarkupSafe==3.0.3
@@ -22,7 +22,7 @@ SQLAlchemy==2.0.44
 a2wsgi==1.10.10
 aiosmtplib==5.0.0
 aiosqlite==0.21.0
-alembic==1.17.0
+alembic==1.17.1
 annotated-types==0.7.0
 anyio==4.11.0
 argcomplete==3.6.3
@@ -38,7 +38,7 @@ colorlog==6.10.1
 cron_descriptor==2.0.6
 croniter==6.0.0
 cryptography==46.0.0
-dill==0.3.1.1
+dill==0.4.0
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi-cli==0.0.14
@@ -80,7 +80,7 @@ packaging==25.0
 pathspec==0.12.1
 pendulum==3.1.0
 pluggy==1.6.0
-protobuf==5.29.5
+protobuf==6.31.1
 psutil==7.1.2
 pycparser==2.23
 pydantic==2.12.3
@@ -104,7 +104,7 @@ six==1.17.0
 sniffio==1.3.1
 sqlparse==0.5.3
 starlette==0.48.0
-structlog==25.4.0
+structlog==25.5.0
 svcs==25.1.0
 tabulate==0.9.0
 tenacity==9.1.2
