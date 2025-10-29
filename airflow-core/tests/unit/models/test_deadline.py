@@ -146,7 +146,7 @@ class TestDeadline:
         assert (
             repr(deadline_orm)
             == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
-               f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
+            f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
         )
 
     def test_repr_without_callback_kwargs(self, dagrun, session):
@@ -164,7 +164,7 @@ class TestDeadline:
             assert (
                 repr(deadline)
                 == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
-                   f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
+                f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
             )
 
     @pytest.mark.db_test

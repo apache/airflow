@@ -26,14 +26,11 @@ Create Date: 2025-10-17 16:04:55.016272
 
 from __future__ import annotations
 
-from collections import defaultdict
-
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import TIMESTAMP
-from airflow.sdk.definitions.deadline import DeadlineAlert
 
 revision = "55297ae24532"
 down_revision = "b87d2135fa50"
@@ -88,7 +85,6 @@ def upgrade():
 
 def migrate_existing_deadline_alert_data_from_serialized_dag():
     """Extract DeadlineAlert data from serialized DAG data and populate deadline_alert table."""
-
     # TODO:  Implement a batch-based migration to account for memory constraints
     #  during massive migrations using the Airflow batch size config value.
 

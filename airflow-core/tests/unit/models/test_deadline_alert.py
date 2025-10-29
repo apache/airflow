@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
-
 import pytest
 import time_machine
 
