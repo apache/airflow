@@ -20,7 +20,7 @@ import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
@@ -58,15 +58,16 @@ type Props = {
   readonly label: string;
   readonly onClick?: () => void;
   readonly runId: string;
-  readonly search: string;
   readonly taskId: string;
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
   const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
+
+  const [searchParams] = useSearchParams();
 
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
@@ -83,6 +84,12 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
       }),
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
+
+  // Remove try_number query param when navigating to reset to the
+  // latest try of the task instance and avoid issues with invalid try numbers:
+  // https://github.com/apache/airflow/issues/56977
+  searchParams.delete("try_number");
+  const redirectionSearch = searchParams.toString();
 
   return (
     <Flex
@@ -105,7 +112,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, search, 
         replace
         to={{
           pathname: getTaskUrl(),
-          search,
+          search: redirectionSearch,
         }}
       >
         <Tooltip

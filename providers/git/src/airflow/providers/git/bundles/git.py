@@ -45,6 +45,12 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
+    :param prune_dotgit_folder: Remove .git folder from the versions after cloning.
+
+        The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
+        to share the object directory via hard links, but if you have a lot of current versions
+        running, or an especially large git repo leaving this as True will save some disk space
+        at the expense of `git` operations not working in the bundle that Tasks run from.
     """
 
     supports_versioning = True
@@ -56,6 +62,7 @@ class GitDagBundle(BaseDagBundle):
         subdir: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
+        prune_dotgit_folder: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,6 +75,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
+        self.prune_dotgit_folder = prune_dotgit_folder
 
         self._log = log.bind(
             bundle_name=self.name,
@@ -115,6 +123,8 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
+                if self.prune_dotgit_folder:
+                    shutil.rmtree(self.repo_path / ".git")
             else:
                 self.refresh()
             self.repo.close()
@@ -175,9 +185,12 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
+
+            # Fetch to ensure we have latest refs and validate repo integrity
+            self._fetch_bare_repo()
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
-                "Bare repository clone/open failed, cleaning up and retrying",
+                "Bare repository clone/open/fetch failed, cleaning up and retrying",
                 bare_repo_path=self.bare_repo_path,
                 exc=e,
             )

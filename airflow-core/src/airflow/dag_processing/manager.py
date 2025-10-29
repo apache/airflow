@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from socket import socket
 
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -450,15 +451,22 @@ class DagFileProcessorManager(LoggingMixin):
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
-            query = select(DbCallbackRequest)
+            bundle_names = [bundle.name for bundle in self._dag_bundles]
+            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
+            query = cast(
+                "Select[tuple[DbCallbackRequest]]",
+                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
+            )
             callbacks = session.scalars(query)
             for callback in callbacks:
+                req = callback.get_callback_request()
+                if req.bundle_name not in bundle_names:
+                    continue
                 try:
-                    callback_queue.append(callback.get_callback_request())
+                    callback_queue.append(req)
                     session.delete(callback)
                 except Exception as e:
                     self.log.warning("Error adding callback for execution: %s, %s", callback, e)
@@ -628,12 +636,15 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_filelocs.append(str(rel_sub_path))
 
         with create_session() as session:
-            DagModel.deactivate_deleted_dags(
+            any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
                 rel_filelocs=rel_filelocs,
                 session=session,
             )
-            remove_references_to_deleted_dags(session=session)
+            # Only run cleanup if we actually deactivated any DAGs
+            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
+            if any_deactivated:
+                remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -910,6 +921,7 @@ class DagFileProcessorManager(LoggingMixin):
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
+            bundle_name=dag_file.bundle_name,
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,

@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+3.2.2
+.....
+
+Misc
+~~~~
+
+* ``Fix mypy type errors in Teradata provider for SQLAlchemy 2 upgrade (#56861)``
+* ``Improve error messages in Teradata provider (#56367)``
+* ``Build correct SQLAlchemy URI in TeradataHook (#56305)``
+* ``Migrate tableau, telegram, trino, teradata providers to ''common.compat'' (#57013)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+
 3.2.1
 .....
 
