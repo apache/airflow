@@ -83,8 +83,6 @@ def configure_logging(
     from airflow.configuration import conf
 
     if log_level == "DEFAULT":
-        log_level = "INFO"
-
         log_level = conf.get("logging", "logging_level", fallback="INFO")
 
     # If colored_console_log is not explicitly set, read from configuration

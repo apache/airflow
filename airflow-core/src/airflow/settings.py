@@ -89,7 +89,7 @@ HEADER = "\n".join(
     ]
 )
 
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = conf.get("logging", "logging_level")
 
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
