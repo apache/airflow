@@ -262,9 +262,16 @@ Last Resort: Direct Database Access with Special Credentials
 
 If you absolutely must access the metadata database directly from task code:
 
-1. Use read-only or temporary credentials that are rotated regularly
-2. Set a separate environment variable with the connection string before the worker process starts (not in task code)
-3. Create SQLAlchemy engine and session directly using the environment variable in your task code
+1. Use read-only or temporary credentials that are rotated regularly. Create a database user with read-only permissions and use it only
+for this purpose.
+
+2. Set a separate environment variable (e.g., ``METADATA_DB_CONN_DIRECT``) with your metadata database connection string in the worker
+before the process starts.
+
+      export METADATA_DB_CONN_DIRECT="postgresql+psycopg2://readonly_user:password@host:5432/airflow"
+
+3. Create SQLAlchemy engine and session directly in your task code using the environment variable. Then, use this session in your task
+to query the database.
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
