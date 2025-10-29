@@ -2056,8 +2056,6 @@ class DagRun(Base, LoggingMixin):
             # execute it to run in the worker.
             elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
 
         count = 0
 
