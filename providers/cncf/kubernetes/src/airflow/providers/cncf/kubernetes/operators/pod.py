@@ -1212,6 +1212,7 @@ class KubernetesPodOperator(BaseOperator):
             **self.labels,
             **self._get_ti_pod_labels(context, include_try_number=False),
         }
+        labels = _normalize_labels_dict(labels)
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
@@ -1441,3 +1442,8 @@ class _optionally_suppress(AbstractContextManager):
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
         return True
+
+
+def _normalize_labels_dict(labels: dict) -> dict:
+    """Return a copy of the labels dict with all None values replaced by empty strings."""
+    return {k: ("" if v is None else v) for k, v in labels.items()}
