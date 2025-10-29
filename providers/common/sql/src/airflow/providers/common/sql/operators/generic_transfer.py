@@ -75,7 +75,7 @@ class GenericTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: str | list[str],
         destination_table: str,
         source_conn_id: str,
         source_hook_params: dict | None = None,
@@ -156,13 +156,19 @@ class GenericTransfer(BaseOperator):
                 method_name=self.execute_complete.__name__,
             )
         else:
+            if isinstance(self.sql, str):
+                self.sql = [self.sql]
+
             self.log.info("Extracting data from %s", self.source_conn_id)
-            self.log.info("Executing: \n %s", self.sql)
+            for sql in self.sql:
+                self.log.info("Executing: \n %s", sql)
 
-            results = self.source_hook.get_records(self.sql)
+                results = self.source_hook.get_records(sql)
 
-            self.log.info("Inserting rows into %s", self.destination_conn_id)
-            self.destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+                self.log.info("Inserting rows into %s", self.destination_conn_id)
+                self.destination_hook.insert_rows(
+                    table=self.destination_table, rows=results, **self.insert_args
+                )
 
     def execute_complete(
         self,
