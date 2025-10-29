@@ -204,8 +204,8 @@ If you have custom operators or task code that previously accessed the metadata 
 Recommended Approach 1: Use Airflow Python Client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the official Airflow Python Client to interact with Airflow metadata via REST API. The Python
-Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
+Use the official `Airflow Python Client <https://github.com/apache/airflow-client-python>`_ to interact with
+Airflow metadata via REST API. The Python Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
 
 Recommended Approach 2: Use DbApiHook (PostgresHook or MySqlHook)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
