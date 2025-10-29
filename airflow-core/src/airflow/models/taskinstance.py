@@ -1169,7 +1169,8 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        settings.engine.dispose()
+        if settings.engine is not None:
+            settings.engine.dispose()
         if verbose:
             if mark_success:
                 cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
@@ -1636,6 +1637,8 @@ class TaskInstance(Base, LoggingMixin):
         """
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
+            if settings.Session is None:
+                raise RuntimeError("Session not configured. Call configure_orm() first.")
             session = settings.Session()
 
         from airflow.exceptions import NotMapped

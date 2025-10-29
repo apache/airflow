@@ -121,13 +121,13 @@ Mapping of sync scheme to async scheme.
 :meta private:
 """
 
-engine: Engine = None  # type: ignore[assignment]
-Session: scoped_session = None  # type: ignore[assignment]
+engine: Engine | None = None
+Session: scoped_session | None = None
 # NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
 # additional precautions. The only use case is when the session lifecycle needs
 # custom handling. Most of the time we only want one unique thread local session object,
 # this is achieved by the Session factory above.
-NonScopedSession: sessionmaker = None  # type: ignore[assignment]
+NonScopedSession: sessionmaker | None = None
 async_engine: AsyncEngine | None = None
 AsyncSession: Callable[..., SAAsyncSession] | None = None
 
@@ -433,6 +433,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             autoflush=False,
             expire_on_commit=False,
         )
+    if engine is None:
+        raise RuntimeError("Engine must be initialized before creating a session")
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
