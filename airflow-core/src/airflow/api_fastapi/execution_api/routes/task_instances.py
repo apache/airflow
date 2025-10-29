@@ -22,7 +22,6 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
-from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
@@ -400,7 +399,7 @@ def ti_update_state(
         log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
         ti = session.get(TI, ti_id_str)
         if session.bind is not None:
-            query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+            query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
         query = query.values(state=TaskInstanceState.FAILED)
         if ti is not None:
             _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
@@ -447,7 +446,7 @@ def _create_ti_state_update_query_and_update_state(
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
-) -> tuple[Update, TaskInstanceState]:
+) -> tuple[Update, str]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, ti_id_str)
         updated_state = ti_patch_payload.state
@@ -527,7 +526,7 @@ def _create_ti_state_update_query_and_update_state(
                 data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
                 query = update(TI).where(TI.id == ti_id_str).values(data)
                 if session.bind is not None:
-                    query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
+                    query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
                 ti = session.get(TI, ti_id_str)
                 if ti is not None:

@@ -86,9 +86,9 @@ def get_asset_event_by_asset_name_uri(
     if name and uri:
         where_clause = and_(AssetModel.name == name, AssetModel.uri == uri)
     elif uri:
-        where_clause = and_(AssetModel.uri == uri, AssetModel.active.has())
+        where_clause = and_(AssetModel.uri == uri, AssetModel.active.has())  # type: ignore[attr-defined]
     elif name:
-        where_clause = and_(AssetModel.name == name, AssetModel.active.has())
+        where_clause = and_(AssetModel.name == name, AssetModel.active.has())  # type: ignore[attr-defined]
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
