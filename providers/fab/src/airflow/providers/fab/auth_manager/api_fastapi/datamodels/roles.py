@@ -40,6 +40,12 @@ class ActionResourceResponse(BaseModel):
     resource: ResourceResponse
 
 
+class RoleRef(BaseModel):
+    """Lightweight role reference used by /users schemas."""
+
+    name: str
+
+
 class RoleBody(StrictBaseModel):
     """Incoming payload for creating/updating a role."""
 
