@@ -30,12 +30,7 @@ if TYPE_CHECKING:
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
-try:
-    from airflow.sdk.exceptions import AirflowException
-except ModuleNotFoundError:
-    # The shared libraries are unable to see the 'sdk' package, so redefine here
-    class AirflowException(Exception):  # type: ignore[no-redef]
-        """Base class for all Airflow exceptions."""
+from airflow.sdk.exceptions import AirflowException
 
 
 class TaskNotFound(AirflowException):
@@ -334,6 +329,3 @@ def __getattr__(name: str):
         module_path, attr_name = target_path.rsplit(".", 1)
         return attrgetter(attr_name)(import_module(module_path))
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
-
-
