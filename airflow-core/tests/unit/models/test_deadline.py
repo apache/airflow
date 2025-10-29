@@ -25,11 +25,11 @@ import pytest
 import time_machine
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import timezone
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineReference,
@@ -71,11 +71,31 @@ TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 TEST_ASYNC_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
 TEST_SYNC_CALLBACK = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
 
+ORIGINAL_DAGRUN_QUEUED = frozenset(DeadlineReference.TYPES.DAGRUN_QUEUED)
+ORIGINAL_DAGRUN_CREATED = frozenset(DeadlineReference.TYPES.DAGRUN_CREATED)
+
 
 def _clean_db():
     db.clear_db_dags()
     db.clear_db_runs()
     db.clear_db_deadline()
+
+
+def assert_correct_timing(reference, expected_timing):
+    assert reference in DeadlineReference.TYPES.DAGRUN
+    if expected_timing == DeadlineReference.TYPES.DAGRUN_CREATED:
+        assert reference in DeadlineReference.TYPES.DAGRUN_CREATED
+        assert reference not in DeadlineReference.TYPES.DAGRUN_QUEUED
+    elif expected_timing == DeadlineReference.TYPES.DAGRUN_QUEUED:
+        assert reference in DeadlineReference.TYPES.DAGRUN_QUEUED
+        assert reference not in DeadlineReference.TYPES.DAGRUN_CREATED
+
+
+def assert_builtin_types_unchanged(current_queued, current_created):
+    for builtin_type in ORIGINAL_DAGRUN_CREATED:
+        assert builtin_type in current_created
+    for builtin_type in ORIGINAL_DAGRUN_QUEUED:
+        assert builtin_type in current_queued
 
 
 @pytest.fixture
@@ -469,7 +489,9 @@ class TestDeadlineReference:
             # Verify only expected kwargs are passed through.
             expected_kwargs = {k: conditions[k] for k in reference.required_kwargs if k in conditions}
             expected_kwargs["session"] = session
+
             mock_evaluate.assert_called_once_with(**expected_kwargs)
+
             assert result == DEFAULT_DATE + self.DEFAULT_INTERVAL
 
     @pytest.mark.parametrize("reference", REFERENCE_TYPES)
@@ -486,6 +508,9 @@ class TestDeadlineReference:
         else:
             # Let the lack of an exception here effectively assert that no exception is raised.
             reference.evaluate_with(session=session, **self.DEFAULT_ARGS)
+
+        for required_param in reference.required_kwargs:
+            assert required_param in str(raised_exception.value)
 
     def test_deadline_reference_creation(self):
         """Test that DeadlineReference provides consistent interface and types."""
@@ -525,7 +550,6 @@ class TestCustomDeadlineReference:
             return timezone.datetime(DEFAULT_DATE)
 
     def setup_method(self):
-        """Store original state before each test."""
         self.original_dagrun_created = DeadlineReference.TYPES.DAGRUN_CREATED
         self.original_dagrun_queued = DeadlineReference.TYPES.DAGRUN_QUEUED
         self.original_dagrun = DeadlineReference.TYPES.DAGRUN
@@ -533,219 +557,145 @@ class TestCustomDeadlineReference:
         self.original_deadline_attrs = set(dir(DeadlineReference))
 
     def teardown_method(self):
-        """Restore original TYPES and attrs after each test."""
         DeadlineReference.TYPES.DAGRUN_CREATED = self.original_dagrun_created
         DeadlineReference.TYPES.DAGRUN_QUEUED = self.original_dagrun_queued
         DeadlineReference.TYPES.DAGRUN = self.original_dagrun
 
-        # Clean up ReferenceModels attributes.
         for attr in set(dir(ReferenceModels)):
             if attr not in self.original_attrs:
                 delattr(ReferenceModels, attr)
 
-        # Clean up DeadlineReference attributes.
         for attr in set(dir(DeadlineReference)):
             if attr not in self.original_deadline_attrs:
                 delattr(DeadlineReference, attr)
 
-    def test_custom_reference_consistent_access_pattern(self):
-        DeadlineReference.register_custom_reference(self.MyCustomRef)
+    @pytest.mark.parametrize(
+        "reference",
+        [
+            pytest.param(MyCustomRef, id="basic_custom_reference"),
+            pytest.param(MyCustomRefWithKwargs, id="custom_reference_with_kwargs"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "timing",
+        [
+            pytest.param(None, id="default_timing"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_CREATED, id="dagrun_created"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, id="dagrun_queued"),
+        ],
+    )
+    def test_register_custom_reference(self, timing, reference):
+        if timing is None:
+            result = DeadlineReference.register_custom_reference(reference)
+            expected_timing = DeadlineReference.TYPES.DAGRUN_CREATED
+        else:
+            result = DeadlineReference.register_custom_reference(reference, timing)
+            expected_timing = timing
 
-        # Should be accessible through DeadlineReference like built-ins.
-        custom_ref = getattr(DeadlineReference, self.MyCustomRef.__name__)
-        assert custom_ref.__class__ is self.MyCustomRef
+        assert result is reference
+        assert getattr(ReferenceModels, reference.__name__) is reference
+        assert getattr(DeadlineReference, reference.__name__).__class__ is reference
 
-        # Should behave like built-in references.
-        assert hasattr(custom_ref, "_evaluate_with")
-        assert callable(custom_ref._evaluate_with)
-
-    def test_register_custom_reference_default_timing(self):
-        result = DeadlineReference.register_custom_reference(self.MyCustomRef)
-
-        # Should return the class.
-        assert result is self.MyCustomRef
-
-        # Should be registered with ReferenceModels.
-        assert hasattr(ReferenceModels, self.MyCustomRef.__name__)
-        assert getattr(ReferenceModels, self.MyCustomRef.__name__) is self.MyCustomRef
-
-        # Should be accessible through DeadlineReference.
-        assert hasattr(DeadlineReference, self.MyCustomRef.__name__)
-        assert getattr(DeadlineReference, self.MyCustomRef.__name__).__class__ is self.MyCustomRef
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert self.MyCustomRef not in DeadlineReference.TYPES.DAGRUN_QUEUED
-
-        # Should update combined DAGRUN tuple
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN
-
-    def test_register_custom_reference_dagrun_created_with_explicit_timing(self):
-        result = DeadlineReference.register_custom_reference(
-            self.MyCustomRef, DeadlineReference.TYPES.DAGRUN_CREATED
+        assert_correct_timing(reference, expected_timing)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
         )
-
-        assert result is self.MyCustomRef
-        assert hasattr(ReferenceModels, self.MyCustomRef.__name__)
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert self.MyCustomRef not in DeadlineReference.TYPES.DAGRUN_QUEUED
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN
-
-    def test_register_custom_reference_with_dagrun_queued(self):
-        result = DeadlineReference.register_custom_reference(
-            self.MyCustomRef, DeadlineReference.TYPES.DAGRUN_QUEUED
-        )
-
-        assert result is self.MyCustomRef
-        assert hasattr(ReferenceModels, self.MyCustomRef.__name__)
-        assert self.MyCustomRef not in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_QUEUED
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN
 
     def test_register_custom_reference_invalid_inheritance(self):
-        with pytest.raises(ValueError, match="InvalidCustomRef must inherit from BaseDeadlineReference"):
+        with pytest.raises(ValueError, match="must inherit from BaseDeadlineReference"):
             DeadlineReference.register_custom_reference(self.MyInvalidCustomRef)
 
     def test_register_custom_reference_invalid_timing(self):
         invalid_timing = ("not", "a", "valid", "timing")
 
         with pytest.raises(
-            ValueError, match="Invalid timing value; must be a valid DeadlineReference.TYPES option"
+            ValueError, match=r"Invalid timing value; must be a valid DeadlineReference.TYPES option"
         ):
             DeadlineReference.register_custom_reference(self.MyCustomRef, invalid_timing)
-
-    def test_register_custom_reference_with_required_kwargs(self):
-        result = DeadlineReference.register_custom_reference(self.MyCustomRefWithKwargs)
-
-        assert result is self.MyCustomRefWithKwargs
-        assert hasattr(ReferenceModels, self.MyCustomRefWithKwargs.__name__)
-        assert self.MyCustomRefWithKwargs in DeadlineReference.TYPES.DAGRUN_CREATED
-
-    def test_register_multiple_custom_references(self):
-        class TestCustomRef1(ReferenceModels.BaseDeadlineReference):
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                return timezone.datetime(DEFAULT_DATE)
-
-        class TestCustomRef2(ReferenceModels.BaseDeadlineReference):
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                return timezone.datetime(DEFAULT_DATE)
-
-        # Register first reference to DAGRUN_CREATED
-        DeadlineReference.register_custom_reference(TestCustomRef1)
-
-        # Register second reference to DAGRUN_QUEUED
-        DeadlineReference.register_custom_reference(TestCustomRef2, DeadlineReference.TYPES.DAGRUN_QUEUED)
-
-        # Both should be registered
-        assert hasattr(ReferenceModels, TestCustomRef1.__name__)
-        assert hasattr(ReferenceModels, TestCustomRef2.__name__)
-
-        # Should be in correct timing tuples
-        assert TestCustomRef1 in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert TestCustomRef2 in DeadlineReference.TYPES.DAGRUN_QUEUED
-
-        # Both should be in combined DAGRUN tuple
-        assert TestCustomRef1 in DeadlineReference.TYPES.DAGRUN
-        assert TestCustomRef2 in DeadlineReference.TYPES.DAGRUN
-
-    def test_register_custom_reference_preserves_existing_types(self):
-        # Get original built-in types
-        original_created_types = set(DeadlineReference.TYPES.DAGRUN_CREATED)
-        original_queued_types = set(DeadlineReference.TYPES.DAGRUN_QUEUED)
-
-        # Register custom reference
-        DeadlineReference.register_custom_reference(self.MyCustomRef)
-
-        # Built-in types should still be present
-        for builtin_type in original_created_types:
-            assert builtin_type in DeadlineReference.TYPES.DAGRUN_CREATED
-
-        for builtin_type in original_queued_types:
-            assert builtin_type in DeadlineReference.TYPES.DAGRUN_QUEUED
-
-        # Custom type should be added
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_CREATED
 
     def test_custom_reference_discoverable_by_get_reference_class(self):
         DeadlineReference.register_custom_reference(self.MyCustomRef)
 
-        found_class = ReferenceModels.get_reference_class("MyCustomRef")
+        found_class = ReferenceModels.get_reference_class(self.MyCustomRef.__name__)
+
         assert found_class is self.MyCustomRef
-
-    @pytest.mark.parametrize(
-        "timing, expected_in_created, expected_in_queued",
-        [
-            pytest.param(None, True, False, id="default_timing"),
-            pytest.param(DeadlineReference.TYPES.DAGRUN_CREATED, True, False, id="explicit_created"),
-            pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, False, True, id="explicit_queued"),
-        ],
-    )
-    def test_custom_reference_timing_classification(self, timing, expected_in_created, expected_in_queued):
-        if timing is None:
-            DeadlineReference.register_custom_reference(self.MyCustomRef)
-        else:
-            DeadlineReference.register_custom_reference(self.MyCustomRef, timing)
-
-        assert (self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_CREATED) == expected_in_created
-        assert (self.MyCustomRef in DeadlineReference.TYPES.DAGRUN_QUEUED) == expected_in_queued
-        assert self.MyCustomRef in DeadlineReference.TYPES.DAGRUN  # Should always be in combined tuple
 
 
 class TestDeadlineReferenceDecorator:
     def setup_method(self):
-        """Clean up any test references before each test."""
         self.original_dagrun_created = DeadlineReference.TYPES.DAGRUN_CREATED
         self.original_dagrun_queued = DeadlineReference.TYPES.DAGRUN_QUEUED
         self.original_dagrun = DeadlineReference.TYPES.DAGRUN
         self.original_attrs = set(dir(ReferenceModels))
 
     def teardown_method(self):
-        """Restore original TYPES after each test."""
         DeadlineReference.TYPES.DAGRUN_CREATED = self.original_dagrun_created
         DeadlineReference.TYPES.DAGRUN_QUEUED = self.original_dagrun_queued
         DeadlineReference.TYPES.DAGRUN = self.original_dagrun
 
-        # Clean up any added test references.
         for attr in set(dir(ReferenceModels)):
             if attr not in self.original_attrs:
                 delattr(ReferenceModels, attr)
 
-    def test_deadline_reference_decorator_default_timing(self):
+    @staticmethod
+    def create_decorated_custom_ref():
         @deadline_reference()
         class DecoratedCustomRef(ReferenceModels.BaseDeadlineReference):
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 return timezone.datetime(DEFAULT_DATE)
 
-        # Should be registered with ReferenceModels
-        assert hasattr(ReferenceModels, DecoratedCustomRef.__name__)
-        assert getattr(ReferenceModels, DecoratedCustomRef.__name__) is DecoratedCustomRef
+        return DecoratedCustomRef
 
-        # Should be in DAGRUN_CREATED by default
-        assert DecoratedCustomRef in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert DecoratedCustomRef not in DeadlineReference.TYPES.DAGRUN_QUEUED
-        assert DecoratedCustomRef in DeadlineReference.TYPES.DAGRUN
+    @staticmethod
+    def create_decorated_custom_ref_with_kwargs():
+        @deadline_reference()
+        class DecoratedCustomRefWithKwargs(ReferenceModels.BaseDeadlineReference):
+            required_kwargs = {"custom_id"}
 
-    def test_deadline_reference_decorator_explicit_timing(self):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        return DecoratedCustomRefWithKwargs
+
+    @staticmethod
+    def create_decorated_custom_ref_queued():
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
-        class DecoratedQueuedRef(ReferenceModels.BaseDeadlineReference):
+        class DecoratedCustomRefQueued(ReferenceModels.BaseDeadlineReference):
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 return timezone.datetime(DEFAULT_DATE)
 
-        # Should be registered with ReferenceModels
-        assert hasattr(ReferenceModels, DecoratedQueuedRef.__name__)
-        assert getattr(ReferenceModels, DecoratedQueuedRef.__name__) is DecoratedQueuedRef
+        return DecoratedCustomRefQueued
 
-        # Should be in DAGRUN_QUEUED
-        assert DecoratedQueuedRef not in DeadlineReference.TYPES.DAGRUN_CREATED
-        assert DecoratedQueuedRef in DeadlineReference.TYPES.DAGRUN_QUEUED
-        assert DecoratedQueuedRef in DeadlineReference.TYPES.DAGRUN
+    @pytest.mark.parametrize(
+        ("reference_factory", "expected_timing"),
+        [
+            pytest.param(
+                create_decorated_custom_ref,
+                DeadlineReference.TYPES.DAGRUN_CREATED,
+                id="basic_decorated_custom_ref",
+            ),
+            pytest.param(
+                create_decorated_custom_ref_with_kwargs,
+                DeadlineReference.TYPES.DAGRUN_CREATED,
+                id="decorated_ref_with_kwargs",
+            ),
+            pytest.param(
+                create_decorated_custom_ref_queued,
+                DeadlineReference.TYPES.DAGRUN_QUEUED,
+                id="decorated_ref_queued",
+            ),
+        ],
+    )
+    def test_deadline_reference_decorator(self, reference_factory, expected_timing):
+        reference = reference_factory()
 
-    def test_deadline_reference_decorator_returns_class(self):
-        @deadline_reference()
-        class DecoratedCustomRef(ReferenceModels.BaseDeadlineReference):
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                return timezone.datetime(DEFAULT_DATE)
+        assert getattr(ReferenceModels, reference.__name__) is reference
+        assert getattr(DeadlineReference, reference.__name__).__class__ is reference
 
-        assert DecoratedCustomRef.__name__ == "DecoratedCustomRef"
-        assert issubclass(DecoratedCustomRef, ReferenceModels.BaseDeadlineReference)
+        assert_correct_timing(reference, expected_timing)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
 
     def test_deadline_reference_decorator_with_invalid_class(self):
         """Test that the decorator raises error for invalid classes."""
