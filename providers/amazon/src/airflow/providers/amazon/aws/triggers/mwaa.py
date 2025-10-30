@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
@@ -121,8 +121,6 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
         ``{airflow.utils.state.TaskInstanceState.SUCCESS}`` (templated)
     :param failure_states: Collection of task instance states that would make this task marked as failed and raise an
         AirflowException, default is ``{airflow.utils.state.TaskInstanceState.FAILED}`` (templated)
-    :param airflow_version: The Airflow major version the MWAA environment runs.
-            This parameter is only used if the local web token method is used to call Airflow API. (templated)
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 720)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -137,7 +135,6 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
         external_task_id: str,
         success_states: Collection[str] | None = None,
         failure_states: Collection[str] | None = None,
-        airflow_version: Literal[2, 3] | None = None,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 720,
         **kwargs,
@@ -168,7 +165,6 @@ class MwaaTaskCompletedTrigger(AwsBaseWaiterTrigger):
                 "Name": external_env_name,
                 "Path": f"/dags/{external_dag_id}/dagRuns/{external_dag_run_id}/taskInstances/{external_task_id}",
                 "Method": "GET",
-                "airflow_version": airflow_version,
             },
             failure_message=f"The task {external_task_id} of DAG run {external_dag_run_id} of DAG {external_dag_id} in MWAA environment {external_env_name} failed with state",
             status_message="State of DAG run",
