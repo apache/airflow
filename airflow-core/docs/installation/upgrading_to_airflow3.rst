@@ -202,7 +202,7 @@ You can follow examples in https://github.com/apache/airflow/issues/49187 to lea
 If you have custom operators or task code that previously accessed the metadata database directly, you must migrate to one of the following recommended approaches:
 
 Recommended Approach 1: Use Airflow Python Client
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the official `Airflow Python Client <https://github.com/apache/airflow-client-python>`_ to interact with
 Airflow metadata via REST API. The Python Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
@@ -218,7 +218,7 @@ Airflow metadata via REST API. The Python Client has APIs defined for most use c
 - Not all database operations may be exposed via API endpoints
 
 Recommended Approach 2: Use DbApiHook (PostgresHook or MySqlHook)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If your use case cannot be catered using the Python Client OR you are not in a position to install
 that package, you can use database hooks to query your metadata database directly. Create a database
