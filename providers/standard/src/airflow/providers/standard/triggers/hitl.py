@@ -30,6 +30,7 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
+from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import (
     HITLUser,
     get_hitl_detail_content_detail,
@@ -80,7 +81,7 @@ class HITLTrigger(BaseTrigger):
         self.defaults = defaults
         self.timeout_datetime = timeout_datetime
 
-        self.params = params
+        self.params = ParamsDict(params)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HITLTrigger arguments and classpath."""
@@ -90,103 +91,123 @@ class HITLTrigger(BaseTrigger):
                 "ti_id": self.ti_id,
                 "options": self.options,
                 "defaults": self.defaults,
-                "params": self.params,
+                "params": self.params.dump(),
                 "multiple": self.multiple,
                 "timeout_datetime": self.timeout_datetime,
                 "poke_interval": self.poke_interval,
             },
         )
 
+    async def _handle_timeout(self) -> TriggerEvent:
+        """Handle HITL timeout logic and yield appropriate event."""
+        resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
+
+        # Case 1: Response arrived just before timeout
+        if resp.response_received and resp.chosen_options:
+            if TYPE_CHECKING:
+                assert resp.responded_by_user is not None
+                assert resp.responded_at is not None
+
+            chosen_options_list = list(resp.chosen_options or [])
+            self.log.info(
+                "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
+                resp.responded_by_user.name,
+                resp.responded_by_user.id,
+                chosen_options_list,
+                resp.responded_at,
+            )
+            return TriggerEvent(
+                HITLTriggerEventSuccessPayload(
+                    chosen_options=chosen_options_list,
+                    params_input=self.params.dump(),
+                    responded_at=resp.responded_at,
+                    responded_by_user=HITLUser(
+                        id=resp.responded_by_user.id,
+                        name=resp.responded_by_user.name,
+                    ),
+                    timedout=False,
+                )
+            )
+
+        # Case 2: No defaults defined → failure
+        if self.defaults is None:
+            return TriggerEvent(
+                HITLTriggerEventFailurePayload(
+                    error="The timeout has passed, and the response has not yet been received.",
+                    error_type="timeout",
+                )
+            )
+
+        # Case 3: Timeout fallback to default
+        resp = await sync_to_async(update_hitl_detail_response)(
+            ti_id=self.ti_id,
+            chosen_options=self.defaults,
+            params_input=self.params.dump(),
+        )
+        if TYPE_CHECKING:
+            assert resp.responded_at is not None
+
+        self.log.info(
+            "[HITL] timeout reached before receiving response, fallback to default %s",
+            self.defaults,
+        )
+        return TriggerEvent(
+            HITLTriggerEventSuccessPayload(
+                chosen_options=self.defaults,
+                params_input=self.params.dump(),
+                responded_by_user=None,
+                responded_at=resp.responded_at,
+                timedout=True,
+            )
+        )
+
+    async def _handle_response(self):
+        """Check if HITL response is ready and yield success if so."""
+        resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
+        if TYPE_CHECKING:
+            assert resp.responded_by_user is not None
+            assert resp.responded_at is not None
+
+        if not (resp.response_received and resp.chosen_options):
+            return None
+
+        # validation
+        if params_input := resp.params_input:
+            for key, value in params_input.items():
+                self.params[key] = value
+
+        chosen_options_list = list(resp.chosen_options or [])
+        self.log.info(
+            "[HITL] responded_by=%s (id=%s) options=%s at %s",
+            resp.responded_by_user.name,
+            resp.responded_by_user.id,
+            chosen_options_list,
+            resp.responded_at,
+        )
+        return TriggerEvent(
+            HITLTriggerEventSuccessPayload(
+                chosen_options=chosen_options_list,
+                params_input=params_input or {},
+                responded_at=resp.responded_at,
+                responded_by_user=HITLUser(
+                    id=resp.responded_by_user.id,
+                    name=resp.responded_by_user.name,
+                ),
+                timedout=False,
+            )
+        )
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the Human-in-the-loop response received or timeout reached."""
         while True:
             if self.timeout_datetime and self.timeout_datetime < utcnow():
-                # Fetch latest HITL detail before fallback
-                resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
-                # Response already received, yield success and exit
-                if resp.response_received and resp.chosen_options:
-                    if TYPE_CHECKING:
-                        assert resp.responded_by_user is not None
-                        assert resp.responded_at is not None
-
-                    chosen_options_list = (
-                        list(resp.chosen_options) if resp.chosen_options is not None else None
-                    )
-                    self.log.info(
-                        "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
-                        resp.responded_by_user.name,
-                        resp.responded_by_user.id,
-                        chosen_options_list,
-                        resp.responded_at,
-                    )
-                    yield TriggerEvent(
-                        HITLTriggerEventSuccessPayload(
-                            chosen_options=chosen_options_list,
-                            params_input=resp.params_input or {},
-                            responded_at=resp.responded_at,
-                            responded_by_user=HITLUser(
-                                id=resp.responded_by_user.id,
-                                name=resp.responded_by_user.name,
-                            ),
-                            timedout=False,
-                        )
-                    )
-                    return
-
-                if self.defaults is None:
-                    yield TriggerEvent(
-                        HITLTriggerEventFailurePayload(
-                            error="The timeout has passed, and the response has not yet been received.",
-                            error_type="timeout",
-                        )
-                    )
-                    return
-
-                resp = await sync_to_async(update_hitl_detail_response)(
-                    ti_id=self.ti_id,
-                    chosen_options=self.defaults,
-                    params_input=self.params,
-                )
-                if TYPE_CHECKING:
-                    assert resp.responded_at is not None
-                self.log.info(
-                    "[HITL] timeout reached before receiving response, fallback to default %s", self.defaults
-                )
-                yield TriggerEvent(
-                    HITLTriggerEventSuccessPayload(
-                        chosen_options=self.defaults,
-                        params_input=self.params,
-                        responded_by_user=None,
-                        responded_at=resp.responded_at,
-                        timedout=True,
-                    )
-                )
+                event = await self._handle_timeout()
+                yield event
                 return
 
-            resp = await sync_to_async(get_hitl_detail_content_detail)(ti_id=self.ti_id)
-            if resp.response_received and resp.chosen_options:
-                if TYPE_CHECKING:
-                    assert resp.responded_by_user is not None
-                    assert resp.responded_at is not None
-                chosen_options_list = list(resp.chosen_options) if resp.chosen_options is not None else None
-                self.log.info(
-                    "[HITL] responded_by=%s (id=%s) options=%s at %s",
-                    resp.responded_by_user.name,
-                    resp.responded_by_user.id,
-                    chosen_options_list,
-                    resp.responded_at,
-                )
-                yield TriggerEvent(
-                    HITLTriggerEventSuccessPayload(
-                        chosen_options=chosen_options_list,
-                        params_input=resp.params_input or {},
-                        responded_at=resp.responded_at,
-                        responded_by_user=HITLUser(
-                            id=resp.responded_by_user.id,
-                            name=resp.responded_by_user.name,
-                        ),
-                        timedout=False,
-                    )
-                )
+            event = await self._handle_response()
+            if event:
+                yield event
                 return
+
             await asyncio.sleep(self.poke_interval)
