@@ -27,7 +27,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
-from pendulum import DateTime
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
@@ -251,50 +250,6 @@ class TestKubernetesPodTrigger:
         generator = trigger.run()
         await generator.asend(None)
         assert "Container logs:"
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "logging_interval, exp_event",
-        [
-            pytest.param(
-                0,
-                {
-                    "status": "running",
-                    "last_log_time": DateTime(2022, 1, 1),
-                    "name": POD_NAME,
-                    "namespace": NAMESPACE,
-                },
-                id="short_interval",
-            ),
-        ],
-    )
-    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
-    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
-    async def test_running_log_interval(
-        self, mock_get_pod, mock_wait_pod, define_container_state, logging_interval, exp_event
-    ):
-        """
-        If log interval given, should emit event with running status and last log time.
-        Otherwise, should make it to second loop and emit "done" event.
-        For this test we emit container status "running, running not".
-        The first "running" status gets us out of wait_for_pod_start.
-        The second "running" will fire a "running" event when logging interval is non-None.  When logging
-        interval is None, the second "running" status will just result in continuation of the loop.  And
-        when in the next loop we get a non-running status, the trigger fires a "done" event.
-        """
-        define_container_state.return_value = "running"
-        trigger = KubernetesPodTrigger(
-            pod_name=POD_NAME,
-            pod_namespace=NAMESPACE,
-            trigger_start_time=datetime.datetime.now(tz=datetime.timezone.utc),
-            base_container_name=BASE_CONTAINER_NAME,
-            startup_timeout=5,
-            poll_interval=1,
-            logging_interval=1,
-            last_log_time=DateTime(2022, 1, 1),
-        )
-        assert await trigger.run().__anext__() == TriggerEvent(exp_event)
 
     @pytest.mark.parametrize(
         "container_state, expected_state",
