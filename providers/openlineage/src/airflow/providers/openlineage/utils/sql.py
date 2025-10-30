@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from attrs import define
 from openlineage.client.event_v2 import Dataset
@@ -29,7 +29,6 @@ from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
-    from sqlalchemy.sql import ClauseElement
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.providers.common.compat.sdk import BaseHook
@@ -173,9 +172,7 @@ def create_information_schema_query(
             information_schema_table,
             uppercase_names=uppercase_names,
         )
-        select_statements.append(
-            information_schema_table.select().filter(cast("ColumnElement[bool]", filter_clauses))
-        )
+        select_statements.append(information_schema_table.select().filter(filter_clauses))
     else:
         for db, schema_mapping in tables_hierarchy.items():
             # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
@@ -200,9 +197,7 @@ def create_information_schema_query(
                 information_schema_table,
                 uppercase_names=uppercase_names,
             )
-            select_statements.append(
-                information_schema_table.select().filter(cast("ColumnElement[bool]", filter_clauses))
-            )
+            select_statements.append(information_schema_table.select().filter(filter_clauses))
     return str(
         union_all(*select_statements).compile(sqlalchemy_engine, compile_kwargs={"literal_binds": True})
     )
@@ -212,7 +207,7 @@ def create_filter_clauses(
     mapping: dict,
     information_schema_table: Table,
     uppercase_names: bool = False,
-) -> ClauseElement:
+) -> ColumnElement[bool]:
     """
     Create comprehensive filter clauses for all tables in one database.
 
