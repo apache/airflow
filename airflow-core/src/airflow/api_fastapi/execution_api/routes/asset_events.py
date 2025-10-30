@@ -65,7 +65,7 @@ def _get_asset_events_through_sql_clauses(
                     source_task_id=event.source_task_id,
                     source_dag_id=event.source_dag_id,
                     source_run_id=event.source_run_id,
-                    source_map_index=event.source_map_index if event.source_map_index is not None else -1,
+                    source_map_index=event.source_map_index,
                 )
                 for event in asset_events
             ]

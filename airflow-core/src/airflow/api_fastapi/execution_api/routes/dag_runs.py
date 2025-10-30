@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
         status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
         status.HTTP_409_CONFLICT: {"description": "DAG Run already exists for the given dag_id"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload"},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
 def trigger_dag_run(
@@ -100,7 +100,7 @@ def trigger_dag_run(
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload"},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
 def clear_dag_run(
