@@ -24,22 +24,19 @@ from flask_session.sqlalchemy import SqlAlchemySessionInterface
 
 
 class _LazySafeSerializer:
-    def encode(self, session_dict):
+    def dumps(self, session_dict):
         encoder = msgspec.msgpack.Encoder(
             enc_hook=lambda obj: str(obj) if isinstance(obj, LazyString) else obj
         )
-
         return encoder.encode(dict(session_dict))
 
-    def decode(self, data):
+    def loads(self, data):
         decoder = msgspec.msgpack.Decoder()
-
         return decoder.decode(data)
 
-    def _default(self, obj):
-        if isinstance(obj, LazyString):
-            return str(obj)
-        raise TypeError(f"Unsupported type: {type(obj)}")
+    # optional old API
+    encode = dumps
+    decode = loads
 
 
 class SessionExemptMixin:
