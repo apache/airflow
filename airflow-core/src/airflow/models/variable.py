@@ -38,7 +38,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -242,31 +242,48 @@ class Variable(Base, LoggingMixin):
             is_encrypted = new_variable.is_encrypted
 
             # Import dialect-specific insert function
-            if (dialect_name := session.get_bind().dialect.name) == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert
+            dialect_name = get_dialect_name(session)
+            stmt: Any
+            if dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                stmt = pg_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["key"],
+                    set_=dict(
+                        val=val,
+                        description=description,
+                        is_encrypted=is_encrypted,
+                    ),
+                )
             elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert
-            else:
-                from sqlalchemy.dialects.sqlite import insert
+                from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-            # Create the insert statement (common for all dialects)
-            stmt = insert(Variable).values(
-                key=key,
-                val=val,
-                description=description,
-                is_encrypted=is_encrypted,
-            )
-
-            # Apply dialect-specific upsert
-            if dialect_name == "mysql":
-                # MySQL: ON DUPLICATE KEY UPDATE
+                stmt = mysql_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
                 stmt = stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
             else:
-                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
+                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+                stmt = sqlite_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
                 stmt = stmt.on_conflict_do_update(
                     index_elements=["key"],
                     set_=dict(
@@ -379,7 +396,8 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+            result = session.execute(delete(Variable).where(Variable.key == key))
+            rows = result.rowcount if hasattr(result, "rowcount") else 0
             SecretCache.invalidate_variable(key)
             return rows
 
