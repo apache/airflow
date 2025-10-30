@@ -253,8 +253,10 @@ def get_hitl_details(
         .join(TI.dag_run)
         .options(
             joinedload(HITLDetailModel.task_instance).options(
-                joinedload(TI.dag_run),
-            )
+                joinedload(TI.dag_run).joinedload(DagRun.dag_model),
+                joinedload(TI.task_instance_note),
+                joinedload(TI.dag_version),
+            ),
         )
     )
     if dag_id != "~":
