@@ -52,11 +52,6 @@ from .exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
 
-# show Airflow's deprecation warnings
-if not sys.warnoptions:
-    warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
-    warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
-
 _SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = str | int | float | bool
