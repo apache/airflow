@@ -27,7 +27,7 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -66,6 +66,9 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 
+PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+
 def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
     """Dynamically call a function by matching its signature to provided args/kwargs."""
     sig = inspect.signature(func)
@@ -87,10 +90,6 @@ def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
         ) from err
 
     return func(*args, **filtered_kwargs)
-
-
-class PaginationCallable(Protocol):
-    def __call__(self, *args: Any, **kwargs: Any) -> tuple[str, dict[str, Any] | None]: ...
 
 
 class DefaultResponseHandler(ResponseHandler):
