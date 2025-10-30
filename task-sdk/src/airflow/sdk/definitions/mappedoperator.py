@@ -267,8 +267,8 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
             # TODO: Move these to task SDK's BaseOperator and remove getattr
-            start_trigger_args=start_trigger_args,
-            start_from_trigger=start_from_trigger,
+            start_trigger_args=getattr(self.operator_class, "start_trigger_args", None),
+            start_from_trigger=bool(getattr(self.operator_class, "start_from_trigger", False)),
         )
         return op
 

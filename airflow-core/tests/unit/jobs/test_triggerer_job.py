@@ -114,12 +114,8 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.flush()
 
     date = pendulum.datetime(2023, 1, 1)
-    dag = DAG(
-        dag_id=dag_id,
-        schedule="@daily",
-        start_date=date,
-    )
     dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+    dag = DAG(dag_id=dag_id, schedule="@daily", start_date=date)
     session.add(dag_model)
     run = DagRun(
         dag_id=dag_id,
@@ -139,9 +135,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-
     dag_version = DagVersion.get_latest_version(dag_id=dag_id, session=session)
-
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
@@ -357,7 +351,7 @@ class TestTriggerRunner:
         mock_get_trigger_by_classpath.return_value = fn
 
         trigger_runner.to_create.append(
-            workloads.RunTrigger.model_construct(id=1, ti=None, classpath="abc", encrypted_kwargs="fake"),
+            workloads.RunTrigger.model_construct(id=1, classpath="abc", encrypted_kwargs="fake"),
         )
         await trigger_runner.create_triggers()
 
