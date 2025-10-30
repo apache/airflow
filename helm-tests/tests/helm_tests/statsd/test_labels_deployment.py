@@ -36,9 +36,7 @@ class TestStatsdDeployment:
         )
 
         assert "test_global_label" in jmespath.search("metadata.labels", docs[0])
-        assert (
-            jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
-        )
+        assert jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
 
     def test_should_add_global_labels_to_pod_template(self):
         """Test adding only .Values.labels to spec.template.metadata.labels."""
@@ -112,8 +110,4 @@ class TestStatsdDeployment:
         )
 
         assert "common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert (
-            jmespath.search("spec.template.metadata.labels", docs[0])["common_label"]
-            == "component_value"
-        )
-
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["common_label"] == "component_value"

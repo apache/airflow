@@ -98,8 +98,4 @@ class TestDagProcessorDeployment:
         )
 
         assert "common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert (
-            jmespath.search("spec.template.metadata.labels", docs[0])["common_label"]
-            == "component_value"
-        )
-
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["common_label"] == "component_value"

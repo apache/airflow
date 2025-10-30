@@ -36,9 +36,7 @@ class TestStatsdService:
         )
 
         assert "test_global_label" in jmespath.search("metadata.labels", docs[0])
-        assert (
-            jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
-        )
+        assert jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
 
     def test_should_add_component_specific_labels(self):
         """Test adding only .Values.statsd.labels."""
@@ -72,9 +70,7 @@ class TestStatsdService:
         )
 
         assert "test_global_label" in jmespath.search("metadata.labels", docs[0])
-        assert (
-            jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
-        )
+        assert jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
         assert "test_component_label" in jmespath.search("metadata.labels", docs[0])
         assert (
             jmespath.search("metadata.labels", docs[0])["test_component_label"]
@@ -96,4 +92,3 @@ class TestStatsdService:
 
         assert "common_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["common_label"] == "component_value"
-
