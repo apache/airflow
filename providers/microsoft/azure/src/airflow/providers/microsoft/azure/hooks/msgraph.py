@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import warnings
 from ast import literal_eval
@@ -65,19 +66,30 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 
-PaginationCallable = Callable[
-    [
-        dict[str, Any],
-        str,
-        str | None,
-        dict[str, Any] | None,
-        str,
-        dict[str, Any] | None,
-        dict[str, str] | None,
-        dict[str, Any] | str | BytesIO | None,
-    ],
-    tuple[str, dict[str, Any] | None],
-]
+PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+
+def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Dynamically call a function by matching its signature to provided args/kwargs."""
+    sig = inspect.signature(func)
+    accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+    if not accepts_kwargs:
+        # Only pass arguments the function explicitly declares
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    else:
+        filtered_kwargs = kwargs
+
+    try:
+        sig.bind(*args, **filtered_kwargs)
+    except TypeError as err:
+        raise TypeError(
+            f"Failed to bind arguments to function {func.__name__}: {err}\n"
+            f"Expected parameters: {list(sig.parameters.keys())}\n"
+            f"Provided kwargs: {list(kwargs.keys())}"
+        ) from err
+
+    return func(*args, **filtered_kwargs)
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -456,12 +468,7 @@ class KiotaRequestAdapterHook(BaseHook):
     def default_pagination(
         response: dict,
         url: str,
-        response_type: str | None = None,
-        path_parameters: dict[str, Any] | None = None,
-        method: str = "GET",
         query_parameters: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
-        data: dict[str, Any] | str | BytesIO | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
         if isinstance(response, dict):
@@ -542,7 +549,8 @@ class KiotaRequestAdapterHook(BaseHook):
                     responses.append(response)
 
                     if pagination_function:
-                        url, query_parameters = pagination_function(
+                        url, query_parameters = execute_callable(
+                            pagination_function,
                             response=response,
                             url=url,
                             response_type=response_type,

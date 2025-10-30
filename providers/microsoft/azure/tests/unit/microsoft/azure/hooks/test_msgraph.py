@@ -43,6 +43,7 @@ from airflow.exceptions import (
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
+    execute_callable,
 )
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -245,6 +246,35 @@ class TestKiotaRequestAdapterHook:
             actual = hook.get_host(connection)
 
             assert actual == NationalClouds.China.value
+
+    def test_execute_callable(self):
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        url, query_parameters = execute_callable(
+            KiotaRequestAdapterHook.default_pagination,
+            response=response,
+        )
+
+        assert url == response["@odata.nextLink"]
+        assert not query_parameters
+
+    def test_execute_callable_with_additional_parameters(self):
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        url, query_parameters = execute_callable(
+            KiotaRequestAdapterHook.default_pagination,
+            response=response,
+            url="users",
+            query_parameters={},
+            data=None,
+        )
+
+        assert url == response["@odata.nextLink"]
+        assert query_parameters == {}
+
+    def test_execute_callable_when_required_parameter_is_missing(self):
+        with pytest.raises(TypeError):
+            execute_callable(KiotaRequestAdapterHook.default_pagination)
 
     @pytest.mark.asyncio
     async def test_tenant_id(self):
