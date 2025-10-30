@@ -31,7 +31,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import count_queries
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -441,7 +441,8 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
-        response = test_client.get("/dags", params=query_params)
+        with assert_queries_count(4):
+            response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
 
