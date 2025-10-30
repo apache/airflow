@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import uuid4
 
@@ -25,6 +26,7 @@ import pytest
 import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -45,6 +47,11 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+
+if TYPE_CHECKING:
+    from airflow.sdk.api.client import Client
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
 
@@ -378,7 +385,7 @@ class TestTIRunState:
                 f"but got {upstream_map_indexes}"
             )
 
-    def test_dynamic_task_mapping_with_xcom(self, client, dag_maker, create_task_instance, session, run_task):
+    def test_dynamic_task_mapping_with_xcom(self, client: Client, dag_maker: DagMaker, session: Session):
         """
         Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom
         """
@@ -410,7 +417,6 @@ class TestTIRunState:
 
         # Simulate task_1 execution to produce TaskMap.
         (ti_1,) = decision.schedulable_tis
-        # ti_1 = dr.get_task_instance(task_id="task_1")
         ti_1.state = TaskInstanceState.SUCCESS
         session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
         session.flush()
@@ -437,8 +443,65 @@ class TestTIRunState:
         )
         assert response.json()["upstream_map_indexes"] == {"tg.task_2": [0, 1, 2, 3, 4, 5]}
 
-    def test_dynamic_task_mapping_with_trigger_rule(
-        self, client, dag_maker, create_task_instance, session, run_task
+    def test_dynamic_task_mapping_with_all_success_trigger_rule(self, dag_maker: DagMaker, session: Session):
+        """
+        Test that the Task Instance upstream_map_indexes is not populuated but
+        the downstream task should not be run.
+        """
+
+        with dag_maker(session=session, serialized=True):
+
+            @task
+            def task_1():
+                raise AirflowSkipException()
+
+            @task_group
+            def tg(x):
+                @task
+                def task_2():
+                    raise AirflowSkipException()
+
+                task_2()
+
+            @task(trigger_rule=TriggerRule.ALL_SUCCESS)
+            def task_3():
+                pass
+
+            @task
+            def task_4():
+                pass
+
+            tg.expand(x=task_1()) >> [task_3(), task_4()]
+
+        dr = dag_maker.create_dagrun()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        # Simulate task_1 skipped
+        (ti_1,) = decision.schedulable_tis
+        ti_1.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        # Now task_2 in mapped tagk group is not expanded and also skipped..
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis == []
+
+    @pytest.mark.parametrize(
+        "trigger_rule",
+        [
+            TriggerRule.ALL_DONE,
+            TriggerRule.ALL_DONE_SETUP_SUCCESS,
+            TriggerRule.NONE_FAILED,
+            TriggerRule.ALL_SKIPPED,
+        ],
+    )
+    def test_dynamic_task_mapping_with_non_all_success_trigger_rule(
+        self, client: Client, dag_maker: DagMaker, session: Session, trigger_rule: TriggerRule
     ):
         """
         Test that the Task Instance upstream_map_indexes is not populuated but
