@@ -43,6 +43,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     DagRunType,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
@@ -72,7 +73,6 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     SkipDownstreamTasks,
@@ -725,7 +725,7 @@ class HITLOperations:
         multiple: bool = False,
         params: dict[str, Any] | None = None,
         assigned_users: list[HITLUser] | None = None,
-    ) -> HITLDetailRequestResult:
+    ) -> HITLDetailRequest:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
             ti_id=ti_id,
@@ -741,7 +741,7 @@ class HITLOperations:
             f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
-        return HITLDetailRequestResult.model_validate_json(resp.read())
+        return HITLDetailRequest.model_validate_json(resp.read())
 
     def update_response(
         self,

@@ -93,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
@@ -1352,7 +1353,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
         elif isinstance(msg, CreateHITLDetailPayload):
-            resp = self.client.hitl.add_response(
+            hitl_detail_request = self.client.hitl.add_response(
                 ti_id=msg.ti_id,
                 options=msg.options,
                 subject=msg.subject,
@@ -1362,7 +1363,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 multiple=msg.multiple,
                 assigned_users=msg.assigned_users,
             )
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
         else:

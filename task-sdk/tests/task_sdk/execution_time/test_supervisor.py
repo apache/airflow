@@ -2030,9 +2030,7 @@ REQUEST_TEST_CASES = [
             "subject": "This is subject",
             "body": "This is body",
             "defaults": ["Approve"],
-            "multiple": False,
             "params": {},
-            "assigned_users": None,
             "type": "HITLDetailRequestResult",
         },
         client_mock=ClientMock(
