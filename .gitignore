@@ -171,6 +171,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
 /.vite/
 # Exclude the ui .vite dir
 airflow-core/src/airflow/ui/.vite/
