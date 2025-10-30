@@ -49,7 +49,7 @@ class AssetEventResponse(BaseModel):
     source_task_id: str | None = None
     source_dag_id: str | None = None
     source_run_id: str | None = None
-    source_map_index: int = -1
+    source_map_index: int | None = None
 
 
 class AssetEventsResponse(BaseModel):
