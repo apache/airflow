@@ -5759,6 +5759,12 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Pool Pattern
       - name: queue
         in: query
         required: false
@@ -5767,6 +5773,12 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Queue Pattern
       - name: executor
         in: query
         required: false
@@ -5799,6 +5811,12 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Operator Name Pattern
       - name: map_index
         in: query
         required: false
@@ -6589,6 +6607,12 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+        title: Pool Pattern
       - name: queue
         in: query
         required: false
@@ -6597,6 +6621,12 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+        title: Queue Pattern
       - name: executor
         in: query
         required: false
@@ -6629,6 +6659,12 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          type: string
+        title: Operator Name Pattern
       - name: map_index
         in: query
         required: false

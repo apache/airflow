@@ -2737,12 +2737,15 @@ export type GetMappedTaskInstancesData = {
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    operatorNamePattern?: string;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
+    poolPattern?: string;
     queue?: Array<(string)>;
+    queuePattern?: string;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -2843,12 +2846,15 @@ export type GetTaskInstancesData = {
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
+    operatorNamePattern?: string;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
+    poolPattern?: string;
     queue?: Array<(string)>;
+    queuePattern?: string;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;

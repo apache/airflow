@@ -1112,6 +1112,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"pool_pattern": "test_pool"},
+                3,
+                id="test pool_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"queue": "test_queue_1"},
                     {"queue": "test_queue_2"},
                     {"queue": "test_queue_3"},
@@ -1133,6 +1145,20 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
                 id="test queue filter ~",
+            ),
+            pytest.param(
+                [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                    {"queue": "other_queue_3"},
+                    {"queue": "other_queue_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"queue_pattern": "test"},
+                3,
+                id="test queue_pattern filter",
             ),
             pytest.param(
                 [
@@ -1235,6 +1261,20 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"operator": ["FirstOperator", "SecondOperator"]},
                 5,
                 id="test operator type filter filter",
+            ),
+            pytest.param(
+                [
+                    {"custom_operator_name": "CustomFirstOperator"},
+                    {"custom_operator_name": "CustomSecondOperator"},
+                    {"custom_operator_name": "SecondOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"operator_name_pattern": "Custom"},
+                2,
+                id="test operator_name_pattern filter",
             ),
             pytest.param(
                 [

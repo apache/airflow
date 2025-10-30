@@ -868,6 +868,15 @@ QueryTIQueueFilter = Annotated[
         filter_param_factory(TaskInstance.queue, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
     ),
 ]
+QueryTIPoolPatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.pool, "pool_pattern")),
+]
+
+QueryTIQueuePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.queue, "queue_pattern")),
+]
 QueryTIExecutorFilter = Annotated[
     FilterParam[list[str]],
     Depends(
@@ -916,6 +925,15 @@ QueryTIOperatorFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+QueryTIOperatorNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.custom_operator_name,
+            "operator_name_pattern",
         )
     ),
 ]
