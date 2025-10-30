@@ -57,7 +57,7 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_results = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
+        xcom_results = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
 
         def _group_xcoms(g: Iterator[XComModel]) -> Any:
             entries = list(g)
