@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -465,3 +466,71 @@ class TestKeycloakAuthManager:
         token = auth_manager._get_token_signer(expiration_time_in_seconds=expiration).generate({})
 
         assert KeycloakAuthManager._token_expired(token) is expected
+
+    def test_filter_authorized_dag_ids_uses_batch_permissions(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b", "dag_c"}
+        batch_response = [
+            {"scopes": ["dag_a", "dag_c"]},
+            {"rsname": "unrelated"},
+        ]
+        with patch.object(
+            auth_manager,
+            "_is_batch_authorized",
+            return_value=batch_response,
+        ) as mock_batch:
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name="team-blue",
+            )
+
+        assert result == {"dag_a", "dag_c"}
+        mock_batch.assert_called_once_with(
+            permissions=[("GET", "Dag")],
+            user=user,
+            attributes={
+                "dag_ids": "dag_a,dag_b,dag_c",
+                "team_name": "team-blue",
+            },
+        )
+
+    def test_filter_authorized_dag_ids_handles_multiple_sources(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b", "dag_c"}
+        batch_response = [
+            {"scopes": ["dag_a"]},
+            {"rsname": "dag_b"},
+            {"rsid": "dag_c"},
+            {"scopes": ["dag_z"]},
+        ]
+        with patch.object(
+            auth_manager,
+            "_is_batch_authorized",
+            return_value=batch_response,
+        ):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == dag_ids
+
+    def test_filter_authorized_dag_ids_returns_empty_on_denied(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b"}
+        with patch.object(auth_manager, "_is_batch_authorized", return_value=[]):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == set()
+
+    def test_schedule_dag_permission_warmup_is_noop(self, auth_manager, user, caplog):
+        with caplog.at_level(logging.DEBUG):
+            auth_manager.schedule_dag_permission_warmup(user, method="POST")
+
+        assert "Skipping DAG permission warmup" in caplog.text
