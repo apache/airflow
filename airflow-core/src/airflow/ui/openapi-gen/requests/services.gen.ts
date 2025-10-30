@@ -2035,14 +2035,14 @@ export class TaskInstanceService {
      * @param data.durationLt
      * @param data.state
      * @param data.pool
-     * @param data.poolPattern
+     * @param data.poolPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
-     * @param data.queuePattern
+     * @param data.queuePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
-     * @param data.operatorNamePattern
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
@@ -2338,14 +2338,14 @@ export class TaskInstanceService {
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
-     * @param data.poolPattern
+     * @param data.poolPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
-     * @param data.queuePattern
+     * @param data.queuePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
-     * @param data.operatorNamePattern
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
