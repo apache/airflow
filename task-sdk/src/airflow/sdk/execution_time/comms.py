@@ -584,6 +584,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
 
     type: Literal["HITLDetailRequestResult"] = "HITLDetailRequestResult"
 
+    @classmethod
+    def from_api_response(cls, hitl_request: HITLDetailRequest) -> HITLDetailRequestResult:
+        """
+        Get HITLDetailRequestResult from HITLDetailRequest (API response).
+
+        HITLDetailRequest is the API response model. We convert it to HITLDetailRequestResult
+        for communication between the Supervisor and task process, adding the discriminator field
+        required for the tagged union deserialization.
+        """
+        return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
+
 
 ToTask = Annotated[
     AssetResult
