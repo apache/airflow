@@ -207,13 +207,26 @@ Recommended Approach 1: Use Airflow Python Client
 Use the official `Airflow Python Client <https://github.com/apache/airflow-client-python>`_ to interact with
 Airflow metadata via REST API. The Python Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
 
+**Pros:**
+- No direct database network access required from workers
+- Most aligned with Airflow 3's API-first architecture
+
+**Cons:**
+- Requires installing ``apache-airflow-client`` package
+- Requires acquisition of access tokens by performing API call to ``/auth/token`` and rotating them as needed
+- Requires API server availability and network access to API server
+- Not all database operations may be exposed via API endpoints
+
 Recommended Approach 2: Use DbApiHook (PostgresHook or MySqlHook)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If your use case cannot be catered using the Python Client OR you are not in a position to install
 that package, you can use database hooks to query your metadata database directly. Create a database
-connection (PostgreSQL or MySQL, matching your metadata database type) and use Airflow's standard
-database hooks:
+connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
+and use Airflow's standard database hooks.
+
+**Note:** These hooks connect directly to the database (not via
+the API server) using database drivers like psycopg2 or mysqlclient.
 
 **Example using PostgresHook (MySql has similar interface too)**
 
@@ -255,6 +268,16 @@ You can also use ``SQLExecuteQueryOperator`` if you prefer to use operators inst
 .. note::
    Always use **read-only database credentials** for metadata database connections and it is recommended to use temporary credentials.
 
+**Pros:**
+- Simple SQL execution with minimal code
+- Supports templating and parameterization
+
+**Cons:**
+- Requires installing provider packages (e.g., ``apache-airflow-providers-postgres`` or ``apache-airflow-providers-mysql``)
+- Requires direct network access from workers to database server because these providers connect to the database via database drivers.
+- Database credentials must be configured and rotated manually
+- Query performance directly impacts metadata database
+
 Last Resort: Direct Database Access with Special Credentials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -272,6 +295,18 @@ before the process starts.
 
 3. Create SQLAlchemy engine and session directly in your task code using the environment variable. Then, use this session in your task
 to query the database.
+
+**Pros:**
+- Maximum flexibility for complex queries
+- No extra package needs to be installed
+- Can query any database table/model
+- No dependency on API server availability
+
+**Cons:**
+- Requires database drivers installed in worker environment
+- Requires direct network access from workers to database server
+- Raw database credentials must be managed and rotated
+- Bypasses Airflow's architectural protections and bad queries can affect performance of Airflow database
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
