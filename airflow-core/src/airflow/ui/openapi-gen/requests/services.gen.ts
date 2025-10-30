@@ -2035,9 +2035,9 @@ export class TaskInstanceService {
      * @param data.durationLt
      * @param data.state
      * @param data.pool
-     * @param data.poolPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
-     * @param data.queuePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
@@ -2086,9 +2086,9 @@ export class TaskInstanceService {
                 duration_lt: data.durationLt,
                 state: data.state,
                 pool: data.pool,
-                pool_pattern: data.poolPattern,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
-                queue_pattern: data.queuePattern,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
@@ -2338,9 +2338,9 @@ export class TaskInstanceService {
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
-     * @param data.poolPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
-     * @param data.queuePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
@@ -2391,9 +2391,9 @@ export class TaskInstanceService {
                 dag_id_pattern: data.dagIdPattern,
                 state: data.state,
                 pool: data.pool,
-                pool_pattern: data.poolPattern,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
-                queue_pattern: data.queuePattern,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,

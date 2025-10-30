@@ -5759,7 +5759,7 @@ paths:
           items:
             type: string
           title: Pool
-      - name: pool_pattern
+      - name: pool_name_pattern
         in: query
         required: false
         schema:
@@ -5768,7 +5768,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Pool Pattern
+          title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: queue
@@ -5779,7 +5779,7 @@ paths:
           items:
             type: string
           title: Queue
-      - name: queue_pattern
+      - name: queue_name_pattern
         in: query
         required: false
         schema:
@@ -5788,7 +5788,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Queue Pattern
+          title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: executor
@@ -6625,7 +6625,7 @@ paths:
           items:
             type: string
           title: Pool
-      - name: pool_pattern
+      - name: pool_name_pattern
         in: query
         required: false
         schema:
@@ -6634,7 +6634,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Pool Pattern
+          title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: queue
@@ -6645,7 +6645,7 @@ paths:
           items:
             type: string
           title: Queue
-      - name: queue_pattern
+      - name: queue_name_pattern
         in: query
         required: false
         schema:
@@ -6654,7 +6654,7 @@ paths:
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
-          title: Queue Pattern
+          title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: executor
