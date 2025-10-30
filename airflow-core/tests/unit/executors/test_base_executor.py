@@ -53,7 +53,7 @@ def test_is_production_default_value():
 
 
 def test_invalid_slotspool():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
 
 
@@ -254,7 +254,7 @@ def test_debug_dump(caplog):
 
 def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Callback sink is not ready"):
         executor.send_callback(mock.Mock(spec=CallbackRequest))
 
 

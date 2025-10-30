@@ -42,6 +42,8 @@ INVALID_STAT_NAME_CASES = [
     ("test/$tats", "contains invalid characters"),
 ]
 
+RATE_MUST_BE_POSITIVE_MSG = "rate must be a positive value"
+
 
 @pytest.fixture
 def name():
@@ -136,7 +138,7 @@ class TestOtelMetrics:
         # This one should not increment because random() will return a value higher than `rate`
         self.stats.incr(name, rate=0.5)
         # This one should raise an exception for a negative `rate` value
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=RATE_MUST_BE_POSITIVE_MSG):
             self.stats.incr(name, rate=-0.5)
 
         assert mock_random.call_count == 2
@@ -170,7 +172,7 @@ class TestOtelMetrics:
         # This one should not decrement because random() will return a value higher than `rate`
         self.stats.decr(name, rate=0.5)
         # This one should raise an exception for a negative `rate` value
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=RATE_MUST_BE_POSITIVE_MSG):
             self.stats.decr(name, rate=-0.5)
 
         assert mock_random.call_count == 2
@@ -215,7 +217,7 @@ class TestOtelMetrics:
         # This one should not increment because random() will return a value higher than `rate`
         self.stats.gauge(name, value=1, rate=0.5)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=RATE_MUST_BE_POSITIVE_MSG):
             self.stats.gauge(name, value=1, rate=-0.5)
 
         assert mock_random.call_count == 2

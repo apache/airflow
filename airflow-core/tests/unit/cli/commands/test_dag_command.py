@@ -548,7 +548,7 @@ class TestCliDags:
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
             dag_command.dag_trigger(
                 self.parser.parse_args(
                     [

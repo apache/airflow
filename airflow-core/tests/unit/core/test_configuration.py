@@ -350,7 +350,10 @@ sql_alchemy_conn = airflow
         assert asdict["test"]["sql_alchemy_conn"] == "< hidden >"
         # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
         # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="If display_sensitive is false, then include_env, include_cmds, include_secret must all be set as True",
+        ):
             test_conf.as_dict(display_sensitive=False, include_cmds=False)
         # Test that one of include_cmds, include_env, include_secret can be false when display_sensitive
         # is True
