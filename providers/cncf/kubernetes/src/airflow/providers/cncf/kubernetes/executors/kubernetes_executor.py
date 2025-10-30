@@ -505,9 +505,9 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             from airflow.models.taskinstance import TaskInstance
 
-            condition = TaskInstance.filter_for_tis([key])
-            if condition is not None:
-                state = session.scalar(select(TaskInstance.state).where(condition))
+            filter_for_tis = TaskInstance.filter_for_tis([key])
+            if filter_for_tis is not None:
+                state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
             else:
                 state = None
             state = TaskInstanceState(state) if state else None
