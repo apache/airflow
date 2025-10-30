@@ -199,7 +199,7 @@ In Airflow 3, operators cannot access the Airflow metadata database directly usi
 If you have custom operators, review your code to ensure there are no direct database access calls.
 You can follow examples in https://github.com/apache/airflow/issues/49187 to learn how to modify your code if needed.
 
-If you have custom operators or task code that previously accessed the metadata database directly, you need to migrate to one of the following recommended approaches:
+If you have custom operators or task code that previously accessed the metadata database directly, you must migrate to one of the following recommended approaches:
 
 Recommended Approach 1: Use Airflow Python Client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
