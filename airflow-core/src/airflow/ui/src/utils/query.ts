@@ -68,7 +68,14 @@ export const useAutoRefresh = ({
 
   const paused = Boolean(dagId) ? dag?.is_paused : false;
 
-  const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;
+  // Suspend auto refresh when any dialog is open to avoid unmounting modal parents on refetch
+  const globalWithDoc = globalThis as unknown as { document?: Document };
+  const doc = globalWithDoc.document;
+  const hasOpenDialog = typeof globalThis !== "undefined" && doc !== undefined
+    ? Boolean(doc.querySelector('[role="dialog"]'))
+    : false;
+
+  const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns && !hasOpenDialog;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;
