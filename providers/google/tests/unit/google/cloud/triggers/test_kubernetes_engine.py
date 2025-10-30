@@ -200,7 +200,7 @@ class TestGKEStartPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.WAITING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
@@ -219,7 +219,7 @@ class TestGKEStartPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.RUNNING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
@@ -265,7 +265,7 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Container logs:" in caplog.text
+        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
         "container_state, expected_state",
