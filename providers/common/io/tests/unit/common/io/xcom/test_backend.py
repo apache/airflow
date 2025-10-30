@@ -414,7 +414,7 @@ class TestXComObjectStorageBackend:
             )
             data = BaseXCom.deserialize_value(res)
 
-        assert data.endswith(".gz")
+        assert data.endswith(".gz") or data.endswith(".gzip")
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.send.return_value = XComResult(
@@ -426,7 +426,26 @@ class TestXComObjectStorageBackend:
             ti_key=task_instance.key,
         )
 
-        assert value == {"key": "superlargevalue" * 100}
+        if AIRFLOW_V_3_0_PLUS:
+            # Airflow 3.x backend deserializes automatically
+            assert value == {"key": "superlargevalue" * 100}
+        else:
+            # Airflow 2.x returns a file URI (path to compressed object)
+            assert isinstance(value, str)
+            assert value.endswith(".gz") or value.endswith(".gzip")
+
+            # Manually load and deserialize
+            import gzip
+            import json
+            from pathlib import Path
+            from urllib.parse import urlparse
+
+            # Convert file:// URI -> actual file path
+            file_path = Path(urlparse(value).path)
+            with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                decompressed = json.load(f)
+
+            assert decompressed == {"key": "superlargevalue" * 100}
 
     @pytest.mark.parametrize(
         "value, expected_value",
