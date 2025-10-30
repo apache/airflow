@@ -20,7 +20,6 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Sequence
 from contextlib import suppress
-from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -28,7 +27,9 @@ from typing import (
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, BaseOperator
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.hooks.msgraph import (
+    KiotaRequestAdapterHook,
+)
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
@@ -74,6 +75,22 @@ def execute_callable(
             stacklevel=2,
         )
         return func(context, value)  # type: ignore
+
+
+def default_pagination(
+    operator: MSGraphAsyncOperator, response: dict, **context
+) -> tuple[Any, dict[str, Any] | None]:
+    return KiotaRequestAdapterHook.default_pagination(
+        response=response,
+        url=operator.url,
+        response_type=operator.response_type,
+        path_parameters=operator.path_parameters,
+        method=operator.method,
+        query_parameters=operator.query_parameters,
+        headers=operator.headers,
+        data=operator.data,
+        responses=lambda: operator.pull_xcom(context),
+    )
 
 
 class MSGraphAsyncOperator(BaseOperator):
@@ -158,7 +175,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.proxies = proxies
         self.scopes = scopes
         self.api_version = api_version
-        self.pagination_function = pagination_function or self.paginate
+        self.pagination_function = pagination_function or default_pagination
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
@@ -247,7 +264,7 @@ class MSGraphAsyncOperator(BaseOperator):
     @classmethod
     def append_result(
         cls,
-        results: Any,
+        results: list[Any],
         result: Any,
         append_result_as_list_if_absent: bool = False,
     ) -> list[Any]:
@@ -307,23 +324,6 @@ class MSGraphAsyncOperator(BaseOperator):
                 value,
             )
             context["ti"].xcom_push(key=self.key, value=value)
-
-    @staticmethod
-    def paginate(
-        operator: MSGraphAsyncOperator, response: dict, **context
-    ) -> tuple[Any, dict[str, Any] | None]:
-        odata_count = response.get("@odata.count")
-        if odata_count and operator.query_parameters:
-            query_parameters = deepcopy(operator.query_parameters)
-            top = query_parameters.get("$top")
-
-            if top and odata_count:
-                if len(response.get("value", [])) == top and context:
-                    results = operator.pull_xcom(context)
-                    skip = sum([len(result["value"]) for result in results]) + top if results else top
-                    query_parameters["$skip"] = skip
-                    return operator.url, query_parameters
-        return response.get("@odata.nextLink"), operator.query_parameters
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):

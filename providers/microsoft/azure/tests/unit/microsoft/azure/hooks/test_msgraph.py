@@ -53,6 +53,7 @@ from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
     patch_hook,
+    patch_hook_and_request_adapter,
 )
 
 if TYPE_CHECKING:
@@ -237,6 +238,14 @@ class TestKiotaRequestAdapterHook:
 
             assert actual == NationalClouds.Global.value
 
+    def test_get_host_when_connection_has_no_scheme_or_host_but_hook_overrides_host(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=NationalClouds.China.value)
+            connection = mock_connection(schema="https", host=NationalClouds.Global.value)
+            actual = hook.get_host(connection)
+
+            assert actual == NationalClouds.China.value
+
     @pytest.mark.asyncio
     async def test_tenant_id(self):
         with patch_hook():
@@ -317,6 +326,34 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, JsonParseNode)
             error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
             assert error_code == "TenantThrottleThresholdExceeded"
+
+    @pytest.mark.asyncio
+    async def test_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.run(url="users")
+
+            assert isinstance(actual, dict)
+            assert actual == users
+
+    @pytest.mark.asyncio
+    async def test_paginated_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.paginated_run(url="users")
+
+            assert isinstance(actual, list)
+            assert actual == [users, next_users]
 
 
 class TestResponseHandler:
