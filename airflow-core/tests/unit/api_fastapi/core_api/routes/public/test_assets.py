@@ -303,7 +303,9 @@ class TestGetAssets(TestAssets):
         assert len(session.query(AssetModel).all()) == 3
         assert len(session.query(AssetActive).all()) == 2
 
-        response = test_client.get("/assets")
+        with assert_queries_count(7):
+            response = test_client.get("/assets")
+
         assert response.status_code == 200
         response_data = response.json()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
@@ -698,7 +700,9 @@ class TestGetAssetAliases(TestAssetAliases):
         asset_aliases = session.query(AssetAliasModel).all()
         assert len(asset_aliases) == 2
 
-        response = test_client.get("/assets/aliases")
+        with assert_queries_count(2):
+            response = test_client.get("/assets/aliases")
+
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -781,7 +785,10 @@ class TestGetAssetEvents(TestAssets):
         assets = session.query(AssetEvent).all()
         session.commit()
         assert len(assets) == 2
-        response = test_client.get("/assets/events")
+
+        with assert_queries_count(3):
+            response = test_client.get("/assets/events")
+
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -1153,9 +1160,10 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        response = test_client.get(
-            f"/dags/{dag_id}/assets/queuedEvents",
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/dags/{dag_id}/assets/queuedEvents",
+            )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -1413,7 +1421,9 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        response = test_client.get(f"/assets/{asset.id}/queuedEvents")
+        with assert_queries_count(3):
+            response = test_client.get(f"/assets/{asset.id}/queuedEvents")
+
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
