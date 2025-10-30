@@ -2259,9 +2259,9 @@ class TestStringifiedDAGs:
         When the callback is not set, has_disable_bundle_versioning should not be stored in Serialized blob
         and so default to False on de-serialization
         """
-        from tests_common.test_utils.config import conf_vars
+        from tests_common.test_utils.config import task_sdk_conf_vars
 
-        with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
+        with task_sdk_conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
             kwargs = {}
             if dag_arg is not None:
                 kwargs["disable_bundle_versioning"] = dag_arg
