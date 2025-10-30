@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-30T04:00:49.608808
+# This constraints file was automatically generated on 2025-10-30T09:51:55.537775
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -32,7 +32,7 @@
 #
 APScheduler==3.11.0
 Authlib==1.6.5
-Deprecated==1.3.0
+Deprecated==1.3.1
 Events==0.5
 Flask-AppBuilder==5.0.0
 Flask-JWT-Extended==4.7.1
