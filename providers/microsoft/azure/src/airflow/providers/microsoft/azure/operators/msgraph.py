@@ -83,12 +83,7 @@ def default_pagination(
     return KiotaRequestAdapterHook.default_pagination(
         response=response,
         url=operator.url,
-        response_type=operator.response_type,
-        path_parameters=operator.path_parameters,
-        method=operator.method,
         query_parameters=operator.query_parameters,
-        headers=operator.headers,
-        data=operator.data,
         responses=lambda: operator.pull_xcom(context),
     )
 
