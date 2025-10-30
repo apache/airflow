@@ -145,9 +145,9 @@ export const Nav = () => {
       width={16}
       zIndex="docked"
     >
-      <Flex alignItems="center" flexDir="column" width="100%" gap={1}>
-        <Box asChild boxSize={14} display="flex" alignItems="center" justifyContent="center">
-          <Link to="/" title={translate("nav.home")}>
+      <Flex alignItems="center" flexDir="column" gap={1} width="100%">
+        <Box alignItems="center" asChild boxSize={14} display="flex" justifyContent="center">
+          <Link title={translate("nav.home")} to="/">
             <AirflowPin
               _motionSafe={{
                 _hover: {
