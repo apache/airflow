@@ -67,8 +67,6 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
-else:
-    from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 T = TypeVar("T")
 
