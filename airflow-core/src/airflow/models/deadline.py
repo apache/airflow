@@ -126,7 +126,7 @@ class Deadline(Base):
 
     # The DeadlineAlert that generated this deadline
     deadline_alert_id: Mapped[str | None] = mapped_column(
-        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=False
+        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=True
     )
     deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
