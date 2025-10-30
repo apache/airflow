@@ -33,6 +33,8 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkRespons
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableCollectionResponse,
+    VariableExportBody,
+    VariableExportResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -187,3 +189,29 @@ def bulk_variables(
 ) -> BulkResponse:
     """Bulk create, update, and delete variables."""
     return BulkVariableService(session=session, request=request).handle_request()
+
+
+@variables_router.post(
+    "/export",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_variable("GET"))],
+)
+def export_variables(
+    export_body: VariableExportBody,
+    session: SessionDep,
+) -> list[VariableExportResponse]:
+    """Export variables with unmasked values."""
+    variables = session.scalars(
+        select(Variable).where(Variable.key.in_(export_body.variable_keys))
+    ).all()
+
+    # Check if any requested variables were not found
+    found_keys = {var.key for var in variables}
+    missing_keys = set(export_body.variable_keys) - found_keys
+    if missing_keys:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The following variables were not found: {', '.join(sorted(missing_keys))}",
+        )
+
+    return [VariableExportResponse.model_validate(var) for var in variables]
