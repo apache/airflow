@@ -931,16 +931,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
-
-            if event["status"] == "success":
-                # fetch some logs when pod is executed successfully
-                if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
-
-                if self.do_xcom_push:
-                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
-                    return xcom_sidecar_output
-                return
         except TaskDeferred:
             raise
         finally:
