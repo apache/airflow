@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     VariableResponse,
@@ -47,7 +48,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     RescheduleTask,
@@ -1300,7 +1300,7 @@ class TestHITLOperations:
             params=None,
             multiple=False,
         )
-        assert isinstance(result, HITLDetailRequestResult)
+        assert isinstance(result, HITLDetailRequest)
         assert result.ti_id == ti_id
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"
