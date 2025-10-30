@@ -28,6 +28,7 @@ from typing import (
     Generic,
     Literal,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -66,6 +67,8 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
+else:
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 T = TypeVar("T")
 
@@ -75,7 +78,7 @@ class BaseParam(OrmClause[T], ABC):
 
     def __init__(self, value: T | None = None, skip_none: bool = True) -> None:
         super().__init__(value)
-        self.attribute: ColumnElement | None = None
+        self.attribute: ColumnElement | InstrumentedAttribute | None = None
         self.skip_none = skip_none
 
     def set_value(self, value: T | None) -> Self:
@@ -186,7 +189,7 @@ def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
     skip_none: bool = True,
-) -> Callable[..., _SearchParam]:
+) -> Callable[[str | None], _SearchParam]:
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
         "Regular expressions are **not** supported."
@@ -387,7 +390,7 @@ class FilterParam(BaseParam[T]):
 
 
 def filter_param_factory(
-    attribute: ColumnElement,
+    attribute: ColumnElement | InstrumentedAttribute,
     _type: type,
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
@@ -397,9 +400,9 @@ def filter_param_factory(
     transform_callable: Callable[[T | None], Any] | None = None,
     *,
     description: str | None = None,
-) -> Callable[..., FilterParam[T | None]]:
+) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
+    filter_name = filter_name or getattr(attribute, "name", str(attribute))
     # can only set either default_value or default_factory
     query = (
         Query(alias=filter_name, default_factory=default_factory, description=description)
@@ -410,7 +413,9 @@ def filter_param_factory(
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
         if transform_callable:
             value = transform_callable(value)
-        return FilterParam(attribute, value, filter_option, skip_none)
+        # Cast to InstrumentedAttribute for type compatibility
+        attr = cast("InstrumentedAttribute", attribute)
+        return FilterParam(attr, value, filter_option, skip_none)
 
     # add type hint to value at runtime
     depends_filter.__annotations__["value"] = _type
