@@ -24,6 +24,7 @@ import uuid
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote
 
 import certifi
 import httpx
@@ -428,6 +429,7 @@ class XComOperations:
 
     def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> XComCountResponse:
         """Get the number of mapped XCom values."""
+        key = quote(key, safe="")
         resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
 
         # content_range: str | None
@@ -454,6 +456,7 @@ class XComOperations:
             params.update({"map_index": map_index})
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
+        key = quote(key, safe="")
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
@@ -493,6 +496,7 @@ class XComOperations:
             params = {"map_index": map_index}
         if mapped_length is not None and mapped_length >= 0:
             params["mapped_length"] = mapped_length
+        key = quote(key, safe="")
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -511,6 +515,7 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
+        key = quote(key, safe="")
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -525,6 +530,7 @@ class XComOperations:
         key: str,
         offset: int,
     ) -> XComSequenceIndexResponse | ErrorResponse:
+        key = quote(key, safe="")
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
         except ServerResponseError as e:
@@ -563,6 +569,7 @@ class XComOperations:
         step: int | None,
         include_prior_dates: bool = False,
     ) -> XComSequenceSliceResponse:
+        key = quote(key, safe="")
         params = {}
         if start is not None:
             params["start"] = start
