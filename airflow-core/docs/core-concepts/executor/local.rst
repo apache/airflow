@@ -26,23 +26,22 @@ Local Executor
 The parameter ``parallelism`` limits the number of process spawned not to overwhelm the node.
 This parameter must be greater than ``0``.
 
-The following strategy is implemented:
-
-- | **Limited Parallelism** (``self.parallelism > 0``): In this strategy, the :class:`~airflow.executors.local_executor.LocalExecutor` spawns
-  | the number of processes equal to the value of ``self.parallelism`` at ``start`` time,
-  | using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among
-  | the workers, which will take a task as soon as they are ready. During the lifecycle of
-  | the LocalExecutor, the worker processes are running waiting for tasks, once the
-  | LocalExecutor receives the call to shutdown the executor a poison token is sent to the
-  | workers to terminate them. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
+The :class:`~airflow.executors.local_executor.LocalExecutor` spawns the number of processes equal to the value of ``self.parallelism`` at
+``start`` time, using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among the workers, which will take
+a task as soon as they are ready. During the lifecycle of the LocalExecutor, the worker processes are running waiting for tasks, once the
+LocalExecutor receives the call to shutdown the executor a poison token is sent to the workers to terminate them. Processes used in this
+strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
 
 .. note::
 
-   When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
+   When multiple Schedulers are configured with ``executor=LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each
+   Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the
+   Schedulers.
 
    One consideration should be taken into account:
 
-   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks and restart or fail them.
+   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks
+     and restart or fail them.
 
 .. note::
 
