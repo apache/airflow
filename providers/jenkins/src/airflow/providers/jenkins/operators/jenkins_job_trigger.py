@@ -179,11 +179,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
                         build_number = json_response["executable"]["number"]
                         self.log.info("Job executed on Jenkins side with the build number %s", build_number)
                         return build_number
-        else:
-            raise AirflowException(
-                f"The job hasn't been executed after polling the queue "
-                f"{self.max_try_before_job_appears} times"
-            )
+        raise AirflowException(
+            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
+        )
 
     @cached_property
     def hook(self) -> JenkinsHook:
