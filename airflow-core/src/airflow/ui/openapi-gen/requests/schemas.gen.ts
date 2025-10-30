@@ -6578,6 +6578,56 @@ export const $VariableCollectionResponse = {
     description: 'Variable Collection serializer for responses.'
 } as const;
 
+export const $VariableExportBody = {
+    properties: {
+        variable_keys: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Variable Keys',
+            description: 'List of variable keys to export'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['variable_keys'],
+    title: 'VariableExportBody',
+    description: 'Variable export request body.'
+} as const;
+
+export const $VariableExportResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            type: 'string',
+            title: 'Value'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        is_encrypted: {
+            type: 'boolean',
+            title: 'Is Encrypted'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'description', 'is_encrypted'],
+    title: 'VariableExportResponse',
+    description: 'Variable serializer for export (unmasked values).'
+} as const;
+
 export const $VariableResponse = {
     properties: {
         key: {

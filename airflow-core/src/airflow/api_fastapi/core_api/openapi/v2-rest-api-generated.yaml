@@ -7715,6 +7715,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/variables/export:
+    post:
+      tags:
+      - Variable
+      summary: Export Variables
+      description: Export variables with unmasked values.
+      operationId: export_variables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariableExportBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/VariableExportResponse'
+                type: array
+                title: Response Export Variables
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -13077,6 +13127,44 @@ components:
       - total_entries
       title: VariableCollectionResponse
       description: Variable Collection serializer for responses.
+    VariableExportBody:
+      properties:
+        variable_keys:
+          items:
+            type: string
+          type: array
+          title: Variable Keys
+          description: List of variable keys to export
+      additionalProperties: false
+      type: object
+      required:
+      - variable_keys
+      title: VariableExportBody
+      description: Variable export request body.
+    VariableExportResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          type: string
+          title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        is_encrypted:
+          type: boolean
+          title: Is Encrypted
+      type: object
+      required:
+      - key
+      - value
+      - description
+      - is_encrypted
+      title: VariableExportResponse
+      description: Variable serializer for export (unmasked values).
     VariableResponse:
       properties:
         key:

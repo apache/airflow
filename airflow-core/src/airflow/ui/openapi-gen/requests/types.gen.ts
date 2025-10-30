@@ -1603,6 +1603,26 @@ export type VariableCollectionResponse = {
 };
 
 /**
+ * Variable export request body.
+ */
+export type VariableExportBody = {
+    /**
+     * List of variable keys to export
+     */
+    variable_keys: Array<(string)>;
+};
+
+/**
+ * Variable serializer for export (unmasked values).
+ */
+export type VariableExportResponse = {
+    key: string;
+    value: string;
+    description: string | null;
+    is_encrypted: boolean;
+};
+
+/**
  * Variable serializer for responses.
  */
 export type VariableResponse = {
@@ -3283,6 +3303,12 @@ export type BulkVariablesData = {
 };
 
 export type BulkVariablesResponse = BulkResponse;
+
+export type ExportVariablesData = {
+    requestBody: VariableExportBody;
+};
+
+export type ExportVariablesResponse = Array<VariableExportResponse>;
 
 export type ReparseDagFileData = {
     fileToken: string;
@@ -6270,6 +6296,33 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/variables/export': {
+        post: {
+            req: ExportVariablesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Array<VariableExportResponse>;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
