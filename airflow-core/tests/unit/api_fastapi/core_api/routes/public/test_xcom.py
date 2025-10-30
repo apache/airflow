@@ -35,6 +35,7 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
@@ -218,9 +219,10 @@ class TestGetXComEntries(TestXComEndpoint):
 
     def test_should_respond_200(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
-        response = test_client.get(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+            )
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -259,7 +261,8 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
 
-        response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
+        with assert_queries_count(4):
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -320,10 +323,11 @@ class TestGetXComEntries(TestXComEndpoint):
     def test_should_respond_200_with_map_index(self, map_index, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
 
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"map_index": map_index} if map_index is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"map_index": map_index} if map_index is not None else None,
+            )
         assert response.status_code == 200
         response_data = response.json()
 
@@ -398,10 +402,11 @@ class TestGetXComEntries(TestXComEndpoint):
     )
     def test_should_respond_200_with_xcom_key(self, key, expected_entries, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"xcom_key_pattern": key} if key is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"xcom_key_pattern": key} if key is not None else None,
+            )
 
         assert response.status_code == 200
         response_data = response.json()

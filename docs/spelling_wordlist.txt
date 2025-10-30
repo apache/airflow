@@ -253,6 +253,8 @@ chakra
 Changelog
 changelog
 charset
+chatbot
+chatbots
 Checklicence
 checklicence
 CheckOperator

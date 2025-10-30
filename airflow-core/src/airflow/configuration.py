@@ -1759,8 +1759,7 @@ class AirflowConfigParser(ConfigParser):
                     deprecated_section_array = config.items(section=deprecated_section, raw=True)
                     if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-        else:
-            return False
+        return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:

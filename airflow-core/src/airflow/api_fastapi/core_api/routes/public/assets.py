@@ -183,6 +183,7 @@ def get_assets(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
             subqueryload(AssetModel.consuming_tasks),
+            subqueryload(AssetModel.aliases),
             subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
@@ -329,7 +330,9 @@ def get_asset_events(
         session=session,
     )
 
-    assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
+    assets_event_select = assets_event_select.options(
+        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
+    )
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(

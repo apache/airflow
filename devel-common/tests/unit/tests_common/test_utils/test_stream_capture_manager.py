@@ -463,7 +463,7 @@ def test_exception_during_capture_with_pytest_raises(stdout_capture):
             assert "Log before exception" not in output
 
         # Now test that exception in capture context still works
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Test exception"):
             with stdout_capture:
                 raise ValueError("Test exception")
 

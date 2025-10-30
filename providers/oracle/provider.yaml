@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-oracle
 name: Oracle
 description: |
-    `Oracle <https://www.oracle.com/en/database/>`__
+    `Oracle <https://www.oracle.com/database/technologies/>`__
 
 state: ready
 source-date-epoch: 1756877244

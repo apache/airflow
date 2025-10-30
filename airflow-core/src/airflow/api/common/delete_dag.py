@@ -73,9 +73,10 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     count = 0
     for model in models_for_deletion:
         if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
-            count += session.execute(
+            result = session.execute(
                 delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
-            ).rowcount
+            )
+            count += result.rowcount or 0
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file

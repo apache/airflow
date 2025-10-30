@@ -418,7 +418,6 @@ class SerializedDagModel(Base):
             select(DagVersion)
             .where(DagVersion.dag_id == dag.dag_id)
             .options(joinedload(DagVersion.task_instances))
-            .options(joinedload(DagVersion.serialized_dag))
             .order_by(DagVersion.created_at.desc())
             .limit(1)
         )

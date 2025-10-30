@@ -28,6 +28,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
@@ -323,7 +324,8 @@ class TestGetImportErrors:
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/importErrors", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -386,7 +388,8 @@ class TestGetImportErrors:
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
-        response = test_client.get("/importErrors")
+        with assert_queries_count(3):
+            response = test_client.get("/importErrors")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
         assert response.status_code == 200

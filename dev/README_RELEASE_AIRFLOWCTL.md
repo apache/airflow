@@ -451,6 +451,7 @@ How to verify it:
 1) Change directory where your airflow sources are checked out
 
 ```shell
+VERSION=1.0.0rc1
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
@@ -458,7 +459,7 @@ Choose the tag you used for release:
 
 ```shell
 git fetch apache --tags
-git checkout airflow-ctl/1.0.0rc1
+git checkout airflow-ctl/${VERSION}
 ```
 
 3) Remove all the packages you have in dist folder
@@ -471,7 +472,7 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION}
 ```
 
 5) Switch to the folder where you checked out the SVN dev files

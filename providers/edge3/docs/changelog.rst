@@ -38,6 +38,8 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix Link to Dag in Plugin (#55642)``
+* ``Bugfix/support Subpath w/o Execution API Url (#57372)``
+* ``Adjust authentication token after UI changes in Airflow 3.1.1 (#57370)``
 
 Misc
 ~~~~
@@ -45,10 +47,12 @@ Misc
 * ``Bump vite from 7.1.7 to 7.1.11 in plugin integration (#56909)``
 * ``Bump happy-dom from 18.0.1 to 20.0.2 in plugin integration (#56686)``
 * ``Bump the edge-ui-package-updates group across 1 directory with 23 updates (#57286)``
+* ``Fix mypy warnings for SQLA2 migration (#56989)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Extract prek hooks for Edge provider (#57104)``
+   * ``Prepare edge3 provider ad-hoc release (October 2025) (#57280)``
 
 1.4.0
 .....

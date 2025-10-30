@@ -87,7 +87,7 @@ def get_xcom_entry(
         dag_ids=dag_id,
         map_indexes=map_index,
         limit=1,
-    )
+    ).options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
@@ -162,7 +162,7 @@ def get_xcom_entries(
     query = (
         query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
         .join(DagModel, DR.dag_id == DagModel.dag_id)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if task_id != "~":
@@ -284,7 +284,7 @@ def create_xcom_entry(
             XComModel.map_index == request_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     return XComResponseNative.model_validate(xcom)
@@ -325,7 +325,7 @@ def update_xcom_entry(
             XComModel.map_index == patch_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if not xcom_entry:
