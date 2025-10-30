@@ -39,6 +39,7 @@ from airflow_shared.configuration import (
     AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
+    find_config_templates_dir,
     get_all_expansion_variables,
     initialize_secrets_backends,
     run_command,
@@ -245,6 +246,8 @@ def parameterized_config(template) -> str:
     },
 )
 class TestConf:
+    CONF_TEMPLATES_FOLDER = find_config_templates_dir()
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
@@ -341,7 +344,10 @@ key2 = airflow
 key6 = value6
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "key2"),
@@ -381,7 +387,7 @@ key6 = value6
         test_config = """[test.abc]
 key1 = true
 """
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER)
         test_conf.read_string(test_config)
         section = "test.abc"
         key = "key1"
@@ -412,7 +418,10 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -427,7 +436,10 @@ sql_alchemy_conn = airflow
         test_config_default = """[test]
                                  sql_alchemy_conn = airflow
                               """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -461,7 +473,10 @@ sql_alchemy_conn_secret = sql_alchemy_conn
         test_config_default = """[test]
 sql_alchemy_conn = airflow
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -496,7 +511,9 @@ key7 = 0
 [inline-comment]
 key8 = true #123
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -523,7 +540,9 @@ key1 = str
 [valid]
 key2 = 1
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -544,7 +563,9 @@ key1 = str
 [valid]
 key2 = 1.23
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -571,7 +592,9 @@ key2 = one,two,three
 [diffdelimiter]
 key3 = one;two;three
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         single = test_conf.getlist("single", "key1")
         assert isinstance(single, list)
         assert len(single) == 1
@@ -609,7 +632,9 @@ key3 = one;two;three
             json = {config_str}
         """
         )
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(config)
 
         assert test_conf.getjson("test", "json") == expected
@@ -621,7 +646,9 @@ key3 = one;two;three
             json =
             """
         )
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(config)
 
         assert test_conf.getjson("test", "json", fallback={}) == {}
@@ -637,7 +664,9 @@ key3 = one;two;three
         ],
     )
     def test_getjson_fallback(self, fallback):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
 
         assert test_conf.getjson("test", "json", fallback=fallback) == fallback
 
@@ -645,7 +674,9 @@ key3 = one;two;three
         test_config = """[test]
 key1 = value1
 """
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(test_config)
         assert test_conf.has_option("test", "key1")
         assert not test_conf.has_option("test", "key_not_exists")
@@ -661,7 +692,10 @@ key1 = awesome
 key2 = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
 
         assert test_conf.get("test", "key1") == "hello"
@@ -686,7 +720,10 @@ key2 = airflow
 [testsection]
 key3 = value3
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
 
         assert test_conf.getsection("test") == {"key1": "hello", "key2": "airflow"}
@@ -731,7 +768,9 @@ key3 = value3
             notacommand=OK
         """
         )
-        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
@@ -746,7 +785,9 @@ key3 = value3
 
     @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
-        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
             asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
@@ -818,7 +859,9 @@ key3 = value3
 
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_should_respect_env_variable(self):
-        parser = AirflowConfigParser()
+        parser = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as string_file:
             parser.write(string_file)
             content = string_file.getvalue()
@@ -826,7 +869,9 @@ key3 = value3
 
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_with_only_defaults_should_not_respect_env_variable(self):
-        parser = AirflowConfigParser()
+        parser = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as string_file:
             parser.write(string_file, only_defaults=True)
             content = string_file.getvalue()
@@ -847,7 +892,7 @@ key3 = value3
         assert conf.getboolean("core", "unit_test_mode")
 
     def test_enum_default_task_weight_rule_from_conf(self):
-        test_conf = AirflowConfigParser(default_config="")
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config="")
         test_conf.read_dict({"core": {"default_task_weight_rule": "sidestream"}})
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
@@ -859,7 +904,7 @@ key3 = value3
         assert message == exception
 
     def test_enum_logging_levels(self):
-        test_conf = AirflowConfigParser(default_config="")
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config="")
         test_conf.read_dict({"logging": {"logging_level": "XXX"}})
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
@@ -955,7 +1000,9 @@ key6 = 300
 # Equals to None
 key7 =
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -1008,7 +1055,7 @@ key7 =
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
-        assert len(backends) == 2
+        assert len(backends) == 3
         assert "SimpleSecretsBackend" in backend_classes
 
     @skip_if_force_lowest_dependencies_marker
@@ -1118,6 +1165,8 @@ key7 =
     },
 )
 class TestDeprecatedConf:
+    CONF_TEMPLATES_FOLDER = find_config_templates_dir()
+
     @conf_vars(
         {
             ("celery", "worker_concurrency"): None,
@@ -1215,12 +1264,13 @@ class TestDeprecatedConf:
 
     def test_deprecated_values_from_conf(self):
         test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
             default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
         )
         # Guarantee we have deprecated settings, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -1244,12 +1294,13 @@ sql_alchemy_conn=sqlite://test
     )
     def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
         test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
             default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
         )
         old_section, old_key, old_value = old
         new_section, new_key, new_value = new
@@ -1280,12 +1331,13 @@ sql_alchemy_conn=sqlite://test
     def test_deprecated_values_from_environ(self, conf_dict):
         def make_config():
             test_conf = AirflowConfigParser(
+                config_templates_dir=self.CONF_TEMPLATES_FOLDER,
                 default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
             )
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
@@ -1338,12 +1390,13 @@ sql_alchemy_conn=sqlite://test
     def test_deprecated_sections(self, conf_dict, environ, expected, monkeypatch):
         def make_config():
             test_conf = AirflowConfigParser(
+                config_templates_dir=self.CONF_TEMPLATES_FOLDER,
                 default_config=textwrap.dedent(
                     """
                     [new_section]
                     val=new
                     """
-                )
+                ),
             )
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
@@ -1650,7 +1703,9 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
 
         with warnings.catch_warnings(record=True) as captured:
@@ -1659,7 +1714,9 @@ sql_alchemy_conn=sqlite://test
             assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
 
     def test_suppress_future_warnings_no_future_warning(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
         with warnings.catch_warnings(record=True) as captured:
             test_conf.items("scheduler")
@@ -1690,7 +1747,9 @@ sql_alchemy_conn=sqlite://test
     )
     def test_future_warning_only_for_code_ref(self, key):
         old_val = "deactivate_stale_dags_interval"
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
         with warnings.catch_warnings(record=True) as captured:
             test_conf.get("scheduler", str(key))  # could be old or new value
@@ -1705,52 +1764,70 @@ sql_alchemy_conn=sqlite://test
             assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         raw_dict = test_conf.as_dict(raw=True)
         assert "%%" in raw_dict["logging"]["simple_log_format"]
 
     def test_as_dict_not_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         raw_dict = test_conf.as_dict(raw=False)
         assert "%%" not in raw_dict["logging"]["simple_log_format"]
 
     def test_default_value_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "simple_log_format", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "log_format", raw=False)
         assert "%%" not in log_format
 
     def test_default_value_raw_with_fallback(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw_with_fallback(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=False)
         # Note that fallback is never interpolated so we expect the value passed as-is
         assert "%%" in log_format
 
     def test_written_defaults_are_raw_for_defaults(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as f:
             test_conf.write(f, only_defaults=True)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_written_defaults_are_raw_for_non_defaults(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as f:
             test_conf.write(f)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_get_sections_including_defaults(self):
-        airflow_cfg = AirflowConfigParser()
+        airflow_cfg = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         airflow_cfg.remove_all_read_configurations()
         default_sections = airflow_cfg.get_sections_including_defaults()
         assert "core" in default_sections
@@ -1768,7 +1845,9 @@ sql_alchemy_conn=sqlite://test
         assert sum(1 for section in all_sections_including_defaults if section == "core") == 1
 
     def test_get_options_including_defaults(self):
-        airflow_cfg = AirflowConfigParser()
+        airflow_cfg = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
         assert "hostname_callable" in default_options

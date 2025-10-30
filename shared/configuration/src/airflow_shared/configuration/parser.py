@@ -258,7 +258,7 @@ class AirflowConfigParser(ConfigParser):
         if config_templates_dir:
             self.config_templates_dir = config_templates_dir
         else:
-            self.config_templates_dir = find_config_templates_dir()
+            raise RuntimeError("config_templates_dir must be provided while initialising AirflowConfigParser")
         self.configuration_description = retrieve_configuration_description(include_providers=False)
         self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
@@ -2092,7 +2092,7 @@ class AirflowConfigParser(ConfigParser):
 
     def __setstate__(self, state) -> None:
         """Restore the state of the object from a dictionary representation."""
-        self.__init__()  # type: ignore[misc]
+        self.__init__(config_templates_dir=find_config_templates_dir())  # type: ignore[misc]
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
