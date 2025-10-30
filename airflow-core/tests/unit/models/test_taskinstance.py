@@ -40,6 +40,7 @@ from airflow.exceptions import (
     AirflowFailException,
     AirflowSkipException,
 )
+from airflow.executors.executor_utils import ExecutorName
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
@@ -2819,6 +2820,71 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(task)
     assert ti.max_tries == expected_max_tries
+
+
+@pytest.mark.parametrize(
+    "task_executor,expected_executor",
+    [
+        (None, "LocalExecutor"),  # Default executor should be resolved
+        ("LocalExecutor", "LocalExecutor"),  # Explicit executor should be preserved
+        ("CeleryExecutor", "CeleryExecutor"),  # Explicit executor should be preserved
+    ],
+)
+def test_refresh_from_task_resolves_executor(task_executor, expected_executor, monkeypatch):
+    """Test that refresh_from_task resolves None executor to default executor name."""
+    # Mock the default executor
+    mock_executor_name = ExecutorName(
+        module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
+    )
+
+    with mock.patch(
+        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+        return_value=mock_executor_name,
+    ):
+        task = EmptyOperator(task_id="test_executor", executor=task_executor)
+        ti = TI(task, run_id=None, dag_version_id=mock.MagicMock())
+        ti.refresh_from_task(task)
+
+        assert ti.executor == expected_executor
+
+
+def test_insert_mapping_resolves_executor_to_default():
+    """Test that insert_mapping resolves None executor to default executor name."""
+    mock_executor_name = ExecutorName(
+        module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
+    )
+
+    with mock.patch(
+        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+        return_value=mock_executor_name,
+    ):
+        task = EmptyOperator(
+            task_id="test_task",
+            executor=None,  # No executor specified
+        )
+
+        mapping = TI.insert_mapping(
+            run_id="test_run",
+            task=task,
+            map_index=-1,
+            dag_version_id=mock.MagicMock(),
+        )
+
+        assert mapping["executor"] == "LocalExecutor"
+
+
+def test_insert_mapping_preserves_explicit_executor():
+    """Test that insert_mapping preserves explicitly set executor."""
+    task = EmptyOperator(task_id="test_task", executor="CeleryExecutor")
+
+    mapping = TI.insert_mapping(
+        run_id="test_run",
+        task=task,
+        map_index=-1,
+        dag_version_id=mock.MagicMock(),
+    )
+
+    assert mapping["executor"] == "CeleryExecutor"
 
 
 class TestRunRawTaskQueriesCount:
