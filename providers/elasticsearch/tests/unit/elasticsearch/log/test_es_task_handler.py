@@ -162,7 +162,7 @@ class TestElasticsearchTaskHandler:
         Test the format_url method of the ElasticsearchTaskHandler class.
         """
         if expected == "ValueError":
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="'https://' is not a valid URL."):
                 assert ElasticsearchTaskHandler.format_url(host) == expected
         else:
             assert ElasticsearchTaskHandler.format_url(host) == expected

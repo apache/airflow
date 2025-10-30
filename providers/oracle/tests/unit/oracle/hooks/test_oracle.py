@@ -419,7 +419,7 @@ class TestOracleHook:
 
     def test_bulk_insert_rows_no_rows(self):
         rows = []
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="parameter rows could not be None or empty iterable"):
             self.db_hook.bulk_insert_rows("table", rows)
 
     def test_bulk_insert_sequence_field(self):
@@ -436,18 +436,21 @@ class TestOracleHook:
         self.cur.executemany.assert_called_once_with(None, rows)
 
     def test_bulk_insert_sequence_without_parameter(self):
+        SEQUENCE_COLUMN_OR_NAME_PROVIDED = (
+            "Parameters 'sequence_column' and 'sequence_name' must be provided together or not at all."
+        )
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
         sequence_column = "id"
         sequence_name = None
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=SEQUENCE_COLUMN_OR_NAME_PROVIDED):
             self.db_hook.bulk_insert_rows(
                 "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
             )
 
         sequence_column = None
         sequence_name = "my_sequence"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=SEQUENCE_COLUMN_OR_NAME_PROVIDED):
             self.db_hook.bulk_insert_rows(
                 "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
             )

@@ -26,11 +26,45 @@
 Changelog
 ---------
 
-6.1.4
+6.1.6
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix broken DataflowJobLink for Java operators (#56286)``
+
+Misc
+~~~~
+
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+6.1.5
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``disable links for beam provider operators using runner (#55248)``
+* ``Fix dataflow java streaming infinite run (#55209)``
+* ``remove the 'provide_authorized_glcoud' from BeamPipeline operators (#55453)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.1.4
+.....
+
 
 Bug Fixes
 ~~~~~~~~~

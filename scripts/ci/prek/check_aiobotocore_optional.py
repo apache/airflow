@@ -20,7 +20,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #   "click>=8.1.8",
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 #   "rich>=13.6.0",
 # ]
 # ///
@@ -31,8 +31,6 @@ from pathlib import Path
 
 import yaml
 from rich.console import Console
-
-AIRFLOW_SOURCES = Path(__file__).parents[3]
 
 console = Console(color_system="standard", width=200)
 

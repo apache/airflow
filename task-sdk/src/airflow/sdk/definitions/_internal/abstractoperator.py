@@ -322,7 +322,7 @@ class AbstractOperator(Templater, DAGNode):
         For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an Dag node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -364,7 +364,7 @@ class AbstractOperator(Templater, DAGNode):
         For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an Dag node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
         """
         return (
             downstream

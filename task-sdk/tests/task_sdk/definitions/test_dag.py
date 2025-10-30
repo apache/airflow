@@ -212,7 +212,11 @@ class TestDag:
         """
         params = {"param1": Param(type="string")}
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Dag 'my-dag' is not allowed to define a Schedule, "
+            "as there are required params without default values, or the default values are not valid.",
+        ):
             DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
 
     def test_roots(self):
@@ -419,7 +423,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         DAG("test-dag", schedule=None, tags=tags)
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="tag cannot be longer than 100 characters"):
             DAG("test-dag", schedule=None, tags=tags)
 
 
@@ -464,6 +468,21 @@ def test_create_dag_while_active_context():
     with DAG(dag_id="simple_dag"):
         DAG(dag_id="dag2")
         # No asserts needed, it just needs to not fail
+
+
+@pytest.mark.parametrize("max_active_runs", [0, 1])
+def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
+    from airflow.timetables.simple import ContinuousTimetable
+
+    dag = DAG(dag_id="continuous", schedule="@continuous", max_active_runs=max_active_runs)
+    assert isinstance(dag.timetable, ContinuousTimetable)
+    assert dag.max_active_runs == max_active_runs
+
+
+def test_continuous_schedule_interval_limits_max_active_runs_error():
+    with pytest.raises(ValueError) as ctx:
+        DAG(dag_id="continuous", schedule="@continuous", max_active_runs=2)
+    assert str(ctx.value) == "Invalid max_active_runs: ContinuousTimetable requires max_active_runs <= 1"
 
 
 class TestDagDecorator:

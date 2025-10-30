@@ -61,7 +61,7 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.providers.standard.utils.python_virtualenv import execute_in_subprocess, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
@@ -985,9 +985,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() is False
 
     def test_lambda(self):
-        with pytest.raises(ValueError) as info:
+        with pytest.raises(
+            ValueError, match="PythonVirtualenvOperator only supports functions for python_callable arg"
+        ):
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
-        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -1409,8 +1410,8 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, system_site_packages=False, op_args=[4])
 
     @mock.patch(
-        "airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess",
-        wraps=execute_in_subprocess,
+        "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
+        wraps=_execute_in_subprocess,
     )
     def test_with_index_urls(self, wrapped_execute_in_subprocess):
         def f(a):
@@ -1689,12 +1690,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             system_site_packages=False,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match=rf"Invalid requirement '{invalid_requirement}'"):
             # Consume the generator to trigger parsing
             list(op._iter_serializable_context_keys())
-
-        msg = str(exc_info.value)
-        assert f"Invalid requirement '{invalid_requirement}'" in msg
 
     @mock.patch("airflow.providers.standard.operators.python.PythonVirtualenvOperator._prepare_venv")
     @mock.patch(

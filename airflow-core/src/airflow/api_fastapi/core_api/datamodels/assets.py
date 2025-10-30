@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import AliasPath, Field, NonNegativeInt, field_validator
+from pydantic import AliasPath, ConfigDict, Field, NonNegativeInt, field_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -58,6 +58,14 @@ class LastAssetEventResponse(BaseModel):
     timestamp: datetime | None = None
 
 
+class AssetWatcherResponse(BaseModel):
+    """Asset watcher serializer for responses."""
+
+    name: str
+    trigger_id: int
+    created_date: datetime
+
+
 class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
@@ -72,6 +80,7 @@ class AssetResponse(BaseModel):
     producing_tasks: list[TaskOutletAssetReference]
     consuming_tasks: list[TaskInletAssetReference]
     aliases: list[AssetAliasResponse]
+    watchers: list[AssetWatcherResponse]
     last_asset_event: LastAssetEventResponse | None = None
 
     @field_validator("extra", mode="after")
@@ -171,7 +180,4 @@ class CreateAssetEventsBody(StrictBaseModel):
         v["from_rest_api"] = True
         return v
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")

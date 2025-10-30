@@ -29,7 +29,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import provide_session
@@ -193,6 +193,22 @@ class TestGetXComEntry(TestXComEndpoint):
 
         assert response.status_code == 200
         assert response.json()["value"] == expected_value
+
+    @pytest.mark.parametrize(
+        "xcom_value, expected_return",
+        [
+            pytest.param(42, 42, id="jsonable"),
+            pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
+            pytest.param([42, AssetAlias("x")], [42, "AssetAlias(name='x', group='asset')"], id="nested"),
+        ],
+    )
+    def test_stringify_false(self, test_client, xcom_value, expected_return):
+        XComModel.set(TEST_XCOM_KEY, xcom_value, dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=run_id)
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True, "stringify": False})
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_return
 
 
 class TestGetXComEntries(TestXComEndpoint):

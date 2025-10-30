@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/*
-Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
-*/
 package sdk
 
 import (
@@ -55,7 +52,6 @@ func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 	resp, err := httpClient.Variables().Get(ctx, key)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
-		errors.As(err, &httpError)
 		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
 			err = fmt.Errorf("%w: %q", VariableNotFound, key)
 		}
@@ -72,4 +68,66 @@ func (c *client) UnmarshalJSONVariable(ctx context.Context, key string, pointer 
 	}
 
 	return json.Unmarshal([]byte(val), pointer)
+}
+
+func (*client) GetConnection(ctx context.Context, connID string) (Connection, error) {
+	// TODO: Lookup connection from env var (and handle JSON + URI forms)
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+
+	resp, err := httpClient.Connections().Get(ctx, connID)
+	if err != nil {
+		var httpError *api.GeneralHTTPError
+		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
+			err = fmt.Errorf("%w: %q", ConnectionNotFound, connID)
+		}
+		return Connection{}, err
+	}
+
+	return connFromAPIResponse(resp)
+}
+
+func (c *client) PushXCom(
+	ctx context.Context,
+	ti api.TaskInstance,
+	key string,
+	value any,
+) error {
+	params := api.SetXcomParams{}
+
+	if ti.MapIndex != nil && *ti.MapIndex != -1 {
+		params.MapIndex = ti.MapIndex
+	}
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	_, err := httpClient.Xcoms().
+		SetResponse(ctx, ti.DagId, ti.RunId, ti.TaskId, key, &params, &value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*client) GetXCom(
+	ctx context.Context,
+	dagId, runId, taskId string,
+	mapIndex *int,
+	key string,
+	value any,
+) (any, error) {
+	params := api.GetXcomParams{
+		MapIndex: mapIndex,
+	}
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	res, err := httpClient.Xcoms().Get(ctx, dagId, runId, taskId, key, &params)
+	if err != nil {
+		var httpError *api.GeneralHTTPError
+		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
+			err = fmt.Errorf("%w: %q", XComNotFound, key)
+		}
+		return nil, err
+	}
+	// TODO: We probably  want to do some level of xcom deser here
+	return res.Value, nil
 }

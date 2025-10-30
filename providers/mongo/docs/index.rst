@@ -64,8 +64,6 @@ apache-airflow-providers-mongo package
 
 Release: 5.2.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

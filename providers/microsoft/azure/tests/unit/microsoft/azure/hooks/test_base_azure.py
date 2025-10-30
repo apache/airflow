@@ -31,6 +31,7 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
     Connection = MagicMock()  # type: ignore[misc]
 
 MODULE = "airflow.providers.microsoft.azure.hooks.base_azure"
+UTILS = "airflow.providers.microsoft.azure.utils"
 
 
 class TestBaseAzureHook:
@@ -111,7 +112,7 @@ class TestBaseAzureHook:
         indirect=True,
     )
     @patch("azure.common.credentials.ServicePrincipalCredentials")
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.AzureIdentityCredentialAdapter")
+    @patch(f"{MODULE}.AzureIdentityCredentialAdapter")
     def test_get_conn_fallback_to_azure_identity_credential_adapter(
         self,
         mock_credential_adapter,
@@ -133,3 +134,90 @@ class TestBaseAzureHook:
             credentials=mock_credential,
             subscription_id="subscription_id",
         )
+
+    @patch(f"{MODULE}.ClientSecretCredential")
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                login="my_login",
+                password="my_password",
+                extra={"tenantId": "my_tenant", "use_azure_identity_object": True},
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_credential_with_client_secret(self, mock_spc, mocked_connection):
+        mock_spc.return_value = "foo-bar"
+        cred = AzureBaseHook().get_credential()
+
+        mock_spc.assert_called_once_with(
+            client_id=mocked_connection.login,
+            client_secret=mocked_connection.password,
+            tenant_id=mocked_connection.extra_dejson["tenantId"],
+        )
+        assert cred == "foo-bar"
+
+    @patch(f"{UTILS}.DefaultAzureCredential")
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={"use_azure_identity_object": True},
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_credential_with_azure_default_credential(self, mock_spc, mocked_connection):
+        mock_spc.return_value = "foo-bar"
+        cred = AzureBaseHook().get_credential()
+
+        mock_spc.assert_called_once_with()
+        assert cred == "foo-bar"
+
+    @patch(f"{UTILS}.DefaultAzureCredential")
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                    "use_azure_identity_object": True,
+                },
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_credential_with_azure_default_credential_with_extra(self, mock_spc, mocked_connection):
+        mock_spc.return_value = "foo-bar"
+        cred = AzureBaseHook().get_credential()
+
+        mock_spc.assert_called_once_with(
+            managed_identity_client_id=mocked_connection.extra_dejson.get("managed_identity_client_id"),
+            workload_identity_tenant_id=mocked_connection.extra_dejson.get("workload_identity_tenant_id"),
+            additionally_allowed_tenants=[mocked_connection.extra_dejson.get("workload_identity_tenant_id")],
+        )
+        assert cred == "foo-bar"
+
+    @patch(f"{UTILS}.DefaultAzureCredential")
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={"use_azure_identity_object": True},
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_token_with_azure_default_credential(self, mock_spc, mocked_connection):
+        mock_spc.return_value.get_token.return_value = "new-token"
+        scope = "custom_scope"
+        token = AzureBaseHook().get_token(scope)
+
+        mock_spc.assert_called_once_with()
+        assert token == "new-token"

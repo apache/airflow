@@ -28,11 +28,74 @@ Changelog
 ---------
 
 
-10.8.0
+10.9.0
+......
+
+Features
+~~~~~~~~
+
+* ``Move container-related functions from PodManager to a separate file (#56700)``
+* ``Add KubernetesPodOperator deferred callbacks (#47108)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator termination_grace_period parameter not being applied to pod spec (#56402)``
+* ``SparkKubernetesOperator: preserve existing metadata labels in SparkApplication manifest (#56063)``
+
+Misc
+~~~~
+
+* ``Migrate cncf/kubernetes provider to ''common.compat'' (#57023)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Enable PT011 rule to provider tests (#56578)``
+
+10.8.2
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
+Bug Fixes
+~~~~~~~~~
+
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Relax Kubernetes client version support to <34.0.0 (#55932)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.8.1
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#50803)``
+* ``Add more error handling in pod_manager consume_logs (#55479)``
+* ``Add more robust check of the container statuses (#55371)``
+* ``Fix circular import in version_compat (#55809)``
+
+Misc
+~~~~
+
+* ``Move the KubernetesPodOperator 'convert_config_file_to_dict' call (#55064)``
+* ``Fix kpo log_events_on_failure logs warnings at warning level (#54967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch all airflow logging to structlog (#52651)``
+
+10.8.0
+......
+
 
 Features
 ~~~~~~~~

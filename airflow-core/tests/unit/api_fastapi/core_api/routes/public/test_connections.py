@@ -27,6 +27,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -217,7 +218,10 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/connections", params=query_params)
+
+        with assert_queries_count(3):
+            response = test_client.get("/connections", params=query_params)
+
         assert response.status_code == 200
 
         body = response.json()
@@ -1142,6 +1146,26 @@ class TestBulkConnections(TestConnectionEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": [TEST_CONN_ID], "errors": []}},
+                id="test_connection_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": [TEST_CONN_ID],
                         }
@@ -1242,6 +1266,34 @@ class TestBulkConnections(TestConnectionEndpoint):
                     },
                 },
                 id="test_create_update_delete",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": [TEST_CONN_ID],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "update": {"success": [TEST_CONN_ID], "errors": []},
+                    "delete": {"success": [TEST_CONN_ID], "errors": []},
+                },
+                id="test_connection_create_update_delete_with_update_mask",
             ),
         ],
     )

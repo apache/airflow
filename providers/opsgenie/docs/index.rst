@@ -80,8 +80,6 @@ apache-airflow-providers-opsgenie package
 
 Release: 5.9.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

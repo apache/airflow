@@ -42,6 +42,7 @@ IMAGE_URI = "image_uri"
 LOG_RESPONSE = base64.b64encode(b"FOO\n\nBAR\n\n").decode()
 BAD_LOG_RESPONSE = LOG_RESPONSE[:-3]
 NO_LOG_RESPONSE_SENTINEL = type("NoLogResponseSentinel", (), {})()
+LAMBDA_FUNC_NO_EXECUTION = "Lambda function did not execute"
 
 
 class TestLambdaCreateFunctionOperator:
@@ -275,7 +276,7 @@ class TestLambdaInvokeFunctionOperator:
         )
         hook_mock().invoke_lambda.return_value = {"ResponseMetadata": "", "StatusCode": 404}
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=LAMBDA_FUNC_NO_EXECUTION):
             operator.execute(None)
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
@@ -291,7 +292,7 @@ class TestLambdaInvokeFunctionOperator:
             "Payload": Mock(),
         }
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=LAMBDA_FUNC_NO_EXECUTION):
             operator.execute(None)
 
     def test_template_fields(self):

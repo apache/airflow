@@ -73,8 +73,6 @@ apache-airflow-providers-cohere package
 
 Release: 1.5.3
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

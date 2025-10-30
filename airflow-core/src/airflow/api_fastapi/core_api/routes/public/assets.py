@@ -70,6 +70,7 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     TaskOutletAssetReference,
 )
 from airflow.utils.state import DagRunState
@@ -182,16 +183,27 @@ def get_assets(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
             subqueryload(AssetModel.consuming_tasks),
+            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
     assets = []
 
     for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
+        watchers_data = [
+            {
+                "name": watcher.name,
+                "trigger_id": watcher.trigger_id,
+                "created_date": watcher.trigger.created_date,
+            }
+            for watcher in asset.watchers
+        ]
+
         asset_response = AssetResponse.model_validate(
             {
                 **asset.__dict__,
                 "aliases": asset.aliases,
+                "watchers": watchers_data,
                 "last_asset_event": {
                     "id": last_asset_event_id,
                     "timestamp": last_asset_event_timestamp,
@@ -473,6 +485,7 @@ def get_asset(
             joinedload(AssetModel.scheduled_dags),
             joinedload(AssetModel.producing_tasks),
             joinedload(AssetModel.consuming_tasks),
+            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
@@ -482,10 +495,20 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
+    watchers_data = [
+        {
+            "name": watcher.name,
+            "trigger_id": watcher.trigger_id,
+            "created_date": watcher.trigger.created_date,
+        }
+        for watcher in asset.watchers
+    ]
+
     return AssetResponse.model_validate(
         {
             **asset.__dict__,
             "aliases": asset.aliases,
+            "watchers": watchers_data,
             "last_asset_event": {
                 "id": last_asset_event_id,
                 "timestamp": last_asset_event_timestamp,

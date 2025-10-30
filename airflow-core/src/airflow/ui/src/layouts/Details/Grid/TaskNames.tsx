@@ -23,6 +23,7 @@ import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+import { type HoverContextType, useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
 import type { GridTask } from "./utils";
@@ -33,41 +34,51 @@ type Props = {
   onRowClick?: () => void;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
+
+const onMouseEnter = (
+  event: MouseEvent<HTMLDivElement>,
+  nodeId: string,
+  setHoveredTaskId: HoverContextType["setHoveredTaskId"],
+) => {
   const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
   });
+
+  setHoveredTaskId(nodeId);
 };
 
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+const onMouseLeave = (nodeId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${nodeId.replaceAll(".", "-")}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
   });
-};
 
-const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
+  setHoveredTaskId(undefined);
+};
 
 export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const { setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  return nodes.map((node) => (
+  return nodes.map((node, index) => (
     <Box
       bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border"}
+      borderTopWidth={index === 0 ? 1 : 0}
       cursor="pointer"
-      id={node.id.replaceAll(".", "-")}
+      id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
       maxHeight="20px"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId)}
+      onMouseLeave={() => onMouseLeave(node.id, setHoveredTaskId)}
       transition="background-color 0.2s"
     >
       {node.isGroup ? (
@@ -106,7 +117,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
                 px={1}
               >
                 <FiChevronUp
-                  size="1rem"
+                  size={16}
                   style={{
                     transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
                     transition: "transform 0.5s",

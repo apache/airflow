@@ -237,7 +237,7 @@ export const Calendar = () => {
               <Box
                 animation={`${spin} 1s linear infinite`}
                 border="3px solid"
-                borderColor={{ _dark: "border.emphasized", _light: "brand.100" }}
+                borderColor={{ _dark: "none.600", _light: "brand.100" }}
                 borderRadius="50%"
                 borderTopColor="brand.500"
                 height="24px"
@@ -248,7 +248,12 @@ export const Calendar = () => {
         ) : undefined}
         {granularity === "daily" ? (
           <>
-            <DailyCalendarView data={data?.dag_runs ?? []} scale={scale} selectedYear={selectedDate.year()} />
+            <DailyCalendarView
+              data={data?.dag_runs ?? []}
+              scale={scale}
+              selectedYear={selectedDate.year()}
+              viewMode={viewMode}
+            />
             <CalendarLegend scale={scale} viewMode={viewMode} />
           </>
         ) : (
@@ -259,6 +264,7 @@ export const Calendar = () => {
                 scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
+                viewMode={viewMode}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>

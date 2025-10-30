@@ -29,7 +29,11 @@ import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 
-const { NAME_PATTERN: NAME_PATTERN_PARAM, STATE: STATE_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+const {
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  NAME_PATTERN: NAME_PATTERN_PARAM,
+  STATE: STATE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 export const TaskInstancesFilter = ({
   setTaskDisplayNamePattern,
@@ -38,13 +42,14 @@ export const TaskInstancesFilter = ({
   readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly taskDisplayNamePattern: string | undefined;
 }) => {
-  const { runId } = useParams();
+  const { dagId, runId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const { t: translate } = useTranslation();
 
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
 
   const handleStateChange = useCallback(
@@ -80,8 +85,34 @@ export const TaskInstancesFilter = ({
     setSearchParams(searchParams);
   };
 
+  const handleDagIdPatternChange = useCallback(
+    (value: string) => {
+      if (value === "") {
+        searchParams.delete(DAG_ID_PATTERN_PARAM);
+      } else {
+        searchParams.set(DAG_ID_PATTERN_PARAM, value);
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
   return (
     <HStack paddingY="4px">
+      {dagId === undefined && (
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={filteredDagIdPattern ?? ""}
+          hideAdvanced
+          hotkeyDisabled={true}
+          onChange={handleDagIdPatternChange}
+          placeHolder={translate("dags:search.dags")}
+        />
+      )}
       <SearchBar
         buttonProps={{ disabled: true }}
         defaultValue={taskDisplayNamePattern ?? ""}

@@ -27,11 +27,134 @@
 Changelog
 ---------
 
-17.2.0
+18.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Deprecate old vertex ai generative operators and introduce new gen ai (#56950)``
+* ``Add support of deferable mode for CloudDataTransferServiceRunJobOperator (#56711)``
+* ``Add fail_on_file_not_exist to SFTPToGCSOperator (#56528)``
+* ``Add GCS Dag bundle (unversioned) (#55919)``
+* ``Add use_rest_api parameter for CloudComposerDAGRunSensor for pulling dag_runs using the Airflow REST API (#56138)``
+* ``feature: Add Open Lineage support for CloudDataFusionStartPipelineOperator (#56365)``
+* ``feature: Add OpenLineage support for SpannerQueryDatabaseInstanceOperator (#56348)``
+* ``feature: Add OpenLineage support for CloudDataTransferServiceS3ToGCSOperator (#55946)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``let PubsubPullTrigger exceptions propagate to triggerer framework (#56400)``
+* ``Fix AsyncToSync and serialization error (#56363)``
+* ``FIX: incorrect access of logical_date in google bigquery operator and google workflow operator (#55110)``
+* ``Prefer BigQueryInsertJobOperator's project_id over hook's project_id for openlineage (#55948)``
+* ``Fix ValueError in def operators in google provider (#55821)``
+
+Misc
+~~~~
+
+* ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
+* ``Simplify version-specific imports in the Google provider (#56793)``
+* ``Deprecate CreateAutoMLVideoTrainingJobOperator and removed system tests for video tracking and video training. Update generative_model_tuning system test. Update documentation for vertex ai. (#56282)``
+* ``Refactor CloudSQLDatabaseHook.create_connection method to align with new Connection from airflow.sdk. (#56323)``
+* ``adding 3 logging statements to display that a job is still waiting in the Dataproc wait_for_job method (#56523)``
+* ``Support google ads v21 in google provider (#56012)``
+
+Doc-only
+~~~~~~~~
+
+* ``refactor vertex_ai image training system test and docs (#56036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix managed kafka system tests to use correct network name (#56654)``
+   * ``Revert "AIP-82: implement Google Pub/Sub message queue provider (#54494)" (#56423)``
+   * ``AIP-82: implement Google Pub/Sub message queue provider (#54494)``
+   * ``Fix dataflow java system test + link (#56286)``
+   * ``Enable PT011 rule to prvoider tests (#56237)``
+   * ``Remove timeout parameter from the dataproc_metastore sys test (#56247)``
+   * ``Update system tests in google provider. Add constraints to prevent from failing and modify example_cloud_logging_sink (#55939)``
+   * ``Upgrade FAB to FAB 5 (#50960)``
+   * ``Enable PT011 rule to provider tests (#56131)``
+   * ``Enable PT011 rule to prvoider tests (#56087)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Add missing extra link definition to google provider (#56136)``
+
+18.0.0
 ......
 
 
-Release Date: ``|PypiReleaseDate|``
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+
+  * ``Remove GoogleDisplayVideo360CreateQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DeleteReportOperator. Reports were replaced with SDF export task in v4 of API``
+  * ``Remove GoogleDisplayVideo360DownloadReportV2Operator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+  * ``Remove GoogleDisplayVideo360RunQueryOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360DownloadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator instead``
+  * ``Remove GoogleDisplayVideo360UploadLineItemsOperator use airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator instead``
+
+* Hooks
+
+  * ``Remove GoogleDisplayVideo360Hook.get_conn use airflow.providers.google.marketing_platform.hooks.display_video.get_conn_to_display_video instead``
+  * ``Remove GoogleDisplayVideo360Hook.create_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.delete_query``
+  * ``Remove GoogleDisplayVideo360Hook.get_query use airflow.providers.google.marketing_platform.hooks.display_video.get_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.list_queries``
+  * ``Remove GoogleDisplayVideo360Hook.run_query use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.get_report``
+  * ``Remove GoogleDisplayVideo360Hook.upload_line_items use airflow.providers.google.marketing_platform.hooks.display_video.create_sdf_download_operation instead``
+  * ``Remove GoogleDisplayVideo360Hook.download_line_items use airflow.providers.google.marketing_platform.hooks.display_video.download_media instead``
+  * ``Remove AutoMLHook.create_auto_ml_text_training_job. AutoMLText API was deprecated.``
+
+* Sensors
+
+  * ``Remove GoogleDisplayVideo360RunQuerySensor. Reports were replaced with SDF export task in v4 of API.``
+
+
+* ``Remove deprecated from google provider scheduled for September 2025 except 30 September 2025. (#55683)``
+
+
+
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for BigQueryToPostgresOperator (#55392)``
+* ``Add OpenLineage support for BigQueryToMySqlOperator (#55219)``
+* ``Add range partitioning option to bigquery operators (#55247)``
+* ``Add CloudComposerTriggerDAGRunOperator for Cloud Composer service (#55256)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Add conversion to timedelta type for self.timeout value for CloudComposerDAGRunSensor (#55570)``
+* ``Fix Cloud Run Async hooks (#55321)``
+* ``Fix CloudComposerAsyncHook to work correctly with Airflow 3 (#54976)``
+* ``Fix: Use GoogleBaseAsyncHook (#55316)``
+
+Misc
+~~~~
+
+* ``Restrict google-ads 28.0.0.post2 (#55640)``
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump mypy to 1.18.1 (#55596)``
+   * ``Fix dataflow java streaming infinite run (#55209)``
+
+17.2.0
+......
+
 
 Features
 ~~~~~~~~

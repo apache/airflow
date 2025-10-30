@@ -38,8 +38,8 @@ class TestStatsd:
 
         assert {
             "name": "config",
-            "mountPath": "/etc/statsd-exporter/mappings.yml",
-            "subPath": "mappings.yml",
+            "mountPath": "/etc/statsd-exporter",
+            "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
         default_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
@@ -62,8 +62,8 @@ class TestStatsd:
 
         assert {
             "name": "config",
-            "mountPath": "/etc/statsd-exporter/mappings.yml",
-            "subPath": "mappings.yml",
+            "mountPath": "/etc/statsd-exporter",
+            "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
     def test_should_add_volume_and_volume_mount_when_exist_override_mappings(self):
@@ -83,8 +83,8 @@ class TestStatsd:
 
         assert {
             "name": "config",
-            "mountPath": "/etc/statsd-exporter/mappings.yml",
-            "subPath": "mappings.yml",
+            "mountPath": "/etc/statsd-exporter",
+            "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(

@@ -165,11 +165,11 @@ documentation at the start of your Dag file.
 
 |
 
-.. image:: ../img/ui-dark/task_doc.png
+.. image:: ../img/ui-light/task_doc.png
 
 |
 
-.. image:: ../img/ui-dark/dag_doc.png
+.. image:: ../img/ui-light/dag_doc.png
 
 Setting up Dependencies
 -----------------------

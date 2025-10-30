@@ -20,7 +20,7 @@
 Take normal chart CHANGELOG entries and build ArtifactHub changelog annotations.
 Only outputs the annotations for the latest release in the CHANGELOG.
 
-e.g from:
+e.g. from:
 
 New Features
 ------------

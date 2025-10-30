@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

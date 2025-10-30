@@ -319,5 +319,4 @@ class DataSyncHook(AwsBaseHook):
             else:
                 raise AirflowException(f"Unknown status: {status}")  # Should never happen
             time.sleep(self.wait_interval_seconds)
-        else:
-            raise AirflowTaskTimeout("Max iterations exceeded!")
+        raise AirflowTaskTimeout("Max iterations exceeded!")

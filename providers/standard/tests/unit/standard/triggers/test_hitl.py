@@ -79,8 +79,7 @@ class TestHITLTrigger:
         )
         mock_supervisor_comms.send.return_value = HITLDetailResponse(
             response_received=False,
-            responded_user_id=None,
-            responded_user_name=None,
+            responded_by_user=None,
             responded_at=None,
             chosen_options=None,
             params_input={},

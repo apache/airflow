@@ -172,7 +172,7 @@ class TestFileToGcsOperator:
             dst=dst,
             **self._config,
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="'dst' parameter references filepath."):
             operator.execute(None)
         mock_instance.assert_not_called()
 

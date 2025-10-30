@@ -633,11 +633,11 @@ class TestClearTasks:
             assert ti.max_tries == 1
 
         # test dry_run
-        for i in range(num_of_dags):
+        for i, dag in enumerate(dags):
             ti = _get_ti(tis[i])
             ti.try_number += 1
             session.commit()
-            ti.refresh_from_task(tis[i].task)
+            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
             assert ti.state == State.SUCCESS
             assert ti.try_number == 2

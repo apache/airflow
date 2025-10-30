@@ -20,8 +20,7 @@
       "all": "Tots",
       "paused": "Pausats"
     },
-    "runIdPatternFilter": "Cerca execucions de Dag",
-    "triggeringUserNameFilter": "Cerca per Usuari que executa"
+    "runIdPatternFilter": "Cerca execucions de Dag"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {

@@ -131,7 +131,7 @@ class BaseDBManager(LoggingMixin):
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
         self.log.info("Migrated the %s database", self.__class__.__name__)
 
-    def downgrade(self, to_version, from_version=None, show_sql_only=False):
+    def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
         """Downgrade the database."""
         raise NotImplementedError
 

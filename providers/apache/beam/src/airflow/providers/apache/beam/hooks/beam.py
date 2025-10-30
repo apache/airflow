@@ -35,13 +35,14 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 
 try:
     from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
 except ImportError:
     # Compat for Airflow < 3.1
     from airflow.exceptions import AirflowConfigException  # type: ignore[attr-defined, no-redef]
-from airflow.providers.apache.beam.version_compat import BaseHook
+
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
 
 if TYPE_CHECKING:

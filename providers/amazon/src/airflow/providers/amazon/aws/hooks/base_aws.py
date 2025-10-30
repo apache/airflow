@@ -60,7 +60,7 @@ from airflow.exceptions import (
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
-from airflow.providers.amazon.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -790,7 +790,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     async def get_async_conn(self):
         """Get an aiobotocore client to use for async operations."""
         # We have to wrap the call `self.get_client_type` in another call `_get_async_conn`,
-        # because one of it's arguments `self.region_name` is a `@property` decorated function
+        # because one of its arguments `self.region_name` is a `@property` decorated function
         # calling the cached property `self.conn_config` at the end.
         return await sync_to_async(self._get_async_conn)()
 

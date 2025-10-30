@@ -40,7 +40,7 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Operation 'operation' not found!"):
             SalesforceBulkOperator(
                 task_id="missing_operation",
                 operation="operation",
@@ -59,7 +59,9 @@ class TestSalesforceBulkOperator:
                 payload=[],
             )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="The required parameter 'object_name' cannot have an empty value."
+        ):
             SalesforceBulkOperator(
                 task_id="missing_object_name",
                 operation="insert",

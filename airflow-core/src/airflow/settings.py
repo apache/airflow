@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import atexit
 import functools
-import json
+import json as json_lib
 import logging
 import os
 import sys
@@ -122,7 +122,7 @@ async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json_lib
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
@@ -633,6 +633,21 @@ def prepare_syspath_for_config_and_plugins():
         sys.path.append(PLUGINS_FOLDER)
 
 
+def __getattr__(name: str):
+    """Handle deprecated module attributes."""
+    if name == "MASK_SECRETS_IN_LOGS":
+        import warnings
+
+        warnings.warn(
+            "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
+            "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return False
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
@@ -685,17 +700,16 @@ def initialize():
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
-    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
-        is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-        if not is_worker:
-            configure_orm()
-    configure_action_logging()
-
     # Configure secrets masker before masking secrets
     _configure_secrets_masker()
 
-    # mask the sensitive_config_values
-    conf.mask_secrets()
+    is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+        configure_orm()
+
+        # mask the sensitive_config_values
+        conf.mask_secrets()
+    configure_action_logging()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

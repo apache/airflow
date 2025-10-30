@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
@@ -27,18 +28,26 @@ import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
+  readonly variant?: string;
   readonly withText?: boolean;
-};
+} & Omit<ButtonProps, "colorPalette" | "onClick" | "variant">;
 
-const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { t: translate } = useTranslation();
+
+  const isOnRunDetailPage = location.pathname.includes(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
 
   const { isPending, mutate: deleteDagRun } = useDeleteDagRun({
     dagId: dagRun.dag_id,
     dagRunId: dagRun.dag_run_id,
     onSuccessConfirm: () => {
       onClose();
+      if (isOnRunDetailPage) {
+        navigate(`/dags/${dagRun.dag_id}/runs`);
+      }
     },
   });
 
@@ -50,8 +59,9 @@ const DeleteRunButton = ({ dagRun, withText = true }: DeleteRunButtonProps) => {
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        variant="solid"
+        variant={variant}
         withText={withText}
+        {...rest}
       />
 
       <DeleteDialog

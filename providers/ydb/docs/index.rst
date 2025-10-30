@@ -79,8 +79,6 @@ apache-airflow-providers-ydb package
 
 Release: 2.2.2
 
-Release Date: ``|PypiReleaseDate|``
-
 Provider package
 ----------------
 

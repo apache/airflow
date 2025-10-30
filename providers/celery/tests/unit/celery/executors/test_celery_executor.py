@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -125,6 +126,24 @@ class TestCeleryExecutor:
 
     def test_cli_commands_vended(self):
         assert CeleryExecutor.get_cli_commands()
+
+    def test_celery_executor_init_with_args_kwargs(self):
+        """Test that CeleryExecutor properly passes args and kwargs to BaseExecutor."""
+        parallelism = 50
+        team_name = "test_team"
+
+        if AIRFLOW_V_3_1_PLUS:
+            # team_name was added in Airflow 3.1
+            executor = celery_executor.CeleryExecutor(parallelism=parallelism, team_name=team_name)
+        else:
+            executor = celery_executor.CeleryExecutor(parallelism)
+
+        assert executor.parallelism == parallelism
+
+        if AIRFLOW_V_3_1_PLUS:
+            # team_name was added in Airflow 3.1
+            assert executor.team_name == team_name
+            assert executor.conf.team_name == team_name
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
@@ -285,7 +304,7 @@ class TestCeleryExecutor:
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
-            with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
                 executor.cleanup_stuck_queued_tasks(tis=tis)
             executor.sync()
         assert executor.tasks == {}
