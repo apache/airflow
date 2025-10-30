@@ -63,8 +63,8 @@ class TestS3ToTeradataTransfer:
         mock_session.return_value.secret_key = access_secret
         mock_session.return_value.token = None
 
-        mock_connection.return_value = Connection()
-        mock_hook.return_value = Connection()
+        mock_connection.return_value = Connection(conn_id="test_teradata_conn", conn_type="teradata")
+        mock_hook.return_value = Connection(conn_id="test_teradata_hook_conn", conn_type="teradata")
 
         op = S3ToTeradataOperator(
             s3_source_key=S3_SOURCE_KEY,

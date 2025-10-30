@@ -1345,7 +1345,11 @@ class TestAwsS3Hook:
         with mock.patch.object(
             S3Hook,
             "get_connection",
-            return_value=Connection(extra={"service_config": {"s3": {"bucket_name": "bucket_name"}}}),
+            return_value=Connection(
+                conn_id="test_s3_conn",
+                conn_type="s3",
+                extra={"service_config": {"s3": {"bucket_name": "bucket_name"}}},
+            ),
         ):
 
             class FakeS3Hook(S3Hook):
@@ -1893,9 +1897,13 @@ def test_unify_and_provide_bucket_name_combination(
     first.
     """
     if has_conn == "with_conn":
-        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
+        c = Connection(
+            conn_id="test_s3_bucket_conn",
+            conn_type="s3",
+            extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}},
+        )
     else:
-        c = Connection()
+        c = Connection(conn_id="test_s3_empty_conn", conn_type="s3")
     key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
     if has_bucket == "with_bucket":
         kwargs = {"bucket_name": "kwargs_bucket", "key": key}
@@ -1941,9 +1949,13 @@ def test_unify_and_provide_bucket_name_combination(
 @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
-        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
+        c = Connection(
+            conn_id="test_s3_head_bucket_conn",
+            conn_type="s3",
+            extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}},
+        )
     else:
-        c = Connection()
+        c = Connection(conn_id="test_s3_head_empty_conn", conn_type="s3")
     mock_conn.return_value = c
     key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
     if has_bucket == "with_bucket":

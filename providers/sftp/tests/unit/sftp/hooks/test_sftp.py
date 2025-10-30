@@ -324,14 +324,22 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_default(self, get_connection):
-        connection = Connection(login="login", host="host")
+        connection = Connection(
+            conn_id="test_sftp_conn_default", conn_type="sftp", login="login", host="host"
+        )
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.no_host_key_check is True
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_enabled(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": true}')
+        connection = Connection(
+            conn_id="test_sftp_conn_enabled",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra='{"no_host_key_check": true}',
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -339,7 +347,13 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": false}')
+        connection = Connection(
+            conn_id="test_sftp_conn_disabled",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra='{"no_host_key_check": false}',
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -347,7 +361,13 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_ciphers(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"ciphers": ["A", "B", "C"]}')
+        connection = Connection(
+            conn_id="test_sftp_conn_ciphers",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra='{"ciphers": ["A", "B", "C"]}',
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -355,7 +375,13 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": "foo"}')
+        connection = Connection(
+            conn_id="test_sftp_conn_invalid",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra='{"no_host_key_check": "foo"}',
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -363,7 +389,13 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_ignore(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"ignore_hostkey_verification": true}')
+        connection = Connection(
+            conn_id="test_sftp_conn_ignore_hostkey",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra='{"ignore_hostkey_verification": true}',
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -371,7 +403,9 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_default(self, get_connection):
-        connection = Connection(login="login", host="host")
+        connection = Connection(
+            conn_id="test_sftp_conn_host_key_default", conn_type="sftp", login="login", host="host"
+        )
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.host_key is None
@@ -379,6 +413,8 @@ class TestSFTPHook:
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key(self, get_connection):
         connection = Connection(
+            conn_id="test_sftp_conn_host_key",
+            conn_type="sftp",
             login="login",
             host="host",
             extra=json.dumps({"host_key": TEST_HOST_KEY}),
@@ -400,7 +436,13 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_with_no_host_key_check(self, get_connection):
-        connection = Connection(login="login", host="host", extra=json.dumps({"host_key": TEST_HOST_KEY}))
+        connection = Connection(
+            conn_id="test_sftp_conn_host_key_no_check",
+            conn_type="sftp",
+            login="login",
+            host="host",
+            extra=json.dumps({"host_key": TEST_HOST_KEY}),
+        )
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.host_key is not None

@@ -158,10 +158,6 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        sanitized_conn_id = sanitize_conn_id(conn_id)
-        if not sanitized_conn_id:
-            raise AirflowException(f"Invalid connection ID: {conn_id!r}")
-        self.conn_id = sanitized_conn_id
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -172,8 +168,15 @@ class Connection(Base, LoggingMixin):
                 "You can't mix these two ways to create this object."
             )
         if uri:
+            # For URI-based connections, allow conn_id to be None initially
+            self.conn_id = sanitize_conn_id(conn_id)  # type: ignore[assignment]
             self._parse_from_uri(uri)
         else:
+            # For non-URI connections, require both conn_id and conn_type
+            sanitized_conn_id = sanitize_conn_id(conn_id)
+            if not sanitized_conn_id:
+                raise AirflowException(f"Invalid connection ID: {conn_id!r}")
+            self.conn_id = sanitized_conn_id
             if not conn_type:
                 raise AirflowException("Connection type must be set for non-URI connection")
             self.conn_type = conn_type

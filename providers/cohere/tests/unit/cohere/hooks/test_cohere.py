@@ -37,7 +37,9 @@ class TestCohereHook:
             patch.object(
                 CohereHook,
                 "get_connection",
-                return_value=Connection(conn_type="cohere", password=api_key, host=base_url),
+                return_value=Connection(
+                    conn_id="test_cohere_conn", conn_type="cohere", password=api_key, host=base_url
+                ),
             ),
             patch("cohere.ClientV2") as client,
         ):

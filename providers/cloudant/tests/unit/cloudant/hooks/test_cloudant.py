@@ -34,7 +34,13 @@ class TestCloudantHook:
 
     @patch(
         "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
-        return_value=Connection(login="the_user", password="the_password", host="the_account"),
+        return_value=Connection(
+            conn_id="test_cloudant_conn",
+            conn_type="cloudant",
+            login="the_user",
+            password="the_password",
+            host="the_account",
+        ),
     )
     @patch("airflow.providers.cloudant.hooks.cloudant.CouchDbSessionAuthenticator")
     @patch("airflow.providers.cloudant.hooks.cloudant.CloudantV1")
@@ -56,13 +62,13 @@ class TestCloudantHook:
     @pytest.mark.parametrize(
         "conn",
         [
-            Connection(),
-            Connection(host="acct"),
-            Connection(login="user"),
-            Connection(password="pwd"),
-            Connection(host="acct", login="user"),
-            Connection(host="acct", password="pwd"),
-            Connection(login="user", password="pwd"),
+            Connection(conn_id="test_cloudant_empty", conn_type="cloudant"),
+            Connection(conn_id="test_cloudant_host", conn_type="cloudant", host="acct"),
+            Connection(conn_id="test_cloudant_user", conn_type="cloudant", login="user"),
+            Connection(conn_id="test_cloudant_pwd", conn_type="cloudant", password="pwd"),
+            Connection(conn_id="test_cloudant_host_user", conn_type="cloudant", host="acct", login="user"),
+            Connection(conn_id="test_cloudant_host_pwd", conn_type="cloudant", host="acct", password="pwd"),
+            Connection(conn_id="test_cloudant_user_pwd", conn_type="cloudant", login="user", password="pwd"),
         ],
     )
     @patch("airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection")

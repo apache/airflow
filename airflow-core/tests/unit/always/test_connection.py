@@ -51,17 +51,18 @@ def get_connection1():
 
 @pytest.fixture
 def get_connection2():
-    return Connection(host="apache.org", extra={})
+    return Connection(conn_id="test_conn_2", conn_type="test", host="apache.org", extra={})
 
 
 @pytest.fixture
 def get_connection3():
-    return Connection(conn_type="foo", login="", password="p@$$")
+    return Connection(conn_id="test_conn_3", conn_type="foo", login="", password="p@$$")
 
 
 @pytest.fixture
 def get_connection4():
     return Connection(
+        conn_id="test_conn_4",
         conn_type="bar",
         description="Sample Description",
         host="example.org",
@@ -118,7 +119,9 @@ class TestConnection:
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
-        test_connection = Connection(extra='{"apache": "airflow"}')
+        test_connection = Connection(
+            conn_id="test_extra_no_encryption", conn_type="test", extra='{"apache": "airflow"}'
+        )
         assert not test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
 
@@ -127,7 +130,9 @@ class TestConnection:
         """
         Tests extras on a new connection with encryption.
         """
-        test_connection = Connection(extra='{"apache": "airflow"}')
+        test_connection = Connection(
+            conn_id="test_extra_with_encryption", conn_type="test", extra='{"apache": "airflow"}'
+        )
         assert test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
 
@@ -139,7 +144,9 @@ class TestConnection:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
-            test_connection = Connection(extra='{"apache": "airflow"}')
+            test_connection = Connection(
+                conn_id="test_extra_rotate_key", conn_type="test", extra='{"apache": "airflow"}'
+            )
             assert test_connection.is_extra_encrypted
             assert test_connection.extra == '{"apache": "airflow"}'
             assert Fernet(key1).decrypt(test_connection._extra.encode()) == b'{"apache": "airflow"}'
@@ -551,7 +558,7 @@ class TestConnection:
     )
     def test_from_json_extra(self, extra, expected):
         """Json serialization should support extra stored as object _or_ as object string representation"""
-        assert Connection.from_json(extra).extra == expected
+        assert Connection.from_json(extra, conn_id="test_from_json_extra").extra == expected
 
     @pytest.mark.parametrize(
         "val,expected",
@@ -563,7 +570,7 @@ class TestConnection:
     )
     def test_from_json_conn_type(self, val, expected):
         """Two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
-        assert Connection.from_json(val).conn_type == expected
+        assert Connection.from_json(val, conn_id="test_from_json_conn_type").conn_type == expected
 
     @pytest.mark.parametrize(
         "val,expected",
@@ -575,7 +582,7 @@ class TestConnection:
     )
     def test_from_json_port(self, val, expected):
         """Two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
-        assert Connection.from_json(val).port == expected
+        assert Connection.from_json(val, conn_id="test_from_json_port").port == expected
 
     @pytest.mark.parametrize(
         "val,expected",
@@ -588,7 +595,7 @@ class TestConnection:
     def test_from_json_special_characters(self, val, expected):
         """Two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
         json_val = json.dumps(dict(password=val))
-        assert Connection.from_json(json_val).password == expected
+        assert Connection.from_json(json_val, conn_id="test_from_json_special_chars").password == expected
 
     @mock.patch.dict(
         "os.environ",
@@ -858,7 +865,7 @@ class TestConnection:
         conn = request.getfixturevalue(conn)
         result = conn.as_json()
         assert result == expected_json
-        restored_conn = Connection.from_json(result)
+        restored_conn = Connection.from_json(result, conn_id="test_as_json_restored")
 
         assert restored_conn.conn_type == conn.conn_type
         assert restored_conn.description == conn.description
