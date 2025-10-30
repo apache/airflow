@@ -868,6 +868,7 @@ class KubernetesPodOperator(BaseOperator):
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
                 startup_check_interval=self.startup_check_interval_seconds,
+                schedule_timeout=self.schedule_timeout_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
                 last_log_time=last_log_time,
