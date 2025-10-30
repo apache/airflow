@@ -58,7 +58,7 @@ class BaseHITLDetail(BaseModel):
     body: str | None = None
     defaults: list[str] | None = None
     multiple: bool = False
-    params: dict[str, Any] = Field(default_factory=dict)
+    params: Mapping = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
     created_at: datetime
 
