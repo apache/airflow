@@ -64,7 +64,6 @@ dependencies = [
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
     "pyhive[hive_pure_sasl]>=0.7.0",
-    "thrift>=0.11.0",
     "jmespath>=0.7.0",
 ]
 

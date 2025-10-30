@@ -123,9 +123,8 @@ class TestXComArgBuild:
     def test_xcom_key_getitem_not_str(self, dag_maker):
         python_op = build_python_op(dag_maker)
         actual = XComArg(python_op)
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="XComArg only supports str lookup, received int"):
             actual[1]
-        assert str(ctx.value) == "XComArg only supports str lookup, received int"
 
     def test_xcom_key_getitem(self, dag_maker):
         python_op = build_python_op(dag_maker)

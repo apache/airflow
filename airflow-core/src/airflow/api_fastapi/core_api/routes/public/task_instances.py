@@ -923,11 +923,23 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
+            # Create BulkTaskInstanceBody object with map_index field
+            bulk_ti_body = BulkTaskInstanceBody(
+                task_id=task_id,
+                map_index=map_index,
+                new_state=body.new_state,
+                note=body.note,
+                include_upstream=body.include_upstream,
+                include_downstream=body.include_downstream,
+                include_future=body.include_future,
+                include_past=body.include_past,
+            )
+
             _patch_task_instance_state(
                 task_id=task_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
-                task_instance_body=body,
+                task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
             )

@@ -386,8 +386,7 @@ class BatchClientHook(AwsBaseHook):
             )
             if job_status in match_status:
                 return True
-        else:
-            raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
+        raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
     def get_job_description(self, job_id: str) -> dict:
         """
@@ -426,10 +425,9 @@ class BatchClientHook(AwsBaseHook):
                     "check Amazon Provider AWS Connection documentation for more details.",
                     str(err),
                 )
-        else:
-            raise AirflowException(
-                f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
-            )
+        raise AirflowException(
+            f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
+        )
 
     @staticmethod
     def parse_job_description(job_id: str, response: dict) -> dict:

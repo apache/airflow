@@ -456,7 +456,7 @@ class TestApprovalOperator:
             )
 
     def test_init_with_multiple_set_to_true(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Passing multiple to ApprovalOperator is not allowed."):
             ApprovalOperator(
                 task_id="hitl_test",
                 subject="This is subject",

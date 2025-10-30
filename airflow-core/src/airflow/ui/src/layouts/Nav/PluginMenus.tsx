@@ -53,7 +53,7 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
   return navItems.length >= 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
-        <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
+        <NavButton as={Box} icon={LuPlug} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
         {buttons.map((navItem) => (
