@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 VERTEX_AI_BASE_LINK = "/vertex-ai"
 VERTEX_AI_MODEL_LINK = (

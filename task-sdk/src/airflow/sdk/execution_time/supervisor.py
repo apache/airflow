@@ -33,7 +33,6 @@ from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
-from functools import lru_cache
 from http import HTTPStatus
 from socket import socket, socketpair
 from typing import (
@@ -104,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -827,8 +827,10 @@ class WatchedSubprocess:
         return self._exit_code
 
 
-@lru_cache
-def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
+_REMOTE_LOGGING_CONN_CACHE: dict[str, Connection | None] = {}
+
+
+def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
     """
     Fetch and cache connection for remote logging.
 
@@ -837,18 +839,22 @@ def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
         client: API client for making requests
 
     Returns:
-        Connection object or None if not found
+        Connection object or None if not found.
     """
     # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
     # SUPERVISOR_COMMS
 
     # TODO: Store in the SecretsCache if its enabled - see #48858
 
+    if conn_id in _REMOTE_LOGGING_CONN_CACHE:
+        return _REMOTE_LOGGING_CONN_CACHE[conn_id]
+
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
+                _REMOTE_LOGGING_CONN_CACHE[conn_id] = conn
                 return conn
         except Exception:
             log.exception(
@@ -862,8 +868,12 @@ def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
         conn_result = ConnectionResult.from_conn_response(conn)
         from airflow.sdk.definitions.connection import Connection
 
-        return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-    return None
+        result: Connection | None = Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    else:
+        result = None
+
+    _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
+    return result
 
 
 @contextlib.contextmanager
@@ -878,7 +888,8 @@ def _remote_logging_conn(client: Client):
     This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
     supervisor process when this is needed, so that doesn't exist yet.
 
-    This function uses @lru_cache for connection caching to avoid repeated API calls.
+    The connection details are fetched eagerly on every invocation to avoid retaining
+    per-task API client instances in global caches.
     """
     from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
 
@@ -887,8 +898,8 @@ def _remote_logging_conn(client: Client):
         yield
         return
 
-    # Use cached connection fetcher
-    conn = _get_remote_logging_conn(conn_id, client)
+    # Fetch connection details on-demand without caching the entire API client instance
+    conn = _fetch_remote_logging_conn(conn_id, client)
 
     if conn:
         key = f"AIRFLOW_CONN_{conn_id.upper()}"
@@ -913,6 +924,9 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    _should_retry: bool = attrs.field(default=False, init=False)
+    """Whether the task should retry or not as decided by the API server."""
 
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
@@ -953,6 +967,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1151,6 +1166,13 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
+
+        # Any negative exit code indicates a signal kill
+        # We consider all signal kills as potentially retryable
+        # since they're often transient issues that could succeed on retry
+        if self._exit_code < 0 and self._should_retry:
+            return TaskInstanceState.UP_FOR_RETRY
+
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
@@ -1253,6 +1275,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, SetRenderedMapIndex):
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
@@ -1912,9 +1936,12 @@ def supervise(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
+    close_client = False
     if not client:
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
         client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+        close_client = True
+        log.debug("Connecting to execution API server", server=server)
 
     start = time.monotonic()
 
@@ -1933,24 +1960,29 @@ def supervise(
 
     reset_secrets_masker()
 
-    process = ActivitySubprocess.start(
-        dag_rel_path=dag_rel_path,
-        what=ti,
-        client=client,
-        logger=logger,
-        bundle_info=bundle_info,
-        subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-    )
+    try:
+        process = ActivitySubprocess.start(
+            dag_rel_path=dag_rel_path,
+            what=ti,
+            client=client,
+            logger=logger,
+            bundle_info=bundle_info,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+        )
 
-    exit_code = process.wait()
-    end = time.monotonic()
-    log.info(
-        "Task finished",
-        task_instance_id=str(ti.id),
-        exit_code=exit_code,
-        duration=end - start,
-        final_state=process.final_state,
-    )
-    if log_path and log_file_descriptor:
-        log_file_descriptor.close()
-    return exit_code
+        exit_code = process.wait()
+        end = time.monotonic()
+        log.info(
+            "Task finished",
+            task_instance_id=str(ti.id),
+            exit_code=exit_code,
+            duration=end - start,
+            final_state=process.final_state,
+        )
+        return exit_code
+    finally:
+        if log_path and log_file_descriptor:
+            log_file_descriptor.close()
+        if close_client and client:
+            with suppress(Exception):
+                client.close()
