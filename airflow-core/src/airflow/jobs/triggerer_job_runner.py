@@ -636,18 +636,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
 
                 return workloads.RunTrigger(
-                    classpath=trigger.classpath,
                     id=new_id,
+                    classpath=trigger.classpath,
                     encrypted_kwargs=trigger.encrypted_kwargs,
                     ti=ser_ti,
                     timeout_after=trigger.task_instance.trigger_timeout,
                     dag_data=serialized_dag.data if serialized_dag else None,
                 )
             return workloads.RunTrigger(
-                classpath=trigger.classpath,
                 id=new_id,
+                classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
-                ti=None,
             )
 
         known_trigger_ids = (
