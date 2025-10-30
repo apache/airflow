@@ -899,17 +899,6 @@ class KubernetesPodOperator(BaseOperator):
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            if event["status"] != "running":
-                for callback in self.callbacks:
-                    callback.on_operator_resuming(
-                        pod=self.pod,
-                        event=event,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
-                    )
-
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
