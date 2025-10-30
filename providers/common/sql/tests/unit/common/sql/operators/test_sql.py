@@ -1182,7 +1182,7 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        with pytest.raises((AirflowException, RuntimeError)):
+        with pytest.raises(AirflowException):
             op.execute({})
 
     def test_invalid_follow_task_true(self, sdk_connection_not_found):
@@ -1195,7 +1195,7 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-        with pytest.raises((AirflowException, RuntimeError)):
+        with pytest.raises(AirflowException):
             op.execute({})
 
     def test_invalid_follow_task_false(self, sdk_connection_not_found):
@@ -1208,7 +1208,7 @@ class TestSqlBranch:
             follow_task_ids_if_false=[],
             dag=self.dag,
         )
-        with pytest.raises((AirflowException, RuntimeError)):
+        with pytest.raises(AirflowException):
             op.execute({})
 
     @pytest.mark.backend("mysql")

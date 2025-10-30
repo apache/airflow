@@ -145,7 +145,7 @@ class BaseSensorOperator(BaseOperator):
             return poke_interval
         if isinstance(poke_interval, (int, float)) and poke_interval >= 0:
             return timedelta(seconds=poke_interval)
-        raise RuntimeError("Operator arg `poke_interval` must be timedelta object or a non-negative number")
+        raise ValueError("Operator arg `poke_interval` must be timedelta object or a non-negative number")
 
     @staticmethod
     def _coerce_timeout(timeout: float | timedelta) -> timedelta:
@@ -153,7 +153,7 @@ class BaseSensorOperator(BaseOperator):
             return timeout
         if isinstance(timeout, (int, float)) and timeout >= 0:
             return timedelta(seconds=timeout)
-        raise RuntimeError("Operator arg `timeout` must be timedelta object or a non-negative number")
+        raise ValueError("Operator arg `timeout` must be timedelta object or a non-negative number")
 
     @staticmethod
     def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
@@ -161,13 +161,13 @@ class BaseSensorOperator(BaseOperator):
             return max_wait
         if isinstance(max_wait, (int, float)) and max_wait >= 0:
             return timedelta(seconds=max_wait)
-        raise RuntimeError("Operator arg `max_wait` must be timedelta object or a non-negative number")
+        raise ValueError("Operator arg `max_wait` must be timedelta object or a non-negative number")
 
     def _validate_input_values(self) -> None:
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
-            raise RuntimeError("The poke_interval must be a non-negative number")
+            raise ValueError("The poke_interval must be a non-negative number")
         if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
-            raise RuntimeError("The timeout must be a non-negative number")
+            raise ValueError("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise RuntimeError(
                 f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''} "
