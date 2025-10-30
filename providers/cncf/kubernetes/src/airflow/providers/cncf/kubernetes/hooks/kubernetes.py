@@ -207,7 +207,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         try:
             return super().get_connection(conn_id)  # type: ignore[return-value]
-        except (AirflowNotFoundException, RuntimeError):
+        except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
             raise

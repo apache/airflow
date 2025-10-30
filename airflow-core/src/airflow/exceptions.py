@@ -30,15 +30,11 @@ if TYPE_CHECKING:
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
-from airflow.sdk.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
 
 
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
-
-
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
 
 
 class AirflowBadRequest(AirflowException):

@@ -25,7 +25,7 @@ import pytest
 
 from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk import Connection
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -126,7 +126,7 @@ class TestConnections:
         error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_supervisor_comms.send.return_value = error_response
 
-        with pytest.raises(RuntimeError, match="The conn_id `mysql_conn` isn't defined"):
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `mysql_conn` isn't defined"):
             _ = Connection.get(conn_id="mysql_conn")
 
     def test_to_dict(self):

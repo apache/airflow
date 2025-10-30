@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import ErrorResponse
 
 
-class AirflowException(Exception):
+class AirflowException(RuntimeError):
     """
     Base class for all Airflow's errors.
 
@@ -42,6 +42,12 @@ class AirflowException(Exception):
     def serialize(self):
         cls = self.__class__
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+
+
+class AirflowNotFoundException(AirflowException):
+    """Raise when the requested object/resource is not available in the system."""
+
+    status_code = HTTPStatus.NOT_FOUND
 
 
 class AirflowDagCycleException(AirflowException):

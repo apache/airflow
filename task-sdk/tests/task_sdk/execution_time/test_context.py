@@ -34,7 +34,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
@@ -965,5 +965,5 @@ class TestSecretsBackend:
         with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
             mock_load.return_value = [EmptyBackend()]
 
-            with pytest.raises(RuntimeError, match="isn't defined"):
+            with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")

@@ -63,6 +63,7 @@ from airflow.sdk.exceptions import (
     AirflowRuntimeError,
     AirflowTaskTimeout,
     ErrorType,
+    TaskDeferred,
 )
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
@@ -124,7 +125,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.exceptions import DagRunTriggerException, TaskDeferred
+    from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -1014,7 +1015,7 @@ def run(
         )
         state = TaskInstanceState.FAILED
         error = e
-    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError, RuntimeError) as e:
+    except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg, state = _handle_current_task_failed(ti)
@@ -1138,7 +1139,6 @@ def _handle_trigger_dag_run(
 
     if drte.deferrable:
         from airflow.providers.standard.triggers.external_task import DagStateTrigger
-        from airflow.sdk.exceptions import TaskDeferred
 
         defer = TaskDeferred(
             trigger=DagStateTrigger(
