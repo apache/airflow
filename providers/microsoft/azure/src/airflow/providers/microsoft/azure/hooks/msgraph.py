@@ -549,7 +549,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     responses.append(response)
 
                     if pagination_function:
-                        url, query_parameters = execute_callable(
+                        url, query_parameters = execute_callable(  # type: ignore
                             pagination_function,
                             response=response,
                             url=url,
