@@ -145,7 +145,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_name_ref_to_ids_names(self, asset_ref_names) -> dict[str, tuple[int, str]]:
+    def collect_asset_name_ref_to_ids_names(self, asset_ref_names: set[str]) -> dict[str, tuple[int, str]]:
         return {
             name: (asset_id, name)
             for name, asset_id in self.session.execute(
@@ -155,7 +155,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris) -> dict[str, tuple[int, str]]:
+    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris: set[str]) -> dict[str, tuple[int, str]]:
         return {
             uri: (asset_id, name)
             for uri, name, asset_id in self.session.execute(
@@ -165,7 +165,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_alias_to_assets(self, asset_alias_names) -> dict[str, list[tuple[int, str]]]:
+    def collect_alias_to_assets(self, asset_alias_names: set[str]) -> dict[str, list[tuple[int, str]]]:
         return {
             aam.name: [(am.id, am.name) for am in aam.assets]
             for aam in self.session.scalars(
@@ -219,7 +219,7 @@ class _DagDependenciesResolver:
                 dependency_id=dep_id,
             )
 
-    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
+    def resolve_asset_name_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
 
     def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
