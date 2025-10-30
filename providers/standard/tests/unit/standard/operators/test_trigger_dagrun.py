@@ -91,7 +91,7 @@ class TestDagRunOperator:
                 session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
             session.commit()
 
-    def test_trigger_dagrun_operator_note_initialization():
+    def test_trigger_dagrun_operator_note_initialization(self):
         """Ensure that note is correctly stored in the operator."""
         op = TriggerDagRunOperator(task_id="test_task", trigger_dag_id="target_dag", note="Test note")
         assert op.note == "Test note"
