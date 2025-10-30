@@ -27,6 +27,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
+from pendulum import DateTime
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
@@ -250,6 +251,66 @@ class TestKubernetesPodTrigger:
         generator = trigger.run()
         await generator.asend(None)
         assert "Container logs:"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "logging_interval, exp_event",
+        [
+            pytest.param(
+                0,
+                {
+                    "status": "success",
+                    "last_log_time": DateTime(2022, 1, 1),
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                },
+                id="short_interval",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.datetime")
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.fetch_container_logs_before_current_sec"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
+    async def test_running_log_interval(
+        self,
+        mock_get_pod,
+        mock_fetch_container_logs_before_current_sec,
+        mock_wait_pod,
+        define_container_state,
+        mock_datetime,
+        logging_interval,
+        exp_event,
+    ):
+        """
+        If log interval given, check that the trigger fetches logs at the right times.
+        """
+        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        mock_datetime.datetime.now.side_effect = [
+            fixed_now,
+            fixed_now + datetime.timedelta(seconds=1),
+            fixed_now + datetime.timedelta(seconds=2),
+        ]
+
+        mock_datetime.timedelta = datetime.timedelta
+        mock_datetime.timezone = datetime.timezone
+        mock_fetch_container_logs_before_current_sec.return_value = DateTime(2022, 1, 1)
+        define_container_state.side_effect = ["running", "running", "terminated"]
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            trigger_start_time=fixed_now,
+            base_container_name=BASE_CONTAINER_NAME,
+            startup_timeout=5,
+            poll_interval=1,
+            logging_interval=1,
+            last_log_time=DateTime(2022, 1, 1),
+        )
+        assert await trigger.run().__anext__() == TriggerEvent(exp_event)
+        assert mock_fetch_container_logs_before_current_sec.call_count == 2
 
     @pytest.mark.parametrize(
         "container_state, expected_state",
