@@ -2510,6 +2510,35 @@ def test_get_job_label(mock_get):
     assert result == "ubuntu-22.04"
 
 
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_not_found(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result is None
+
+
 def test_runner_type_pr():
     selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
 
@@ -2535,6 +2564,7 @@ def test_runner_type_schedule(mock_get):
     jobs_response = Mock()
     jobs_response.json.return_value = {
         "jobs": [
+            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
             {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
             {"name": "Other job", "labels": ["ubuntu-22.04"]},
         ]

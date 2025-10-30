@@ -968,6 +968,10 @@ class KubernetesPodOperator(BaseOperator):
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if event["status"] == "running":
             return
+
+        if self.pod is None:
+            return
+
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
