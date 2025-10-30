@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
@@ -244,7 +244,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=session.scalars(asset_aliases_select),
+        asset_aliases=list(session.scalars(asset_aliases_select)),
         total_entries=total_entries,
     )
 
@@ -333,7 +333,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
-        asset_events=assets_events,
+        asset_events=list(assets_events),
         total_entries=total_entries,
     )
 
@@ -590,7 +590,6 @@ def get_dag_asset_queued_event(
 @assets_router.delete(
     "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
@@ -610,7 +609,7 @@ def delete_asset_queued_events(
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     result = session.execute(delete_stmt)
-    if result.rowcount == 0:
+    if cast("Any", result).rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queue event with asset_id: `{asset_id}` was not found",
@@ -620,7 +619,6 @@ def delete_asset_queued_events(
 @assets_router.delete(
     "/dags/{dag_id}/assets/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -646,14 +644,13 @@ def delete_dag_asset_queued_events(
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
     result = session.execute(delete_statement)
 
-    if result.rowcount == 0:
+    if cast("Any", result).rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
 
 @assets_router.delete(
     "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -681,7 +678,7 @@ def delete_dag_asset_queued_event(
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
     result = session.execute(delete_statement)
-    if result.rowcount == 0:
+    if cast("Any", result).rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
