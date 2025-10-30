@@ -1416,6 +1416,12 @@ components:
           title: End Date
         state:
           $ref: '#/components/schemas/DagRunState'
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+          readOnly: true
       type: object
       required:
       - id
@@ -1426,127 +1432,8 @@ components:
       - start_date
       - end_date
       - state
-      title: DAGRunLightResponse
-      description: DAG Run serializer for responses.
-    DAGRunResponse:
-      properties:
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        dag_id:
-          type: string
-          title: Dag Id
-        logical_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Logical Date
-        queued_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Queued At
-        start_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Start Date
-        end_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: End Date
-        duration:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration
-        data_interval_start:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval Start
-        data_interval_end:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval End
-        run_after:
-          type: string
-          format: date-time
-          title: Run After
-        last_scheduling_decision:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Scheduling Decision
-        run_type:
-          $ref: '#/components/schemas/DagRunType'
-        state:
-          $ref: '#/components/schemas/DagRunState'
-        triggered_by:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunTriggeredByType'
-          - type: 'null'
-        triggering_user_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Triggering User Name
-        conf:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Conf
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
-        dag_versions:
-          items:
-            $ref: '#/components/schemas/DagVersionResponse'
-          type: array
-          title: Dag Versions
-        bundle_version:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Bundle Version
-        dag_display_name:
-          type: string
-          title: Dag Display Name
-      type: object
-      required:
-      - dag_run_id
-      - dag_id
-      - logical_date
-      - queued_at
-      - start_date
-      - end_date
       - duration
-      - data_interval_start
-      - data_interval_end
-      - run_after
-      - last_scheduling_decision
-      - run_type
-      - state
-      - triggered_by
-      - triggering_user_name
-      - conf
-      - note
-      - dag_versions
-      - bundle_version
-      - dag_display_name
-      title: DAGRunResponse
+      title: DAGRunLightResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
       properties:
@@ -1731,7 +1618,7 @@ components:
           title: Asset Expression
         latest_dag_runs:
           items:
-            $ref: '#/components/schemas/DAGRunResponse'
+            $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
         pending_actions:
@@ -1797,19 +1684,6 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
-    DagRunTriggeredByType:
-      type: string
-      enum:
-      - cli
-      - operator
-      - rest_api
-      - ui
-      - test
-      - timetable
-      - asset
-      - backfill
-      title: DagRunTriggeredByType
-      description: Class with TriggeredBy types for DagRun.
     DagRunType:
       type: string
       enum:

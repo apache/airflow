@@ -57,7 +57,9 @@ class HITLDetailHistory(Base, HITLDetailPropertyMixin):
     params: Mapped[dict] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
     )
-    assignees: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    assignees: Mapped[list[dict[str, str]] | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
