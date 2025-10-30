@@ -162,7 +162,7 @@ Enable debug logging to troubleshoot issues:
 
 
 Compatibility
-~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 - **Informatica EDC Version**: This provider is compatible with Informatica EDC version 10.5 and above.
 - **Airflow Compatibility**: This provider is compatible with Apache Airflow 3.0 and above.
