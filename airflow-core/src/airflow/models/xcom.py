@@ -107,7 +107,7 @@ class XComModel(TaskInstanceDependencies):
     task = relationship(
         "TaskInstance",
         viewonly=True,
-        lazy="selectin",
+        lazy="noload",
     )
 
     @classmethod
