@@ -613,6 +613,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
                     executor_slots_available[executor_obj.name] -= 1
+                    # Capture the actual executor name being used for this task instance
+                    task_instance.executor = executor_obj.name.alias or executor_obj.name.module_path
                 else:
                     # This is a defensive guard for if we happen to have a task who's executor cannot be
                     # found. The check in the dag parser should make this not realistically possible but the
@@ -679,8 +681,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .execution_options(synchronize_session=False)
             )
 
+            # Update executor field for each task instance before making them transient
             for ti in executable_tis:
+                session.execute(
+                    update(TI)
+                    .where(
+                        TI.dag_id == ti.dag_id,
+                        TI.task_id == ti.task_id,
+                        TI.run_id == ti.run_id,
+                        TI.map_index == ti.map_index,
+                    )
+                    .values(executor=ti.executor)
+                )
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+            session.flush()
 
         for ti in executable_tis:
             make_transient(ti)

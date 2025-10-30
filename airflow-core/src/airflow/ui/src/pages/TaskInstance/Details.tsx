@@ -207,7 +207,7 @@ export const Details = () => {
           </Table.Row>
           <Table.Row>
             <Table.Cell>{translate("taskInstance.executor")}</Table.Cell>
-            <Table.Cell>{tryInstance?.executor_config}</Table.Cell>
+            <Table.Cell>{tryInstance?.executor}</Table.Cell>
           </Table.Row>
         </Table.Body>
       </Table.Root>
