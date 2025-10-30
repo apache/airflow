@@ -39,10 +39,11 @@ from collections.abc import Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from enum import Enum
 from io import StringIO
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any
+from typing import IO, Any, TypeVar
 from urllib.parse import urlsplit
 
 from packaging.version import parse as parse_version
@@ -560,6 +561,47 @@ class AirflowConfigParser(ConfigParser):
         yield
         if reload_providers_when_leaving:
             self.load_providers_configuration()
+
+    E = TypeVar("E", bound=Enum)
+
+    def getenum(self, section: str, key: str, enum_class: type[E], **kwargs) -> E:
+        val = self.get(section, key, **kwargs)
+        enum_names = [enum_item.name for enum_item in enum_class]
+
+        if val is None:
+            raise AirflowConfigException(
+                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
+            )
+
+        try:
+            return enum_class[val]
+        except KeyError:
+            if "fallback" in kwargs and kwargs["fallback"] in enum_names:
+                return enum_class[kwargs["fallback"]]
+            raise AirflowConfigException(
+                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
+                f"the value must be one of {', '.join(enum_names)}"
+            )
+
+    def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
+        string_list = self.getlist(section, key, delimiter, **kwargs)
+        enum_names = [enum_item.name for enum_item in enum_class]
+        enum_list = []
+
+        for val in string_list:
+            try:
+                enum_list.append(enum_class[val])
+            except KeyError:
+                log.warning(
+                    "Failed to convert value. Please check %s key in %s section. "
+                    "it must be one of %s, if not the value is ignored",
+                    key,
+                    section,
+                    ", ".join(enum_names),
+                )
+
+        return enum_list
 
     @staticmethod
     def _write_section_header(
@@ -1790,8 +1832,7 @@ class AirflowConfigParser(ConfigParser):
                     deprecated_section_array = config.items(section=deprecated_section, raw=True)
                     if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-        else:
-            return False
+        return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
