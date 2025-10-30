@@ -303,7 +303,6 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                     external_task_id=self.external_task_id,
                     success_states=self.success_states,
                     failure_states=self.failure_states,
-                    airflow_version=self.airflow_version,
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,

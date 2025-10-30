@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-oracle",
         "name": "Oracle",
-        "description": "`Oracle <https://www.oracle.com/en/database/>`__\n",
+        "description": "`Oracle <https://www.oracle.com/database/technologies/>`__\n",
         "integrations": [
             {
                 "integration-name": "Oracle",
