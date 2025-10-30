@@ -65,7 +65,7 @@ def _get_asset_events_through_sql_clauses(
                     source_task_id=event.source_task_id,
                     source_dag_id=event.source_dag_id,
                     source_run_id=event.source_run_id,
-                    source_map_index=event.source_map_index,
+                    source_map_index=event.source_map_index if event.source_map_index is not None else -1,
                 )
                 for event in asset_events
             ]
@@ -86,9 +86,9 @@ def get_asset_event_by_asset_name_uri(
     if name and uri:
         where_clause = and_(AssetModel.name == name, AssetModel.uri == uri)
     elif uri:
-        where_clause = and_(AssetModel.uri == uri, AssetModel.active.has())  # type: ignore[attr-defined]
+        where_clause = and_(AssetModel.uri == uri, AssetModel.active.has())
     elif name:
-        where_clause = and_(AssetModel.name == name, AssetModel.active.has())  # type: ignore[attr-defined]
+        where_clause = and_(AssetModel.name == name, AssetModel.active.has())
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

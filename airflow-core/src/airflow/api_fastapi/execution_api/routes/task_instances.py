@@ -445,7 +445,7 @@ def _create_ti_state_update_query_and_update_state(
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
-) -> tuple[Update, str]:
+) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, ti_id_str)
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
