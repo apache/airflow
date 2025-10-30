@@ -46,7 +46,7 @@ pytestmark = skip_if_force_lowest_dependencies_marker
 
 @pytest.fixture
 def get_connection1():
-    return Connection()
+    return Connection(conn_id="test_conn", conn_type="test")
 
 
 @pytest.fixture
@@ -814,9 +814,9 @@ class TestConnection:
 
     def test_get_uri_no_conn_type(self):
         # no conn type --> scheme-relative URI
-        assert Connection().get_uri() == "//"
+        assert Connection(uri="//").get_uri() == "//"
         # with host, still works
-        assert Connection(host="abc").get_uri() == "//abc"
+        assert Connection(uri="//abc").get_uri() == "//abc"
         # parsing back as conn still works
         assert Connection(uri="//abc").host == "abc"
 

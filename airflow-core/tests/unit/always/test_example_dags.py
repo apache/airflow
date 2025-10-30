@@ -194,7 +194,7 @@ def test_should_not_do_database_queries(example: str):
 def test_should_not_run_hook_connections(example: str):
     # Example dags should never run BaseHook.get_connection() class method when parsed
     with patch.object(BaseHook, "get_connection") as mock_get_connection:
-        mock_get_connection.return_value = Connection()
+        mock_get_connection.return_value = Connection(conn_id="test_conn", conn_type="test")
         DagBag(
             dag_folder=example,
             include_examples=False,

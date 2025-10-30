@@ -128,8 +128,8 @@ class Connection(Base, LoggingMixin):
     __tablename__ = "connection"
 
     id: Mapped[int] = mapped_column(Integer(), primary_key=True)
-    conn_id: Mapped[str | None] = mapped_column(String(ID_LEN), unique=True, nullable=False)
-    conn_type: Mapped[str | None] = mapped_column(String(500), nullable=False)
+    conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(
         Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
     )
@@ -158,7 +158,10 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        self.conn_id = sanitize_conn_id(conn_id)
+        sanitized_conn_id = sanitize_conn_id(conn_id)
+        if not sanitized_conn_id:
+            raise AirflowException(f"Invalid connection ID: {conn_id!r}")
+        self.conn_id = sanitized_conn_id
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -171,6 +174,8 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
+            if not conn_type:
+                raise AirflowException("Connection type must be set for non-URI connection")
             self.conn_type = conn_type
             self.host = host
             self.login = login
