@@ -28,6 +28,7 @@ from typing import (
     Generic,
     Literal,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -413,8 +414,6 @@ def filter_param_factory(
         if transform_callable:
             value = transform_callable(value)
         # Cast to InstrumentedAttribute for type compatibility
-        from typing import cast
-
         attr = cast("InstrumentedAttribute", attribute)
         return FilterParam(attr, value, filter_option, skip_none)
 
