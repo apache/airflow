@@ -448,9 +448,7 @@ class TestKubernetesHook:
 
         # meanwhile, asking for non-default should still fail if it doesn't exist
         hook = KubernetesHook("some_conn")
-        with pytest.raises(
-            (AirflowNotFoundException, RuntimeError), match="The conn_id `some_conn` isn't defined"
-        ):
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `some_conn` isn't defined"):
             hook.conn_extras
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")

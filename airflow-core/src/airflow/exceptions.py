@@ -27,15 +27,11 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from airflow.models import DagRun
 
-from airflow.sdk.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
 
 
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
-
-
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
 
 
 class AirflowBadRequest(AirflowException):

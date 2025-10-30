@@ -25,7 +25,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class Connection:
     def _handle_connection_error(cls, e: AirflowRuntimeError, conn_id: str) -> None:
         """Handle connection retrieval errors."""
         if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-            raise RuntimeError(f"The conn_id `{conn_id}` isn't defined") from None
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
         raise
 
     @classmethod

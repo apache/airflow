@@ -119,7 +119,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                     raise ValueError(
                         f"Encountered non-JSON in `extra` field for connection {self.aws_conn_id!r}."
                     )
-            except (AirflowNotFoundException, RuntimeError):
+            except AirflowNotFoundException:
                 connection = athena_conn
                 connection.conn_type = "aws"
                 self.log.warning(
