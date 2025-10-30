@@ -67,7 +67,7 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
-from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
@@ -341,8 +341,6 @@ def ti_update_state(
     bind_contextvars(ti_id=ti_id_str)
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
-    updated_state: str = ""
-
     old = select(TI.state, TI.try_number, TI.max_tries, TI.dag_id).where(TI.id == ti_id_str).with_for_update()
     try:
         (
@@ -391,13 +389,15 @@ def ti_update_state(
             ti_id_str=ti_id_str,
             session=session,
             query=query,
-            updated_state=updated_state,
             dag_id=dag_id,
             dag_bag=dag_bag,
         )
     except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
-        log.exception("Error updating Task Instance state to %s. Set the task to failed", updated_state)
+        log.exception(
+            "Error updating Task Instance state. Setting the task to failed.",
+            payload=ti_patch_payload,
+        )
         ti = session.get(TI, ti_id_str)
         if session.bind is not None:
             query = TI.duration_expression_update(datetime.now(tz=timezone.utc), query, session.bind)
@@ -443,19 +443,18 @@ def _create_ti_state_update_query_and_update_state(
     ti_patch_payload: TIStateUpdate,
     ti_id_str: str,
     query: Update,
-    updated_state,
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, ti_id_str)
-        updated_state = ti_patch_payload.state
+        updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state, next_method=None, next_kwargs=None)
 
-        if updated_state == TerminalTIState.FAILED:
+        if updated_state == TaskInstanceState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
@@ -521,8 +520,10 @@ def _create_ti_state_update_query_and_update_state(
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
                 # Set a task to failed in case any unexpected exception happened during task state update
-                log.exception(
-                    "Error updating Task Instance state to %s. Set the task to failed", updated_state
+                log.error(
+                    "Cannot reschedule task past MySQL limit. Setting the task to failed.",
+                    payload=ti_patch_payload,
+                    mysql_timestamp_max=_MYSQL_TIMESTAMP_MAX,
                 )
                 data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
                 query = update(TI).where(TI.id == ti_id_str).values(data)
@@ -532,7 +533,7 @@ def _create_ti_state_update_query_and_update_state(
                 ti = session.get(TI, ti_id_str)
                 if ti is not None:
                     _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
-                return query, updated_state
+                return query, TaskInstanceState.FAILED
 
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
@@ -551,8 +552,8 @@ def _create_ti_state_update_query_and_update_state(
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
-        query = query.values(state=TaskInstanceState.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
 
