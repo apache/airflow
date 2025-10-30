@@ -2649,10 +2649,10 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
                 activity_subprocess._upload_logs()
 
-            assert connection_available["available"], (
-                f"Connection {expected_env} was not available during upload_to_remote call"
-            )
-            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+                assert connection_available["available"], (
+                    f"Connection {expected_env} was not available during upload_to_remote call"
+                )
+                assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
 class TestSignalRetryLogic:
