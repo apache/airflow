@@ -1217,7 +1217,6 @@ def _get_email_subject_content(
         "Exception:<br>{{exception_html}}<br>"
         'Log: <a href="{{ti.log_url}}">Link</a><br>'
         "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
     default_html_content_err = (
@@ -1225,7 +1224,6 @@ def _get_email_subject_content(
         "Exception:<br>Failed attempt to attach error logs<br>"
         'Log: <a href="{{ti.log_url}}">Link</a><br>'
         "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
     additional_context: dict[str, Any] = {
