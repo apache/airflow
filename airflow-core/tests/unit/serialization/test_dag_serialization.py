@@ -56,6 +56,7 @@ from airflow.exceptions import (
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
@@ -3820,6 +3821,59 @@ def test_task_callback_boolean_optimization(callback_config, expected_flags, is_
             assert getattr(deserialized, flag) is expected
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"inlets": [Asset(uri="file://some.txt")]},
+        {"outlets": [Asset(uri="file://some.txt")]},
+        {"on_success_callback": lambda *args, **kwargs: None},
+        {"on_execute_callback": lambda *args, **kwargs: None},
+    ],
+)
+def test_is_schedulable_task_empty_operator_evaluates_true(kwargs):
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    dag = DAG(dag_id="test_dag")
+    task = EmptyOperator(task_id="empty_task", dag=dag, **kwargs)
+
+    serialized_task = BaseSerialization.deserialize(BaseSerialization.serialize(task))
+
+    assert TI.is_task_schedulable(serialized_task)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {"on_failure_callback": lambda *args, **kwargs: None},
+        {"on_skipped_callback": lambda *args, **kwargs: None},
+        {"on_retry_callback": lambda *args, **kwargs: None},
+    ],
+)
+def test_is_schedulable_task_empty_operator_evaluates_false(kwargs):
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    dag = DAG(dag_id="test_dag")
+    task = EmptyOperator(task_id="empty_task", dag=dag, **kwargs)
+
+    serialized_task = BaseSerialization.deserialize(BaseSerialization.serialize(task))
+
+    assert not TI.is_task_schedulable(serialized_task)
+
+
+def test_is_schedulable_task_non_empty_operator():
+    dag = DAG(dag_id="test_dag")
+
+    regular_task = BashOperator(task_id="regular", bash_command="echo test", dag=dag)
+    mapped_task = BashOperator.partial(task_id="mapped", dag=dag).expand(bash_command=["echo 1"])
+
+    serialized_regular = BaseSerialization.deserialize(BaseSerialization.serialize(regular_task))
+    serialized_mapped = BaseSerialization.deserialize(BaseSerialization.serialize(mapped_task))
+
+    assert TI.is_task_schedulable(serialized_regular)
+    assert TI.is_task_schedulable(serialized_mapped)
+
+
 def test_task_callback_properties_exist():
     """Test that all callback boolean properties exist on both regular and mapped operators."""
     dag = DAG(dag_id="test_dag")
@@ -4291,3 +4345,65 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert "owner" in deserialized_task.partial_kwargs
         assert deserialized_task.partial_kwargs["retry_delay"] == timedelta(seconds=600)
         assert deserialized_task.partial_kwargs["owner"] == "custom_owner"
+
+
+@pytest.mark.parametrize(
+    ["callbacks", "expected_has_flags", "absent_keys"],
+    [
+        pytest.param(
+            {
+                "on_failure_callback": lambda ctx: None,
+                "on_success_callback": lambda ctx: None,
+                "on_retry_callback": lambda ctx: None,
+            },
+            ["has_on_failure_callback", "has_on_success_callback", "has_on_retry_callback"],
+            ["on_failure_callback", "on_success_callback", "on_retry_callback"],
+            id="multiple_callbacks",
+        ),
+        pytest.param(
+            {"on_failure_callback": lambda ctx: None},
+            ["has_on_failure_callback"],
+            ["on_failure_callback", "has_on_success_callback", "on_success_callback"],
+            id="single_callback",
+        ),
+        pytest.param(
+            {"on_failure_callback": lambda ctx: None, "on_execute_callback": None},
+            ["has_on_failure_callback"],
+            ["on_failure_callback", "has_on_execute_callback", "on_execute_callback"],
+            id="callback_with_none",
+        ),
+        pytest.param(
+            {},
+            [],
+            [
+                "has_on_execute_callback",
+                "has_on_failure_callback",
+                "has_on_success_callback",
+                "has_on_retry_callback",
+                "has_on_skipped_callback",
+            ],
+            id="no_callbacks",
+        ),
+    ],
+)
+def test_dag_default_args_callbacks_serialization(callbacks, expected_has_flags, absent_keys):
+    """Test callbacks in DAG default_args are serialized as boolean flags."""
+    default_args = {"owner": "test_owner", "retries": 2, **callbacks}
+
+    with DAG(dag_id="test_default_args_callbacks", default_args=default_args) as dag:
+        BashOperator(task_id="task1", bash_command="echo 1", dag=dag)
+
+    serialized_dag_dict = SerializedDAG.serialize_dag(dag)
+    default_args_dict = serialized_dag_dict["default_args"][Encoding.VAR]
+
+    for flag in expected_has_flags:
+        assert default_args_dict.get(flag) is True
+
+    for key in absent_keys:
+        assert key not in default_args_dict
+
+    assert default_args_dict["owner"] == "test_owner"
+    assert default_args_dict["retries"] == 2
+
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag_dict)
+    assert deserialized_dag.dag_id == "test_default_args_callbacks"

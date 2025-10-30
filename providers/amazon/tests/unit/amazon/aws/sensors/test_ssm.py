@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
 
@@ -91,5 +90,5 @@ class TestSsmRunCommandCompletedSensor:
     @mock.patch.object(SsmHook, "conn")
     def test_poke_failure_states(self, mock_conn, state, mock_ssm_list_invocations):
         mock_ssm_list_invocations(mock_conn, state)
-        with pytest.raises(AirflowException, match=self.SENSOR.FAILURE_MESSAGE):
+        with pytest.raises(RuntimeError, match=self.SENSOR.FAILURE_MESSAGE):
             self.sensor.poke({})

@@ -930,7 +930,7 @@ def export_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
@@ -995,7 +995,7 @@ def import_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
