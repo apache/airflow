@@ -44,6 +44,7 @@ dagruns_select_with_state_count = (
 
 
 def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
+    """Construct the eager loading options necessary for a DagRunResponse object."""
     return (
         joinedload(DagRun.dag_model),
         selectinload(DagRun.task_instances)
