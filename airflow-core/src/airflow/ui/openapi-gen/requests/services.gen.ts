@@ -3576,7 +3576,7 @@ export class VariableService {
     
     /**
      * Export Variables
-     * Export variables with unmasked values.
+     * Export variables with unmasked values. Requires PUT permission (elevated access).
      * @param data The data for the request.
      * @param data.requestBody
      * @returns VariableExportResponse Successful Response

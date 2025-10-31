@@ -7720,7 +7720,8 @@ paths:
       tags:
       - Variable
       summary: Export Variables
-      description: Export variables with unmasked values.
+      description: Export variables with unmasked values. Requires PUT permission
+        (elevated access).
       operationId: export_variables
       requestBody:
         content:
