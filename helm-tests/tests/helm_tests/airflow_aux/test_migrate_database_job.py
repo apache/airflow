@@ -19,6 +19,11 @@ from __future__ import annotations
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
+from helm_tests.utils import (
+    _get_enabled_git_sync_test_params,
+    _get_git_sync_test_params_for_no_containers,
+    _test_git_sync_presence,
+)
 
 
 class TestMigrateDatabaseJob:
@@ -414,6 +419,34 @@ class TestMigrateDatabaseJob:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_git_sync_test_params_for_no_containers("migrateDatabaseJob"),
+    )
+    def test_git_sync_not_added_when_disabled_or_persistent_dags(
+        self, git_sync_values, dags_persistence_enabled
+    ):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/jobs/migrate-database-job.yaml",
+            in_init_containers=False,
+            in_containers=False
+        )
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_enabled_git_sync_test_params("migrateDatabaseJob"),
+    )
+    def test_git_sync_added_when_enabled(self, git_sync_values, dags_persistence_enabled):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/jobs/migrate-database-job.yaml",
+            in_init_containers=True,
+            in_containers=False
+        )
 
     @pytest.mark.parametrize(
         "restart_policy",
