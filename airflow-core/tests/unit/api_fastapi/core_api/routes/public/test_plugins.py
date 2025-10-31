@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
@@ -63,7 +64,8 @@ class TestGetPlugins:
     ):
         pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
 
-        response = test_client.get("/plugins", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/plugins", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -73,7 +75,8 @@ class TestGetPlugins:
     def test_external_views_model_validator(self, test_client):
         pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
 
-        response = test_client.get("plugins")
+        with assert_queries_count(2):
+            response = test_client.get("plugins")
         body = response.json()
 
         test_plugin = next((plugin for plugin in body["plugins"] if plugin["name"] == "test_plugin"), None)
@@ -156,7 +159,8 @@ class TestGetPluginImportErrors:
         new={"plugins/test_plugin.py": "something went wrong"},
     )
     def test_should_respond_200(self, test_client, session):
-        response = test_client.get("/plugins/importErrors")
+        with assert_queries_count(2):
+            response = test_client.get("/plugins/importErrors")
         assert response.status_code == 200
 
         body = response.json()
