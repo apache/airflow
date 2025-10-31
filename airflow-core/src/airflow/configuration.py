@@ -17,10 +17,7 @@
 from __future__ import annotations
 
 import contextlib
-import datetime
-import functools
 import itertools
-import json
 import logging
 import multiprocessing
 import os
@@ -33,19 +30,19 @@ import sys
 import warnings
 from base64 import b64encode
 from collections.abc import Generator, Iterable
-from configparser import ConfigParser, NoOptionError, NoSectionError
+from configparser import ConfigParser, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
-from enum import Enum
 from io import StringIO
-from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any, TypeVar
+from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
+from airflow._shared.configuration.exceptions import AirflowConfigException as _AirflowConfigException
+from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
@@ -203,11 +200,12 @@ def retrieve_configuration_description(
     return base_configuration_description
 
 
-class AirflowConfigParser(ConfigParser):
+class AirflowConfigParser(_SharedAirflowConfigParser):
     """
     Custom Airflow Configparser supporting defaults and deprecated options.
 
-    This is a subclass of ConfigParser that supports defaults and deprecated options.
+    This is a subclass of the shared AirflowConfigParser that adds Core-specific initialization
+    and functionality (providers, validation, writing, etc.).
 
     The defaults are stored in the ``_default_values``. The configuration description keeps
     description of all the options available in Airflow (description follow config.yaml.schema).
@@ -317,80 +315,25 @@ class AirflowConfigParser(ConfigParser):
         """Get provider config fallback default values."""
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
 
-    # These configuration elements can be fetched as the stdout of commands
-    # following the "{section}__{name}_cmd" pattern, the idea behind this
-    # is to not store password on boxes in text files.
-    # These configs can also be fetched from Secrets backend
-    # following the "{section}__{name}__secret" pattern
-    @functools.cached_property
-    def sensitive_config_values(self) -> set[tuple[str, str]]:
-        if self.configuration_description is None:
-            return set()
-        flattened = {
-            (s, k): item
-            for s, s_c in self.configuration_description.items()
-            for k, item in s_c.get("options").items()  # type: ignore[union-attr]
-        }
-        sensitive = {
-            (section.lower(), key.lower())
-            for (section, key), v in flattened.items()
-            if v.get("sensitive") is True
-        }
-        depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
-        depr_section = {
-            (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
-        }
-        sensitive.update(depr_section, depr_option)
-        return sensitive
+    def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
+        """Get Config option values from Secret Backend."""
+        try:
+            secrets_client = get_custom_secret_backend()
+            if not secrets_client:
+                return None
+            return secrets_client.get_config(config_key)
+        except Exception as e:
+            raise AirflowConfigException(
+                "Cannot retrieve config from alternative secrets backend. "
+                "Make sure it is configured properly and that the Backend "
+                "is accessible.\n"
+                f"{e}"
+            )
 
-    # A mapping of (new section, new option) -> (old section, old option, since_version).
-    # When reading new option, the old option will be checked to see if it exists. If it does a
-    # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
-        ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
-        ("api", "host"): ("webserver", "web_server_host", "3.0"),
-        ("api", "port"): ("webserver", "web_server_port", "3.0"),
-        ("api", "workers"): ("webserver", "workers", "3.0"),
-        ("api", "worker_timeout"): ("webserver", "web_server_worker_timeout", "3.0"),
-        ("api", "ssl_cert"): ("webserver", "web_server_ssl_cert", "3.0"),
-        ("api", "ssl_key"): ("webserver", "web_server_ssl_key", "3.0"),
-        ("api", "access_logfile"): ("webserver", "access_logfile", "3.0"),
-        ("triggerer", "capacity"): ("triggerer", "default_capacity", "3.0"),
-        ("api", "expose_config"): ("webserver", "expose_config", "3.0.1"),
-        ("fab", "access_denied_message"): ("webserver", "access_denied_message", "3.0.2"),
-        ("fab", "expose_hostname"): ("webserver", "expose_hostname", "3.0.2"),
-        ("fab", "navbar_color"): ("webserver", "navbar_color", "3.0.2"),
-        ("fab", "navbar_text_color"): ("webserver", "navbar_text_color", "3.0.2"),
-        ("fab", "navbar_hover_color"): ("webserver", "navbar_hover_color", "3.0.2"),
-        ("fab", "navbar_text_hover_color"): ("webserver", "navbar_text_hover_color", "3.0.2"),
-        ("api", "secret_key"): ("webserver", "secret_key", "3.0.2"),
-        ("api", "enable_swagger_ui"): ("webserver", "enable_swagger_ui", "3.0.2"),
-        ("dag_processor", "parsing_pre_import_modules"): ("scheduler", "parsing_pre_import_modules", "3.0.4"),
-        ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
-        ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
-        ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
-        ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
-        ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
-        ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
-        ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
-        ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
-        ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
-    }
-
-    # A mapping of new section -> (old section, since_version).
-    deprecated_sections: dict[str, tuple[str, str]] = {}
-
-    # Now build the inverse so we can go from old_section/old_key to new_section/new_key
-    # if someone tries to retrieve it based on old_section/old_key
-    @functools.cached_property
-    def inversed_deprecated_options(self):
-        return {(sec, name): key for key, (sec, name, ver) in self.deprecated_options.items()}
-
-    @functools.cached_property
-    def inversed_deprecated_sections(self):
-        return {
-            old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
-        }
+    # Deprecated options and sections are now defined in the shared base class.
+    # sensitive_config_values is also provided by the shared base class as a cached property.
+    # The inversed_deprecated_options and inversed_deprecated_sections are also
+    # provided by the shared base class as cached properties.
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace }
@@ -868,7 +811,7 @@ class AirflowConfigParser(ConfigParser):
             try:
                 with self.suppress_future_warnings():
                     value = self.get(section, key, suppress_warnings=True)
-            except AirflowConfigException:
+            except (_AirflowConfigException, AirflowConfigException):
                 log.debug(
                     "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
                     section,
@@ -882,42 +825,8 @@ class AirflowConfigParser(ConfigParser):
         team_component: str = f"{team_name.upper()}___" if team_name else ""
         return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
-    def _get_env_var_option(self, section: str, key: str, team_name: str | None = None):
-        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore) OR for team based
-        # configuration must have the format AIRFLOW__{TEAM_NAME}___{SECTION}__{KEY}
-        env_var: str = self._env_var_name(section, key, team_name=team_name)
-        if env_var in os.environ:
-            return expand_env_var(os.environ[env_var])
-        # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
-        env_var_cmd = env_var + "_CMD"
-        if env_var_cmd in os.environ:
-            # if this is a valid command key...
-            if (section, key) in self.sensitive_config_values:
-                return run_command(os.environ[env_var_cmd])
-        # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
-        env_var_secret_path = env_var + "_SECRET"
-        if env_var_secret_path in os.environ:
-            # if this is a valid secret path...
-            if (section, key) in self.sensitive_config_values:
-                return _get_config_value_from_secret_backend(os.environ[env_var_secret_path])
-        return None
-
-    def _get_cmd_option(self, section: str, key: str):
-        fallback_key = key + "_cmd"
-        if (section, key) in self.sensitive_config_values:
-            if super().has_option(section, fallback_key):
-                command = super().get(section, fallback_key)
-                try:
-                    cmd_output = run_command(command)
-                except AirflowConfigException as e:
-                    raise e
-                except Exception as e:
-                    raise AirflowConfigException(
-                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
-                        f" Please check the {fallback_key} value."
-                    ) from e
-                return cmd_output
-        return None
+    # _get_env_var_option, _get_cmd_option, and _get_secret_option are now provided by the shared base class.
+    # They call self._get_config_value_from_secret_backend() which Core overrides above.
 
     def _get_cmd_option_from_config_sources(
         self, config_sources: ConfigSourcesType, section: str, key: str
@@ -935,14 +844,7 @@ class AirflowConfigParser(ConfigParser):
                     return run_command(command)
         return None
 
-    def _get_secret_option(self, section: str, key: str) -> str | None:
-        """Get Config option values from Secret Backend."""
-        fallback_key = key + "_secret"
-        if (section, key) in self.sensitive_config_values:
-            if super().has_option(section, fallback_key):
-                secrets_path = super().get(section, fallback_key)
-                return _get_config_value_from_secret_backend(secrets_path)
-        return None
+    # _get_secret_option is now provided by the shared base class.
 
     def _get_secret_option_from_config_sources(
         self, config_sources: ConfigSourcesType, section: str, key: str
@@ -957,417 +859,14 @@ class AirflowConfigParser(ConfigParser):
                         secrets_path = secrets_path_value
                     else:
                         secrets_path = secrets_path_value[0]
-                    return _get_config_value_from_secret_backend(secrets_path)
+                    return self._get_config_value_from_secret_backend(secrets_path)
         return None
 
-    def get_mandatory_value(self, section: str, key: str, **kwargs) -> str:
-        value = self.get(section, key, _extra_stacklevel=1, **kwargs)
-        if value is None:
-            raise ValueError(f"The value {section}/{key} should be set!")
-        return value
-
-    def get_mandatory_list_value(self, section: str, key: str, **kwargs) -> list[str]:
-        value = self.getlist(section, key, **kwargs)
-        if value is None:
-            raise ValueError(f"The value {section}/{key} should be set!")
-        return value
-
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
-
-    def get(  # type: ignore[misc]
-        self,
-        section: str,
-        key: str,
-        suppress_warnings: bool = False,
-        lookup_from_deprecated: bool = True,
-        _extra_stacklevel: int = 0,
-        team_name: str | None = None,
-        **kwargs,
-    ) -> str | None:
-        section = section.lower()
-        key = key.lower()
-        warning_emitted = False
-        deprecated_section: str | None = None
-        deprecated_key: str | None = None
-
-        if lookup_from_deprecated:
-            option_description = (
-                self.configuration_description.get(section, {}).get("options", {}).get(key, {})
-            )
-            if option_description.get("deprecated"):
-                deprecation_reason = option_description.get("deprecation_reason", "")
-                warnings.warn(
-                    f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
-                    DeprecationWarning,
-                    stacklevel=2 + _extra_stacklevel,
-                )
-            # For the cases in which we rename whole sections
-            if section in self.inversed_deprecated_sections:
-                deprecated_section, deprecated_key = (section, key)
-                section = self.inversed_deprecated_sections[section]
-                if not self._suppress_future_warnings:
-                    warnings.warn(
-                        f"The config section [{deprecated_section}] has been renamed to "
-                        f"[{section}]. Please update your `conf.get*` call to use the new name",
-                        FutureWarning,
-                        stacklevel=2 + _extra_stacklevel,
-                    )
-                # Don't warn about individual rename if the whole section is renamed
-                warning_emitted = True
-            elif (section, key) in self.inversed_deprecated_options:
-                # Handle using deprecated section/key instead of the new section/key
-                new_section, new_key = self.inversed_deprecated_options[(section, key)]
-                if not self._suppress_future_warnings and not warning_emitted:
-                    warnings.warn(
-                        f"section/key [{section}/{key}] has been deprecated, you should use"
-                        f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
-                        "new name",
-                        FutureWarning,
-                        stacklevel=2 + _extra_stacklevel,
-                    )
-                    warning_emitted = True
-                deprecated_section, deprecated_key = section, key
-                section, key = (new_section, new_key)
-            elif section in self.deprecated_sections:
-                # When accessing the new section name, make sure we check under the old config name
-                deprecated_key = key
-                deprecated_section = self.deprecated_sections[section][0]
-            else:
-                deprecated_section, deprecated_key, _ = self.deprecated_options.get(
-                    (section, key), (None, None, None)
-                )
-        # first check environment variables
-        option = self._get_environment_variables(
-            deprecated_key,
-            deprecated_section,
-            key,
-            section,
-            issue_warning=not warning_emitted,
-            extra_stacklevel=_extra_stacklevel,
-            team_name=team_name,
-        )
-        if option is not None:
-            return option
-
-        # ...then the config file
-        option = self._get_option_from_config_file(
-            deprecated_key,
-            deprecated_section,
-            key,
-            kwargs,
-            section,
-            issue_warning=not warning_emitted,
-            extra_stacklevel=_extra_stacklevel,
-        )
-        if option is not None:
-            return option
-
-        # ...then commands
-        option = self._get_option_from_commands(
-            deprecated_key,
-            deprecated_section,
-            key,
-            section,
-            issue_warning=not warning_emitted,
-            extra_stacklevel=_extra_stacklevel,
-        )
-        if option is not None:
-            return option
-
-        # ...then from secret backends
-        option = self._get_option_from_secrets(
-            deprecated_key,
-            deprecated_section,
-            key,
-            section,
-            issue_warning=not warning_emitted,
-            extra_stacklevel=_extra_stacklevel,
-        )
-        if option is not None:
-            return option
-
-        # ...then the default config
-        if self.get_default_value(section, key) is not None or "fallback" in kwargs:
-            return expand_env_var(self.get_default_value(section, key, **kwargs))
-
-        if self.get_provider_config_fallback_defaults(section, key) is not None:
-            # no expansion needed
-            return self.get_provider_config_fallback_defaults(section, key, **kwargs)
-
-        if not suppress_warnings:
-            log.warning("section/key [%s/%s] not found in config", section, key)
-
-        raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
-
-    def _get_option_from_secrets(
-        self,
-        deprecated_key: str | None,
-        deprecated_section: str | None,
-        key: str,
-        section: str,
-        issue_warning: bool = True,
-        extra_stacklevel: int = 0,
-    ) -> str | None:
-        option = self._get_secret_option(section, key)
-        if option:
-            return option
-        if deprecated_section and deprecated_key:
-            with self.suppress_future_warnings():
-                option = self._get_secret_option(deprecated_section, deprecated_key)
-            if option:
-                if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
-                return option
-        return None
-
-    def _get_option_from_commands(
-        self,
-        deprecated_key: str | None,
-        deprecated_section: str | None,
-        key: str,
-        section: str,
-        issue_warning: bool = True,
-        extra_stacklevel: int = 0,
-    ) -> str | None:
-        option = self._get_cmd_option(section, key)
-        if option:
-            return option
-        if deprecated_section and deprecated_key:
-            with self.suppress_future_warnings():
-                option = self._get_cmd_option(deprecated_section, deprecated_key)
-            if option:
-                if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
-                return option
-        return None
-
-    def _get_option_from_config_file(
-        self,
-        deprecated_key: str | None,
-        deprecated_section: str | None,
-        key: str,
-        kwargs: dict[str, Any],
-        section: str,
-        issue_warning: bool = True,
-        extra_stacklevel: int = 0,
-    ) -> str | None:
-        if super().has_option(section, key):
-            # Use the parent's methods to get the actual config here to be able to
-            # separate the config from default config.
-            return expand_env_var(super().get(section, key, **kwargs))
-        if deprecated_section and deprecated_key:
-            if super().has_option(deprecated_section, deprecated_key):
-                if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
-                with self.suppress_future_warnings():
-                    return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
-        return None
-
-    def _get_environment_variables(
-        self,
-        deprecated_key: str | None,
-        deprecated_section: str | None,
-        key: str,
-        section: str,
-        issue_warning: bool = True,
-        extra_stacklevel: int = 0,
-        team_name: str | None = None,
-    ) -> str | None:
-        option = self._get_env_var_option(section, key, team_name=team_name)
-        if option is not None:
-            return option
-        if deprecated_section and deprecated_key:
-            with self.suppress_future_warnings():
-                option = self._get_env_var_option(deprecated_section, deprecated_key, team_name=team_name)
-            if option is not None:
-                if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
-                return option
-        return None
-
-    def getboolean(self, section: str, key: str, **kwargs) -> bool:  # type: ignore[override]
-        val = str(self.get(section, key, _extra_stacklevel=1, **kwargs)).lower().strip()
-        if "#" in val:
-            val = val.split("#")[0].strip()
-        if val in ("t", "true", "1"):
-            return True
-        if val in ("f", "false", "0"):
-            return False
-        raise AirflowConfigException(
-            f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
-            f'Current value: "{val}".'
-        )
-
-    def getint(self, section: str, key: str, **kwargs) -> int:  # type: ignore[override]
-        val = self.get(section, key, _extra_stacklevel=1, **kwargs)
-        if val is None:
-            raise AirflowConfigException(
-                f"Failed to convert value None to int. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
-        try:
-            return int(val)
-        except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
-
-    def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
-        val = self.get(section, key, _extra_stacklevel=1, **kwargs)
-        if val is None:
-            raise AirflowConfigException(
-                f"Failed to convert value None to float. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
-        try:
-            return float(val)
-        except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to float. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
-
-    def getlist(self, section: str, key: str, delimiter=",", **kwargs):
-        val = self.get(section, key, **kwargs)
-        if val is None:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
-            raise AirflowConfigException(
-                f"Failed to convert value None to list. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
-        try:
-            return [item.strip() for item in val.split(delimiter)]
-        except Exception:
-            raise AirflowConfigException(
-                f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
-
-    E = TypeVar("E", bound=Enum)
-
-    def getenum(self, section: str, key: str, enum_class: type[E], **kwargs) -> E:
-        val = self.get(section, key, **kwargs)
-        enum_names = [enum_item.name for enum_item in enum_class]
-
-        if val is None:
-            raise AirflowConfigException(
-                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
-            )
-
-        try:
-            return enum_class[val]
-        except KeyError:
-            if "fallback" in kwargs and kwargs["fallback"] in enum_names:
-                return enum_class[kwargs["fallback"]]
-            raise AirflowConfigException(
-                f'Failed to convert value. Please check "{key}" key in "{section}" section. '
-                f"the value must be one of {', '.join(enum_names)}"
-            )
-
-    def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
-        string_list = self.getlist(section, key, delimiter, **kwargs)
-        enum_names = [enum_item.name for enum_item in enum_class]
-        enum_list = []
-
-        for val in string_list:
-            try:
-                enum_list.append(enum_class[val])
-            except KeyError:
-                log.warning(
-                    "Failed to convert value. Please check %s key in %s section. "
-                    "it must be one of %s, if not the value is ignored",
-                    key,
-                    section,
-                    ", ".join(enum_names),
-                )
-
-        return enum_list
-
-    def getimport(self, section: str, key: str, **kwargs) -> Any:
-        """
-        Read options, import the full qualified name, and return the object.
-
-        In case of failure, it throws an exception with the key and section names
-
-        :return: The object or None, if the option is empty
-        """
-        full_qualified_path = conf.get(section=section, key=key, **kwargs)
-        if not full_qualified_path:
-            return None
-
-        try:
-            return import_string(full_qualified_path)
-        except ImportError as e:
-            log.warning(e)
-            raise AirflowConfigException(
-                f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{full_qualified_path}".'
-            )
-
-    def getjson(
-        self, section: str, key: str, fallback=None, **kwargs
-    ) -> dict | list | str | int | float | None:
-        """
-        Return a config value parsed from a JSON string.
-
-        ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
-        """
-        try:
-            data = self.get(section=section, key=key, fallback=None, _extra_stacklevel=1, **kwargs)
-        except (NoSectionError, NoOptionError):
-            data = None
-
-        if data is None or data == "":
-            return fallback
-
-        try:
-            return json.loads(data)
-        except JSONDecodeError as e:
-            raise AirflowConfigException(f"Unable to parse [{section}] {key!r} as valid json") from e
-
-    def gettimedelta(
-        self, section: str, key: str, fallback: Any = None, **kwargs
-    ) -> datetime.timedelta | None:
-        """
-        Get the config value for the given section and key, and convert it into datetime.timedelta object.
-
-        If the key is missing, then it is considered as `None`.
-
-        :param section: the section from the config
-        :param key: the key defined in the given section
-        :param fallback: fallback value when no config value is given, defaults to None
-        :raises AirflowConfigException: raised because ValueError or OverflowError
-        :return: datetime.timedelta(seconds=<config_value>) or None
-        """
-        val = self.get(section, key, fallback=fallback, _extra_stacklevel=1, **kwargs)
-
-        if val:
-            # the given value must be convertible to integer
-            try:
-                int_val = int(val)
-            except ValueError:
-                raise AirflowConfigException(
-                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                    f'Current value: "{val}".'
-                )
-
-            try:
-                return datetime.timedelta(seconds=int_val)
-            except OverflowError as err:
-                raise AirflowConfigException(
-                    f"Failed to convert value to timedelta in `seconds`. "
-                    f"{err}. "
-                    f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
-                )
-
-        return fallback
+    # All parsing methods are now provided by the shared base class.
+    # This includes: get, getboolean, getint, getfloat, getlist, getenum, getenumlist,
+    # getjson, gettimedelta, getimport, get_mandatory_value, get_mandatory_list_value,
+    # has_option, set, remove_option, and helper methods like _get_option_from_*.
+    # The shared base class's getimport() correctly uses self.get() instead of conf.get().
 
     def read(
         self,
@@ -1388,62 +887,7 @@ class AirflowConfigParser(ConfigParser):
         """
         super().read_dict(dictionary=dictionary, source=source)
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
-        """
-        Check if option is defined.
-
-        Uses self.get() to avoid reimplementing the priority order of config variables
-        (env, config, cmd, defaults).
-
-        :param section: section to get option from
-        :param option: option to get
-        :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
-        :return:
-        """
-        try:
-            value = self.get(
-                section,
-                option,
-                fallback=None,
-                _extra_stacklevel=1,
-                suppress_warnings=True,
-                lookup_from_deprecated=lookup_from_deprecated,
-            )
-            if value is None:
-                return False
-            return True
-        except (NoOptionError, NoSectionError):
-            return False
-
-    def set(self, section: str, option: str, value: str | None = None) -> None:
-        """
-        Set an option to the given value.
-
-        This override just makes sure the section and option are lower case, to match what we do in `get`.
-        """
-        section = section.lower()
-        option = option.lower()
-        defaults = self.configuration_description or {}
-        if not self.has_section(section) and section in defaults:
-            # Trying to set a key in a section that exists in default, but not in the user config;
-            # automatically create it
-            self.add_section(section)
-        super().set(section, option, value)
-
-    def remove_option(self, section: str, option: str, remove_default: bool = True):
-        """
-        Remove an option if it exists in config from a file or default config.
-
-        If both of config have the same option, this removes the option
-        in both configs unless remove_default=False.
-        """
-        section = section.lower()
-        option = option.lower()
-        if super().has_option(section, option):
-            super().remove_option(section, option)
-
-        if self.get_default_value(section, option) is not None and remove_default:
-            self._default_values.remove_option(section, option)
+    # has_option, set, and remove_option are now provided by the shared base class.
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
         """
@@ -2241,7 +1685,7 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
             backend_kwargs = {}
         elif not isinstance(backend_kwargs, dict):
             raise ValueError("not a dict")
-    except AirflowConfigException:
+    except (_AirflowConfigException, AirflowConfigException):
         log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
     except ValueError:
