@@ -221,9 +221,12 @@ def run_command_via_breeze_shell(
         subprocess_cmd.extend(["--project-name", project_name])
     subprocess_cmd.append(" ".join([shlex.quote(arg) for arg in cmd]))
     if os.environ.get("VERBOSE_COMMANDS"):
-        console.print(
-            f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
-        )
+        if console:
+            console.print(
+                f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
+            )
+        else:
+            print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
     result = subprocess.run(
         subprocess_cmd,
         check=False,
