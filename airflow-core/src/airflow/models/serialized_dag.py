@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_
+from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, joinedload, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -434,14 +434,23 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
-            latest_ser_dag = cls.get(dag.dag_id, session=session)
-            if not latest_ser_dag:
+
+            # Use direct UPDATE to avoid loading the full serialized DAG
+            result = session.execute(
+                update(cls)
+                .where(cls.dag_version_id == dag_version.id)
+                .values(
+                    {
+                        cls._data: new_serialized_dag._data,
+                        cls._data_compressed: new_serialized_dag._data_compressed,
+                        cls.dag_hash: new_serialized_dag.dag_hash,
+                    }
+                )
+            )
+
+            if result.rowcount == 0:
+                # No rows updated - serialized DAG doesn't exist
                 return False
-            # Update the serialized DAG with the new_serialized_dag
-            latest_ser_dag._data = new_serialized_dag._data
-            latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
-            latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
-            session.merge(latest_ser_dag)
             # The dag_version and dag_code may not have changed, still we should
             # do the below actions:
             # Update the latest dag version
