@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
+"""This module contains a Google Cloud API base hook."""
 
 from __future__ import annotations
 
