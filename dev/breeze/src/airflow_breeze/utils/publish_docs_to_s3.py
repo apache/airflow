@@ -292,7 +292,7 @@ class S3DocsPublish:
                     "Quantity": 1,
                     "Items": ["/*"],
                 },
-                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", 0))),
+                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", str(0)))),
             },
         )
         get_console().print(

@@ -598,6 +598,12 @@ extend-select = [
     "PLW0245", # super call is missing parentheses
     "PLW0406", # Module {name} imports itself
     "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0604", # global at module level is redundant
+    "PLW0642", # Reassigned {} variable in {method_type} method
+    "PLW0711", # Exception to catch is the result of a binary and operation
+    "PLW1501", # {mode} is not a valid mode for open
+    "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
+    "PLW1508", # Invalid type for environment variable default; expected str or None
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
