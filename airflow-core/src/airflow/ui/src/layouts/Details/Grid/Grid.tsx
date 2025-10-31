@@ -45,9 +45,17 @@ type Props = {
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
+  readonly versionDisplayMode?: string;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  limit,
+  runType,
+  showGantt,
+  triggeringUser,
+  versionDisplayMode,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +103,22 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     tasks: flatNodes,
   });
 
+  const processedRuns = useMemo(
+    () =>
+      gridRuns?.map((dr, index) => {
+        const prevRun = gridRuns[index + 1];
+        const isDagVersionChange = Boolean(prevRun && prevRun.dag_version_number !== dr.dag_version_number);
+        const isBundleVersionChange = Boolean(prevRun && prevRun.bundle_version !== dr.bundle_version);
+
+        return {
+          ...dr,
+          isBundleVersionChange,
+          isDagVersionChange,
+        };
+      }) ?? [],
+    [gridRuns],
+  );
+
   return (
     <Flex
       justifyContent="flex-start"
@@ -123,7 +147,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
+            {processedRuns.map((dr) => (
               <Bar
                 key={dr.run_id}
                 max={max}
@@ -131,10 +155,11 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
+                versionDisplayMode={versionDisplayMode}
               />
             ))}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+          {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}
@@ -149,7 +174,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 <FiChevronsRight />
               </IconButton>
             </Link>
-          )}
+          ) : undefined}
         </Flex>
       </Box>
     </Flex>
