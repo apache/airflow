@@ -68,7 +68,10 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions import enable_lazy_task_expansion
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -1140,11 +1143,11 @@ class DagRun(Base, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         class _UnfinishedStates(NamedTuple):
-            tis: Sequence[TI]
+            tis: tuple[TI, ...]
 
             @classmethod
             def calculate(cls, unfinished_tis: Sequence[TI]) -> _UnfinishedStates:
-                return cls(tis=unfinished_tis)
+                return cls(tis=tuple(unfinished_tis))
 
             @property
             def should_schedule(self) -> bool:
@@ -1157,7 +1160,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
             def recalculate(self) -> _UnfinishedStates:
-                return self._replace(tis=[t for t in self.tis if t.state in State.unfinished])
+                return self._replace(tis=tuple([t for t in self.tis if t.state in State.unfinished]))
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
@@ -1321,10 +1324,22 @@ class DagRun(Base, LoggingMixin):
 
         return schedulable_tis, callback
 
+    @classmethod
+    def get_dag_run(cls, dag_id: str, run_id: str, session: Session) -> DagRun | None:
+        return session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+        ).one_or_none()
+
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
+
+        up_for_retry_tis = [ti for ti in tis if ti.state == TaskInstanceState.UP_FOR_RETRY]
+        self.log.debug("up_for_retry_tis: %s", up_for_retry_tis)
 
         def _filter_tis_and_exclude_removed(dag: SerializedDAG, tis: list[TI]) -> Iterable[TI]:
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
@@ -1341,8 +1356,11 @@ class DagRun(Base, LoggingMixin):
 
         tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
 
-        unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
+        uncompleted_tis = [t for t in finished_tis if t.next_trigger_id]  # TODO: this was added to make AIP-88 work
+        unfinished_tis = [t for t in tis if t.state in State.unfinished]
+        unfinished_tis.extend(uncompleted_tis)
+
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
@@ -1356,7 +1374,7 @@ class DagRun(Base, LoggingMixin):
             # states, so we need to re-compute.
             if expansion_happened:
                 changed_tis = True
-                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished and not t.next_trigger_id]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
         else:
@@ -1528,6 +1546,10 @@ class DagRun(Base, LoggingMixin):
                 return expanded_tis
             return ()
 
+        def is_unmapped_task(ti: TI) -> bool:
+            # TODO: check why task is still MappedOperator even when not an unmapped task anymore
+            return isinstance(schedulable.task, MappedOperator) and schedulable.map_index == -1
+
         # Check dependencies.
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
@@ -1548,10 +1570,14 @@ class DagRun(Base, LoggingMixin):
             new_tis = None
             if schedulable.map_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
+
+                self.log.info("new_tis: %d", len(new_tis or []))
+
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
-            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
+
+            if not new_tis and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
@@ -1561,11 +1587,7 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
-
-                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
-                # after calculating mapped task length, so we need to re-check
-                # the task state to ensure it's still schedulable
-                if schedulable.state in SCHEDULEABLE_STATES:
+                if not is_unmapped_task(schedulable):
                     ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -2032,20 +2054,8 @@ class DagRun(Base, LoggingMixin):
             # to see whether this feature is turned on and defer this task.
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.
-            # TODO TaskSDK: This is disabled since we haven't figured out how
-            # to render start_from_trigger in the scheduler. If we need to
-            # render the value in a worker, it kind of defeats the purpose of
-            # this feature (which is to save a worker process if possible).
-            # elif task.start_trigger_args is not None:
-            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
-            #         ti.start_date = timezone.utcnow()
-            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            #             ti.try_number += 1
-            #         ti.defer_task(exception=None, session=session)
-            #     else:
-            #         schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
+            elif not ti.defer_task(session=session):
+                schedulable_ti_ids.append(ti.id)
 
         count = 0
 
@@ -2114,6 +2124,15 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def _get_partial_task_ids(dag: SerializedDAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
+
+    @classmethod
+    def get_dag_run(cls, dag_id: str, run_id: str, session: Session) -> DagRun | None:
+        return session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+        ).one_or_none()
 
 
 class DagRunNote(Base):
