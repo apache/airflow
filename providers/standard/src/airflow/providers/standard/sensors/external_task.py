@@ -307,20 +307,20 @@ class ExternalTaskSensor(BaseSensorOperator):
             if self.external_task_ids:
                 return ti.get_ti_count(
                     dag_id=self.external_dag_id,
-                    task_ids=self.external_task_ids,  # type: ignore[arg-type]
-                    logical_dates=dttm_filter,
+                    task_ids=list(self.external_task_ids),
+                    logical_dates=list(dttm_filter),
                     states=states,
                 )
             if self.external_task_group_id:
                 run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
-                    logical_dates=dttm_filter,
+                    logical_dates=list(dttm_filter),
                 )
                 return _get_count_by_matched_states(run_id_task_state_map, states)
             return ti.get_dr_count(
                 dag_id=self.external_dag_id,
-                logical_dates=dttm_filter,
+                logical_dates=list(dttm_filter),
                 states=states,
             )
 
@@ -427,7 +427,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         skipped_states=self.skipped_states,
                         poke_interval=self.poll_interval,
                         soft_fail=self.soft_fail,
-                        logical_dates=dttm_filter,
+                        logical_dates=list(dttm_filter),
                         run_ids=None,
                         execution_dates=None,
                     ),
@@ -445,7 +445,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         skipped_states=self.skipped_states,
                         poke_interval=self.poll_interval,
                         soft_fail=self.soft_fail,
-                        execution_dates=dttm_filter,
+                        execution_dates=list(dttm_filter),
                         logical_dates=None,
                         run_ids=None,
                     ),
@@ -538,7 +538,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.external_task_group_id is None:
             return []
         return _get_external_task_group_task_ids(
-            dttm_filter, self.external_task_group_id, self.external_dag_id, session
+            list(dttm_filter), self.external_task_group_id, self.external_dag_id, session
         )
 
     def _get_logical_date(self, context: Context) -> datetime.datetime:
