@@ -486,7 +486,29 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializable_keys = set(self._iter_serializable_context_keys())
         new = {k: v for k, v in context.items() if k in serializable_keys}
         serializable_context = cast("Context", new)
+        # Store bundle_path for subprocess execution
+        self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
+
+    def _get_bundle_path_from_context(self, context: Context) -> Path | None:
+        """
+        Extract bundle_path from the task instance's bundle_instance.
+
+        :param context: The task execution context
+        :return: Path to the bundle root directory, or None if not in a bundle
+        """
+        if not AIRFLOW_V_3_0_PLUS:
+            return None
+
+        # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
+        # that contains the bundle information including its path
+        ti = context.get("ti")
+        if ti and hasattr(ti, "bundle_instance"):
+            bundle_instance = ti.bundle_instance
+            if bundle_instance and hasattr(bundle_instance, "path"):
+                return Path(bundle_instance.path)
+
+        return None
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -564,6 +586,18 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
+
+            # Add bundle_path to PYTHONPATH for subprocess to import DAG bundle modules
+            if hasattr(self, "_bundle_path") and self._bundle_path:
+                bundle_path_str = str(self._bundle_path)
+                existing_pythonpath = env_vars.get("PYTHONPATH", "")
+                path_separator = ";" if os.name == "nt" else ":"
+
+                if existing_pythonpath:
+                    # Prepend bundle_path to existing PYTHONPATH
+                    env_vars["PYTHONPATH"] = f"{bundle_path_str}{path_separator}{existing_pythonpath}"
+                else:
+                    env_vars["PYTHONPATH"] = bundle_path_str
 
             try:
                 cmd: list[str] = [

@@ -939,6 +939,21 @@ class TestShortCircuitOperator(BasePythonTest):
 
 virtualenv_string_args: list[str] = []
 
+def _callable_that_imports_from_bundle():
+    """
+    A callable function for testing DAG bundle imports.
+    This import will fail if PYTHONPATH is not set correctly by the operator.
+    The module 'bug_test_dag_repro' is created dynamically in the test.
+    """
+    try:
+        from bug_test_dag_repro.lib.helper import get_message
+
+        return get_message()
+    except Exception as e:
+        # This helps debug if the import fails during the test
+        import sys
+
+        return f"Failed to import: {e}. PYTHONPATH: {sys.path}"
 
 @pytest.mark.execution_timeout(120)
 class BaseTestPythonVirtualenvOperator(BasePythonTest):
@@ -1190,6 +1205,59 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert ti.xcom_pull() == "EFGHI"
 
 
+class _TestDagBundleImportMixin:
+    """
+    Mixin class with a test for DAG bundle imports in subprocesses.
+    This test is for operators inheriting from _BasePythonVirtualenvOperator.
+    """
+
+    # This mark ensures the test only runs on Airflow 3+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="DAG Bundle import fix is for Airflow 3.x+")
+    def test_dag_bundle_import_in_subprocess(self, dag_maker):
+        """
+        Tests that a callable in a subprocess can import modules from its
+        own DAG bundle (fix for Airflow 3.x).
+        """
+        with TemporaryDirectory() as tmp_dir:
+            bundle_root = Path(tmp_dir)
+
+            # Dummy module structure inside the temp dir
+            # <tmp_dir>/bug_test_dag_repro/
+            # ├── __init__.py
+            # └── lib/
+            #     ├── __init__.py
+            #     └── helper.py
+
+            module_dir = bundle_root / "bug_test_dag_repro"
+            lib_dir = module_dir / "lib"
+            lib_dir.mkdir(parents=True)
+
+            (module_dir / "__init__.py").touch()
+            (lib_dir / "__init__.py").touch()
+            (lib_dir / "helper.py").write_text(
+                "def get_message():\n    return 'it works from bundle'"
+            )
+
+            # We need a real DAG to create a real TI context
+            with dag_maker(self.dag_id, serialized=True):
+                op = self.opcls(
+                    task_id=self.task_id,
+                    python_callable=_callable_that_imports_from_bundle,
+                    **self.default_kwargs(),
+                )
+
+            dr = dag_maker.create_dagrun()
+            ti = dr.get_task_instance(self.task_id)
+
+            mock_bundle_instance = mock.Mock()
+            mock_bundle_instance.path = str(bundle_root)
+            ti.bundle_instance = mock_bundle_instance
+
+            context = ti.get_template_context()
+            result = op.execute(context)
+
+            assert result == "it works from bundle"
+
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
 
@@ -1198,7 +1266,7 @@ venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 # therefore we have to extend timeouts for those tests
 @pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
-class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
+class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator, _TestDagBundleImportMixin):
     opcls = PythonVirtualenvOperator
 
     @staticmethod
@@ -1766,7 +1834,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 # therefore we have to extend timeouts for those tests
 @pytest.mark.execution_timeout(120)
 @pytest.mark.external_python_operator
-class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
+class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator, _TestDagBundleImportMixin):
     opcls = ExternalPythonOperator
 
     @staticmethod
