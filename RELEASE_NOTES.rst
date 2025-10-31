@@ -1759,12 +1759,11 @@ Provider Refactor & Standardization
 Airflow 3.0 completes the migration of several core operators, sensors, and hooks into the new
 ``apache-airflow-providers-standard`` package. This package now includes commonly used components such as:
 
-- ``PythonOperator``
-- ``BashOperator``
-- ``EmailOperator``
-- ``ShortCircuitOperator``
+- ``PythonOperator``, ``BashOperator``
+- ``ExternalTaskSensor``, ``FileSensor``
+- ``ShortCircuitOperator``, ``LatestOnlyOperator``
 
-These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
+These operators and sensors were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
 improve modularity, testability, and lifecycle independence.
 
 This change enables more consistent versioning across providers and prepares Airflow for a future where all integrations
