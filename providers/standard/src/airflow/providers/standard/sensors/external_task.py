@@ -20,7 +20,7 @@ import datetime
 import os
 import typing
 import warnings
-from collections.abc import Callable, Collection, Iterable
+from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.configuration import conf
@@ -252,7 +252,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def _get_dttm_filter(self, context: Context) -> list[datetime.datetime]:
+    def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
         logical_date = self._get_logical_date(context)
 
         if self.execution_delta:
@@ -297,7 +297,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             return self._poke_af3(context, dttm_filter)
         return self._poke_af2(dttm_filter)
 
-    def _poke_af3(self, context: Context, dttm_filter: list[datetime.datetime]) -> bool:
+    def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
         self._has_checked_existence = True
@@ -338,7 +338,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         count_allowed = self._calculate_count(count, dttm_filter)
         return count_allowed == len(dttm_filter)
 
-    def _calculate_count(self, count: int, dttm_filter: list[datetime.datetime]) -> float | int:
+    def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
         if self.external_task_ids:
             return count / len(self.external_task_ids)
@@ -394,7 +394,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+        def _poke_af2(self, dttm_filter: Sequence[datetime.datetime], session: Session = NEW_SESSION) -> bool:
             if self.check_existence and not self._has_checked_existence:
                 self._check_for_existence(session=session)
 
@@ -508,7 +508,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self._has_checked_existence = True
 
-    def get_count(self, dttm_filter: list[datetime.datetime], session: Session, states: list[str]) -> int:
+    def get_count(self, dttm_filter: Sequence[datetime.datetime], session: Session, states: list[str]) -> int:
         """
         Get the count of records against dttm filter and states.
 
@@ -530,7 +530,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
 
     def get_external_task_group_task_ids(
-        self, session: Session, dttm_filter: list[datetime.datetime]
+        self, session: Session, dttm_filter: Sequence[datetime.datetime]
     ) -> list[tuple[str, int]]:
         warnings.warn(
             "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2

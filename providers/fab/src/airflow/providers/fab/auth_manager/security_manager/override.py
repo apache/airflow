@@ -124,11 +124,12 @@ if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    from airflow.models.dagbag import DagBag
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg,misc]
-        dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
+        dagbag = DagBag(read_dags_from_db=True)
+        if hasattr(dagbag, "collect_dags_from_db"):
+            dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 
 
