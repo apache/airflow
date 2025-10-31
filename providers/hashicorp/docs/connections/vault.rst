@@ -67,6 +67,9 @@ Extra
     ``kubernetes_jwt_path``: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
     ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
 
+    ``kubernetes_audience``: Optional audience claim to verify in the JWT token (for ``kubernetes`` auth_type).
+    Required for Vault 1.21+ to suppress deprecation warnings.
+
     ``token_path``: path to file containing authentication token to include in requests sent to Vault
     (for ``token`` and ``github`` auth_type).
 
