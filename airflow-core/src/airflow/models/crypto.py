@@ -77,7 +77,7 @@ class _RealFernet:
 
     is_encrypted = True
 
-    def __init__(self, fernet: MultiFernet | Fernet):
+    def __init__(self, fernet: MultiFernet):
         self._fernet = fernet
 
     def decrypt(self, msg: bytes | str, ttl: int | None = None) -> bytes:
@@ -87,6 +87,10 @@ class _RealFernet:
     def encrypt(self, msg: bytes) -> bytes:
         """Encrypt with Fernet."""
         return self._fernet.encrypt(msg)
+
+    def rotate(self, msg: bytes | str) -> bytes:
+        """Rotate the Fernet key for the given message."""
+        return self._fernet.rotate(msg)
 
 
 @cache
