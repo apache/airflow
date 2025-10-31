@@ -156,14 +156,14 @@ class TestKubernetesPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.AsyncMock())
         mock_method.return_value = ContainerState.WAITING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Container is not completed and still working."
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert "Container is not completed and still working." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
@@ -175,14 +175,14 @@ class TestKubernetesPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.AsyncMock())
         mock_method.return_value = ContainerState.RUNNING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Container is not completed and still working."
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert "Container is not completed and still working." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
@@ -250,7 +250,7 @@ class TestKubernetesPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Container logs:"
+        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

@@ -480,9 +480,10 @@ def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
 
 
 def test_continuous_schedule_interval_limits_max_active_runs_error():
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError, match="Invalid max_active_runs: ContinuousTimetable requires max_active_runs <= 1"
+    ):
         DAG(dag_id="continuous", schedule="@continuous", max_active_runs=2)
-    assert str(ctx.value) == "Invalid max_active_runs: ContinuousTimetable requires max_active_runs <= 1"
 
 
 class TestDagDecorator:
