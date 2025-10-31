@@ -26,6 +26,9 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+# Import from shared library for backward compatibility
+from airflow._shared.configuration.exceptions import AirflowConfigException as _AirflowConfigException
+
 if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -58,8 +61,13 @@ class AirflowNotFoundException(AirflowException):
     status_code = HTTPStatus.NOT_FOUND
 
 
-class AirflowConfigException(AirflowException):
-    """Raise when there is configuration problem."""
+class AirflowConfigException(_AirflowConfigException, AirflowException):
+    """
+    Raise when there is configuration problem.
+
+    This class inherits from both the shared AirflowConfigException and AirflowException
+    for backward compatibility with existing code that expects it to be an AirflowException.
+    """
 
 
 class AirflowSensorTimeout(AirflowException):
