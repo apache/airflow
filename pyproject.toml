@@ -595,6 +595,9 @@ extend-select = [
     "PLW0128", # Redeclared variable {name} in assignment
     "PLW0129", # Asserting on an empty string literal will never pass
     "PLW0133", # Missing raise statement on exception
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
