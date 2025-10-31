@@ -317,6 +317,7 @@ export VERSION_SUFFIX=rc1
 export VERSION_BRANCH=2-1
 export VERSION_WITHOUT_RC=${VERSION/rc?/}
 export TASK_SDK_VERSION=1.0.5rc1
+export PREVIOUS_VERSION=3.0.4
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
@@ -402,7 +403,7 @@ uv tool install -e ./dev/breeze
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process \
         --version ${VERSION} \
-        --previous-version <PREVIOUS_VERSION> \
+        --previous-version ${PREVIOUS_VERSION} \
         --task-sdk-version ${TASK_SDK_VERSION}
    ```
 
@@ -413,7 +414,7 @@ uv tool install -e ./dev/breeze
    # Test with dry-run (shows what would be executed without doing it)
    breeze release-management start-rc-process \
        --version ${VERSION} \
-       --previous-version <PREVIOUS_VERSION> \
+       --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION} \
        --remote-name upstream \
        --dry-run
@@ -430,7 +431,7 @@ uv tool install -e ./dev/breeze
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release ${PREVIOUS_VERSION} --current-release ${VERSION}
     ```
 
 ## Publish release candidate documentation (staging)
@@ -454,7 +455,10 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+
+# Example for RC
+breeze workflow-run publish-docs --ref ${VERSION} --site-env staging apache-airflow docker-stack task-sdk
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -987,11 +991,18 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 ```shell script
 export RC=3.0.5rc5
 export VERSION=${RC/rc?/}
+export TASK_SDK_RC=1.0.5rc1
+export PREVIOUS_RELEASE=3.0.4
 # cd to the airflow repo directory and set the environment variable below
 export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
-breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
+breeze release-management start-release \
+    --release-candidate ${RC} \
+    --previous-release ${PREVIOUS_RELEASE} \
+    --task-sdk-release-candidate ${TASK_SDK_RC}
 ```
+
+Note: The `--task-sdk-release-candidate` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
 ```Dockerfile
 ARG AIRFLOW_EXTRAS=".....,<provider>,...."
@@ -1056,10 +1067,11 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto>
+# Example for final release
+breeze workflow-run publish-docs --ref ${VERSION_WITHOUT_RC} --site-env live apache-airflow docker-stack task-sdk
 ```
 
-The `--ref` parameter should be the tag of the final candidate you are publishing.
+The `--ref` parameter should be the tag of the final version you are publishing.
 
 The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
 if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
