@@ -592,8 +592,9 @@ def remove_old_releases(version, repo_root):
 @click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
 @click.option(
     "--distribution-name",
-    default="airflow",
+    default="apache_airflow",
     type=BetterChoice(sorted([e.value for e in DistributionType])),
+    show_default=True,
     envvar="DISTRIBUTION_NAME",
     help="The distribution name",
 )
