@@ -21,14 +21,14 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.deadline import DeadlineCallbackState
+from airflow.models.callback import CallbackState
 from airflow.sdk import BaseNotifier
-from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, DeadlineCallbackTrigger
+from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, CallbackTrigger
 
 TEST_MESSAGE = "test_message"
-TEST_CALLBACK_PATH = "classpath.test_callback_for_deadline"
+TEST_CALLBACK_PATH = "classpath.test_callback"
 TEST_CALLBACK_KWARGS = {"message": TEST_MESSAGE, "context": {"dag_run": "test"}}
-TEST_TRIGGER = DeadlineCallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
+TEST_TRIGGER = CallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
 
 
 class ExampleAsyncNotifier(BaseNotifier):
@@ -45,10 +45,10 @@ class ExampleAsyncNotifier(BaseNotifier):
         return f"Sync notification: {self.message}, context: {context}"
 
 
-class TestDeadlineCallbackTrigger:
+class TestCallbackTrigger:
     @pytest.fixture
     def mock_import_string(self):
-        with mock.patch("airflow.triggers.deadline.import_string") as m:
+        with mock.patch("airflow.triggers.callback.import_string") as m:
             yield m
 
     @pytest.mark.parametrize(
@@ -59,13 +59,13 @@ class TestDeadlineCallbackTrigger:
         ],
     )
     def test_serialization(self, callback_init_kwargs, expected_serialized_kwargs):
-        trigger = DeadlineCallbackTrigger(
+        trigger = CallbackTrigger(
             callback_path=TEST_CALLBACK_PATH,
             callback_kwargs=callback_init_kwargs,
         )
         classpath, kwargs = trigger.serialize()
 
-        assert classpath == "airflow.triggers.deadline.DeadlineCallbackTrigger"
+        assert classpath == "airflow.triggers.callback.CallbackTrigger"
         assert kwargs == {
             "callback_path": TEST_CALLBACK_PATH,
             "callback_kwargs": expected_serialized_kwargs,
@@ -81,12 +81,12 @@ class TestDeadlineCallbackTrigger:
         trigger_gen = TEST_TRIGGER.run()
 
         running_event = await anext(trigger_gen)
-        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
@@ -97,11 +97,11 @@ class TestDeadlineCallbackTrigger:
         trigger_gen = TEST_TRIGGER.run()
 
         running_event = await anext(trigger_gen)
-        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
-        assert success_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.SUCCESS
+        assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert (
             success_event.payload[PAYLOAD_BODY_KEY]
             == f"Async notification: {TEST_MESSAGE}, context: {{'dag_run': 'test'}}"
@@ -116,10 +116,10 @@ class TestDeadlineCallbackTrigger:
         trigger_gen = TEST_TRIGGER.run()
 
         running_event = await anext(trigger_gen)
-        assert running_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.RUNNING
+        assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         failure_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
-        assert failure_event.payload[PAYLOAD_STATUS_KEY] == DeadlineCallbackState.FAILED
+        assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])

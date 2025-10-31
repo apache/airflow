@@ -59,7 +59,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.deadline import Deadline, DeadlineCallbackState
+from airflow.models.deadline import Deadline
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -69,7 +69,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -86,6 +86,7 @@ from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sy
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
@@ -193,6 +194,7 @@ class TestSchedulerJob:
         clear_db_jobs()
         clear_db_assets()
         clear_db_deadline()
+        clear_db_callbacks()
         clear_db_triggers()
 
     @pytest.fixture(autouse=True)
@@ -7046,28 +7048,49 @@ class TestSchedulerJob:
         callback_path = "classpath.notify"
 
         # Create a test Dag run for Deadline
-        with dag_maker(dag_id="test_deadline_dag"):
+        dag_id = "test_deadline_dag"
+        with dag_maker(dag_id=dag_id):
             EmptyOperator(task_id="empty")
         dagrun_id = dag_maker.create_dagrun().id
 
-        handled_deadlines = []
-        for state in DeadlineCallbackState:
-            deadline = Deadline(
-                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
-            )
-            deadline.callback_state = state
-            handled_deadlines.append(deadline)
+        handled_deadline_async = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_async.missed = True
+
+        handled_deadline_sync = Deadline(
+            deadline_time=past_date,
+            callback=SyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_sync.missed = True
+
         expired_deadline1 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         expired_deadline2 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=SyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         future_deadline = Deadline(
-            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=future_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
         )
 
-        session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
+        session.add_all(
+            [
+                expired_deadline1,
+                expired_deadline2,
+                future_deadline,
+                handled_deadline_async,
+                handled_deadline_sync,
+            ]
+        )
         session.flush()
 
         self.job_runner._execute()

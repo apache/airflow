@@ -22,6 +22,7 @@ import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
+from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string, qualname
 
@@ -31,8 +32,8 @@ PAYLOAD_STATUS_KEY = "state"
 PAYLOAD_BODY_KEY = "body"
 
 
-class DeadlineCallbackTrigger(BaseTrigger):
-    """Trigger that executes a deadline callback function asynchronously."""
+class CallbackTrigger(BaseTrigger):
+    """Trigger that executes a callback function asynchronously."""
 
     def __init__(self, callback_path: str, callback_kwargs: dict[str, Any] | None = None):
         super().__init__()
@@ -46,28 +47,26 @@ class DeadlineCallbackTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        from airflow.models.deadline import DeadlineCallbackState  # to avoid cyclic imports
-
         try:
-            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.RUNNING})
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
 
             # TODO: get full context and run template rendering. Right now, a simple context in included in `callback_kwargs`
             result = await callback(**self.callback_kwargs)
-            yield TriggerEvent({PAYLOAD_STATUS_KEY: DeadlineCallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
+            yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
 
         except Exception as e:
             if isinstance(e, ImportError):
-                message = "Failed to import this deadline callback on the triggerer"
+                message = "Failed to import the callable on the triggerer"
             elif isinstance(e, TypeError) and "await" in str(e):
-                message = "Failed to run this deadline callback because it is not awaitable"
+                message = "Failed to run the callable because it's not awaitable"
             else:
-                message = "An error occurred during execution of this deadline callback"
+                message = "An error occurred during execution of the callable"
 
             log.exception("%s: %s; kwargs: %s\n%s", message, self.callback_path, self.callback_kwargs, e)
             yield TriggerEvent(
                 {
-                    PAYLOAD_STATUS_KEY: DeadlineCallbackState.FAILED,
+                    PAYLOAD_STATUS_KEY: CallbackState.FAILED,
                     PAYLOAD_BODY_KEY: f"{message}: {traceback.format_exception(e)}",
                 }
             )
