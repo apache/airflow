@@ -119,7 +119,7 @@ _DAG_HASH_ATTRS = frozenset(
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a plain ``schedule`` value."""
-    from airflow.configuration import conf as airflow_conf
+    from airflow.sdk.configuration import conf as airflow_conf
     from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
     from airflow.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
 
@@ -141,13 +141,13 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
 
 
 def _config_bool_factory(section: str, key: str) -> Callable[[], bool]:
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     return functools.partial(conf.getboolean, section, key)
 
 
 def _config_int_factory(section: str, key: str) -> Callable[[], int]:
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     return functools.partial(conf.getint, section, key)
 

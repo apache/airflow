@@ -53,7 +53,6 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -65,6 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComSequenceIndexResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
@@ -289,7 +289,7 @@ def block_orm_access():
     conn = "airflow-db-not-allowed:///"
     if "airflow.settings" in sys.modules:
         from airflow import settings
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
         for attr in to_block:
