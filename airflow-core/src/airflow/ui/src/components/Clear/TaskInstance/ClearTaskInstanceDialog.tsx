@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { Flex, Heading, VStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -30,6 +30,7 @@ import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
 type Props = {
   readonly onClose: () => void;
@@ -37,10 +38,12 @@ type Props = {
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
+const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
   const { t: translate } = useTranslation();
+  const { onClose, onOpen, open } = useDisclosure();
+
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -48,7 +51,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
     dagRunId,
-    onSuccessConfirm: onClose,
+    onSuccessConfirm: onCloseDialog,
   });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
@@ -59,6 +62,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -76,7 +80,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
-      enabled: open,
+      enabled: openDialog,
       refetchOnMount: "always",
     },
     requestBody: {
@@ -106,7 +110,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     taskInstanceDagVersionBundleVersion !== "";
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <>
+    <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -170,35 +175,18 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
             ) : undefined}
+            <Checkbox
+              checked={preventRunningTask}
+              onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
+              style={{ marginRight: "auto"}}
+            >
+              {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
             <Button
               colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  requestBody: {
-                    dag_run_id: dagRunId,
-                    dry_run: false,
-                    include_downstream: downstream,
-                    include_future: future,
-                    include_past: past,
-                    include_upstream: upstream,
-                    only_failed: onlyFailed,
-                    run_on_latest_version: runOnLatestVersion,
-                    task_ids: [[taskId, mapIndex]],
-                  },
-                });
-                if (note !== taskInstance.note) {
-                  mutatePatchTaskInstance({
-                    dagId,
-                    dagRunId,
-                    mapIndex,
-                    requestBody: { note },
-                    taskId,
-                  });
-                }
-              }}
+              onClick={onOpen}
             >
               <CgRedo /> {translate("modal.confirm")}
             </Button>
@@ -206,6 +194,50 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>
+    {open ? <ClearTaskInstanceConfirmationDialog
+          dagDetails={{
+            dagId,
+            dagRunId,
+            downstream,
+            future,
+            mapIndex,
+            onlyFailed,
+            past,
+            taskId,
+            upstream,
+          }}
+          onClose={onClose}
+          onConfirm={() => {
+            mutate({
+              dagId,
+              requestBody: {
+                dag_run_id: dagRunId,
+                dry_run: false,
+                include_downstream: downstream,
+                include_future: future,
+                include_past: past,
+                include_upstream: upstream,
+                only_failed: onlyFailed,
+                run_on_latest_version: runOnLatestVersion,
+                task_ids: [[taskId, mapIndex]],
+                ...(preventRunningTask ? { prevent_running_task: true } : {}),
+              },
+            });
+            if (note !== taskInstance.note) {
+              mutatePatchTaskInstance({
+                dagId,
+                dagRunId,
+                mapIndex,
+                requestBody: { note },
+                taskId,
+              });
+            }
+            onCloseDialog();
+          }}
+          open={open}
+          preventRunningTask={preventRunningTask}
+        /> : null}
+    </>
   );
 };
 
