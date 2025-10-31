@@ -52,6 +52,7 @@ jobs:
     name: "Build info"
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
+    if: ${{ github.repository == 'apache/airflow' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
