@@ -1792,7 +1792,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
-
         query = (
             select(
                 DagRun.dag_id,
@@ -1874,8 +1873,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         run_id,
                     )
                     continue
-            elif dag.max_active_runs:
-                if active_runs >= dag.max_active_runs:
+            elif dag_run.max_active_runs:
+                if active_runs >= dag_run.max_active_runs:
                     # todo: delete all candidate dag runs for this dag from list right now
                     self.log.info(
                         "dag cannot be started due to dag max_active_runs constraint; "
