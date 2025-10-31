@@ -188,10 +188,11 @@ class Job(Base, LoggingMixin):
         except Exception as e:
             self.log.error("on_kill() method failed: %s", e)
 
-        job = session.scalar(select(Job).where(Job.id == self.id, session=session).limit(1))
-        job.end_date = timezone.utcnow()
-        session.merge(job)
-        session.commit()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
+        if job is not None:
+            job.end_date = timezone.utcnow()
+            session.merge(job)
+            session.commit()
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
@@ -319,8 +320,10 @@ class Job(Base, LoggingMixin):
     def _is_alive(
         state: JobState | str | None,
         health_check_threshold_value: float | int,
-        latest_heartbeat: datetime,
+        latest_heartbeat: datetime | None,
     ) -> bool:
+        if latest_heartbeat is None:
+            return False
         return (
             state == JobState.RUNNING
             and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value
