@@ -18,7 +18,7 @@
 .. _troubleshooting:
 
 How to Debug Your Airflow Deployment
-=====================================
+====================================
 
 This guide provides a systematic approach to debugging Airflow deployments based on proven debugging principles. It's designed to help you think like an Airflow debugger and develop effective troubleshooting strategies for your specific deployment.
 
@@ -27,7 +27,7 @@ This guide provides a systematic approach to debugging Airflow deployments based
    :depth: 2
 
 What You Should Expect from This Guide
----------------------------------------
+--------------------------------------
 
 **What this guide provides:**
 
@@ -50,12 +50,12 @@ What You Should Expect from This Guide
 - Understand your infrastructure and dependencies
 
 The 9 Rules of Airflow Debugging
----------------------------------
+--------------------------------
 
 Based on Agans' debugging principles, here's how to approach Airflow issues systematically:
 
 Rule 1: Understand the System
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before debugging, understand your Airflow architecture and components.
 
@@ -85,7 +85,7 @@ Understanding the system helps identify that queued tasks indicate an executor i
 - Check ``airflow celery worker`` logs for distributed setups
 
 Rule 2: Make It Fail
-^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 Reproduce issues consistently to understand their patterns.
 
@@ -113,7 +113,7 @@ Intermittent failures often indicate resource contention, network issues, or rac
 - Review retry configuration and implement exponential backoff
 
 Rule 3: Quit Thinking and Look
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examine actual logs and data rather than making assumptions.
 
@@ -141,7 +141,7 @@ Instead of assuming the task definition is correct, examine the actual parsed DA
 - Check if task is dynamically generated and conditions are met
 
 Rule 4: Divide and Conquer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Isolate problems by testing components separately.
 
@@ -169,7 +169,7 @@ Isolate the problematic DAG from working ones to identify the specific issue.
 - Verify all imports and dependencies are available
 
 Rule 5: Change One Thing at a Time
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Make incremental changes to avoid introducing new problems.
 
@@ -197,7 +197,7 @@ Multiple performance factors could be involved.
 - Document performance impact of each change
 
 Rule 6: Keep an Audit Trail
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Document your debugging process and changes made.
 
@@ -225,7 +225,7 @@ Connection configuration might have subtle issues not apparent in simple tests.
 - Keep track of successful connection configurations
 
 Rule 7: Check the Plug
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Verify basic assumptions and simple causes first.
 
@@ -253,7 +253,7 @@ Before investigating complex issues, check basic requirements.
 - Test with a simple example DAG
 
 Rule 8: Get a Fresh View
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Seek external perspectives when stuck.
 
@@ -281,7 +281,7 @@ Complex dependency logic might have subtle issues not obvious to the original au
 - Use ``airflow tasks list dag_id --tree`` to visualize dependencies
 
 Rule 9: If You Didn't Fix It, It Ain't Fixed
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Verify that your solution actually resolves the problem.
 
@@ -309,7 +309,7 @@ Memory issues might appear resolved but return under load.
 - Implement monitoring to catch regressions early
 
 Common Debugging Scenarios
----------------------------
+--------------------------
 
 Task Execution Issues
 ^^^^^^^^^^^^^^^^^^^^^
@@ -366,7 +366,7 @@ DAG parsing issues or scheduler configuration problems.
 - Restart scheduler if configuration changed
 
 Database and Connectivity
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Scenario: Database Connection Pool Exhaustion**
 
@@ -385,7 +385,7 @@ Database connection pool too small for workload.
 - Consider connection pooling at database level
 
 Performance Issues
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 
 **Scenario: Slow DAG Loading**
 
@@ -404,7 +404,7 @@ Complex DAG logic or too many DAG files.
 - Consider DAG serialization: ``store_serialized_dags = True``
 
 Building Your Debugging Toolkit
---------------------------------
+-------------------------------
 
 Essential Commands
 ^^^^^^^^^^^^^^^^^^
@@ -430,7 +430,7 @@ Essential Commands
    airflow config list
 
 Monitoring and Logging
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Set up comprehensive monitoring for:
 
@@ -448,7 +448,7 @@ Set up comprehensive monitoring for:
 - Regularly rotate and archive logs
 
 Creating Deployment-Specific Procedures
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Develop standardized procedures for your environment:
 
