@@ -17,16 +17,17 @@
  * under the License.
  */
 import { Button, Box, Spacer, HStack, Input, Field, Stack } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
+import { getPreloadTriggerFormData } from "src/utils/trigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
@@ -56,30 +57,38 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  const { search } = useLocation();
   const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-
   const { mutate: togglePause } = useTogglePause({ dagId });
+
+  const searchParams = new URLSearchParams(search);
+  const {
+    conf: urlConf,
+    dagRunId: urlDagRunId,
+    logicalDate: urlLogicalDate,
+    note: urlNote,
+  } = getPreloadTriggerFormData(searchParams);
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
-      conf,
-      dagRunId: "",
+      conf: urlConf ?? (conf || "{}"),
+      dagRunId: urlDagRunId,
       // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
-      note: "",
+      logicalDate: urlLogicalDate ?? dayjs().format(DEFAULT_DATETIME_FORMAT),
+      note: urlNote
     },
   });
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    if (conf) {
+    if (urlConf === null && conf) {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [urlConf, conf, reset]);
 
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
@@ -103,6 +112,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         control={control}
         errors={errors}
         initialParamsDict={initialParamsDict}
+        openAdvanced={Boolean(urlConf ?? (urlDagRunId || urlLogicalDate || urlNote))}
         setErrors={setErrors}
         setFormError={setFormError}
       >
