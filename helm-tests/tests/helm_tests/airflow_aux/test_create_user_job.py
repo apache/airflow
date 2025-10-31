@@ -218,7 +218,8 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1]", docs[0]) == {
+        # The extraVolumes should be the second-to-last volume (before sqlite-shared)
+        assert jmespath.search("spec.template.spec.volumes[-2]", docs[0]) == {
             "name": "myvolume-airflow",
             "emptyDir": {},
         }
@@ -247,7 +248,8 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[-1]", docs[0]) == {
+        # The global volumes should be the second-to-last volume (before sqlite-shared)
+        assert jmespath.search("spec.template.spec.volumes[-2]", docs[0]) == {
             "name": "myvolume",
             "emptyDir": {},
         }

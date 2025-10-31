@@ -1130,3 +1130,38 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{/* SQLite shared mode helper functions */}}
+
+{{/* Check if SQLite shared mode is enabled */}}
+{{- define "airflow.sqliteShared.enabled" -}}
+  {{- if and .Values.sqliteShared.enabled (eq .Values.data.metadataConnection.protocol "sqlite") -}}
+    true
+  {{- end -}}
+{{- end -}}
+
+{{/* Generate SQLite shared PVC name */}}
+{{- define "airflow.sqliteShared.pvcName" -}}
+  {{- if .Values.sqliteShared.persistence.existingClaim -}}
+    {{- .Values.sqliteShared.persistence.existingClaim -}}
+  {{- else -}}
+    {{- include "airflow.fullname" . -}}-sqlite-shared
+  {{- end -}}
+{{- end -}}
+
+{{/* Generate SQLite shared volume configuration */}}
+{{- define "airflow.sqliteShared.volume" -}}
+{{- if include "airflow.sqliteShared.enabled" . -}}
+- name: sqlite-shared
+  persistentVolumeClaim:
+    claimName: {{ include "airflow.sqliteShared.pvcName" . }}
+{{- end -}}
+{{- end -}}
+
+{{/* Generate SQLite shared volume mount configuration */}}
+{{- define "airflow.sqliteShared.volumeMount" -}}
+{{- if include "airflow.sqliteShared.enabled" . -}}
+- name: sqlite-shared
+  mountPath: /opt/airflow/shared-db
+{{- end -}}
+{{- end -}}

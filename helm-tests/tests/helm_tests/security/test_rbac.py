@@ -24,14 +24,11 @@ from chart_utils.helm_template_generator import render_chart
 from packaging.version import parse as parse_version
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
-    ("Secret", "test-rbac-postgresql"),
     ("Secret", "test-rbac-metadata"),
     ("Secret", "test-rbac-pgbouncer-config"),
     ("Secret", "test-rbac-pgbouncer-stats"),
     ("ConfigMap", "test-rbac-config"),
     ("ConfigMap", "test-rbac-statsd"),
-    ("Service", "test-rbac-postgresql-hl"),
-    ("Service", "test-rbac-postgresql"),
     ("Service", "test-rbac-statsd"),
     ("Service", "test-rbac-flower"),
     ("Service", "test-rbac-pgbouncer"),
@@ -41,7 +38,6 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Deployment", "test-rbac-statsd"),
     ("Deployment", "test-rbac-flower"),
     ("Deployment", "test-rbac-pgbouncer"),
-    ("StatefulSet", "test-rbac-postgresql"),
     ("StatefulSet", "test-rbac-redis"),
     ("StatefulSet", "test-rbac-worker"),
     ("Secret", "test-rbac-broker-url"),
@@ -50,6 +46,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
     ("CronJob", "test-rbac-cleanup"),
+    ("PersistentVolumeClaim", "test-rbac-sqlite-shared"),
 ]
 
 RBAC_ENABLED_KIND_NAME_TUPLES = [
@@ -86,7 +83,6 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_CREATE_USER_JOBS_NAME := "TestCreateUserJob"),
     (CUSTOM_MIGRATE_DATABASE_JOBS_NAME := "TestMigrateDatabaseJob"),
     (CUSTOM_REDIS_NAME := "TestRedis"),
-    (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
 )
 CUSTOM_WEBSERVER_NAME = "TestWebserver"
 CUSTOM_WORKER_CELERY_NAME = "TestWorkerCelery"
@@ -326,7 +322,6 @@ class TestRBAC:
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
-                "postgresql": {"serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {
@@ -404,7 +399,6 @@ class TestRBAC:
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
-                "postgresql": {"serviceAccount": {"name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {
