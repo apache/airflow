@@ -41,6 +41,7 @@ from sqlalchemy import (
     and_,
     case,
     func,
+    inspect,
     not_,
     or_,
     text,
@@ -90,14 +91,15 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.engine import CursorResult, ScalarResult
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case
 
     from airflow.models.dag_version import DagVersion
@@ -105,7 +107,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-    from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -334,19 +335,23 @@ class DagRun(Base, LoggingMixin):
         else:
             self.data_interval_start, self.data_interval_end = data_interval
         self.bundle_version = bundle_version
-        self.dag_id = dag_id
-        self.run_id = run_id
+        if dag_id is not None:
+            self.dag_id = dag_id
+        if run_id is not None:
+            self.run_id = run_id
         self.logical_date = logical_date
-        self.run_after = run_after
+        if run_after is not None:
+            self.run_after = run_after
         self.start_date = start_date
         self.conf = conf or {}
         if state is not None:
             self.state = state
-        if queued_at is NOTSET:
+        if isinstance(queued_at, ArgNotSet):
             self.queued_at = timezone.utcnow() if state == DagRunState.QUEUED else None
         else:
             self.queued_at = queued_at
-        self.run_type = run_type
+        if run_type is not None:
+            self.run_type = run_type
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
@@ -560,11 +565,11 @@ class DagRun(Base, LoggingMixin):
         )
         if exclude_backfill:
             query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
-        return dict(iter(session.execute(query)))
+        return dict(session.execute(query).tuples().all())
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> Query:
+    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -602,7 +607,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_queued_dag_runs_to_set_running(cls, session: Session) -> Query:
+    def get_queued_dag_runs_to_set_running(cls, session: Session) -> ScalarResult[DagRun]:
         """
         Return the next queued DagRuns that the scheduler should attempt to schedule.
 
@@ -665,7 +670,7 @@ class DagRun(Base, LoggingMixin):
                 coalesce(running_drs.c.num_running, text("0"))
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
                 # don't set paused dag runs as running
-                not_(coalesce(Backfill.is_paused, False)),
+                not_(func.coalesce(Backfill.__table__.c.is_paused, false())),
             )
             .order_by(
                 # ordering by backfill sort ordinal first ensures that backfill dag runs
@@ -719,11 +724,13 @@ class DagRun(Base, LoggingMixin):
             qry = qry.where(cls.dag_id.in_(dag_ids))
 
         if is_container(run_id):
-            qry = qry.where(cls.run_id.in_(run_id))
+            run_ids = cast("Iterable[str]", run_id)
+            qry = qry.where(cls.run_id.in_(tuple(run_ids)))
         elif run_id is not None:
             qry = qry.where(cls.run_id == run_id)
         if is_container(logical_date):
-            qry = qry.where(cls.logical_date.in_(logical_date))
+            dates = cast("Iterable[datetime]", logical_date)
+            qry = qry.where(cls.logical_date.in_(tuple(dates)))
         elif logical_date is not None:
             qry = qry.where(cls.logical_date == logical_date)
         if logical_start_date and logical_end_date:
@@ -739,7 +746,7 @@ class DagRun(Base, LoggingMixin):
         if no_backfills:
             qry = qry.where(cls.run_type != DagRunType.BACKFILL_JOB)
 
-        return session.scalars(qry.order_by(cls.logical_date)).all()
+        return cast("list[DagRun]", session.scalars(qry.order_by(cls.logical_date)).all())
 
     @classmethod
     @provide_session
@@ -806,7 +813,7 @@ class DagRun(Base, LoggingMixin):
 
         if task_ids is not None:
             tis = tis.where(TI.task_id.in_(task_ids))
-        return session.scalars(tis).all()
+        return cast("list[TI]", session.scalars(tis).all())
 
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
@@ -959,7 +966,7 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
-        if not dag_run.logical_date:
+        if dag_run is None or dag_run.logical_date is None:
             return None
         return session.scalar(
             select(DagRun)
@@ -1419,6 +1426,9 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(last_ti, from_attributes=True)
             task = dag.get_task(last_ti.task_id)
 
+            if self.start_date is None:
+                raise AirflowException("DagRun.start_date is required when building callback context")
+
             dag_run_data = DRDataModel(
                 dag_id=self.dag_id,
                 run_id=self.run_id,
@@ -1428,7 +1438,7 @@ class DagRun(Base, LoggingMixin):
                 run_after=self.run_after,
                 start_date=self.start_date,
                 end_date=self.end_date,
-                run_type=self.run_type,
+                run_type=DagRunType(self.run_type),
                 state=self.state,
                 conf=self.conf,
                 consumed_asset_events=[],
@@ -1848,7 +1858,7 @@ class DagRun(Base, LoggingMixin):
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
                     ti_mutation_hook(ti)
-                    created_counts[ti.operator] += 1
+                    created_counts[task.task_type] += 1
                     yield ti
 
             creator = create_ti
@@ -1910,7 +1920,7 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, tasks)
+                session.bulk_insert_mappings(inspect(TI), tasks)
             else:
                 session.bulk_save_objects(tasks)
 
@@ -1995,12 +2005,15 @@ class DagRun(Base, LoggingMixin):
             .group_by(cls.dag_id)
             .subquery()
         )
-        return session.scalars(
-            select(cls).join(
-                subquery,
-                and_(cls.dag_id == subquery.c.dag_id, cls.logical_date == subquery.c.logical_date),
-            )
-        ).all()
+        return cast(
+            "list[DagRun]",
+            session.scalars(
+                select(cls).join(
+                    subquery,
+                    and_(cls.dag_id == subquery.c.dag_id, cls.logical_date == subquery.c.logical_date),
+                )
+            ).all(),
+        )
 
     @provide_session
     def schedule_tis(
@@ -2054,40 +2067,46 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for id_chunk in schedulable_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(TI.id.in_(id_chunk))
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        scheduled_dttm=timezone.utcnow(),
-                        try_number=case(
-                            (
-                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
-                                TI.try_number + 1,
+                count += cast(
+                    "CursorResult[Any]",
+                    session.execute(
+                        update(TI)
+                        .where(TI.id.in_(id_chunk))
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            scheduled_dttm=timezone.utcnow(),
+                            try_number=case(
+                                (
+                                    or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                                    TI.try_number + 1,
+                                ),
+                                else_=TI.try_number,
                             ),
-                            else_=TI.try_number,
-                        ),
-                    )
-                    .execution_options(synchronize_session=False)
+                        )
+                        .execution_options(synchronize_session=False)
+                    ),
                 ).rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if empty_ti_ids:
             dummy_ti_ids_chunks = chunks(empty_ti_ids, max_tis_per_query or len(empty_ti_ids))
             for id_chunk in dummy_ti_ids_chunks:
-                count += session.execute(
-                    update(TI)
-                    .where(TI.id.in_(id_chunk))
-                    .values(
-                        state=TaskInstanceState.SUCCESS,
-                        start_date=timezone.utcnow(),
-                        end_date=timezone.utcnow(),
-                        duration=0,
-                        try_number=TI.try_number + 1,
-                    )
-                    .execution_options(
-                        synchronize_session=False,
-                    )
+                count += cast(
+                    "CursorResult[Any]",
+                    session.execute(
+                        update(TI)
+                        .where(TI.id.in_(id_chunk))
+                        .values(
+                            state=TaskInstanceState.SUCCESS,
+                            start_date=timezone.utcnow(),
+                            end_date=timezone.utcnow(),
+                            duration=0,
+                            try_number=TI.try_number + 1,
+                        )
+                        .execution_options(
+                            synchronize_session=False,
+                        )
+                    ),
                 ).rowcount
 
         return count
@@ -2180,13 +2199,13 @@ def get_or_create_dagrun(
 
     :return: The newly created DAG run.
     """
-    dr: DagRun = session.scalar(
+    existing: DagRun | None = session.scalars(
         select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
-    )
-    if dr:
-        session.delete(dr)
+    ).one_or_none()
+    if existing is not None:
+        session.delete(existing)
         session.commit()
-    dr = dag.create_dagrun(
+    dr: DagRun = dag.create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
         data_interval=data_interval,
