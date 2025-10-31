@@ -121,7 +121,9 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
             value={dagView}
           >
             <Icon as={dagView === "grid" ? MdOutlineAccountTree : FiGrid} boxSize={4} />
-            <Box flex="1">{dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}</Box>
+            <Box flex="1">
+              {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
+            </Box>
           </Menu.Item>
           <TimezoneMenuItem onOpen={onOpenTimezone} />
           {externalViews.map((view) => (
