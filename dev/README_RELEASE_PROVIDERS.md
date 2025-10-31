@@ -90,6 +90,11 @@ Please review and ensure that all security issues marked for the release have be
 addressed and resolved. Ping security team (comment in the issues) if anything missing or
 the issue does not seem to be addressed.
 
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
+
 # Bump min Airflow version for providers
 
 1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove
@@ -354,6 +359,7 @@ brew install gnupg
 * Cleanup dist folder:
 
 ```shell script
+export PACKAGE_DATE=$(date "+%Y-%m-%d%n")
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
@@ -362,6 +368,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -369,6 +376,7 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -408,7 +416,7 @@ mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
 # Add and commit
 svn add *
-svn commit -m "Add artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
+svn commit -m "Add artifacts for Airflow Providers ${PACKAGE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
 ```
@@ -585,10 +593,10 @@ There are few special considerations when the list of provider is updated.
 
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
+branch="add-documentation-${PACKAGE_DATE}"
 git checkout -b "${branch}"
 git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git commit -m "Add documentation for packages - ${PACKAGE_DATE}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -832,13 +840,11 @@ How to verify it:
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
-   commands are:
+2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
 git fetch apache --tags
-git checkout providers-amazon/9.1.0rc1
+git checkout providers/2025-10-20
 ```
 
 3) Remove all the packages you have in dist folder
@@ -1337,6 +1343,13 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 breeze release-management tag-providers
+```
+
+The command should output all the tags it created. At the end it should also print the general tag
+applied for this provider's release wave - with current date in the format of:
+
+```
+providers/YYYY-MM-DD
 ```
 
 ## Publish documentation

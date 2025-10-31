@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    TrinoTransferOperator types <gcs_to_trino>
+    TrinoTransferOperator types <transfer/gcs_to_trino>
     Operators <operators>
     Connection types <connections>
 
