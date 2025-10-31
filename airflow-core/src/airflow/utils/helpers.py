@@ -30,6 +30,7 @@ from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -332,7 +333,7 @@ def __getattr__(name: str):
         warnings.warn(
             "airflow.utils.helpers.render_template_as_native is deprecated. "
             "Use airflow.sdk.definitions.context.render_template_as_native instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return render_template_as_native
@@ -345,7 +346,7 @@ def __getattr__(name: str):
         warnings.warn(
             "airflow.utils.helpers.prevent_duplicates is deprecated. "
             "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return prevent_duplicates
@@ -358,7 +359,7 @@ def __getattr__(name: str):
         warnings.warn(
             "airflow.utils.helpers.render_template_to_string is deprecated. "
             "Use airflow.sdk.definitions.context.render_template_to_string instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return render_template_as_native

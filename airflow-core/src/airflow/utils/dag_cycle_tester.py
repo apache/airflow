@@ -23,10 +23,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 warnings.warn(
     "`airflow.utils.dag_cycle_tester` module is deprecated and and will be removed in a future release."
     "Please use `dag.check_cycle()` method instead.",
-    DeprecationWarning,
+    DeprecatedImportWarning,
     stacklevel=2,
 )
 
