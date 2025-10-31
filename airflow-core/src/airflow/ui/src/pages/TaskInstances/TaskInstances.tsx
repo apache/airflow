@@ -21,7 +21,6 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -47,11 +46,21 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
+  OPERATOR: OPERATOR_PARAM,
   POOL: POOL_PARAM,
+  QUEUE: QUEUE_PARAM,
+  RUN_ID: RUN_ID_PARAM,
   START_DATE: START_DATE_PARAM,
-  STATE: STATE_PARAM,
+  TASK_STATE: STATE_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -210,6 +219,19 @@ const taskInstanceColumns = ({
   },
 ];
 
+// filter for operator_name, since the frontend show operator_name, instead of operator for user
+const filterTaskInstances = ({
+  instances,
+  operatorNames,
+}: {
+  instances: Array<TaskInstanceResponse>;
+  operatorNames: Array<string>;
+}) =>
+  instances.filter(
+    (instance) =>
+      (operatorNames.length === 0 || operatorNames.includes(instance.operator_name as string))
+  );
+
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
@@ -229,16 +251,25 @@ export const TaskInstances = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
+  const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
+  const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const pool = searchParams.getAll(POOL_PARAM);
+  const queue = searchParams.getAll(QUEUE_PARAM);
+  const operator = searchParams.getAll(OPERATOR_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredRunId = searchParams.get(RUN_ID_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const hasFilteredPool = pool.length > 0;
+  const hasFilteredQueue = queue.length > 0;
+  const taskDisplayNamePattern= searchParams.get(NAME_PATTERN_PARAM);
 
-  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
 
   const refetchInterval = useAutoRefresh({});
 
@@ -246,16 +277,25 @@ export const TaskInstances = () => {
     {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
-      dagRunId: runId ?? "~",
+      dagRunId: runId ?? filteredRunId ?? "~",
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
+      mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       pool: hasFilteredPool ? pool : undefined,
+      queue: hasFilteredQueue ? queue : undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
+      tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
+      versionNumber:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
     },
     undefined,
     {
@@ -264,12 +304,14 @@ export const TaskInstances = () => {
     },
   );
 
+   const filteredInstances = filterTaskInstances({
+    instances: data? data.task_instances : [],
+    operatorNames: operator,
+  });
+
   return (
     <>
-      <TaskInstancesFilter
-        setTaskDisplayNamePattern={setTaskDisplayNamePattern}
-        taskDisplayNamePattern={taskDisplayNamePattern}
-      />
+      <TaskInstancesFilter/>
       <DataTable
         columns={taskInstanceColumns({
           dagId,
@@ -277,7 +319,7 @@ export const TaskInstances = () => {
           taskId: Boolean(groupId) ? undefined : taskId,
           translate,
         })}
-        data={data?.task_instances ?? []}
+        data={filteredInstances}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
