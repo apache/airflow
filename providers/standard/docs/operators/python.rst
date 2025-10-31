@@ -157,16 +157,19 @@ Passing in arguments
 
 Pass extra arguments to the ``@task.virtualenv`` decorated function as you would with a normal Python function.
 Unfortunately, Airflow does not support serializing ``var``, ``ti`` and ``task_instance`` due to incompatibilities
-with the underlying library. For Airflow context variables make sure that you either have access to Airflow through
-setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
-Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
-If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
+with the underlying library. For Airflow context variables, make sure that you have access to Airflow by
+setting ``system_site_packages`` to ``True`` or you won't have access to most context variables in ``op_kwargs``.
+If you want the context related to datetime objects like ``data_interval_start``, you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
+.. important::
+
+    When Airflow or provider packages are required, you must specify the Airflow :ref:`apache-airflow:installation:constraints`
+    using ``pip_install_options`` to avoid dependency conflicts.
 
 .. important::
     The Python function body defined to be executed is cut out of the Dag into a temporary file w/o surrounding code.
-    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+    As in the examples you need to add all imports again and you cannot rely on variables from the global Python context.
 
     If you want to pass variables into the classic :class:`~airflow.providers.standard.operators.python.PythonVirtualenvOperator` use
     ``op_args`` and ``op_kwargs``.
