@@ -125,14 +125,14 @@ if AIRFLOW_V_3_1_PLUS:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
     try:
-        from airflow.models.dagbag import DagBag as _DagBag
+        from airflow.models.dagbag import DagBag
     except (ImportError, AttributeError):
-        _DagBag = None
+        DagBag = None
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        if _DagBag is None:
+        if DagBag is None:
             return []
-        dagbag = _DagBag(read_dags_from_db=True)
+        dagbag = DagBag(read_dags_from_db=True)
         if hasattr(dagbag, "collect_dags_from_db"):
             dagbag.collect_dags_from_db()
         return dagbag.dags.values()
