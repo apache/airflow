@@ -263,7 +263,7 @@ class BteqHook(TtuHook):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             shell=True,
-            preexec_fn=os.setsid,
+            start_new_session=True,
         )
         encode_bteq_script = bteq_script.encode(str(temp_file_read_encoding or "UTF-8"))
         stdout_data, _ = process.communicate(input=encode_bteq_script)
