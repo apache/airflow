@@ -1371,7 +1371,7 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
-    def notify_dagrun_state_changed(self, msg: str = ""):
+    def notify_dagrun_state_changed(self, msg: str):
         try:
             if self.state == DagRunState.RUNNING:
                 get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
