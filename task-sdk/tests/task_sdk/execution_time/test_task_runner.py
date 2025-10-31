@@ -147,7 +147,7 @@ class CustomOperator(BaseOperator):
         print(f"Hello World {task_id}!")
 
 
-def test_parse(mock_dagbag, test_dags_dir: Path, make_ti_context):
+def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(
