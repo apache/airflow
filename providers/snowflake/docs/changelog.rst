@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure IAM/Entra ID support for SnowflakeHook (#55874)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'snowflake-snowpark-python' pip resolver hint for Python 3.13 (#56606)``
+
+Misc
+~~~~
+
+* ``Migrate snowflake provider to ''common.compat'' (#57003)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix path of how-to-guide docs for copy_into_snowflake.rst(#56527)``
+* ``Update Snowflake docs with breaking change (#56516)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 6.5.4
 .....
 

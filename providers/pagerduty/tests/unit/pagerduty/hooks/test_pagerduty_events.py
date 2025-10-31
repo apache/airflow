@@ -18,9 +18,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import patch
 
+import httpx
+import pagerduty
 import pytest
 from aioresponses import aioresponses
+from pagerduty import EventsApiV2Client
 
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty_events import (
@@ -65,11 +69,14 @@ class TestPrepareEventData:
         assert even_data == exp_event_data
 
     def test_prepare_event_data_invalid_action(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Event action must be one of: trigger, acknowledge, resolve"):
             prepare_event_data(summary="test", severity="error", action="should_raise")
 
     def test_prepare_event_missing_dedup_key(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="The dedup_key property is required for action=acknowledge events, and it must be a string",
+        ):
             prepare_event_data(summary="test", severity="error", action="acknowledge")
 
 
@@ -82,26 +89,55 @@ class TestPagerdutyEventsHook:
         hook = PagerdutyEventsHook(integration_key="override_key", pagerduty_events_conn_id=DEFAULT_CONN_ID)
         assert hook.integration_key == "override_key", "token initialised."
 
-    def test_create_change_event(self, requests_mock, events_connections):
+    @patch.object(pagerduty.EventsApiV2Client, "request")
+    def test_create_change_event(self, mock_request, events_connections):
+        """Test that create_change_event sends a valid change event and returns None"""
+
         hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
+
         mock_response_body = {
             "message": "Change event processed",
             "status": "success",
         }
-        requests_mock.post("https://events.pagerduty.com/v2/change/enqueue", json=mock_response_body)
+        mock_response = httpx.Response(
+            status_code=202,
+            json=mock_response_body,
+            request=httpx.Request("POST", "https://events.pagerduty.com/v2/change/enqueue"),
+        )
+
+        mock_response.ok = True
+        mock_request.return_value = mock_response
         resp = hook.create_change_event(summary="test", source="airflow")
+        mock_request.assert_called_once()
         assert resp is None, "No response expected for change event"
 
-    def test_send_event(self, requests_mock, events_connections):
+    @patch.object(EventsApiV2Client, "request")
+    def test_send_event_success(self, mock_request, events_connections):
+        """Test that send_event returns dedup_key on success"""
         hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
         dedup_key = "samplekeyhere"
+
         mock_response_body = {
             "status": "success",
             "message": "Event processed",
             "dedup_key": dedup_key,
         }
-        requests_mock.post("https://events.pagerduty.com/v2/enqueue", json=mock_response_body)
-        resp = hook.send_event(summary="test", source="airflow_test", severity="error", dedup_key=dedup_key)
+        mock_response = httpx.Response(
+            status_code=202,
+            json=mock_response_body,
+            request=httpx.Request("POST", "https://events.pagerduty.com/v2/enqueue"),
+        )
+        mock_response.ok = True
+        mock_request.return_value = mock_response
+
+        resp = hook.send_event(
+            summary="test",
+            source="airflow_test",
+            severity="error",
+            dedup_key=dedup_key,
+        )
+
+        mock_request.assert_called_once()
         assert resp == dedup_key
 
 

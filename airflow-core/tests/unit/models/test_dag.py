@@ -21,6 +21,7 @@ import datetime
 import logging
 import os
 import pickle
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -38,7 +39,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -1733,7 +1734,7 @@ my_postgres_conn:
 
     def test_validate_params_on_trigger_dag(self, testing_dag_bundle):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(ValueError, match="No value passed"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
@@ -1745,9 +1746,7 @@ my_postgres_conn:
             )
 
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(
-            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
-        ):
+        with pytest.raises(ValueError, match="None is not of type 'string'"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
@@ -2872,7 +2871,12 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
     run_id = DagRun.generate_run_id(run_type=run_id_type, run_after=DEFAULT_DATE, logical_date=DEFAULT_DATE)
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+        ),
+    ):
         SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag)).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
@@ -2882,9 +2886,6 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             state=DagRunState.QUEUED,
             triggered_by=DagRunTriggeredByType.TEST,
         )
-    assert str(ctx.value) == (
-        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
-    )
 
 
 class TestTaskClearingSetupTeardownBehavior:

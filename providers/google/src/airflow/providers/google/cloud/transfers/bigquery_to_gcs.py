@@ -37,7 +37,7 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):

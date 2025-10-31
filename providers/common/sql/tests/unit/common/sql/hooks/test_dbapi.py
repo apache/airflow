@@ -26,10 +26,10 @@ import pytest
 from pyodbc import Cursor
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook
 
 
 class DbApiHookInProvider(DbApiHook):

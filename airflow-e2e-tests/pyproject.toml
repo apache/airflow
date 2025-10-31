@@ -38,7 +38,7 @@ dependencies = [
     "apache-airflow-core",
     "apache-airflow-devel-common",
     "testcontainers>=4.12.0",
-    "boto3",
+    "boto3>=1.37.2",
 ]
 
 [tool.pytest.ini_options]

@@ -30,8 +30,13 @@ import httpx
 import msgspec
 import structlog
 from pydantic import BaseModel
-from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import (
+    before_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 from uuid6 import uuid7
 
 from airflow.configuration import conf
@@ -43,6 +48,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     DagRunType,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
@@ -72,7 +78,6 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     SkipDownstreamTasks,
@@ -264,6 +269,11 @@ class TaskInstanceOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
+        return OKResponse(ok=True)
+
+    def set_rendered_map_index(self, id: uuid.UUID, rendered_map_index: str) -> OKResponse:
+        """Set rendered_map_index for a task instance via the API server."""
+        self.client.patch(f"task-instances/{id}/rendered-map-index", json=rendered_map_index)
         return OKResponse(ok=True)
 
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
@@ -744,7 +754,7 @@ class HITLOperations:
         multiple: bool = False,
         params: dict[str, Any] | None = None,
         assigned_users: list[HITLUser] | None = None,
-    ) -> HITLDetailRequestResult:
+    ) -> HITLDetailRequest:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
             ti_id=ti_id,
@@ -760,7 +770,7 @@ class HITLOperations:
             f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
-        return HITLDetailRequestResult.model_validate_json(resp.read())
+        return HITLDetailRequest.model_validate_json(resp.read())
 
     def update_response(
         self,
@@ -797,7 +807,7 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-# This exists as a aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
+# This exists as an aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
     path = request.url.path
@@ -832,7 +842,24 @@ API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
 
 
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """Determine if an API request should be retried based on the exception type."""
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code >= 500
+
+    return isinstance(exception, httpx.RequestError)
+
+
 class Client(httpx.Client):
+    @lru_cache()
+    @staticmethod
+    def _get_ssl_context_cached(ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
+        """Cache SSL context to prevent memory growth from repeated context creation."""
+        ctx = ssl.create_default_context(cafile=ca_file)
+        if ca_path:
+            ctx.load_verify_locations(ca_path)
+        return ctx
+
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
@@ -845,10 +872,7 @@ class Client(httpx.Client):
             kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
-            ctx = ssl.create_default_context(cafile=certifi.where())
-            if API_SSL_CERT_PATH:
-                ctx.load_verify_locations(API_SSL_CERT_PATH)
-            kwargs["verify"] = ctx
+            kwargs["verify"] = self._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
 
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)
@@ -864,24 +888,24 @@ class Client(httpx.Client):
             **kwargs,
         )
 
-    _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
-
     def _update_auth(self, response: httpx.Response):
         if new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
     @retry(
-        reraise=True,
-        max_attempt_number=API_RETRIES,
-        wait_server_errors=_default_wait,
-        wait_network_errors=_default_wait,
-        wait_timeouts=_default_wait,
-        wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
+        retry=retry_if_exception(_should_retry_api_request),
+        stop=stop_after_attempt(API_RETRIES),
+        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
         before_sleep=before_log(log, logging.WARNING),
+        reraise=True,
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
+        # Set content type as convenience if not already set
+        if "content" in kwargs and "headers" not in kwargs:
+            kwargs["headers"] = {"content-type": "application/json"}
+
         return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all

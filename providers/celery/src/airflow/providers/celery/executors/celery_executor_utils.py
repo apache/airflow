@@ -43,7 +43,8 @@ import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import timeout
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -111,7 +112,7 @@ def on_celery_import_modules(*args, **kwargs):
     """
     Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
-    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
+    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long-running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
