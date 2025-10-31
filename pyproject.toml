@@ -589,6 +589,12 @@ extend-select = [
     # Warning (PLW) re-implemented in ruff from Pylint
     "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
     "PLW0127", # Self-assignment of variable
+    "PLW0128", # Redeclared variable {name} in assignment
+    "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0133", # Missing raise statement on exception
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -621,7 +627,6 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
-    "PLW0133", # Missing raise statement on exception
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
