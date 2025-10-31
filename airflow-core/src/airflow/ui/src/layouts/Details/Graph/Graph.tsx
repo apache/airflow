@@ -31,6 +31,7 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useTaskStreamFilter } from "src/hooks/useTaskStreamFilter";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
@@ -61,15 +62,16 @@ const nodeColor = (
 type GraphProps = {
   readonly includeDownstream: boolean;
   readonly includeUpstream: boolean;
-  readonly root: string | undefined;
-  readonly setFilterRoot: (root: string | undefined) => void;
 };
 
-export const Graph = ({ includeDownstream, includeUpstream, root, setFilterRoot }: GraphProps) => {
+export const Graph = ({ includeDownstream, includeUpstream }: GraphProps) => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();
+
+  // Use the task stream filter hook to get and set the filter root
+  const { taskStreamFilterRoot: root, setTaskStreamFilterRoot } = useTaskStreamFilter({ dagId });
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 
@@ -80,7 +82,7 @@ export const Graph = ({ includeDownstream, includeUpstream, root, setFilterRoot 
     // Only set filter root for actual tasks, not DAGs or other node types
     // This just stores which task was clicked - it doesn't activate the filter
     if (!node.id.startsWith("dag:") && !node.id.startsWith("asset")) {
-      setFilterRoot(node.id);
+      setTaskStreamFilterRoot(node.id);
     }
   };
 

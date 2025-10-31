@@ -29,6 +29,7 @@ import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useTaskStreamFilter } from "src/hooks/useTaskStreamFilter";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -46,7 +47,6 @@ type Props = {
   readonly includeDownstream: boolean;
   readonly includeUpstream: boolean;
   readonly limit: number;
-  readonly root: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
@@ -57,7 +57,6 @@ export const Grid = ({
   includeDownstream,
   includeUpstream,
   limit,
-  root,
   runType,
   showGantt,
   triggeringUser,
@@ -68,6 +67,8 @@ export const Grid = ({
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
+
+  const { taskStreamFilterRoot: root } = useTaskStreamFilter({ dagId });
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
