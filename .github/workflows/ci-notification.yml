@@ -39,6 +39,7 @@ jobs:
         branch: ["v3-1-test"]
         workflow-id: ["ci-amd-arm.yml"]
     runs-on: ubuntu-latest
+    if: ${{ github.repository == 'apache/airflow' }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
