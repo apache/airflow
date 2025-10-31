@@ -49,7 +49,7 @@ export const useAssetServiceGetAssetAliasesSuspense = <TData = Common.AssetServi
 * Get an asset alias.
 * @param data The data for the request.
 * @param data.assetAliasId
-* @returns unknown Successful Response
+* @returns AssetAliasResponse Successful Response
 * @throws ApiError
 */
 export const useAssetServiceGetAssetAliasSuspense = <TData = Common.AssetServiceGetAssetAliasDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetAliasId }: {

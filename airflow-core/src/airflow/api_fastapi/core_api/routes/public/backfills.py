@@ -134,7 +134,6 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
-    session.commit()
     return b
 
 
@@ -191,7 +190,6 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
     # first, pause, and commit immediately to ensure no other dag runs are started
     if not b.is_paused:
         b.is_paused = True
-        session.commit()  # ensure no new runs started
 
     query = (
         update(DagRun)
@@ -209,10 +207,8 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
         .execution_options(synchronize_session=False)
     )
     session.execute(query)
-    session.commit()  # this will fail all the queued dag runs in this backfill
 
-    # this is in separate transaction just to avoid potential conflicts
-    session.refresh(b)
+    # Set completion time
     b.completed_at = timezone.utcnow()
     return b
 
