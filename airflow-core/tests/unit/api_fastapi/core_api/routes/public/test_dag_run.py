@@ -160,7 +160,6 @@ def setup(request, dag_maker, session=None):
         ti.task = task
         ti.state = State.SUCCESS
         ti = session.merge(ti)
-        ti.dag_version.bundle_version = "some_commit_hash"
         ti.xcom_push("return_value", f"result_{i}")
 
     dag_run2 = dag_maker.create_dagrun(
@@ -202,10 +201,6 @@ def setup(request, dag_maker, session=None):
     # Set conf for testing conf_contains filter
     dag_run3.conf = {"env": "staging", "test_mode": True}
 
-    ti3 = dag_run3.get_task_instance(task_id=task.task_id)
-    ti3 = session.merge(ti3)
-    ti3.dag_version.bundle_version = "some_commit_hash"
-
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
@@ -219,10 +214,6 @@ def setup(request, dag_maker, session=None):
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
-
-    ti4 = dag_run4.get_task_instance(task_id=task.task_id)
-    ti4 = session.merge(ti4)
-    ti4.dag_version.bundle_version = "some_commit_hash"
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True

@@ -57,7 +57,6 @@ class DagVersion(Base):
         primaryjoin="foreign(DagVersion.bundle_name) == DagBundleModel.name",
         uselist=False,
         viewonly=True,
-        lazy="noload",
     )
     dag_code = relationship(
         "DagCode",
@@ -90,8 +89,6 @@ class DagVersion(Base):
     @property
     def bundle_url(self) -> str | None:
         """Render the bundle URL using the joined bundle metadata if available."""
-        if not self.bundle_name:
-            return None
         # Prefer using the joined bundle relationship when present to avoid extra queries
         if getattr(self, "bundle", None) is not None and hasattr(self.bundle, "signed_url_template"):
             return self.bundle.render_url(self.bundle_version)
