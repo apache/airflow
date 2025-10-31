@@ -1877,7 +1877,7 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Export Variables
-* Export variables with unmasked values.
+* Export variables with unmasked values. Requires PUT permission (elevated access).
 * @param data The data for the request.
 * @param data.requestBody
 * @returns VariableExportResponse Successful Response

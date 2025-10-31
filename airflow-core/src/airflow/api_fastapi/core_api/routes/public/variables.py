@@ -194,13 +194,13 @@ def bulk_variables(
 @variables_router.post(
     "/export",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_variable("GET"))],
+    dependencies=[Depends(requires_access_variable("PUT"))],
 )
 def export_variables(
     export_body: VariableExportBody,
     session: SessionDep,
 ) -> list[VariableExportResponse]:
-    """Export variables with unmasked values."""
+    """Export variables with unmasked values when having elevated admin access."""
     variables = session.scalars(
         select(Variable).where(Variable.key.in_(export_body.variable_keys))
     ).all()
