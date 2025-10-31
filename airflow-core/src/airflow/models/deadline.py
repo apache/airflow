@@ -45,6 +45,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_colum
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.deadline_alert import DeadlineAlert
     from airflow.sdk.definitions.deadline import Callback
     from airflow.triggers.base import TriggerEvent
 
@@ -98,6 +99,10 @@ class Deadline(Base):
     __tablename__ = "deadline"
 
     id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+    )
 
     # If the Deadline Alert is for a DAG, store the DAG run ID from the dag_run.
     dagrun_id: Mapped[int | None] = mapped_column(
@@ -118,6 +123,12 @@ class Deadline(Base):
     # The Trigger where the callback is running
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="deadline")
+
+    # The DeadlineAlert that generated this deadline
+    deadline_alert_id: Mapped[str | None] = mapped_column(
+        UUIDType(binary=False), ForeignKey("deadline_alert.id", ondelete="SET NULL"), nullable=False
+    )
+    deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
     __table_args__ = (Index("deadline_callback_state_time_idx", callback_state, deadline_time, unique=False),)
 
@@ -144,8 +155,11 @@ class Deadline(Base):
         resource_type, resource_details = _determine_resource()
 
         return (
-            f"[{resource_type} Deadline] {resource_details} needed by "
-            f"{self.deadline_time} or run: {self.callback.path}({self.callback.kwargs or ''})"
+            f"[{resource_type} Deadline] "
+            f"created at {self.created_at}, "
+            f"{resource_details}, "
+            f"needed by {self.deadline_time} "
+            f"or run: {self.callback.path}({self.callback.kwargs or ''})"
         )
 
     @classmethod
