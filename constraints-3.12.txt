@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-31T00:17:15.623810
+# This constraints file was automatically generated on 2025-10-31T12:16:10.227348
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -224,7 +224,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==24.0.0
 azure-mgmt-storage==24.0.0
 azure-nspkg==3.0.2
-azure-servicebus==7.14.2
+azure-servicebus==7.14.3
 azure-storage-blob==12.27.1
 azure-storage-file-datalake==12.22.0
 azure-storage-file-share==12.23.1
