@@ -116,6 +116,13 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
+def _get_configured_engine():
+    """Get the configured engine, raising an error if not configured."""
+    if settings.engine is None:
+        raise RuntimeError("Engine not configured. Call configure_orm() first.")
+    return settings.engine
+
+
 @contextlib.contextmanager
 def timeout_with_traceback(seconds, message="Operation timed out"):
     """
@@ -828,7 +835,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
             config,
             script,
         ) as env,
-        settings.engine.connect() as connection,
+        _get_configured_engine().connect() as connection,
     ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
@@ -1044,7 +1051,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     :param revisions: list of Alembic revision ids
     :return: None
     """
-    dbname = settings.engine.dialect.name
+    dbname = _get_configured_engine().dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
     min_version, min_revision = ("2.7.0", "937cbd173ca1")
@@ -1257,7 +1264,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             fab_version,
         )
         return
-    connection = settings.engine.connect()
+    connection = _get_configured_engine().connect()
     insp = inspect(connection)
     if not fab_version and insp.has_table("ab_user"):
         log.info(
