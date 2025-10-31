@@ -587,6 +587,9 @@ extend-select = [
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
+    # Warning (PLW) re-implemented in ruff from Pylint
+    "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
+    "PLW0127", # Self-assignment of variable
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
