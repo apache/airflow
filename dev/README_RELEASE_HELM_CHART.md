@@ -226,8 +226,11 @@ breeze release-management prepare-helm-chart-tarball --version ${VERSION} --vers
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
+breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org --version-suffix ${VERSION_SUFFIX}
 ```
+
+Note: The `--version-suffix` parameter is optional but recommended for RC releases to ensure proper documentation
+links generation. When specified, it will generate staging documentation links instead of production ones.
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
 
@@ -512,7 +515,7 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-helm-chart-tarball --version-suffix rc1 --ignore-version-check --skip-tagging
-breeze release-management prepare-helm-chart-package
+breeze release-management prepare-helm-chart-package --version-suffix rc1
 ```
 
 5. Compare the produced tarball binary with ones in SVN:
