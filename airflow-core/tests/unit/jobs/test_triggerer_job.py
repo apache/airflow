@@ -112,9 +112,9 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.merge(testing_bundle)
     session.flush()
 
-    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
+    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=date)
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -130,11 +130,11 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
 
-    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name, session=session)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id, session=session)
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
@@ -257,6 +257,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
+                dag_data=ANY,
             )
         )
         # OK, now remove it from the DB

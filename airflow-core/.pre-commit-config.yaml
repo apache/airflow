@@ -384,6 +384,7 @@ repos:
           ^src/airflow/timetables/assets\.py$|
           ^src/airflow/timetables/base\.py$|
           ^src/airflow/timetables/simple\.py$|
+          ^src/airflow/triggers/base\.py$|
           ^src/airflow/utils/cli\.py$|
           ^src/airflow/utils/context\.py$|
           ^src/airflow/utils/dag_cycle_tester\.py$|

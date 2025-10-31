@@ -164,6 +164,19 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    def to_task_instance(self) -> TaskInstance:
+        return TaskInstance.model_construct(
+            id=self.id,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            try_number=self.try_number,
+            dag_version_id=self.dag_version_id,
+            map_index=self.map_index,
+            hostname=self.hostname,
+            context_carrier=self.context_carrier,
+        )
+
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
