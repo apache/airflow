@@ -1,19 +1,19 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+.. Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+.. Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 
 
@@ -117,18 +117,24 @@ Secret name which holds Keyfile JSON
     Not required if using application default credentials.
 
 Scopes (comma separated)
-  A list of comma-separated `Google Cloud scopes
-
-Quota Project ID (optional)
-  The Google Cloud project ID to use for API quota and billing purposes. This is useful when using a shared service account but want to attribute quota/billing to a different project. If not specified, the default project from the connection is used. Must be a valid GCP project ID (lowercase letters, digits, hyphens, 6-30 characters, starting with a letter).
-
-  .. note::
-    If using anonymous credentials, quota project logic is ignored.
-
-  .. warning::
-    Ensure the service account has permission to use the specified quota project. Invalid or unauthorized quota project IDs will result in an error.
+    A list of comma-separated `Google Cloud scopes
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
     authenticate with.
+
+
+Quota Project ID (optional)
+---------------------------
+
+The Google Cloud project ID to use for API quota and billing purposes. This is useful when using a shared service account but want to attribute quota/billing to a different project. If not specified, the default project from the connection is used. Must be a valid GCP project ID (lowercase letters, digits, hyphens, 6–30 characters, starting with a letter).
+
+.. note::
+
+   If using anonymous credentials, quota project logic is ignored.
+
+.. warning::
+
+   Ensure the service account has permission to use the specified quota project. Invalid or unauthorized quota project IDs will result in an error.
+
 
 Number of Retries
     Integer, number of times to retry with randomized
@@ -318,3 +324,95 @@ Note that as domain-wide delegation is currently supported by most of the Google
 * All of Google Cloud operators and hooks.
 * Firebase hooks.
 * All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.
+
+
+Quota Project Support
+---------------------
+
+Airflow's Google Cloud providers support specifying a "quota project" (a billing project) for
+API calls. That lets API usage be billed to a different Google Cloud project than the one that
+owns the service account. This is useful for organizations that share service accounts but
+centralize billing in specific projects.
+
+Usage
+~~~~~
+
+There are two ways to set a quota project in Airflow:
+
+- Via connection extras (recommended for environment-wide defaults).
+- Directly on operators or hooks (recommended when a single task must bill to a different project).
+
+Connection extras
+^^^^^^^^^^^^^^^^^
+
+Add the quota project ID to the Google Cloud connection extras. For example:
+
+.. code-block:: json
+
+  {
+    "quota_project_id": "your-billing-project-id"
+  }
+
+You can set this via the Airflow UI, the Connections REST API, or an environment variable, for
+example:
+
+.. code-block:: bash
+
+  export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{
+    "conn_type": "google-cloud-platform",
+    "extra": {
+      "quota_project_id": "your-billing-project-id"
+    }
+  }'
+
+Operator / Hook parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can also pass the quota project directly when creating an operator or hook. This takes
+precedence over the connection extras:
+
+.. code-block:: python
+
+  from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+
+  task = BigQueryExecuteQueryOperator(
+    task_id='execute_query',
+    sql='SELECT * FROM `my_project.dataset.table`',
+    quota_project_id='your-billing-project-id'
+  )
+
+  # Or when creating a hook
+  from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+  hook = BigQueryHook(quota_project_id='your-billing-project-id')
+
+Priority
+~~~~~~~
+
+If a quota project is provided both in the connection extras and as an operator/hook
+parameter, the operator/hook parameter wins.
+
+Compatibility
+~~~~~~~~~~~~~
+
+This setting works with Google Cloud services that support the quota project mechanism (the
+`x-goog-user-project` header), for example:
+
+- BigQuery
+- Cloud Storage
+- Dataflow
+- Other Google Cloud APIs that accept quota project headers
+
+Impact
+~~~~~~
+
+Using a quota project affects where API usage is billed, which quotas are applied, and how
+usage is reported for monitoring and auditing.
+
+Examples
+~~~~~~~~
+
+**Examples**
+
+See the example DAG: ``airflow/providers/google/cloud/example_dags/example_quota_project.py``
+
