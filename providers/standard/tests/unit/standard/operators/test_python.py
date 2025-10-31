@@ -939,6 +939,7 @@ class TestShortCircuitOperator(BasePythonTest):
 
 virtualenv_string_args: list[str] = []
 
+
 def _callable_that_imports_from_bundle():
     """
     A callable function for testing DAG bundle imports.
@@ -954,6 +955,7 @@ def _callable_that_imports_from_bundle():
         import sys
 
         return f"Failed to import: {e}. PYTHONPATH: {sys.path}"
+
 
 @pytest.mark.execution_timeout(120)
 class BaseTestPythonVirtualenvOperator(BasePythonTest):
@@ -1234,9 +1236,7 @@ class _TestDagBundleImportMixin:
 
             (module_dir / "__init__.py").touch()
             (lib_dir / "__init__.py").touch()
-            (lib_dir / "helper.py").write_text(
-                "def get_message():\n    return 'it works from bundle'"
-            )
+            (lib_dir / "helper.py").write_text("def get_message():\n    return 'it works from bundle'")
 
             # We need a real DAG to create a real TI context
             with dag_maker(self.dag_id, serialized=True):
@@ -1257,6 +1257,7 @@ class _TestDagBundleImportMixin:
             result = op.execute(context)
 
             assert result == "it works from bundle"
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
