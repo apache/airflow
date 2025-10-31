@@ -58,7 +58,7 @@ type Props = {
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { t: translate } = useTranslation();
-  const { dagId = "", runId, taskId } = useParams();
+  const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const panelGroupRef = useRef(null);
@@ -86,7 +86,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     setIncludeUpstream,
     setTaskStreamFilterRoot,
     taskStreamFilterRoot,
-  } = useTaskStreamFilter({ dagId, taskId });
+  } = useTaskStreamFilter({ dagId });
 
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
@@ -155,6 +155,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   limit={limit}
                   onIncludeDownstreamChange={setIncludeDownstream}
                   onIncludeUpstreamChange={setIncludeUpstream}
+                  onFilterRootChange={setTaskStreamFilterRoot}
                   panelGroupRef={panelGroupRef}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
@@ -171,8 +172,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   <Graph
                     includeDownstream={includeDownstream}
                     includeUpstream={includeUpstream}
-                    root={taskStreamFilterRoot}
-                    setFilterRoot={setTaskStreamFilterRoot}
                   />
                 ) : (
                   <HStack alignItems="flex-end" gap={0}>
@@ -181,7 +180,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       includeDownstream={includeDownstream}
                       includeUpstream={includeUpstream}
                       limit={limit}
-                      root={taskStreamFilterRoot}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}

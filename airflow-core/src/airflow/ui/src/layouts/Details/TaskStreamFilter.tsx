@@ -30,6 +30,7 @@ type TaskStreamFilterProps = {
   readonly includeUpstream: boolean;
   readonly onIncludeDownstreamChange: (include: boolean) => void;
   readonly onIncludeUpstreamChange: (include: boolean) => void;
+  readonly onFilterRootChange: (root: string | undefined) => void;
 };
 
 export const TaskStreamFilter = ({
@@ -39,6 +40,7 @@ export const TaskStreamFilter = ({
   includeUpstream,
   onIncludeDownstreamChange,
   onIncludeUpstreamChange,
+  onFilterRootChange,
 }: TaskStreamFilterProps) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const isCurrentTaskTheRoot = currentTaskId === filterRoot;
@@ -48,31 +50,27 @@ export const TaskStreamFilter = ({
   const hasActiveFilter = includeUpstream || includeDownstream;
 
   const handleUpstreamClick = () => {
-    if (activeUpstream) {
-      onIncludeUpstreamChange(false);
-    } else {
+      if (currentTaskId) {
+        onFilterRootChange(currentTaskId);
+      }
       onIncludeUpstreamChange(true);
       onIncludeDownstreamChange(false);
-    }
   };
 
   const handleDownstreamClick = () => {
-    if (activeDownstream) {
-      onIncludeDownstreamChange(false);
-    } else {
-      onIncludeDownstreamChange(true);
-      onIncludeUpstreamChange(false);
+    if (currentTaskId) {
+      onFilterRootChange(currentTaskId);
     }
+    onIncludeDownstreamChange(true);
+    onIncludeUpstreamChange(false);
   };
 
   const handleBothClick = () => {
-    if (bothActive) {
-      onIncludeUpstreamChange(false);
-      onIncludeDownstreamChange(false);
-    } else {
-      onIncludeUpstreamChange(true);
-      onIncludeDownstreamChange(true);
+    if (currentTaskId) {
+      onFilterRootChange(currentTaskId);
     }
+    onIncludeUpstreamChange(true);
+    onIncludeDownstreamChange(true);
   };
 
   const handleClearClick = () => {

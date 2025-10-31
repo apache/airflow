@@ -17,11 +17,11 @@
  * under the License.
  */
 import { useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 type UseTaskStreamFilterProps = {
   readonly dagId: string;
-  readonly taskId?: string;
 };
 
 type UseTaskStreamFilterReturn = {
@@ -39,12 +39,11 @@ type UseTaskStreamFilterReturn = {
  * This hook handles:
  * - Persisting filter state in localStorage
  * - Clearing filter on initial mount when no task is selected
- * - Managing filter state when tasks are clicked
+ * - Retrieving current taskId from URL for filter root (without auto-updating)
  */
-export const useTaskStreamFilter = ({
-  dagId,
-  taskId,
-}: UseTaskStreamFilterProps): UseTaskStreamFilterReturn => {
+export const useTaskStreamFilter = ({ dagId }: UseTaskStreamFilterProps): UseTaskStreamFilterReturn => {
+  const { taskId } = useParams();
+
   const [includeUpstream, setIncludeUpstream] = useLocalStorage<boolean>(
     `task_stream_filter_upstream-${dagId}`,
     false,

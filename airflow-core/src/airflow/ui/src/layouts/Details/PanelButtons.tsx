@@ -64,6 +64,7 @@ type Props = {
   readonly limit: number;
   readonly onIncludeDownstreamChange: (include: boolean) => void;
   readonly onIncludeUpstreamChange: (include: boolean) => void;
+  readonly onFilterRootChange: (root: string | undefined) => void;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
@@ -118,6 +119,7 @@ export const PanelButtons = ({
   limit,
   onIncludeDownstreamChange,
   onIncludeUpstreamChange,
+  onFilterRootChange,
   panelGroupRef,
   runTypeFilter,
   setDagRunStateFilter,
@@ -277,6 +279,7 @@ export const PanelButtons = ({
             includeUpstream={includeUpstream}
             onIncludeDownstreamChange={onIncludeDownstreamChange}
             onIncludeUpstreamChange={onIncludeUpstreamChange}
+            onFilterRootChange={onFilterRootChange}
           />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
