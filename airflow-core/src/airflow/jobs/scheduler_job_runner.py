@@ -1895,7 +1895,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
-            dag_run.notify_dagrun_state_changed()
+            dag_run.notify_dagrun_state_changed(msg="started")
 
     @retry_db_transaction
     def _schedule_all_dag_runs(
