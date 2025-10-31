@@ -214,9 +214,9 @@ def _is_parent_process() -> bool:
 def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
     """Get the dag_run IDs and how many tasks are in the provided states for each one."""
     return (
-        select(TI.run_id, func.count("*").label("dr_count"))
+        select(TI.dag_id, TI.run_id, func.count("*").label("dr_count"))
         .where(TI.state.in_(states))
-        .group_by(TI.run_id)
+        .group_by(TI.dag_id, TI.run_id)
         .subquery()
     )
 
@@ -521,7 +521,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(DM.bundle_name.is_not(None))
                 .join(
                     dr_task_concurrency_subquery,
-                    TI.run_id == dr_task_concurrency_subquery.c.run_id,
+                    and_(
+                        TI.dag_id == dr_task_concurrency_subquery.c.dag_id,
+                        TI.run_id == dr_task_concurrency_subquery.c.run_id,
+                    ),
                     isouter=True,
                 )
                 .where(func.coalesce(dr_task_concurrency_subquery.c.dr_count, 0) < DM.max_active_tasks)
@@ -544,7 +547,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 query.add_columns(
                     func.row_number()
                     .over(
-                        partition_by=TI.run_id,
+                        partition_by=[TI.dag_id, TI.run_id],
                         order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
                     )
                     .label("row_num"),

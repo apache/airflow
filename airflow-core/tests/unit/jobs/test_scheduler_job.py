@@ -200,7 +200,9 @@ def create_dagrun(session):
     return _create_dagrun
 
 
-def task_maker(dag_maker, session, dag_id: str, task_num: int, max_active_tasks: int):
+def task_maker(
+    dag_maker, session, dag_id: str, task_num: int, max_active_tasks: int, run_id: str | None = None
+):
     dag_tasks = {}
 
     with dag_maker(dag_id=dag_id):
@@ -213,8 +215,19 @@ def task_maker(dag_maker, session, dag_id: str, task_num: int, max_active_tasks:
                 # No executor specified, runs on default executor
                 dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}")
 
-    # 'logical_date' is used to create the 'run_id'. Set it to 'now', in order to get distinct run ids.
-    dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, logical_date=timezone.utcnow())
+    # 'create_dagrun' uses a kwargs dict to check whether parameters
+    # are present. Do the same for simplicity.
+    # 'logical_date' is used to create the 'run_id'. Set it to 'now',
+    # in order to get distinct run ids, if a value isn't provided.
+    kwargs = {
+        "run_type": DagRunType.SCHEDULED,
+        "logical_date": timezone.utcnow(),
+    }
+
+    if run_id is not None:
+        kwargs["run_id"] = run_id
+
+    dag_run = dag_maker.create_dagrun(**kwargs)
 
     task_tis = {}
 
@@ -1375,12 +1388,13 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        task_maker(dag_maker, session, "dag_1300_tasks", 1300, 4)
-        task_maker(dag_maker, session, "dag_1200_tasks", 1200, 4)
-        task_maker(dag_maker, session, "dag_1100_tasks", 1100, 4)
-        task_maker(dag_maker, session, "dag_100_tasks", 100, 4)
-        task_maker(dag_maker, session, "dag_90_tasks", 90, 4)
-        task_maker(dag_maker, session, "dag_80_tasks", 80, 4)
+        # Use the same run_id.
+        task_maker(dag_maker, session, "dag_1300_tasks", 1300, 4, "run1")
+        task_maker(dag_maker, session, "dag_1200_tasks", 1200, 4, "run1")
+        task_maker(dag_maker, session, "dag_1100_tasks", 1100, 4, "run1")
+        task_maker(dag_maker, session, "dag_100_tasks", 100, 4, "run1")
+        task_maker(dag_maker, session, "dag_90_tasks", 90, 4, "run1")
+        task_maker(dag_maker, session, "dag_80_tasks", 80, 4, "run1")
 
         count = 0
         iterations = 0
