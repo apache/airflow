@@ -926,6 +926,30 @@ class VariableBody(BaseModel):
     description: Annotated[str | None, Field(title="Description")] = None
 
 
+class VariableExportBody(BaseModel):
+    """
+    Variable export request body.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    variable_keys: Annotated[
+        list[str], Field(description="List of variable keys to export", title="Variable Keys")
+    ]
+
+
+class VariableExportResponse(BaseModel):
+    """
+    Variable serializer for export (unmasked values).
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str, Field(title="Value")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+
+
 class VariableResponse(BaseModel):
     """
     Variable serializer for responses.

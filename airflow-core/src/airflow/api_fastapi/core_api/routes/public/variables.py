@@ -201,9 +201,7 @@ def export_variables(
     session: SessionDep,
 ) -> list[VariableExportResponse]:
     """Export variables with unmasked values when having elevated admin access."""
-    variables = session.scalars(
-        select(Variable).where(Variable.key.in_(export_body.variable_keys))
-    ).all()
+    variables = session.scalars(select(Variable).where(Variable.key.in_(export_body.variable_keys))).all()
 
     # Check if any requested variables were not found
     found_keys = {var.key for var in variables}
