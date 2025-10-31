@@ -22,11 +22,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
+    RoleCollectionResponse,
+    RoleResponse,
+)
 
 
 @pytest.mark.db_test
 class TestRoles:
+    # POST /roles
+
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
@@ -102,3 +107,148 @@ class TestRoles:
             resp = test_client.post("/fab/v1/roles", json={"actions": []})
             assert resp.status_code == 422
             mock_roles.create_role.assert_not_called()
+
+    # GET /roles
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
+    def test_get_roles_success_defaults(
+        self,
+        conf_mock,
+        mock_get_application_builder,
+        mock_get_auth_manager,
+        mock_roles,
+        test_client,
+        as_user,
+    ):
+        conf_mock.getint.side_effect = lambda section, option: {
+            "maximum_page_limit": 500,
+            "fallback_page_limit": 25,
+        }[option]
+
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        dummy = RoleCollectionResponse(
+            roles=[RoleResponse(name="viewer", permissions=[])],
+            total_entries=1,
+            limit=100,
+            offset=0,
+        )
+        mock_roles.get_roles.return_value = dummy
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles")
+            assert resp.status_code == 200
+            assert resp.json() == dummy.model_dump(by_alias=True)
+            mock_roles.get_roles.assert_called_once_with(order_by="name", limit=100, offset=0)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
+    def test_get_roles_passes_params_and_clamps_limit(
+        self,
+        conf_mock,
+        mock_get_application_builder,
+        mock_get_auth_manager,
+        mock_roles,
+        test_client,
+        as_user,
+    ):
+        conf_mock.getint.side_effect = lambda section, option: {
+            "maximum_page_limit": 50,
+            "fallback_page_limit": 20,
+        }[option]
+
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        dummy = RoleCollectionResponse(roles=[], total_entries=0, limit=50, offset=7)
+        mock_roles.get_roles.return_value = dummy
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles", params={"order_by": "-name", "limit": 1000, "offset": 7})
+            assert resp.status_code == 200
+            assert resp.json() == dummy.model_dump(by_alias=True)
+            mock_roles.get_roles.assert_called_once_with(order_by="-name", limit=50, offset=7)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
+    def test_get_roles_uses_fallback_when_limit_zero(
+        self,
+        conf_mock,
+        mock_get_application_builder,
+        mock_get_auth_manager,
+        mock_roles,
+        test_client,
+        as_user,
+    ):
+        conf_mock.getint.side_effect = lambda section, option: {
+            "maximum_page_limit": 100,
+            "fallback_page_limit": 33,
+        }[option]
+
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        dummy = RoleCollectionResponse(roles=[], total_entries=0, limit=33, offset=0)
+        mock_roles.get_roles.return_value = dummy
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles", params={"limit": 0})
+            assert resp.status_code == 200
+            assert resp.json() == dummy.model_dump(by_alias=True)
+            mock_roles.get_roles.assert_called_once_with(order_by="name", limit=33, offset=0)
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_roles_forbidden(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = False
+        mock_get_auth_manager.return_value = mgr
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles")
+            assert resp.status_code == 403
+            mock_roles.get_roles.assert_not_called()
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_roles_validation_422_negative_offset(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles", params={"offset": -1})
+            assert resp.status_code == 422
+            mock_roles.get_roles.assert_not_called()

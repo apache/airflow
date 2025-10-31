@@ -19,8 +19,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
+from sqlalchemy import func, select
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleBody, RoleResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
+    RoleBody,
+    RoleCollectionResponse,
+    RoleResponse,
+)
+from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
+from airflow.providers.fab.auth_manager.models import Role
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
@@ -72,3 +79,20 @@ class FABAuthManagerRoles:
             )
 
         return RoleResponse.model_validate(created)
+
+    @classmethod
+    def get_roles(cls, *, order_by: str, limit: int, offset: int) -> RoleCollectionResponse:
+        security_manager = get_fab_auth_manager().security_manager
+        session = security_manager.session
+
+        total_entries = session.scalars(select(func.count(Role.id))).one()
+
+        ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
+
+        stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
+        roles = session.scalars(stmt).unique().all()
+
+        return RoleCollectionResponse(
+            roles=[RoleResponse.model_validate(r) for r in roles],
+            total_entries=total_entries,
+        )
