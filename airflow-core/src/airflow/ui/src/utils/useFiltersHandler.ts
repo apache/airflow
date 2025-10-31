@@ -20,9 +20,41 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import type { FilterValue } from "src/components/FilterBar";
+import type { FilterValue, DateRangeValue } from "src/components/FilterBar";
 import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
+
+const isNonEmptyString = (value: string | null | undefined): value is string =>
+  value !== null && value !== undefined && value !== "";
+
+const handleDateRangeChange = (
+  newParams: URLSearchParams,
+  rangeValue: DateRangeValue | null,
+  config: { endKey?: string; key: string; startKey?: string },
+) => {
+  const { endKey, key, startKey } = config;
+
+  newParams.delete(key);
+
+  if (startKey === undefined || endKey === undefined) {
+    return;
+  }
+
+  const startDate = rangeValue?.startDate;
+  const endDate = rangeValue?.endDate;
+
+  if (isNonEmptyString(startDate)) {
+    newParams.set(startKey, startDate);
+  } else {
+    newParams.delete(startKey);
+  }
+
+  if (isNonEmptyString(endDate)) {
+    newParams.set(endKey, endDate);
+  } else {
+    newParams.delete(endKey);
+  }
+};
 
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.AFTER
@@ -42,11 +74,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
+  | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
+  | SearchParamsKeys.RUN_AFTER_RANGE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_TYPE
@@ -69,6 +103,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
+
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
       setTableURLState({
@@ -82,10 +117,14 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
         filterConfigs.forEach((config) => {
           const value = filters[config.key];
 
-          if (value === null || value === undefined || value === "") {
+          newParams.delete(config.key);
+
+          if (config.type === "daterange") {
+            handleDateRangeChange(newParams, value as DateRangeValue | null, config);
+          } else if (value === null || value === undefined || value === "") {
             newParams.delete(config.key);
           } else {
-            newParams.set(config.key, String(value));
+            newParams.set(config.key, typeof value === "object" ? JSON.stringify(value) : String(value));
           }
         });
 
