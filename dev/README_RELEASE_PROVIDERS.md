@@ -368,7 +368,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -376,7 +376,7 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
-breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
