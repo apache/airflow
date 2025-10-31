@@ -789,6 +789,25 @@ class DeleteVariable(BaseModel):
     type: Literal["DeleteVariable"] = "DeleteVariable"
 
 
+class GetProcessState(BaseModel):
+    process_name: str
+    key: str
+    type: Literal["GetProcessState"] = "GetProcessState"
+
+
+class PutProcessState(BaseModel):
+    process_name: str
+    key: str
+    value: str | None
+    type: Literal["PutProcessState"] = "PutProcessState"
+
+
+class DeleteProcessState(BaseModel):
+    process_name: str
+    key: str
+    type: Literal["DeleteProcessState"] = "DeleteProcessState"
+
+
 class ResendLoggingFD(BaseModel):
     type: Literal["ResendLoggingFD"] = "ResendLoggingFD"
 
@@ -940,6 +959,7 @@ ToSupervisor = Annotated[
     | GetDRCount
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetProcessState
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskStates
@@ -948,6 +968,7 @@ ToSupervisor = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
+    | PutProcessState
     | PutVariable
     | RescheduleTask
     | RetryTask
