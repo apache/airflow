@@ -141,7 +141,11 @@ class DagVersion(Base):
 
     @classmethod
     def _latest_version_select(
-        cls, dag_id: str, bundle_version: str | None = None, load_dag_model: bool = False
+        cls,
+        dag_id: str,
+        bundle_version: str | None = None,
+        load_dag_model: bool = False,
+        load_bundle_model: bool = False,
     ) -> Select:
         """
         Get the select object to get the latest version of the DAG.
@@ -156,6 +160,9 @@ class DagVersion(Base):
         if load_dag_model:
             query = query.options(joinedload(cls.dag_model))
 
+        if load_bundle_model:
+            query = query.options(joinedload(cls.bundle))
+
         query = query.order_by(cls.created_at.desc()).limit(1)
         return query
 
@@ -167,6 +174,7 @@ class DagVersion(Base):
         *,
         bundle_version: str | None = None,
         load_dag_model: bool = False,
+        load_bundle_model: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -175,10 +183,16 @@ class DagVersion(Base):
         :param dag_id: The DAG ID.
         :param session: The database session.
         :param load_dag_model: Whether to load the DAG model.
+        :param load_bundle_model: Whether to load the DagBundle model.
         :return: The latest version of the DAG or None if not found.
         """
         return session.scalar(
-            cls._latest_version_select(dag_id, bundle_version=bundle_version, load_dag_model=load_dag_model)
+            cls._latest_version_select(
+                dag_id,
+                bundle_version=bundle_version,
+                load_dag_model=load_dag_model,
+                load_bundle_model=load_bundle_model,
+            )
         )
 
     @classmethod

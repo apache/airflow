@@ -159,7 +159,7 @@ def setup(request, dag_maker, session=None):
         ti = dag_run1.get_task_instance(task_id=task.task_id)
         ti.task = task
         ti.state = State.SUCCESS
-        ti = session.merge(ti)
+        session.merge(ti)
         ti.xcom_push("return_value", f"result_{i}")
 
     dag_run2 = dag_maker.create_dagrun(
@@ -185,7 +185,7 @@ def setup(request, dag_maker, session=None):
     ti2.state = State.FAILED
 
     with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM, serialized=True):
-        task = EmptyOperator(task_id="task_2")
+        EmptyOperator(task_id="task_2")
 
     dag_run3 = dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
@@ -330,11 +330,7 @@ class TestGetDagRun:
 class TestGetDagRuns:
     @pytest.mark.parametrize(
         "dag_id, total_entries",
-        [
-            (DAG1_ID, 2),
-            (DAG2_ID, 2),
-            ("~", 4),
-        ],
+        [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
