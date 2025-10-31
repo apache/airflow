@@ -83,8 +83,7 @@ def _normalize_hosts(hosts):
             h["url_prefix"] = parsed_url.path
 
         out.append(h)
-    else:
-        out.append(host)
+    out.append(host)
     return out
 
 
