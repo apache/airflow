@@ -135,9 +135,7 @@ class TestAthenaSQLHookConn:
     def test_get_conn_passing_args(self, mock_connect, conn_params, conn_extra, expected_call_args):
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.conn",
-            AwsConnectionWrapper(
-                Connection(conn_id="test_athena_conn", conn_type="athena", extra=conn_extra, **conn_params)
-            ),
+            AwsConnectionWrapper(Connection(conn_type="athena", extra=conn_extra, **conn_params)),
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)

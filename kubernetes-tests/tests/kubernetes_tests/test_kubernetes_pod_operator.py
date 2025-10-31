@@ -956,9 +956,7 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.is_in_cluster = False
         hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
-        hook_mock.return_value.get_connection.return_value = Connection(
-            conn_id="kubernetes_default", conn_type="kubernetes"
-        )
+        hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
@@ -1061,9 +1059,7 @@ class TestKubernetesPodOperatorSystem:
         todo: This isn't really a system test
         """
         hook_mock.return_value.is_in_cluster = False
-        hook_mock.return_value.get_connection.return_value = Connection(
-            conn_id="kubernetes_default", conn_type="kubernetes"
-        )
+        hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
 
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(

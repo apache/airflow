@@ -117,7 +117,7 @@ class TestHasAccessNoDetails:
 
 @pytest.fixture
 def get_connection():
-    return [Connection(conn_id="conn_1", conn_type="test"), Connection(conn_id="conn_2", conn_type="test")]
+    return [Connection("conn_1"), Connection("conn_2")]
 
 
 @pytest.fixture

@@ -162,7 +162,6 @@ class TestConnection:
         [
             (
                 Connection(
-                    conn_id="test_conn_1",
                     conn_type="type",
                     login="user",
                     password="pass",
@@ -175,7 +174,6 @@ class TestConnection:
             ),
             (
                 Connection(
-                    conn_id="test_conn_2",
                     conn_type="type",
                     host="protocol://host",
                     port=100,
@@ -186,7 +184,6 @@ class TestConnection:
             ),
             (
                 Connection(
-                    conn_id="test_conn_3",
                     conn_type="type",
                     login="user",
                     password="pass",

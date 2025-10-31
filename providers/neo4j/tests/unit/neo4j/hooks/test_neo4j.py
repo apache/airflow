@@ -38,7 +38,6 @@ class TestNeo4jHookConn:
     )
     def test_get_uri_neo4j_scheme(self, conn_extra, expected_uri):
         connection = Connection(
-            conn_id="test_neo4j_conn_1",
             conn_type="neo4j",
             login="login",
             password="password",
@@ -58,12 +57,7 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_with_schema(self, mock_graph_database):
         connection = Connection(
-            conn_id="test_neo4j_conn_2",
-            conn_type="neo4j",
-            login="login",
-            password="password",
-            host="host",
-            schema="schema",
+            conn_type="neo4j", login="login", password="password", host="host", schema="schema"
         )
         mock_sql = mock.MagicMock(name="sql")
 
@@ -88,12 +82,7 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_with_schema_and_params(self, mock_graph_database):
         connection = Connection(
-            conn_id="test_neo4j_conn_3",
-            conn_type="neo4j",
-            login="login",
-            password="password",
-            host="host",
-            schema="schema",
+            conn_type="neo4j", login="login", password="password", host="host", schema="schema"
         )
         mock_sql = mock.MagicMock(name="sql")
         mock_parameters = mock.MagicMock(name="parameters")
@@ -119,12 +108,7 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_without_schema(self, mock_graph_database):
         connection = Connection(
-            conn_id="test_neo4j_conn_4",
-            conn_type="neo4j",
-            login="login",
-            password="password",
-            host="host",
-            schema=None,
+            conn_type="neo4j", login="login", password="password", host="host", schema=None
         )
         mock_sql = mock.MagicMock(name="sql")
 
@@ -149,12 +133,7 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_without_schema_and_params(self, mock_graph_database):
         connection = Connection(
-            conn_id="test_neo4j_conn_5",
-            conn_type="neo4j",
-            login="login",
-            password="password",
-            host="host",
-            schema=None,
+            conn_type="neo4j", login="login", password="password", host="host", schema=None
         )
         mock_sql = mock.MagicMock(name="sql")
         mock_parameters = mock.MagicMock(name="parameters")
@@ -197,7 +176,6 @@ class TestNeo4jHookConn:
         self, mock_graph_database, conn_extra, should_provide_encrypted, expected_encrypted
     ):
         connection = Connection(
-            conn_id="test_neo4j_conn_6",
             conn_type="neo4j",
             login="login",
             password="password",

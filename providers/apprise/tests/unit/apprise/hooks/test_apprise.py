@@ -45,7 +45,7 @@ class TestAppriseHook:
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_id="test_apprise_conn", conn_type="apprise", extra=extra),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
             assert hook.get_config_from_conn() == (json.loads(config) if isinstance(config, str) else config)
@@ -60,7 +60,7 @@ class TestAppriseHook:
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_id="test_apprise_conn", conn_type="apprise", extra=extra),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
@@ -83,7 +83,7 @@ class TestAppriseHook:
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_id="test_apprise_conn", conn_type="apprise", extra=extra),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)

@@ -40,9 +40,7 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     texts = ["On Kernel-Target Alignment. We describe a family of global optimization procedures"]
     request_options = None
 
-    get_connection.return_value = Connection(
-        conn_id="test_cohere_embed_conn", conn_type="cohere", password=api_key, host=base_url
-    )
+    get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=base_url)
     client_obj = MagicMock()
     cohere_client.return_value = client_obj
     client_obj.embed.return_value = mock_response

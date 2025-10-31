@@ -64,12 +64,7 @@ class TestPrestoHookConn:
     @patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
     def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
         mock_get_connection.return_value = Connection(
-            conn_id="test_presto_conn_1",
-            conn_type="presto",
-            login="login",
-            password="password",
-            host="host",
-            schema="hive",
+            login="login", password="password", host="host", schema="hive"
         )
 
         conn = PrestoHook().get_conn()
@@ -91,8 +86,6 @@ class TestPrestoHookConn:
     @patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
     def test_get_conn_invalid_auth(self, mock_get_connection):
         mock_get_connection.return_value = Connection(
-            conn_id="test_presto_conn_2",
-            conn_type="presto",
             login="login",
             password="password",
             host="host",
@@ -109,8 +102,6 @@ class TestPrestoHookConn:
     @patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
     def test_get_conn_kerberos_auth(self, mock_get_connection, mock_connect, mock_auth):
         mock_get_connection.return_value = Connection(
-            conn_id="test_presto_conn_3",
-            conn_type="presto",
             login="login",
             host="host",
             schema="hive",
@@ -168,12 +159,7 @@ class TestPrestoHookConn:
         mocked_generate_airflow_presto_client_info_header,
     ):
         mock_get_connection.return_value = Connection(
-            conn_id="test_presto_conn_4",
-            conn_type="presto",
-            login="login",
-            password="password",
-            host="host",
-            schema="hive",
+            login="login", password="password", host="host", schema="hive"
         )
         date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
@@ -223,12 +209,7 @@ class TestPrestoHookConn:
 
         with patcher_connect as mock_connect, patcher_get_connections as mock_get_connection:
             mock_get_connection.return_value = Connection(
-                conn_id="test_presto_conn_5",
-                conn_type="presto",
-                login="login",
-                host="host",
-                schema="hive",
-                extra=json.dumps({"verify": current_verify}),
+                login="login", host="host", schema="hive", extra=json.dumps({"verify": current_verify})
             )
             mock_verify = mock.PropertyMock()
             type(mock_connect.return_value._http_session).verify = mock_verify

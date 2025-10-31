@@ -419,12 +419,7 @@ class TestHiveMetastoreHook:
     def test_ha_hosts(self, socket_mock):
         with mock.patch(
             "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-            return_value=Connection(
-                conn_id="test_hive_metastore_conn",
-                conn_type="hive_metastore",
-                host="metastore1.host,metastore2.host",
-                port=9802,
-            ),
+            return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
         ):
             socket_mock.socket.return_value.connect_ex.return_value = 1
             with pytest.raises(AirflowException):

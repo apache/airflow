@@ -102,14 +102,7 @@ class TestPostgresHookConn:
     """PostgresHookConn tests that are common to psycopg2 and psycopg3."""
 
     def setup_method(self):
-        self.connection = Connection(
-            conn_id="test_postgres_conn_self",
-            conn_type="postgres",
-            login="login",
-            password="password",
-            host="host",
-            schema="database",
-        )
+        self.connection = Connection(login="login", password="password", host="host", schema="database")
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = "test_conn_id"
@@ -220,14 +213,7 @@ class TestPostgresHookConn:
             self.db_hook.get_conn()
 
     def test_get_conn_from_connection(self, mock_connect):
-        conn = Connection(
-            conn_id="test_postgres_conn_temp",
-            conn_type="postgres",
-            login="login-conn",
-            password="password-conn",
-            host="host",
-            schema="database",
-        )
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -239,14 +225,7 @@ class TestPostgresHookConn:
         )
 
     def test_get_conn_from_connection_with_database(self, mock_connect):
-        conn = Connection(
-            conn_id="test_postgres_conn_temp",
-            conn_type="postgres",
-            login="login-conn",
-            password="password-conn",
-            host="host",
-            schema="database",
-        )
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn, database="database-override")
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -258,14 +237,7 @@ class TestPostgresHookConn:
         )
 
     def test_get_conn_from_connection_with_options(self, mock_connect):
-        conn = Connection(
-            conn_id="test_postgres_conn_temp",
-            conn_type="postgres",
-            login="login-conn",
-            password="password-conn",
-            host="host",
-            schema="database",
-        )
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn, options="-c statement_timeout=3000ms")
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -560,14 +532,7 @@ class TestPostgresHookConnPPG2:
     """PostgresHookConn tests that are specific to psycopg2."""
 
     def setup_method(self):
-        self.connection = Connection(
-            conn_id="test_postgres_conn_self",
-            conn_type="postgres",
-            login="login",
-            password="password",
-            host="host",
-            schema="database",
-        )
+        self.connection = Connection(login="login", password="password", host="host", schema="database")
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = "test_conn_id"
@@ -577,14 +542,7 @@ class TestPostgresHookConnPPG2:
         self.db_hook.get_connection.return_value = self.connection
 
     def test_sqlalchemy_url(self):
-        conn = Connection(
-            conn_id="test_postgres_conn_temp",
-            conn_type="postgres",
-            login="login-conn",
-            password="password-conn",
-            host="host",
-            schema="database",
-        )
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql://login-conn:password-conn@host/database"
         if SQLALCHEMY_V_1_4:
@@ -626,14 +584,7 @@ class TestPostgresHookConnPPG3:
     """PostgresHookConn tests that are specific to psycopg3."""
 
     def setup_method(self):
-        self.connection = Connection(
-            conn_id="test_postgres_conn_self",
-            conn_type="postgres",
-            login="login",
-            password="password",
-            host="host",
-            schema="database",
-        )
+        self.connection = Connection(login="login", password="password", host="host", schema="database")
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = "test_conn_id"
@@ -643,14 +594,7 @@ class TestPostgresHookConnPPG3:
         self.db_hook.get_connection.return_value = self.connection
 
     def test_sqlalchemy_url(self):
-        conn = Connection(
-            conn_id="test_postgres_conn_temp",
-            conn_type="postgres",
-            login="login-conn",
-            password="password-conn",
-            host="host",
-            schema="database",
-        )
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
         hook = PostgresHook(connection=conn)
         expected = "postgresql+psycopg://login-conn:password-conn@host/database"
         if SQLALCHEMY_V_1_4:

@@ -63,7 +63,7 @@ class TestDatadogHook:
     @mock.patch("airflow.providers.datadog.hooks.datadog.initialize")
     @mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection")
     def test_api_key_required(self, mock_get_connection, mock_initialize):
-        mock_get_connection.return_value = Connection(conn_id="test_datadog_conn", conn_type="datadog")
+        mock_get_connection.return_value = Connection()
         with pytest.raises(AirflowException) as ctx:
             DatadogHook()
         assert str(ctx.value) == "api_key must be specified in the Datadog connection details"

@@ -180,7 +180,7 @@ class TestRedshiftSQLHookConn:
     def test_get_conn_overrides_correctly(self, mock_connect, conn_params, conn_extra, expected_call_args):
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.conn",
-            Connection(conn_id="test_redshift_conn", conn_type="redshift", extra=conn_extra, **conn_params),
+            Connection(conn_type="redshift", extra=conn_extra, **conn_params),
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)

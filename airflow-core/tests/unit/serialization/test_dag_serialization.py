@@ -482,8 +482,6 @@ class TestStringifiedDAGs:
     def setup_test_cases(self):
         with mock.patch.object(BaseHook, "get_connection") as m:
             m.return_value = Connection(
-                conn_id="test_conn",
-                conn_type="test",
                 extra=(
                     "{"
                     '"project_id": "mock", '
@@ -493,7 +491,7 @@ class TestStringifiedDAGs:
                     '"use_proxy": "False", '
                     '"use_ssl": "False"'
                     "}"
-                ),
+                )
             )
 
     # Skip that test if latest botocore is used - it reads all example dags and in case latest botocore
