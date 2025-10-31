@@ -118,6 +118,7 @@ class TestConnection:
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
+        crypto.get_fernet.cache_clear()
         test_connection = Connection(extra='{"apache": "airflow"}')
         assert not test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
@@ -127,6 +128,7 @@ class TestConnection:
         """
         Tests extras on a new connection with encryption.
         """
+        crypto.get_fernet.cache_clear()
         test_connection = Connection(extra='{"apache": "airflow"}')
         assert test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
@@ -139,6 +141,7 @@ class TestConnection:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
+            crypto.get_fernet.cache_clear()
             test_connection = Connection(extra='{"apache": "airflow"}')
             assert test_connection.is_extra_encrypted
             assert test_connection.extra == '{"apache": "airflow"}'
@@ -146,7 +149,7 @@ class TestConnection:
 
         # Test decrypt of old value with new key
         with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
-            crypto._fernet = None
+            crypto.get_fernet.cache_clear()
             assert test_connection.extra == '{"apache": "airflow"}'
 
             # Test decrypt of new value with new key
