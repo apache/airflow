@@ -43,7 +43,6 @@ pytestmark = pytest.mark.db_test
 class TestVariable:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        crypto._fernet = None
         db.clear_db_variables()
         SecretCache.reset()
         with conf_vars({("secrets", "use_cache"): "true"}):
@@ -52,7 +51,6 @@ class TestVariable:
             self.mask_secret = m
             yield
         db.clear_db_variables()
-        crypto._fernet = None
 
     @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): "True"})
     def test_variable_no_encryption(self, session):
