@@ -23,12 +23,12 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
+from airflow.sdk._shared.configuration import initialize_secrets_backends
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 class TestVariables:

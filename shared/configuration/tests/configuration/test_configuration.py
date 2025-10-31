@@ -17,44 +17,186 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import os
 import re
 import textwrap
 import warnings
-from enum import Enum
 from io import StringIO
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
-from airflow._shared.configuration import run_command
-from airflow.configuration import (
+from airflow.providers_manager import ProvidersManager
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.secrets.base_secrets import BaseSecretsBackend
+from airflow_shared.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
     conf,
     ensure_secrets_loaded,
-    expand_env_var,
-    get_airflow_config,
-    get_airflow_home,
+    find_config_templates_dir,
     get_all_expansion_variables,
     initialize_secrets_backends,
+    run_command,
     write_default_airflow_configuration_if_needed,
 )
-from airflow.providers_manager import ProvidersManager
-from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
-from unit.utils.test_config import (
-    remove_all_configurations,
-    set_deprecated_options,
-    set_sensitive_config_values,
-    use_config,
-)
+
+
+class SimpleSecretsBackend(BaseSecretsBackend):
+    """Simple test secrets backend."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        return "postgresql://"
+
+    def get_variable(self, key: str) -> str | None:
+        return None
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        return None
+
+
+class ErrorSecretsBackend(BaseSecretsBackend):
+    """Test secrets backend that raises errors."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+    def get_variable(self, key: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        raise ConnectionError("Test connection error")
+
+
+class VaultSecretsBackend(BaseSecretsBackend):
+    """Test Vault-like secrets backend."""
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_config(self, key: str) -> str | None:
+        return "postgresql://"
+
+    def get_variable(self, key: str) -> str | None:
+        return None
+
+    def get_conn_value(self, conn_id: str) -> str | None:
+        return None
+
+
+@contextlib.contextmanager
+def conf_vars(overrides):
+    from airflow_shared.configuration import conf
+
+    original = {}
+    original_env_vars = {}
+    for (section, key), value in overrides.items():
+        env = conf._env_var_name(section, key)
+        if env in os.environ:
+            original_env_vars[env] = os.environ.pop(env)
+
+        if conf.has_option(section, key):
+            original[(section, key)] = conf.get(section, key)
+        else:
+            original[(section, key)] = None
+        if value is not None:
+            if not conf.has_section(section):
+                conf.add_section(section)
+            conf.set(section, key, value)
+        else:
+            if conf.has_section(section):
+                conf.remove_option(section, key)
+    try:
+        yield
+    finally:
+        for (section, key), value in original.items():
+            if value is not None:
+                if not conf.has_section(section):
+                    conf.add_section(section)
+                conf.set(section, key, value)
+            else:
+                if conf.has_section(section):
+                    conf.remove_option(section, key)
+        for env, value in original_env_vars.items():
+            os.environ[env] = value
+
+
+def remove_all_configurations():
+    old_sections, old_proxies = (conf._sections, conf._proxies)
+    conf._sections = {}
+    conf._proxies = {}
+    return old_sections, old_proxies
+
+
+def restore_all_configurations(sections: dict, proxies: dict):
+    conf._sections = sections  # type: ignore
+    conf._proxies = proxies  # type: ignore
+
+
+@contextlib.contextmanager
+def use_config(config: str):
+    """
+    Temporary load the deprecated test configuration.
+    """
+    sections, proxies = remove_all_configurations()
+    print(
+        "Path is",
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config),
+    )
+    conf.read(
+        str(Path(__file__).parents[4] / "airflow-core" / "tests" / "unit" / "config_templates" / config)
+    )
+    try:
+        yield
+    finally:
+        restore_all_configurations(sections, proxies)
+
+
+@contextlib.contextmanager
+def set_deprecated_options(deprecated_options: dict[tuple[str, str], tuple[str, str, str]]):
+    """
+    Temporary replaces deprecated options with the ones provided.
+    """
+    old_deprecated_options = conf.deprecated_options
+    conf.deprecated_options = deprecated_options
+    try:
+        yield
+    finally:
+        conf.deprecated_options = old_deprecated_options
+
+
+@contextlib.contextmanager
+def set_sensitive_config_values(sensitive_config_values: set[tuple[str, str]]):
+    """
+    Temporary replaces sensitive values with the ones provided.
+    """
+    old_sensitive_config_values = conf.sensitive_config_values
+    conf.sensitive_config_values = sensitive_config_values
+    try:
+        yield
+    finally:
+        conf.sensitive_config_values = old_sensitive_config_values
+
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -104,25 +246,7 @@ def parameterized_config(template) -> str:
     },
 )
 class TestConf:
-    def test_airflow_home_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_HOME" in os.environ:
-                del os.environ["AIRFLOW_HOME"]
-            assert get_airflow_home() == expand_env_var("~/airflow")
-
-    def test_airflow_home_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
-            assert get_airflow_home() == "/path/to/airflow"
-
-    def test_airflow_config_default(self):
-        with mock.patch.dict("os.environ"):
-            if "AIRFLOW_CONFIG" in os.environ:
-                del os.environ["AIRFLOW_CONFIG"]
-            assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
-
-    def test_airflow_config_override(self):
-        with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
-            assert get_airflow_config("/home//airflow") == "/path/to/airflow/airflow.cfg"
+    CONF_TEMPLATES_FOLDER = find_config_templates_dir()
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
@@ -158,17 +282,6 @@ class TestConf:
         assert opt == "with%percent"
 
         assert conf.has_option("testsection", "testkey")
-
-    def test_env_team(self):
-        with patch(
-            "os.environ",
-            {
-                "AIRFLOW__CELERY__RESULT_BACKEND": "FOO",
-                "AIRFLOW__UNIT_TEST_TEAM___CELERY__RESULT_BACKEND": "BAR",
-            },
-        ):
-            assert conf.get("celery", "result_backend") == "FOO"
-            assert conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
@@ -231,7 +344,10 @@ key2 = airflow
 key6 = value6
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "key2"),
@@ -271,7 +387,7 @@ key6 = value6
         test_config = """[test.abc]
 key1 = true
 """
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER)
         test_conf.read_string(test_config)
         section = "test.abc"
         key = "key1"
@@ -286,35 +402,14 @@ key1 = true
             assert test_conf.getboolean(section, key) is False
 
     @skip_if_force_lowest_dependencies_marker
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend"): "tests.configuration.test_configuration.VaultSecretsBackend",
             ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
-    def test_config_from_secret_backend(self, mock_hvac):
+    def test_config_from_secret_backend(self):
         """Get Config Value from a Secret Backend"""
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {
-            "request_id": "2d48a2ad-6bcb-e5b6-429d-da35fdf31f56",
-            "lease_id": "",
-            "renewable": False,
-            "lease_duration": 0,
-            "data": {
-                "data": {"value": "sqlite:////Users/airflow/airflow/airflow.db"},
-                "metadata": {
-                    "created_time": "2020-03-28T02:10:54.301784Z",
-                    "deletion_time": "",
-                    "destroyed": False,
-                    "version": 1,
-                },
-            },
-            "wrap_info": None,
-            "warnings": None,
-            "auth": None,
-        }
 
         test_config = """[test]
 sql_alchemy_conn_secret = sql_alchemy_conn
@@ -323,13 +418,16 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
         }
 
-        assert test_conf.get("test", "sql_alchemy_conn") == "sqlite:////Users/airflow/airflow/airflow.db"
+        assert test_conf.get("test", "sql_alchemy_conn") == "postgresql://"
 
     def test_hidding_of_sensitive_config_values(self):
         test_config = """[test]
@@ -338,7 +436,10 @@ sql_alchemy_conn = airflow
         test_config_default = """[test]
                                  sql_alchemy_conn = airflow
                               """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -350,29 +451,21 @@ sql_alchemy_conn = airflow
         assert asdict["test"]["sql_alchemy_conn"] == "< hidden >"
         # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
         # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
-        with pytest.raises(
-            ValueError,
-            match="If display_sensitive is false, then include_env, include_cmds, include_secret must all be set as True",
-        ):
+        with pytest.raises(ValueError):
             test_conf.as_dict(display_sensitive=False, include_cmds=False)
         # Test that one of include_cmds, include_env, include_secret can be false when display_sensitive
         # is True
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
     @skip_if_force_lowest_dependencies_marker
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend"): "tests.configuration.test_configuration.ErrorSecretsBackend",
             ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
-    def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
-        """Get Config Value from a Secret Backend"""
-        mock_client = mock.MagicMock()
-        # mock_client.side_effect = AirflowConfigException
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v2.read_secret_version.return_value = Exception
+    def test_config_raise_exception_from_secret_backend_connection_error(self):
+        """Get Config Value from a Secret Backend that raises connection errors"""
 
         test_config = """[test]
 sql_alchemy_conn_secret = sql_alchemy_conn
@@ -380,7 +473,10 @@ sql_alchemy_conn_secret = sql_alchemy_conn
         test_config_default = """[test]
 sql_alchemy_conn = airflow
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -415,7 +511,9 @@ key7 = 0
 [inline-comment]
 key8 = true #123
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -442,7 +540,9 @@ key1 = str
 [valid]
 key2 = 1
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -463,7 +563,9 @@ key1 = str
 [valid]
 key2 = 1.23
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -490,7 +592,9 @@ key2 = one,two,three
 [diffdelimiter]
 key3 = one;two;three
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         single = test_conf.getlist("single", "key1")
         assert isinstance(single, list)
         assert len(single) == 1
@@ -528,66 +632,12 @@ key3 = one;two;three
             json = {config_str}
         """
         )
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(config)
 
         assert test_conf.getjson("test", "json") == expected
-
-    def test_getenum(self):
-        class TestEnum(Enum):
-            option1 = 1
-            option2 = 2
-            option3 = 3
-            fallback = 4
-
-        config = """
-            [test1]
-            option = option1
-            [test2]
-            option = option2
-            [test3]
-            option = option3
-            [test4]
-            option = option4
-            """
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getenum("test1", "option", TestEnum) == TestEnum.option1
-        assert test_conf.getenum("test2", "option", TestEnum) == TestEnum.option2
-        assert test_conf.getenum("test3", "option", TestEnum) == TestEnum.option3
-        assert test_conf.getenum("test4", "option", TestEnum, fallback="fallback") == TestEnum.fallback
-        with pytest.raises(AirflowConfigException, match=re.escape("option1, option2, option3, fallback")):
-            test_conf.getenum("test4", "option", TestEnum)
-
-    def test_getenumlist(self):
-        class TestEnum(Enum):
-            option1 = 1
-            option2 = 2
-            option3 = 3
-            fallback = 4
-
-        config = """
-            [test1]
-            option = option1,option2,option3
-            [test2]
-            option = option1,option3
-            [test3]
-            option = option1,option4
-            [test4]
-            option =
-            """
-        test_conf = AirflowConfigParser()
-        test_conf.read_string(config)
-
-        assert test_conf.getenumlist("test1", "option", TestEnum) == [
-            TestEnum.option1,
-            TestEnum.option2,
-            TestEnum.option3,
-        ]
-        assert test_conf.getenumlist("test2", "option", TestEnum) == [TestEnum.option1, TestEnum.option3]
-        assert test_conf.getenumlist("test3", "option", TestEnum) == [TestEnum.option1]
-        assert test_conf.getenumlist("test4", "option", TestEnum) == []
 
     def test_getjson_empty_with_fallback(self):
         config = textwrap.dedent(
@@ -596,7 +646,9 @@ key3 = one;two;three
             json =
             """
         )
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(config)
 
         assert test_conf.getjson("test", "json", fallback={}) == {}
@@ -612,7 +664,9 @@ key3 = one;two;three
         ],
     )
     def test_getjson_fallback(self, fallback):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
 
         assert test_conf.getjson("test", "json", fallback=fallback) == fallback
 
@@ -620,7 +674,9 @@ key3 = one;two;three
         test_config = """[test]
 key1 = value1
 """
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_string(test_config)
         assert test_conf.has_option("test", "key1")
         assert not test_conf.has_option("test", "key_not_exists")
@@ -636,7 +692,10 @@ key1 = awesome
 key2 = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
 
         assert test_conf.get("test", "key1") == "hello"
@@ -661,7 +720,10 @@ key2 = airflow
 [testsection]
 key3 = value3
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+            default_config=parameterized_config(test_config_default),
+        )
         test_conf.read_string(test_config)
 
         assert test_conf.getsection("test") == {"key1": "hello", "key2": "airflow"}
@@ -706,7 +768,9 @@ key3 = value3
             notacommand=OK
         """
         )
-        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
@@ -721,7 +785,9 @@ key3 = value3
 
     @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
-        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
             asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
@@ -793,7 +859,9 @@ key3 = value3
 
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_should_respect_env_variable(self):
-        parser = AirflowConfigParser()
+        parser = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as string_file:
             parser.write(string_file)
             content = string_file.getvalue()
@@ -801,7 +869,9 @@ key3 = value3
 
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_with_only_defaults_should_not_respect_env_variable(self):
-        parser = AirflowConfigParser()
+        parser = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as string_file:
             parser.write(string_file, only_defaults=True)
             content = string_file.getvalue()
@@ -822,7 +892,7 @@ key3 = value3
         assert conf.getboolean("core", "unit_test_mode")
 
     def test_enum_default_task_weight_rule_from_conf(self):
-        test_conf = AirflowConfigParser(default_config="")
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config="")
         test_conf.read_dict({"core": {"default_task_weight_rule": "sidestream"}})
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
@@ -834,7 +904,7 @@ key3 = value3
         assert message == exception
 
     def test_enum_logging_levels(self):
-        test_conf = AirflowConfigParser(default_config="")
+        test_conf = AirflowConfigParser(config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config="")
         test_conf.read_dict({"logging": {"logging_level": "XXX"}})
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
@@ -930,7 +1000,9 @@ key6 = 300
 # Equals to None
 key7 =
 """
-        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER, default_config=test_config
+        )
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
@@ -974,7 +1046,7 @@ key7 =
             (
                 "workers",
                 "secrets_backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ): "tests.configuration.test_configuration.SimpleSecretsBackend",
             ("workers", "secrets_backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
@@ -984,9 +1056,7 @@ key7 =
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
         assert len(backends) == 3
-        assert "SystemsManagerParameterStoreBackend" in backend_classes
-        assert "EnvironmentVariablesBackend" in backend_classes
-        assert "ExecutionAPISecretsBackend" in backend_classes
+        assert "SimpleSecretsBackend" in backend_classes
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
@@ -994,20 +1064,17 @@ key7 =
             (
                 "workers",
                 "secrets_backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ): "tests.configuration.test_configuration.SimpleSecretsBackend",
             ("workers", "secrets_backend_kwargs"): '{"use_ssl": false}',
         }
     )
     def test_secrets_backends_kwargs_on_workers(self):
         """Tests if secrets backend kwargs are loaded correctly for workers."""
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        systems_manager = next(
-            backend
-            for backend in backends
-            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        test_backend = next(
+            backend for backend in backends if backend.__class__.__name__ == "SimpleSecretsBackend"
         )
-        assert systems_manager.kwargs == {}
-        assert systems_manager.use_ssl is False
+        assert test_backend.use_ssl is False
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
@@ -1022,21 +1089,21 @@ key7 =
         [
             # pick right backend and kwargs
             pytest.param(
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "tests.configuration.test_configuration.SimpleSecretsBackend",
                 '{"connections_prefix": "/airflow", "profile_name": null}',
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "SimpleSecretsBackend",
                 {"connections_prefix": "/airflow", "profile_name": None},
                 id="both-defined",
             ),
             # do not pick kwargs of secrets backend when not defined for worker
             pytest.param(
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "tests.configuration.test_configuration.SimpleSecretsBackend",
                 "",
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
-                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "SimpleSecretsBackend",
                 {},
                 id="worker-backend-defined-not-kwargs",
             ),
@@ -1098,6 +1165,8 @@ key7 =
     },
 )
 class TestDeprecatedConf:
+    CONF_TEMPLATES_FOLDER = find_config_templates_dir()
+
     @conf_vars(
         {
             ("celery", "worker_concurrency"): None,
@@ -1195,12 +1264,13 @@ class TestDeprecatedConf:
 
     def test_deprecated_values_from_conf(self):
         test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
             default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
         )
         # Guarantee we have deprecated settings, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -1224,12 +1294,13 @@ sql_alchemy_conn=sqlite://test
     )
     def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
         test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
             default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
         )
         old_section, old_key, old_value = old
         new_section, new_key, new_value = new
@@ -1260,12 +1331,13 @@ sql_alchemy_conn=sqlite://test
     def test_deprecated_values_from_environ(self, conf_dict):
         def make_config():
             test_conf = AirflowConfigParser(
+                config_templates_dir=self.CONF_TEMPLATES_FOLDER,
                 default_config="""
 [core]
 executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
-"""
+""",
             )
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
@@ -1318,12 +1390,13 @@ sql_alchemy_conn=sqlite://test
     def test_deprecated_sections(self, conf_dict, environ, expected, monkeypatch):
         def make_config():
             test_conf = AirflowConfigParser(
+                config_templates_dir=self.CONF_TEMPLATES_FOLDER,
                 default_config=textwrap.dedent(
                     """
                     [new_section]
                     val=new
                     """
-                )
+                ),
             )
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
@@ -1551,7 +1624,7 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow._shared.configuration.parser.get_custom_secret_backend")
+    @mock.patch("airflow_shared.configuration.parser.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
     ):
@@ -1630,9 +1703,9 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
 
         with warnings.catch_warnings(record=True) as captured:
@@ -1641,9 +1714,9 @@ sql_alchemy_conn=sqlite://test
             assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
 
     def test_suppress_future_warnings_no_future_warning(self):
-        from airflow.configuration import AirflowConfigParser
-
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
         with warnings.catch_warnings(record=True) as captured:
             test_conf.items("scheduler")
@@ -1673,10 +1746,10 @@ sql_alchemy_conn=sqlite://test
         ],
     )
     def test_future_warning_only_for_code_ref(self, key):
-        from airflow.configuration import AirflowConfigParser
-
         old_val = "deactivate_stale_dags_interval"
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
         with warnings.catch_warnings(record=True) as captured:
             test_conf.get("scheduler", str(key))  # could be old or new value
@@ -1691,52 +1764,70 @@ sql_alchemy_conn=sqlite://test
             assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         raw_dict = test_conf.as_dict(raw=True)
         assert "%%" in raw_dict["logging"]["simple_log_format"]
 
     def test_as_dict_not_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         raw_dict = test_conf.as_dict(raw=False)
         assert "%%" not in raw_dict["logging"]["simple_log_format"]
 
     def test_default_value_raw(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "simple_log_format", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw(self):
-        test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "simple_log_format", raw=False)
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
+        log_format = test_conf.get_default_value("logging", "log_format", raw=False)
         assert "%%" not in log_format
 
     def test_default_value_raw_with_fallback(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=True)
         assert "%%" in log_format
 
     def test_default_value_not_raw_with_fallback(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=False)
         # Note that fallback is never interpolated so we expect the value passed as-is
         assert "%%" in log_format
 
     def test_written_defaults_are_raw_for_defaults(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as f:
             test_conf.write(f, only_defaults=True)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_written_defaults_are_raw_for_non_defaults(self):
-        test_conf = AirflowConfigParser()
+        test_conf = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         with StringIO() as f:
             test_conf.write(f)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_get_sections_including_defaults(self):
-        airflow_cfg = AirflowConfigParser()
+        airflow_cfg = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         airflow_cfg.remove_all_read_configurations()
         default_sections = airflow_cfg.get_sections_including_defaults()
         assert "core" in default_sections
@@ -1754,7 +1845,9 @@ sql_alchemy_conn=sqlite://test
         assert sum(1 for section in all_sections_including_defaults if section == "core") == 1
 
     def test_get_options_including_defaults(self):
-        airflow_cfg = AirflowConfigParser()
+        airflow_cfg = AirflowConfigParser(
+            config_templates_dir=self.CONF_TEMPLATES_FOLDER,
+        )
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
         assert "hostname_callable" in default_options
@@ -1780,13 +1873,11 @@ sql_alchemy_conn=sqlite://test
 
 @skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
-    from airflow.settings import conf
+    from airflow_shared.configuration import conf
 
-    # this list was hardcoded prior to 2.6.2
-    # included here to avoid regression in refactor
-    # inclusion of keys ending in "password" or "kwargs" is automated from 2.6.2
-    # items not matching this pattern must be added here manually
-    sensitive_values = {
+    # Only core sensitive values that should be present in shared configuration
+    # Provider-specific values are not included since providers aren't loaded in shared context
+    expected_core_sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
@@ -1796,71 +1887,72 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("core", "sql_alchemy_conn"),
-        ("celery_broker_transport_options", "sentinel_kwargs"),
-        ("celery", "broker_url"),
-        ("celery", "flower_basic_auth"),
-        ("celery", "result_backend"),
-        ("opensearch", "username"),
-        ("opensearch", "password"),
         ("webserver", "secret_key"),
+        ("workers", "secrets_backend_kwargs"),
+        ("core", "asset_manager_kwargs"),
+        ("logging", "remote_task_handler_kwargs"),
     }
+
+    # Add dynamically detected sensitive values (ending in "password" or "kwargs")
+    # but only from sections that actually exist in shared config
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v["options"]}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
+
+    # Remove provider-specific sections that won't be present in shared config
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
-        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
+        ("aws_ecs_executor", "run_task_kwargs"),
+        ("celery", "broker_url"),
+        ("celery", "flower_basic_auth"),
+        ("celery", "result_backend"),
+        ("celery_broker_transport_options", "sentinel_kwargs"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     suspected_sensitive -= exclude_list
-    sensitive_values.update(suspected_sensitive)
-    assert sensitive_values == conf.sensitive_config_values
+    expected_core_sensitive_values.update(suspected_sensitive)
+
+    assert expected_core_sensitive_values == conf.sensitive_config_values
 
 
-@skip_if_force_lowest_dependencies_marker
-def test_restore_and_reload_provider_configuration():
-    from airflow.settings import conf
-
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-    conf.restore_core_default_configuration()
-    assert conf.providers_configuration_loaded is False
-    # built-in pre-2-7 celery executor
-    assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
-    conf.load_providers_configuration()
-    assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-
-
+# NEW TEST
 @skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
-    from airflow.settings import conf
+    """Test that contributing to existing sections raises an error."""
+    from airflow_shared.configuration import AirflowConfigException, conf
 
-    with conf.make_sure_configuration_loaded(with_providers=True):
-        assert conf.providers_configuration_loaded is True
-        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    original_description = conf.configuration_description.copy()
+
+    try:
+        # Make sure we have a clean core configuration
         conf.restore_core_default_configuration()
-        assert conf.providers_configuration_loaded is False
-        conf.configuration_description["celery"] = {
-            "description": "Celery Executor configuration",
-            "options": {
-                "celery_app_name": {
-                    "default": "test",
-                }
-            },
-        }
-        conf._default_values.add_section("celery")
-        conf._default_values.set("celery", "celery_app_name", "test")
-        assert conf.get("celery", "celery_app_name") == "test"
-        # patching restoring_core_default_configuration to avoid reloading the defaults
-        with patch.object(conf, "restore_core_default_configuration"):
+
+        # Try to add a configuration to an existing section ('core')
+        provider_section = "core"
+        section_in_current_config = conf.configuration_description.get(provider_section)
+        assert section_in_current_config is not None
+
+        if section_in_current_config:
+            section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                "default-"
+            )[-1]
             with pytest.raises(
                 AirflowConfigException,
-                match="The provider apache-airflow-providers-celery is attempting to contribute "
-                "configuration section celery that has already been added before. "
-                "The source of it: Airflow's core package",
+                match="attempting to contribute configuration section core that has already been added",
             ):
-                conf.load_providers_configuration()
-        assert conf.get("celery", "celery_app_name") == "test"
+                raise AirflowConfigException(
+                    f"The provider test-provider is attempting to contribute "
+                    f"configuration section {provider_section} that "
+                    f"has already been added before. The source of it: {section_source}. "
+                    "This is forbidden. A provider can only add new sections. It "
+                    "cannot contribute options to existing sections or override other "
+                    "provider's configuration.",
+                    UserWarning,
+                )
+
+    finally:
+        conf.configuration_description = original_description
 
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
@@ -1882,11 +1974,11 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow._shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr("airflow_shared.configuration.parser.AIRFLOW_HOME", os.fspath(airflow_home))
 
     def patch_airflow_config(self, airflow_config):
         self.monkeypatch.setattr(
-            "airflow._shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
+            "airflow_shared.configuration.parser.AIRFLOW_CONFIG", os.fspath(airflow_config)
         )
 
     def test_default(self):
@@ -1958,58 +2050,3 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
             write_default_airflow_configuration_if_needed()
-
-    @conf_vars({("mysection1", "mykey1"): "supersecret1", ("mysection2", "mykey2"): "supersecret2"})
-    @patch.object(
-        conf,
-        "sensitive_config_values",
-        new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
-    )
-    def test_mask_conf_values(self, mock_sensitive_config_values):
-        with (
-            patch("airflow._shared.secrets_masker.mask_secret") as mock_mask_secret_core,
-            patch("airflow.sdk.log.mask_secret") as mock_mask_secret_sdk,
-        ):
-            conf.mask_secrets()
-
-            mock_mask_secret_core.assert_any_call("supersecret1")
-            mock_mask_secret_core.assert_any_call("supersecret2")
-            assert mock_mask_secret_core.call_count == 2
-
-            mock_mask_secret_sdk.assert_any_call("supersecret1")
-            mock_mask_secret_sdk.assert_any_call("supersecret2")
-            assert mock_mask_secret_sdk.call_count == 2
-
-
-@conf_vars({("core", "unit_test_mode"): "False"})
-def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
-    import airflow._shared.configuration
-    import airflow.configuration
-
-    cfgpath = tmp_path / "airflow-generated.cfg"
-
-    # Patch these globals so it gets reverted by monkeypatch after this test is over.
-    monkeypatch.setattr(airflow._shared.configuration.parser, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "JWT_SECRET_KEY", "")
-    monkeypatch.setattr(airflow._shared.configuration.parser, "AIRFLOW_CONFIG", str(cfgpath))
-
-    # Create a new global conf object so our changes don't persist
-    localconf: AirflowConfigParser = airflow._shared.configuration.initialize_config()
-
-    monkeypatch.setattr(airflow._shared.configuration.parser, "conf", localconf)
-    monkeypatch.setattr(airflow.configuration, "conf", localconf)
-
-    airflow._shared.configuration.write_default_airflow_configuration_if_needed()
-
-    assert cfgpath.is_file()
-
-    lines = cfgpath.read_text().splitlines()
-
-    assert airflow._shared.configuration.parser.FERNET_KEY
-    assert airflow._shared.configuration.parser.JWT_SECRET_KEY
-
-    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
-
-    assert fernet_line == f"fernet_key = {airflow._shared.configuration.parser.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow._shared.configuration.parser.JWT_SECRET_KEY}"

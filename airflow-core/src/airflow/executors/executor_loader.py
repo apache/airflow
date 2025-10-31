@@ -23,7 +23,8 @@ import os
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowConfigException, UnknownExecutorException
+from airflow._shared.configuration.exceptions import AirflowConfigException
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CORE_EXECUTOR_NAMES,

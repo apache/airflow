@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
+from airflow._shared.configuration import AirflowConfigException
 from airflow.utils import net
 
 from tests_common.test_utils.config import conf_vars

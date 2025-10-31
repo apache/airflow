@@ -145,6 +145,10 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.28.1",
     "apache-airflow-providers-smtp>=2.3.1",
     "apache-airflow-providers-standard>=1.9.0",
+    # Start of shared configuration dependencies
+    "pyyaml>=6.0.2",
+    "importlib-metadata>=7.0.0",
+    # End of shared configuration dependencies
     # Start of shared logging dependencies
     "msgspec>=0.19.0",
     "pygtrie>=2.5.0",
@@ -222,6 +226,7 @@ exclude = [
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/_shared/configuration"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 
 [tool.hatch.build.targets.custom]
@@ -292,5 +297,6 @@ apache-airflow-devel-common = { workspace = true }
 shared_distributions = [
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-configuration",
     "apache-airflow-shared-timezones",
 ]

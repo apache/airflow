@@ -25,8 +25,13 @@ from urllib.parse import urlsplit
 
 import fsspec.utils
 
-from airflow.configuration import conf
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
+
+try:
+    from airflow.sdk.configuration import conf
+except ImportError:
+    # Compat for Airflow < 3.1
+    from airflow.configuration import conf  # type: ignore[assignment]
 from airflow.utils.json import XComDecoder, XComEncoder
 
 if TYPE_CHECKING:

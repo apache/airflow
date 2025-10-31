@@ -55,9 +55,11 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import get_appropriate_conf_vars_context
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+conf_vars = get_appropriate_conf_vars_context()
 
 
 @pytest.mark.parametrize(

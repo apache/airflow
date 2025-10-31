@@ -23,9 +23,9 @@ from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import delete, select
 
+from airflow._shared.configuration.exceptions import AirflowConfigException
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
-from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin

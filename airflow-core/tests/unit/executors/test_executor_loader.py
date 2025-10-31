@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
+from airflow._shared.configuration.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor

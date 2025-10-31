@@ -36,7 +36,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars as conf_vars
 
 
 @pytest.fixture
