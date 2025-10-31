@@ -40,6 +40,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
@@ -462,9 +463,15 @@ def _create_ti_state_update_query_and_update_state(
                 ti.prepare_db_for_next_try(session)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
+                from airflow.sdk.api.datamodels._generated import AssetProfile as SDKAssetProfile
+
+                sdk_outlets = [
+                    SDKAssetProfile(name=outlet.name, uri=outlet.uri, type=outlet.type)
+                    for outlet in ti_patch_payload.task_outlets
+                ]
                 TI.register_asset_changes_in_db(
                     ti,
-                    ti_patch_payload.task_outlets,  # type: ignore
+                    sdk_outlets,
                     ti_patch_payload.outlet_events,
                     session,
                 )
@@ -982,8 +989,9 @@ def validate_inlets_and_outlets(
         return InactiveAssetsResponse(inactive_assets=[])
 
     all_asset_unique_keys: set[AssetUniqueKey] = {
-        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+        AssetUniqueKey(name=inlet_or_outlet.name or "", uri=inlet_or_outlet.uri or "")
         for inlet_or_outlet in itertools.chain(inlets, outlets)
+        if inlet_or_outlet.name and inlet_or_outlet.uri
     }
     active_asset_unique_keys = {
         AssetUniqueKey(name, uri)
@@ -999,7 +1007,7 @@ def validate_inlets_and_outlets(
 
     return InactiveAssetsResponse(
         inactive_assets=[
-            asset_unique_key.to_asset().asprofile()  # type: ignore
+            AssetProfile(name=asset_unique_key.name, uri=asset_unique_key.uri, type="asset")
             for asset_unique_key in different
         ]
     )
