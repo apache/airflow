@@ -196,8 +196,8 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    ## We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
-    ## relaxing this check for non mysql backend
+    # We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
+    # relaxing this check for non mysql backend
     if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
