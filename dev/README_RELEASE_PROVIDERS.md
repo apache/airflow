@@ -37,7 +37,6 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
@@ -47,7 +46,7 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
-  - [Add tags in git](#add-tags-in-git-1)
+  - [Add tags in git](#add-tags-in-git)
   - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
@@ -368,6 +367,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management tag-providers
 breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
@@ -376,12 +376,26 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
+breeze release-management tag-providers
 breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
 you want to release it before you switch their state to ``ready``), you need to pass
 ``--include-not-ready-providers`` flag to the command above.
+
+.. note:
+
+  The "tag-providers" step assumes that your remote for apache repository is called `apache`.
+
+  Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local
+  tags get created  and lead to annoying errors. The default behaviour would be to clean such local tags up,
+  so you can re-run tag-providers command without issues, and it will force tag creation properly, overriding
+  existing tags.
+
+  If you want to disable this behaviour, use --no-clean-tags.
+
+
 
 
 * Sign all your packages
@@ -488,21 +502,6 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Confirm that the packages are available under the links printed and look good.
-
-
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
-
-```shell script
-breeze release-management tag-providers
-```
 
 ## Prepare documentation in Staging
 
