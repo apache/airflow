@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from uuid import UUID
 
 from pydantic import Field, JsonValue, model_validator
 
@@ -34,6 +35,7 @@ class VariableResponse(BaseModel):
     val: str = Field(alias="value")
     description: str | None
     is_encrypted: bool
+    team_id: UUID | None
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
@@ -56,6 +58,7 @@ class VariableBody(StrictBaseModel):
     key: str = Field(max_length=ID_LEN)
     value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
+    team_id: UUID | None = Field(default=None)
 
 
 class VariableCollectionResponse(BaseModel):

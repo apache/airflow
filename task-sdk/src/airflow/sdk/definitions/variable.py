@@ -36,6 +36,7 @@ class Variable:
     :param key: The variable key.
     :param value: The variable value.
     :param description: The variable description.
+    :param team_id: The team ID.
 
     """
 
@@ -43,6 +44,7 @@ class Variable:
     # keeping as any for supporting deserialize_json
     value: Any | None = None
     description: str | None = None
+    team_id: str | None = None
 
     @classmethod
     def get(cls, key: str, default: Any = NOTSET, deserialize_json: bool = False):
@@ -58,12 +60,19 @@ class Variable:
             raise
 
     @classmethod
-    def set(cls, key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        description: str | None = None,
+        serialize_json: bool = False,
+        team_id: str | None = None,
+    ) -> None:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _set_variable
 
         try:
-            return _set_variable(key, value, description, serialize_json=serialize_json)
+            return _set_variable(key, value, description, serialize_json=serialize_json, team_id=team_id)
         except AirflowRuntimeError as e:
             log.exception(e)
 

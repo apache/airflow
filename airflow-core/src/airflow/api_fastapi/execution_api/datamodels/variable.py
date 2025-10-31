@@ -34,3 +34,4 @@ class VariablePostBody(StrictBaseModel):
 
     value: str | None = Field(alias="val")
     description: str | None = Field(default=None)
+    team_id: str | None = Field(default=None)
