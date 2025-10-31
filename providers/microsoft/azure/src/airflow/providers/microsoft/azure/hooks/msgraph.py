@@ -467,7 +467,7 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def default_pagination(
         response: dict,
-        url: str,
+        url: str | None = None,
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
