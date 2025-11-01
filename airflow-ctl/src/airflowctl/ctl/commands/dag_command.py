@@ -22,9 +22,9 @@ from typing import Literal
 
 import rich
 
-from airflowctl.api.datamodels.generated import DAGPatchBody
-from airflow.cli.simple_table import AirflowConsole
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
+from airflowctl.api.datamodels.generated import DAGPatchBody
+from airflowctl.ctl.console_formatting import AirflowConsole
 
 
 def update_dag_state(
@@ -39,7 +39,7 @@ def update_dag_state(
             dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
         )
     except ServerResponseError as e:
-        rich.print(f"[red]Error pausing Dag ({dag_id}: {e}[/red]")
+        rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]")
         sys.exit(1)
 
     response_dict = response.model_dump()
