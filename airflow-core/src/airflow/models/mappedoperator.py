@@ -277,8 +277,8 @@ class MappedOperator(DAGNode):
         return self.partial_kwargs.get("retry_delay", SerializedBaseOperator.retry_delay)
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        return float(self.partial_kwargs.get("retry_exponential_backoff", 0))
 
     @property
     def max_retry_delay(self) -> datetime.timedelta | None:
