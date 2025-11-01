@@ -1204,7 +1204,7 @@ class TestWatchedSubprocessKill:
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
         """Test `_service_subprocess` processes selector events and handles subprocess exit."""
-        ## Given
+        # Given
 
         # Mock file objects and handlers
         mock_stdout = mocker.Mock()
@@ -1224,10 +1224,10 @@ class TestWatchedSubprocessKill:
         # Mock to simulate process exited successfully
         mock_process.wait.return_value = 0
 
-        ## Our actual test
+        # Our actual test
         watched_subprocess._service_subprocess(max_wait_time=1.0)
 
-        ## Validations!
+        # Validations!
         # Validate selector interactions
         watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
 

@@ -27,7 +27,7 @@ from __future__ import annotations
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
-    "python":{
+    "python": {
         "PythonOperator": "airflow.providers.standard.operators.python.PythonOperator",
         "BranchPythonOperator": "airflow.providers.standard.operators.python.BranchPythonOperator",
         "ShortCircuitOperator": "airflow.providers.standard.operators.python.ShortCircuitOperator",
@@ -37,10 +37,10 @@ __deprecated_classes = {
         "BranchPythonVirtualenvOperator": "airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator",
         "get_current_context": "airflow.sdk.get_current_context",
     },
-    "bash":{
+    "bash": {
         "BashOperator": "airflow.providers.standard.operators.bash.BashOperator",
     },
-    "datetime":{
+    "datetime": {
         "BranchDateTimeOperator": "airflow.providers.standard.operators.datetime.BranchDateTimeOperator",
     },
     "generic_transfer": {
@@ -64,7 +64,7 @@ __deprecated_classes = {
     "smooth": {
         "SmoothOperator": "airflow.providers.standard.operators.smooth.SmoothOperator",
     },
-    "branch":{
+    "branch": {
         "BranchMixIn": "airflow.providers.standard.operators.branch.BranchMixIn",
         "BaseBranchOperator": "airflow.providers.standard.operators.branch.BaseBranchOperator",
     }

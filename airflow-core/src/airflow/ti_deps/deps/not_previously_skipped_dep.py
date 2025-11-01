@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
-## The following constants are taken from the SkipMixin class in the standard provider
+# The following constants are taken from the SkipMixin class in the standard provider
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
 
