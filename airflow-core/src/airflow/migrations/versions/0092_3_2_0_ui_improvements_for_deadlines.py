@@ -67,7 +67,7 @@ def upgrade():
         sa.Column("name", sa.String(250), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("reference", sa.JSON(), nullable=False),
-        sa.Column("interval", sa.Integer(), nullable=False),
+        sa.Column("interval", sa.Float(), nullable=False),
         sa.Column("callback", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
     )
@@ -102,6 +102,7 @@ def upgrade():
     )
 
     migrate_existing_deadline_alert_data_from_serialized_dag()
+    # TODO: Once migration is finished (and validated?), remove the old data so there is one Source of Truth
 
 
 def downgrade():
@@ -120,6 +121,54 @@ def downgrade():
     op.drop_table("deadline_alert")
 
 
+def replace_all_deadline_data(conn, dag_id, deadline_alert_ids):
+    """Replace the entire deadline array with a list of deadline_alert_ids after all alerts are migrated."""
+    dialect = conn.dialect.name
+
+    uuid_array = json.dumps([str(uuid_id) for uuid_id in deadline_alert_ids])
+
+    if dialect == "postgresql":
+        conn.execute(
+            sa.text("""
+                    UPDATE serialized_dag
+                    SET data = jsonb_set(
+                        data::jsonb,
+                        '{dag,deadline}',
+                        CAST(:uuid_array AS jsonb)
+                    )::json
+                    WHERE dag_id = :dag_id
+                    """),
+            {"dag_id": dag_id, "uuid_array": uuid_array}
+        )
+    elif dialect == "mysql":
+        conn.execute(
+            sa.text("""
+                    UPDATE serialized_dag
+                    SET data = JSON_SET(
+                        data,
+                        '$.dag.deadline',
+                        CAST(:uuid_array AS JSON)
+                    )
+                    WHERE dag_id = :dag_id
+                    """),
+            {"dag_id": dag_id, "uuid_array": uuid_array}
+        )
+    else:
+        result = conn.execute(
+            sa.text("SELECT data FROM serialized_dag WHERE dag_id = :dag_id"),
+            {"dag_id": dag_id}
+        ).fetchone()
+
+        if result and result.data:
+            dag_data = json.loads(result.data) if isinstance(result.data, str) else result.data
+            dag_data["dag"]["deadline"] = [str(uuid_id) for uuid_id in deadline_alert_ids]
+
+            conn.execute(
+                sa.text("UPDATE serialized_dag SET data = :data WHERE dag_id = :dag_id"),
+                {"data": json.dumps(dag_data), "dag_id": dag_id}
+            )
+
+
 def migrate_existing_deadline_alert_data_from_serialized_dag():
     """Extract DeadlineAlert data from serialized DAG data and populate deadline_alert table."""
     import json
@@ -127,6 +176,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
     import uuid6
 
     from airflow.configuration import conf
+    from airflow.serialization.enums import Encoding
 
     BATCH_SIZE = conf.getint("database", "migration_batch_size", fallback=1000)
 
@@ -170,12 +220,17 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
             processed_dags_count += 1
             last_dag_id = dag_id
 
+            # Create a savepoint for this DAG to allow rollback on error.
+            savepoint = conn.begin_nested()
+
             try:
                 if dag_deadline := data.get("dag", {}).get("deadline", None):
                     dags_with_deadlines_count += 1
                     deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
 
-                    for serialized_alert in deadline_alerts:
+                    migrated_alert_ids = []
+
+                    for alert_index, serialized_alert in enumerate(deadline_alerts):
                         if isinstance(serialized_alert, dict):
                             try:
                                 alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
@@ -227,7 +282,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
                                     dags_with_errors.add(dag_id)
                                     continue
 
-                                # TODO:  replace_old_data(conn, dag_id, deadline_alert_id)
+                                migrated_alert_ids.append(deadline_alert_id)
                                 migrated_alerts_count += 1
 
                                 conn.execute(
@@ -244,9 +299,17 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
                                 dags_with_errors.add(dag_id)
                                 continue
 
+                    if migrated_alert_ids:
+                        replace_all_deadline_data(conn, dag_id, migrated_alert_ids)
+
+                # Commit the savepoint if everything succeeded for this DAG.
+                savepoint.commit()
+
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 print(f"WARNING: Could not process serialized DAG {dag_id}: {e}")
                 dags_with_errors.add(dag_id)
+                # Rollback this DAG's changes and continue with the next one.
+                savepoint.rollback()
 
         print(f"Batch {batch_num} of {total_batches} complete.")
 
