@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-01T09:47:29.428742
+# This constraints file was automatically generated on 2025-11-01T15:48:12.780909
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -597,7 +597,7 @@ requests-toolbelt==1.0.0
 requests==2.32.5
 requests_ntlm==1.3.0
 retryhttp==1.4.0
-rich-argparse==1.7.1
+rich-argparse==1.7.2
 rich-toolkit==0.15.1
 rich==13.9.4
 rpds-py==0.28.0
