@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-10-31T15:52:53.777585
+# This constraints file was automatically generated on 2025-11-01T03:59:15.399623
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -30,7 +30,7 @@
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
-APScheduler==3.11.0
+APScheduler==3.11.1
 Authlib==1.6.5
 Deprecated==1.3.1
 Events==0.5
@@ -121,6 +121,7 @@ apache-airflow-providers-dbt-cloud==4.4.4
 apache-airflow-providers-dingding==3.8.2
 apache-airflow-providers-discord==3.10.2
 apache-airflow-providers-docker==4.4.4
+apache-airflow-providers-edge3==1.4.0
 apache-airflow-providers-elasticsearch==6.3.4
 apache-airflow-providers-exasol==4.8.3
 apache-airflow-providers-facebook==3.8.2
@@ -607,7 +608,7 @@ teradatasql==20.0.0.44
 teradatasqlalchemy==20.0.0.7
 termcolor==3.2.0
 text-unidecode==1.3
-textual==6.4.0
+textual==6.5.0
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
