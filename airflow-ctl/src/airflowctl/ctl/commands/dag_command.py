@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Literal
 
 import rich
@@ -39,7 +40,7 @@ def update_dag_state(
         )
     except ServerResponseError as e:
         rich.print(f"[red]Error pausing Dag ({dag_id}: {e}[/red]")
-        return
+        sys.exit(1)
 
     response_dict = response.model_dump()
     rich.print(f"[green]Dag {operation} successful {dag_id}[/green]")
