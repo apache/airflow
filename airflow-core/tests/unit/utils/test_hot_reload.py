@@ -68,11 +68,14 @@ class TestHotReload:
         mock_popen.return_value = mock_process
         mock_watch.return_value = []  # Empty iterator, will exit immediately
 
-        callback = lambda: None
+        def test_callback():
+            """Test callback function."""
+            pass
+
         watch_paths = ["/tmp/test"]
         exclude_patterns = ["*.pyc"]
 
-        hot_reload._run_reloader(callback, watch_paths, exclude_patterns)
+        hot_reload._run_reloader(test_callback, watch_paths, exclude_patterns)
 
         # Should have started a process
         mock_popen.assert_called_once()
@@ -88,11 +91,14 @@ class TestHotReload:
         # Simulate one file change and then exit
         mock_watch.return_value = iter([[("change", "/tmp/test/file.py")]])
 
-        callback = lambda: None
+        def test_callback():
+            """Test callback function."""
+            pass
+
         watch_paths = ["/tmp/test"]
         exclude_patterns = ["*.pyc"]
 
-        hot_reload._run_reloader(callback, watch_paths, exclude_patterns)
+        hot_reload._run_reloader(test_callback, watch_paths, exclude_patterns)
 
         # Should have started process twice (initial + restart)
         assert mock_popen.call_count == 2
