@@ -32,8 +32,9 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
-    from airflow.models import DagRun
     from airflow.providers.common.compat.sdk import Context
+
+from airflow.models import DagRun
 
 
 class LatestOnlyOperator(BaseBranchOperator):
@@ -56,7 +57,9 @@ class LatestOnlyOperator(BaseBranchOperator):
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
-        dag_run: DagRun = context["dag_run"]  # type: ignore[assignment]
+        dag_run = context["dag_run"]
+        if not isinstance(dag_run, DagRun):
+            raise TypeError(f"Expected DagRun, got {type(dag_run)}")
         if dag_run.run_type == DagRunType.MANUAL:
             self.log.info("Manually triggered DAG_Run: allowing execution to proceed.")
             return list(self.get_direct_relative_ids(upstream=False))
@@ -88,9 +91,12 @@ class LatestOnlyOperator(BaseBranchOperator):
     def _get_compare_dates(self, dag_run: DagRun) -> tuple[DateTime, DateTime] | None:
         dagrun_date: DateTime
         if AIRFLOW_V_3_0_PLUS:
-            dagrun_date = dag_run.logical_date or dag_run.run_after  # type: ignore[assignment]
+            dagrun_date = dag_run.logical_date or dag_run.run_after
         else:
-            dagrun_date = dag_run.logical_date  # type: ignore[assignment]
+            dagrun_date = dag_run.logical_date
+
+        if dagrun_date is None:
+            raise ValueError("dagrun_date cannot be None")
 
         from airflow.timetables.base import DataInterval, TimeRestriction
 
