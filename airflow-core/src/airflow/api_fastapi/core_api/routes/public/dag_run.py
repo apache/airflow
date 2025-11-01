@@ -36,6 +36,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dag_runs import eager_load_dag_run_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -82,6 +83,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
+from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -235,10 +237,12 @@ def get_upstream_asset_events(
 ) -> AssetEventCollectionResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
-        select(DagRun).where(
+        select(DagRun)
+        .where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
+        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
     )
     if dag_run is None:
         raise HTTPException(
@@ -368,11 +372,11 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    query = select(DagRun)
+    query = select(DagRun).options(*eager_load_dag_run_for_validation())
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
-        query = query.filter(DagRun.dag_id == dag_id).options(joinedload(DagRun.dag_model))
+        query = query.filter(DagRun.dag_id == dag_id).options()
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:
@@ -607,7 +611,8 @@ def get_list_dag_runs_batch(
         {"dag_run_id": "run_id"},
     ).set_value([body.order_by] if body.order_by else None)
 
-    base_query = select(DagRun).options(joinedload(DagRun.dag_model))
+    base_query = select(DagRun).options(*eager_load_dag_run_for_validation())
+
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
         filters=[

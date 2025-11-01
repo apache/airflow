@@ -836,7 +836,6 @@ def update_release_notes(
                 return with_breaking_changes, maybe_with_new_features, False
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
-            global SHORT_HASH_TO_TYPE_DICT
             type_of_current_package_changes: list[TypeOfChange] = []
             while table_iter < change_table_len:
                 get_console().print()

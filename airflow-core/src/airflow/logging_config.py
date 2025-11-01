@@ -38,7 +38,6 @@ DEFAULT_REMOTE_CONN_ID: str | None = None
 
 def __getattr__(name: str):
     if name == "REMOTE_TASK_LOG":
-        global REMOTE_TASK_LOG
         load_logging_config()
         return REMOTE_TASK_LOG
 

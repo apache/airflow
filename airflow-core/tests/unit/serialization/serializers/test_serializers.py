@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from importlib import metadata
+from typing import ClassVar
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -33,10 +34,12 @@ from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
+from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -66,6 +69,13 @@ class FooBarModel(BaseModel):
 
     banana: float = 1.1
     foo: str = Field()
+
+
+@pydantic_dataclass
+class PydanticDataclass:
+    __version__: ClassVar[int] = 1
+    a: int
+    b: str
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -388,6 +398,18 @@ class TestSerializers:
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
+
+    def test_pydantic_dataclass(self):
+        orig = PydanticDataclass(a=5, b="SerDe Pydantic Dataclass Test")
+        serialized = serialize(orig)
+        assert orig.__version__ == serialized[VERSION]
+        assert qualname(orig) == serialized[CLASSNAME]
+        assert serialized[DATA]
+
+        decoded = deserialize(serialized)
+        assert decoded.a == orig.a
+        assert decoded.b == orig.b
+        assert type(decoded) is type(orig)
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(

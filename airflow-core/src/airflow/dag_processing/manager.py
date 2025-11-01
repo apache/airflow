@@ -251,6 +251,16 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
+        # The manager needs MetastoreBackend to retrieve connections from the database
+        # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
+        # This marks the manager as "server" context so ensure_secrets_backend_loaded() provides
+        # MetastoreBackend instead of falling back to EnvironmentVariablesBackend only.
+        # Child parser processes explicitly override this by setting _AIRFLOW_PROCESS_CONTEXT=client
+        # in _parse_file_entrypoint() to prevent inheriting server privileges.
+        # Related: https://github.com/apache/airflow/pull/57459
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)

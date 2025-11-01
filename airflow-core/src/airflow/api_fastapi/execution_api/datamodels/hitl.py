@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from pydantic import Field
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.hitl import HITLDetail
 
@@ -59,7 +59,7 @@ class HITLDetailResponse(BaseModel):
 
     response_received: bool
     responded_by_user: HITLUser | None = None
-    responded_at: datetime | None
+    responded_at: UtcDateTime | None
     # It's empty if the user has not yet responded.
     chosen_options: list[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)

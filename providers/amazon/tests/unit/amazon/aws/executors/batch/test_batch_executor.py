@@ -461,7 +461,10 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.sync_running_jobs()
         for i in range(2):
-            assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+                in caplog.text
+            )
 
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
     def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):
@@ -744,10 +747,8 @@ class TestBatchExecutorConfig:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "command'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
-
-        assert raised.match('Executor Config should never override "command')
 
     def test_config_defaults_are_applied(self):
         submit_kwargs = batch_executor_config.build_submit_kwargs()

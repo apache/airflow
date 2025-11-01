@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 class CloudFormationCreateStackOperator(AwsBaseOperator[CloudFormationHook]):
     """
-    An operator that creates a AWS CloudFormation stack.
+    An operator that creates an AWS CloudFormation stack.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -68,7 +68,7 @@ class CloudFormationCreateStackOperator(AwsBaseOperator[CloudFormationHook]):
 
 class CloudFormationDeleteStackOperator(AwsBaseOperator[CloudFormationHook]):
     """
-    An operator that deletes a AWS CloudFormation stack.
+    An operator that deletes an AWS CloudFormation stack.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

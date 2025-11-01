@@ -17,19 +17,41 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm.interfaces import LoaderOption
+from sqlalchemy.sql import ColumnElement
 
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 dagruns_select_with_state_count = (
     select(
         DagRun.dag_id,
         DagRun.state,
         DagModel.dag_display_name,
-        func.count(DagRun.state),
+        cast("ColumnElement[int]", func.count(DagRun.state).label("count")),
     )
     .join(DagModel, DagRun.dag_id == DagModel.dag_id)
     .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
     .order_by(DagRun.dag_id)
 )
+
+
+def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
+    """Construct the eager loading options necessary for a DagRunResponse object."""
+    return (
+        joinedload(DagRun.dag_model),
+        selectinload(DagRun.task_instances)
+        .joinedload(TaskInstance.dag_version)
+        .joinedload(DagVersion.bundle),
+        selectinload(DagRun.task_instances_histories)
+        .joinedload(TaskInstanceHistory.dag_version)
+        .joinedload(DagVersion.bundle),
+        joinedload(DagRun.dag_run_note),
+    )

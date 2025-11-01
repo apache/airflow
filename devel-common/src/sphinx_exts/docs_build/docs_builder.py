@@ -192,6 +192,7 @@ class AirflowDocsBuilder:
         with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
+                check=False,
                 cwd=AIRFLOW_CONTENT_ROOT_PATH,
                 env=env,
                 stdout=output if not verbose else None,
@@ -274,6 +275,7 @@ class AirflowDocsBuilder:
         with open(self.log_build_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
+                check=False,
                 cwd=AIRFLOW_CONTENT_ROOT_PATH,
                 env=env,
                 stdout=output if not verbose else None,

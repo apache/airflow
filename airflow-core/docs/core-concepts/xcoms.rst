@@ -78,7 +78,7 @@ An example of pushing multiple XComs and pulling them individually:
 
 .. note::
 
-  If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
+  If the first task was not successful then on every retry task XComs will be cleared to make the task run idempotent. XComs therefore can't be used to persist state across task retries or :doc:`./sensors` poke.
 
 
 Object Storage XCom Backend

@@ -188,7 +188,7 @@ Variable                            Description
 
 Some Airflow specific macros are also defined:
 
-.. automodule:: airflow.macros
+.. automodule:: airflow.sdk.execution_time.macros
     :members:
 
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

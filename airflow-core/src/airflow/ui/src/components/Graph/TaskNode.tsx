@@ -75,7 +75,7 @@ export const TaskNode = ({
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
             borderColor={
-              taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
+              isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
             }
             borderRadius={5}
             borderWidth={isSelected ? 4 : 2}

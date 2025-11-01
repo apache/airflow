@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
@@ -121,7 +121,7 @@ def update_hitl_detail(
         )
 
     hitl_detail_model.responded_by = None
-    hitl_detail_model.responded_at = datetime.now(timezone.utc)
+    hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)

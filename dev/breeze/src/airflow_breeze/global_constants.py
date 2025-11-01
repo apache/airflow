@@ -221,7 +221,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.5"
+UV_VERSION = "0.9.7"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -548,6 +548,7 @@ COMMITTERS = [
     "feng-tao",
     "ferruzzi",
     "gopidesupavan",
+    "guan404ming",
     "houqp",
     "hussein-awala",
     "jason810496",
@@ -822,7 +823,6 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.9": "3.9.24",
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",

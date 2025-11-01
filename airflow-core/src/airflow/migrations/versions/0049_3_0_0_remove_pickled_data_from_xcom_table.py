@@ -114,10 +114,12 @@ def upgrade():
 
     # Update the values from nan to nan string
     if dialect == "postgresql":
+        # Replace standalone NaN tokens only (not NaN inside string values)
+        # Use regex with word boundaries to match only standalone NaN tokens
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = convert_to(replace(convert_from(value, 'UTF8'), 'NaN', '"nan"'), 'UTF8')
+                SET value = convert_to(regexp_replace(convert_from(value, 'UTF8'), '\\bNaN\\b', '"nan"'), 'UTF8')
                 WHERE value IS NOT NULL AND get_byte(value, 0) != 128
             """)
         )
@@ -133,10 +135,12 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
+        # Replace standalone NaN tokens only (not NaN inside string values)
+        # MySQL 8.0 supports REGEXP_REPLACE with word boundaries, use that here
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CONVERT(REPLACE(CONVERT(value USING utf8mb4), 'NaN', '"nan"') USING BINARY)
+                SET value = CONVERT(REGEXP_REPLACE(CONVERT(value USING utf8mb4), '[[:<:]]NaN[[:>:]]', '"nan"') USING BINARY)
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """)
         )

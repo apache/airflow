@@ -86,7 +86,7 @@ This will create
 
 More resources about permissions can be found in the official documentation of Keycloak:
 
-1- `Keylcloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_
+1- `Keycloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_
 
 2- `Keycloak Permission Overview <https://www.keycloak.org/docs/latest/authorization_services/index.html#_permission_overview>`_
 

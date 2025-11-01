@@ -47,7 +47,7 @@ def init_views(app: FastAPI) -> None:
     app.include_router(ui_router)
     app.include_router(public_router)
 
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+    dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
 
     directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 

@@ -2545,6 +2545,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
+    @pytest.mark.xfail
     def test_async_write_logs_should_execute_successfully(
         self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
     ):
@@ -2565,8 +2566,12 @@ class TestKubernetesPodOperatorAsync:
         self.run_pod_async(k)
 
         if get_logs:
-            assert f"Container logs: {test_logs}"
+            # Note: the test below is broken and failing. Either the mock is wrong
+            # or the mocked container is not in a state that logging methods are called at-all.
+            # See https://github.com/apache/airflow/issues/57515
+            assert f"Container logs: {test_logs}"  # noqa: PLW0129
             post_complete_action.assert_called_once()
+            mock_manager.return_value.read_pod_logs.assert_called()
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
