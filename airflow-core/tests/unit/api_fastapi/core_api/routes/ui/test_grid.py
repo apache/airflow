@@ -614,7 +614,7 @@ class TestGetGridDataEndpoint:
                     "min_start_date": None,
                 },
                 {
-                    "child_states": {"success": 2},
+                    "child_states": {"success": 4},
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
@@ -687,7 +687,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"running": 1},
+                "child_states": {"success": 1, "running": 1, "None": 1},
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
@@ -708,14 +708,14 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"None": 6},
                 "task_id": "task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {"None": 1},
+                "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group",
                 "max_end_date": None,
                 "min_start_date": None,
