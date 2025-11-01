@@ -29,7 +29,11 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
 from airflow.configuration import conf
-from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.exceptions import (
+    HITLRejectException,
+    HITLTimeoutError,
+    HITLTriggerEventError,
+)
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -84,6 +88,7 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
@@ -110,6 +115,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If `"_options"` key is present in `params`, which is not allowed.
         """
+        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
@@ -166,7 +172,7 @@ class HITLOperator(BaseOperator):
 
     @property
     def serialized_params(self) -> dict[str, Any]:
-        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+        return self.params.dump()
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
@@ -196,12 +202,11 @@ class HITLOperator(BaseOperator):
 
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
-        if (
-            self.serialized_params is not None
-            and params_input is not None
-            and set(self.serialized_params.keys()) ^ set(params_input)
-        ):
+        if self.params and params_input and set(self.serialized_params.keys()) ^ set(params_input):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+        for key, value in params_input.items():
+            self.params[key] = value
 
     def generate_link_to_ui(
         self,
