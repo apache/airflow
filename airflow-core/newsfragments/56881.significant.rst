@@ -1,0 +1,16 @@
+Prioritize custom SerDe methods defined in classes over the built-in SerDe methods.
+
+Previously, the SerDe logic prioritized built-in serializers in airflow-core over those that users defined
+in their classes with the ``serialize(self)`` and ``deserialize(data: dict, version: int)`` methods.
+This behavior has been changed to always use custom SerDe methods before considering built-in SerDe methods.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
