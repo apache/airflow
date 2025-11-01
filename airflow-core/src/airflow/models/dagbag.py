@@ -72,13 +72,16 @@ class DBDagBag:
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info = inspect(dag_run)
+        info: Any = inspect(dag_run)
         if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
             # Relationship is already loaded, safe to access
             return dag_run.created_dag_version
 
         # Relationship not loaded, fetch it explicitly from current session
-        return session.get(DagVersion, dag_run.created_dag_version_id)
+        result = session.get(DagVersion, dag_run.created_dag_version_id)
+        if result is None:
+            raise ValueError(f"DagVersion with id {dag_run.created_dag_version_id} not found")
+        return result
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
         if version := self._version_from_dag_run(dag_run=dag_run, session=session):

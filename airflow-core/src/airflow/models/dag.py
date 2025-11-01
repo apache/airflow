@@ -136,6 +136,8 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
         return data_interval
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
+    if run.logical_date is None:
+        raise ValueError("Cannot infer data interval: run.logical_date is None")
     return infer_automated_data_interval(timetable, run.logical_date)
 
 
@@ -516,13 +518,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = session.execute(
+        result = session.execute(
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
+        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in result}
         return paused_dag_ids
 
     @property
