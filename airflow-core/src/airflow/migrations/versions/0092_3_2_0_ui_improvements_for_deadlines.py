@@ -36,7 +36,6 @@ from sqlalchemy_utils import UUIDType
 from airflow._shared.timezones import timezone
 from airflow.migrations.db_types import TIMESTAMP
 from airflow.models import ID_LEN
-from airflow.serialization.enums import Encoding
 
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -46,7 +45,6 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
 
-#  TODO:  does this even work if they have data_compressed on???
 
 def upgrade():
     """Make changes to enable adding DeadlineAlerts to the UI."""
@@ -102,7 +100,6 @@ def upgrade():
     )
 
     migrate_existing_deadline_alert_data_from_serialized_dag()
-    # TODO: Once migration is finished (and validated?), remove the old data so there is one Source of Truth
 
 
 def downgrade():
@@ -170,7 +167,7 @@ def replace_all_deadline_data(conn, dag_id, deadline_alert_ids):
 
 
 def migrate_existing_deadline_alert_data_from_serialized_dag():
-    """Extract DeadlineAlert data from serialized DAG data and populate deadline_alert table."""
+    """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
     import json
 
     import uuid6
@@ -193,7 +190,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
     print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
-    print(f"Starting migration of {total_dags} DAGs in {total_batches} batches.")
+    print(f"Starting migration of {total_dags} Dags in {total_batches} batches.")
 
     while True:
         batch_num += 1
@@ -220,7 +217,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
             processed_dags_count += 1
             last_dag_id = dag_id
 
-            # Create a savepoint for this DAG to allow rollback on error.
+            # Create a savepoint for this Dag to allow rollback on error.
             savepoint = conn.begin_nested()
 
             try:
@@ -236,13 +233,13 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
                                 alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
 
                                 if not set(['reference', 'callback', 'interval']).issubset(alert_data):
-                                    print(f"\n\nWARNING: Invalid deadline alert structure in DAG {dag_id}: {serialized_alert}\n\n")
+                                    print(f"\n\nWARNING: Invalid deadline alert structure in Dag {dag_id}: {serialized_alert}\n\n")
                                     dags_with_errors.add(dag_id)
                                     continue
 
                                 reference_data = json.dumps(alert_data['reference'], sort_keys=True)
                                 interval_data = float(alert_data.get('interval'))
-                                callback_data = json.dumps(alert_data['callback']['__data__'], sort_keys=True)
+                                callback_data = json.dumps(alert_data['callback'], sort_keys=True)
                                 deadline_alert_id = str(uuid6.uuid7())
 
                                 conn.execute(
@@ -295,36 +292,36 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
                                     {"alert_id": deadline_alert_id, "dag_id": dag_id},
                                 )
                             except Exception as e:
-                                print(f"WARNING: Failed to process alert in DAG {dag_id}: {e}")
+                                print(f"WARNING: Failed to process alert in Dag {dag_id}: {e}")
                                 dags_with_errors.add(dag_id)
                                 continue
 
                     if migrated_alert_ids:
                         replace_all_deadline_data(conn, dag_id, migrated_alert_ids)
 
-                # Commit the savepoint if everything succeeded for this DAG.
+                # Commit the savepoint if everything succeeded for this Dag.
                 savepoint.commit()
 
             except (json.JSONDecodeError, KeyError, TypeError) as e:
-                print(f"WARNING: Could not process serialized DAG {dag_id}: {e}")
+                print(f"WARNING: Could not process serialized Dag {dag_id}: {e}")
                 dags_with_errors.add(dag_id)
-                # Rollback this DAG's changes and continue with the next one.
+                # Rollback this Dag's changes and continue with the next one.
                 savepoint.rollback()
 
         print(f"Batch {batch_num} of {total_batches} complete.")
 
     print("\nMigration complete!")
-    print(f"Processed {processed_dags_count} DAGs, {dags_with_deadlines_count} had DeadlineAlerts.")
+    print(f"Processed {processed_dags_count} Dags, {dags_with_deadlines_count} had DeadlineAlerts.")
     print(f"Migrated {migrated_alerts_count} DeadlineAlert configurations.")
     if dags_with_errors:
-        print(f"{len(dags_with_errors)} DAGs encountered errors: {dags_with_errors}")
+        print(f"{len(dags_with_errors)} Dags encountered errors: {dags_with_errors}")
     else:
-        print("No DAGs encountered errors during migration.")
+        print("No Dags encountered errors during migration.")
 
 
 def validate_written_data(conn, deadline_alert_id, expected_reference, expected_interval, expected_callback):
     """Read back the inserted data and validate that is matches what we expect."""
-    # TODO: Is this overkill?
+    # TODO: Is this overkill?  Maybe...
 
     validation_result = conn.execute(
         sa.text("""
@@ -354,5 +351,159 @@ def validate_written_data(conn, deadline_alert_id, expected_reference, expected_
 
 
 def migrate_deadline_alert_data_back_to_serialized_dag():
-    # TODO: THIS
-    ...
+    """Restore DeadlineAlert data from deadline_alert table back to serialized_dag."""
+    import json
+    from airflow.configuration import conf
+    from airflow.serialization.enums import Encoding
+
+    BATCH_SIZE = conf.getint("database", "migration_batch_size", fallback=1000)
+
+    processed_dags_count: int = 0
+    dags_with_deadlines_count: int = 0
+    restored_alerts_count: int = 0
+    dags_with_errors: set[str] = set()
+    batch_num = 0
+    last_dag_id = ""
+
+    conn = op.get_bind()
+    dialect = conn.dialect.name
+
+    # Count Dags that have deadline UUIDs (arrays of strings)
+    total_dags = conn.execute(
+        sa.text("""
+                SELECT COUNT(*)
+                FROM serialized_dag
+                WHERE data IS NOT NULL
+                  AND data -> 'dag' -> 'deadline' IS NOT NULL
+                  AND jsonb_typeof(data -> 'dag' -> 'deadline') = 'array'
+                """)
+    ).scalar()
+
+    total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
+
+    print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
+    print(f"Starting downgrade of {total_dags} Dags with DeadlineAlerts in {total_batches} batches.")
+
+    while True:
+        batch_num += 1
+
+        result = conn.execute(
+            sa.text("""
+                    SELECT dag_id, data
+                    FROM serialized_dag
+                    WHERE data IS NOT NULL
+                      AND data -> 'dag' -> 'deadline' IS NOT NULL
+                      AND jsonb_typeof(data -> 'dag' -> 'deadline') = 'array'
+                      AND dag_id > :last_dag_id
+                    ORDER BY dag_id
+                    LIMIT :batch_size
+                    """),
+            {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+        )
+
+        batch_results = list(result)
+        if not batch_results:
+            break
+        print(f"Processing batch {batch_num}...")
+
+        for dag_id, data in batch_results:
+            processed_dags_count += 1
+            last_dag_id = dag_id
+
+            # Create a savepoint for this Dag to allow rollback on error
+            savepoint = conn.begin_nested()
+
+            try:
+                deadline_uuids = data.get("dag", {}).get("deadline", [])
+
+                if not isinstance(deadline_uuids, list) or not deadline_uuids:
+                    continue
+
+                if not all(isinstance(uuid_val, str) for uuid_val in deadline_uuids):
+                    print(f"WARNING: Dag {dag_id} has non-string deadline values, skipping")
+                    continue
+
+                dags_with_deadlines_count += 1
+                restored_deadline_objects = []
+
+                for uuid_str in deadline_uuids:
+                    alert_result = conn.execute(
+                        sa.text("""
+                                SELECT reference, interval, callback
+                                FROM deadline_alert
+                                WHERE id = :alert_id
+                                """),
+                        {"alert_id": uuid_str}
+                    ).fetchone()
+
+                    if not alert_result:
+                        print(f"WARNING: Could not find deadline_alert with id {uuid_str} for Dag {dag_id}")
+                        dags_with_errors.add(dag_id)
+                        continue
+
+                    deadline_object = {
+                        Encoding.TYPE: "deadline_alert",
+                        Encoding.VAR: {
+                            "reference": alert_result.reference,
+                            "interval": float(alert_result.interval),
+                            "callback": alert_result.callback,
+                        }
+                    }
+                    restored_deadline_objects.append(deadline_object)
+                    restored_alerts_count += 1
+
+                # Replace the UUID array with the restored objects
+                if restored_deadline_objects:
+                    if dialect == "postgresql":
+                        deadline_json = json.dumps(restored_deadline_objects)
+                        conn.execute(
+                            sa.text("""
+                                    UPDATE serialized_dag
+                                    SET data = jsonb_set(
+                                        data::jsonb,
+                                        '{dag,deadline}',
+                                        CAST(:deadline_data AS jsonb)
+                                               )::json
+                                    WHERE dag_id = :dag_id
+                                    """),
+                            {"dag_id": dag_id, "deadline_data": deadline_json}
+                        )
+                    elif dialect == "mysql":
+                        deadline_json = json.dumps(restored_deadline_objects)
+                        conn.execute(
+                            sa.text("""
+                                    UPDATE serialized_dag
+                                    SET data = JSON_SET(
+                                        data,
+                                        '$.dag.deadline',
+                                        CAST(:deadline_data AS JSON)
+                                               )
+                                    WHERE dag_id = :dag_id
+                                    """),
+                            {"dag_id": dag_id, "deadline_data": deadline_json}
+                        )
+                    else:
+                        dag_data = json.loads(data) if isinstance(data, str) else data
+                        dag_data["dag"]["deadline"] = restored_deadline_objects
+                        conn.execute(
+                            sa.text("UPDATE serialized_dag SET data = :data WHERE dag_id = :dag_id"),
+                            {"data": json.dumps(dag_data), "dag_id": dag_id}
+                        )
+
+                # Commit the savepoint if everything succeeded for this Dag
+                savepoint.commit()
+
+            except Exception as e:
+                print(f"WARNING: Could not restore deadline data for Dag {dag_id}: {e}")
+                dags_with_errors.add(dag_id)
+                savepoint.rollback()
+
+        print(f"Batch {batch_num} of {total_batches} complete.")
+
+    print("\nDowngrade complete!")
+    print(f"Processed {processed_dags_count} Dags, {dags_with_deadlines_count} had deadline UUIDs.")
+    print(f"Restored {restored_alerts_count} DeadlineAlert configurations to original format.")
+    if dags_with_errors:
+        print(f"{len(dags_with_errors)} Dags encountered errors: {dags_with_errors}")
+    else:
+        print("No Dags encountered errors during downgrade.")
