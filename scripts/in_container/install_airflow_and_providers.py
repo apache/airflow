@@ -425,19 +425,21 @@ def find_installation_spec(
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
         compile_ui_assets = False
-    elif re.match(PR_NUMBER_PATTERN, use_airflow_version) or (
-        repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
+    elif re.match(PR_NUMBER_PATTERN, use_airflow_version) or re.match(
+        GITHUB_REPO_BRANCH_PATTERN, use_airflow_version
     ):
         # Handle PR number format - resolve to owner/repo:branch first
         if re.match(PR_NUMBER_PATTERN, use_airflow_version):
             owner, repo, branch = resolve_pr_number_to_repo_branch(use_airflow_version, github_repository)
             resolved_version = f"{owner}/{repo}:{branch}"
             console.print(f"\nInstalling airflow from GitHub PR #{use_airflow_version}: {resolved_version}\n")
-        else:
+        elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
             # Handle owner/repo:branch format
             owner, repo, branch = repo_match.groups()
             resolved_version = use_airflow_version
             console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
+        else:
+            raise ValueError("Invalid format for USE_AIRFLOW_VERSION")
 
         # Common logic for both PR number and repo:branch formats
         vcs_url = f"git+https://github.com/{owner}/{repo}.git@{branch}"

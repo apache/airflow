@@ -305,10 +305,10 @@ class SqlToS3Operator(BaseOperator):
                 )
         elif isinstance(df, pl.DataFrame):
             for group_label, group_df_in in df.group_by(**self.groupby_kwargs):  # type: ignore[assignment]
-                group_df = group_df_in.drop(random_column_name) if random_column_name else group_df_in
+                group_df2 = group_df_in.drop(random_column_name) if random_column_name else group_df_in
                 yield (
                     cast("str", group_label[0] if isinstance(group_label, tuple) else group_label),
-                    group_df,
+                    group_df2,
                 )
 
     def _get_hook(self) -> DbApiHook:
