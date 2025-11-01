@@ -69,6 +69,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
@@ -556,6 +557,11 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
 
+        executor = task.executor
+        if executor is None:
+            executor_name = ExecutorLoader.get_default_executor_name()
+            executor = executor_name.alias or executor_name.module_path
+
         return {
             "dag_id": task.dag_id,
             "task_id": task.task_id,
@@ -569,7 +575,7 @@ class TaskInstance(Base, LoggingMixin):
             "priority_weight": priority_weight,
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
-            "executor": task.executor,
+            "executor": executor,
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
@@ -753,7 +759,11 @@ class TaskInstance(Base, LoggingMixin):
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
-        self.executor = task.executor
+        if task.executor is None:
+            executor_name = ExecutorLoader.get_default_executor_name()
+            self.executor = executor_name.alias or executor_name.module_path
+        else:
+            self.executor = task.executor
         self.executor_config = task.executor_config
         self.operator = task.task_type
         op_name = getattr(task, "operator_name", None)
