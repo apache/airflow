@@ -1005,7 +1005,7 @@ class DataflowHook(GoogleBaseHook):
         success_code = 0
 
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != success_code:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])

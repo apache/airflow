@@ -123,7 +123,10 @@ class S3DocsPublish:
             return (0, "")
         get_console().print(f"[info]Syncing {source} to {destination}\n")
         result = subprocess.run(
-            ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
+            ["aws", "s3", "sync", "--delete", source, destination],
+            check=False,
+            capture_output=True,
+            text=True,
         )
         return (result.returncode, result.stderr)
 
