@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep

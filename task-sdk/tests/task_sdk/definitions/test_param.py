@@ -20,8 +20,8 @@ from contextlib import nullcontext
 
 import pytest
 
-from airflow.exceptions import ParamValidationError
 from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
 

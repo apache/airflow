@@ -35,15 +35,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    AirflowTaskTerminated,
-    AirflowTaskTimeout,
-    DownstreamTasksSkipped,
-)
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
@@ -69,7 +60,16 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+    AirflowTaskTimeout,
+    DownstreamTasksSkipped,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -463,7 +463,7 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
     task = PythonOperator(
         task_id="af_exception_task",
         python_callable=lambda: (_ for _ in ()).throw(
-            AirflowException("Oops! I am failing with AirflowException!"),
+            RuntimeError("Oops! I am failing with AirflowException!"),
         ),
     )
 
@@ -2635,7 +2635,7 @@ class TestTaskRunnerCallsListeners:
         [
             ValueError("oops"),
             SystemExit("oops"),
-            AirflowException("oops"),
+            RuntimeError("oops"),
         ],
     )
     def test_task_runner_calls_listeners_failed(self, mocked_parse, mock_supervisor_comms, exception):
@@ -2792,7 +2792,7 @@ class TestTaskRunnerCallsCallbacks:
         self.results.append("execute success")
 
     def _execute_skipped(self, context):
-        from airflow.exceptions import AirflowSkipException
+        from airflow.sdk.exceptions import AirflowSkipException
 
         self.results.append("execute skipped")
         raise AirflowSkipException
@@ -2899,7 +2899,6 @@ class TestTaskRunnerCallsCallbacks:
 
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
-        from airflow.exceptions import AirflowException
 
         def failure_callback(context):
             ti = context["task_instance"]
@@ -2910,7 +2909,7 @@ class TestTaskRunnerCallsCallbacks:
 
         class FailingOperator(BaseOperator):
             def execute(self, context):
-                raise AirflowException("Failing task")
+                raise RuntimeError("Failing task")
 
         task = FailingOperator(task_id="failing_task", on_failure_callback=failure_callback)
         runtime_ti = create_runtime_ti(dag_id="dag", task=task)
@@ -2959,8 +2958,6 @@ class TestTaskRunnerCallsCallbacks:
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
 
-        from airflow.exceptions import AirflowException
-
         success_data = {}
         failure_data = {}
 
@@ -2994,7 +2991,7 @@ class TestTaskRunnerCallsCallbacks:
         class FailureOperator(BaseOperator):
             def execute(self, context):
                 time.sleep(0.01)  # Add small delay to ensure measurable duration
-                raise AirflowException("Test failure")
+                raise RuntimeError("Test failure")
 
         failure_task = FailureOperator(task_id="failure_task", on_failure_callback=failure_callback)
         failure_runtime_ti = create_runtime_ti(dag_id="dag", task=failure_task)

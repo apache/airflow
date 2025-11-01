@@ -40,7 +40,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
     BaseAssetUniqueKey,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
@@ -170,7 +170,6 @@ def _get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
@@ -216,7 +215,6 @@ async def _async_get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
@@ -355,8 +353,6 @@ class ConnectionAccessor:
         return True
 
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
-        from airflow.exceptions import AirflowNotFoundException
-
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
