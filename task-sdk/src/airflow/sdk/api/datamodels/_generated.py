@@ -302,6 +302,14 @@ class TITargetStatePayload(BaseModel):
     state: IntermediateTIState
 
 
+class TaskBreadcrumbsResponse(BaseModel):
+    """
+    Response for task breadcrumbs.
+    """
+
+    breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
+
+
 class TaskStatesResponse(BaseModel):
     """
     Response for task states with run_id, task and state.
