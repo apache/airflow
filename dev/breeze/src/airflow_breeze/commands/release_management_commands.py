@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import ast
-import contextlib
 import glob
 import operator
 import os
@@ -32,7 +31,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -259,12 +258,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.9.4"
+AIRFLOW_PIP_VERSION = "25.3"
+AIRFLOW_UV_VERSION = "0.9.7"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.10"
+PREK_VERSION = "0.2.12"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -272,7 +271,7 @@ PYYAML_VERSION = "6.0.3"
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
-RUN apt-get update && apt-get install -y --no-install-recommends git curl
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 git curl
 RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
@@ -547,7 +546,9 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 
 def create_tarball_from_tag(
     version_suffix: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     if tag is not None:
@@ -610,7 +611,7 @@ def prepare_airflow_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflow",
+        distribution_name="apache_airflow",
         tag=tag,
     )
 
@@ -764,7 +765,7 @@ def prepare_task_sdk_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="task-sdk",
+        distribution_name="apache_airflow_task_sdk",
         tag=tag,
     )
 
@@ -802,7 +803,7 @@ def prepare_airflow_ctl_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflowctl",
+        distribution_name="apache_airflow_ctl",
         tag=tag,
     )
 
@@ -1202,7 +1203,7 @@ def prepare_provider_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="providers",
+        distribution_name="apache_airflow_providers",
         tag=tag,
     )
 
@@ -1286,18 +1287,18 @@ def run_generate_constraints_in_parallel(
     help="Generates tags for airflow provider releases.",
 )
 @click.option(
-    "--clean-local-tags/--no-clean-local-tags",
+    "--clean-tags/--no-clean-tags",
     default=True,
     is_flag=True,
-    envvar="CLEAN_LOCAL_TAGS",
-    help="Delete local tags that are created due to github connectivity issues to avoid errors. "
-    "The default behaviour would be to clean such local tags.",
+    envvar="CLEAN_TAGS",
+    help="Delete tags (both local and remote) that are created due to github connectivity "
+    "issues to avoid errors. The default behaviour would be to clean both local and remote tags.",
     show_default=True,
 )
 @option_dry_run
 @option_verbose
 def tag_providers(
-    clean_local_tags: bool,
+    clean_tags: bool,
 ):
     found_remote = None
     remotes = ["origin", "apache"]
@@ -1315,44 +1316,34 @@ def tag_providers(
         except subprocess.CalledProcessError:
             pass
 
-    if found_remote is None:
-        raise ValueError("Could not find remote configured to push to apache/airflow")
+    release_date = os.environ.get("PACKAGE_DATE", datetime.now().strftime("%Y-%m-%d"))
 
+    if found_remote is None:
+        raise ValueError("Could not find the remote configured to push to apache/airflow")
+
+    extra_flags = []
     tags = []
+    if clean_tags:
+        extra_flags.append("--force")
     for file in os.listdir(os.path.join(SOURCE_DIR_PATH, "dist")):
         if file.endswith(".whl"):
             match = re.match(r".*airflow_providers_(.*)-(.*)-py3.*", file)
             if match:
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
-                try:
-                    run_command(
-                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
-                        check=True,
-                    )
-                    tags.append(tag)
-                except subprocess.CalledProcessError:
-                    pass
-
-    if tags:
-        try:
-            push_result = run_command(
-                ["git", "push", found_remote, *tags],
-                check=False,
-            )
-            if push_result.returncode == 0:
-                get_console().print("\n[success]Tags pushed successfully.[/]")
-        except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
-            if clean_local_tags:
-                for tag in tags:
-                    with contextlib.suppress(subprocess.CalledProcessError):
-                        run_command(["git", "tag", "-d", tag], check=True)
-                get_console().print("\n[success]Cleaning up local tags...[/]")
-            else:
-                get_console().print(
-                    "\n[success]Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true.[/]"
+                get_console().print(f"[info]Creating tag: {tag}")
+                run_command(
+                    ["git", "tag", tag, *extra_flags, "-m", f"Release {release_date} of providers"],
+                    check=True,
                 )
+                tags.append(tag)
+    if tags:
+        push_result = run_command(
+            ["git", "push", found_remote, *extra_flags, *tags],
+            check=True,
+        )
+        if push_result.returncode == 0:
+            get_console().print("\n[success]Tags pushed successfully.[/]")
 
 
 @release_management.command(
@@ -1775,9 +1766,7 @@ def run_publish_docs_in_parallel(
     distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
-    include_success_outputs: bool,
     parallelism: int,
-    skip_cleanup: bool,
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
@@ -1841,7 +1830,6 @@ def run_publish_docs_in_parallel(
 @option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
@@ -1861,13 +1849,11 @@ def run_publish_docs_in_parallel(
 )
 @option_parallelism
 @option_run_in_parallel
-@option_skip_cleanup
 @option_verbose
 def publish_docs(
     airflow_site_directory: str,
     debug_resources: bool,
     doc_packages: tuple[str, ...],
-    include_success_outputs: bool,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
@@ -1875,7 +1861,6 @@ def publish_docs(
     distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
-    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -1913,9 +1898,7 @@ def publish_docs(
         run_publish_docs_in_parallel(
             distributions_list=current_packages,
             parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
@@ -3458,6 +3441,21 @@ def prepare_python_client(
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
         """
+        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            get_console().print(
+                f"[error]Python version mismatch: current version is {current_python_version}, "
+                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
+                f"reproducibility problems with prepared package.[/]"
+            )
+            get_console().print(
+                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
+            )
+            get_console().print(
+                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+            )
+            sys.exit(1)
+
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )

@@ -116,7 +116,7 @@ def run_docker_compose_tests(
     pytest_args = ("--color=yes",)
 
     if test_type == "task-sdk-integration":
-        test_path = Path("tests") / "task_sdk_tests" / "test_task_sdk_health.py"
+        test_path = Path("tests") / "task_sdk_tests"
         cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
     elif test_type == "airflow-e2e-tests":
         test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"

@@ -180,7 +180,7 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         job = Job()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -1213,6 +1213,7 @@ class TestTriggererMessageTypes:
             "TriggerDagRun",
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
+            "SetRenderedMapIndex",
         }
 
         in_task_but_not_in_trigger_runner = {
