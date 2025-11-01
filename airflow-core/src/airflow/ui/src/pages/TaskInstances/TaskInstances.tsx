@@ -18,7 +18,7 @@
  */
 
 /* eslint-disable max-lines */
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -270,6 +270,9 @@ export const TaskInstances = () => {
         setTaskDisplayNamePattern={setTaskDisplayNamePattern}
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
+      <Heading py={3} size="md">
+        {`${data?.total_entries ?? 0} ${translate("taskInstance", { count: data?.total_entries ?? 0 })}`}
+      </Heading>
       <DataTable
         columns={taskInstanceColumns({
           dagId,
