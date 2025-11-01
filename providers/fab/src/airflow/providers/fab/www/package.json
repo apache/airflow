@@ -65,7 +65,7 @@
     "webpack": "^5.102.1",
     "webpack-cli": "^6.0.1",
     "webpack-license-plugin": "^4.2.1",
-    "webpack-manifest-plugin": "^5.0.1"
+    "webpack-manifest-plugin": "^6.0.0"
   },
   "dependencies": {
     "jquery-ui": "^1.14.1",
