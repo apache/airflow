@@ -22,7 +22,7 @@ from typing import Literal
 
 import rich
 
-from airflow.api_fastapi.core_api.datamodels.dags import DAGPatchBody
+from airflowctl.api.datamodels.generated import DAGPatchBody
 from airflow.cli.simple_table import AirflowConsole
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
 
