@@ -55,6 +55,9 @@ class Resource:
             return NotImplemented
         return self.__dict__ == other.__dict__
 
+    def __hash__(self):
+        return hash(self.__dict__)
+
     def __repr__(self):
         return str(self.__dict__)
 
@@ -137,6 +140,9 @@ class Resources:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(self.__dict__)
 
     def __repr__(self):
         return str(self.__dict__)

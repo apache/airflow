@@ -45,6 +45,9 @@ class DocBuildError(NamedTuple):
         right = (other.file_path, other.line_no, other.message)
         return left == right
 
+    def __hash__(self):
+        return hash((self.file_path, self.line_no, self.message))
+
     def __ne__(self, other):
         return not self == other
 
