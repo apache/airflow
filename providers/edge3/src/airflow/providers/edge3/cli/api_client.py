@@ -53,12 +53,18 @@ logger = logging.getLogger(__name__)
 # Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
 # So far there is no other config facility in Task SDK we use ENV for the moment
 # TODO: Consider these env variables jointly in task sdk together with task_sdk/src/airflow/sdk/api/client.py
-API_RETRIES = int(os.getenv("AIRFLOW__EDGE__API_RETRIES", os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10)))
+API_RETRIES = int(
+    os.getenv("AIRFLOW__EDGE__API_RETRIES", os.getenv("AIRFLOW__WORKERS__API_RETRIES", str(10)))
+)
 API_RETRY_WAIT_MIN = float(
-    os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MIN", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
+    os.getenv(
+        "AIRFLOW__EDGE__API_RETRY_WAIT_MIN", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", str(1.0))
+    )
 )
 API_RETRY_WAIT_MAX = float(
-    os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MAX", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
+    os.getenv(
+        "AIRFLOW__EDGE__API_RETRY_WAIT_MAX", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", str(90.0))
+    )
 )
 
 
