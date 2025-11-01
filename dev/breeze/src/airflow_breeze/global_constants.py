@@ -78,6 +78,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "drill",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -88,6 +89,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
+    "localstack",  # just for local integration testing for now
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "kerberos",
