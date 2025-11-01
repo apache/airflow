@@ -43,6 +43,7 @@ TEST_HEADERS = {"Authorization": "Bearer test"}
 TEST_DATA = {"key": "value"}
 TEST_EXTRA_OPTIONS: dict[str, Any] = {}
 TEST_RESPONSE_CHECK_PATH = "mock.path"
+TEST_POLL_INTERVAL = 5
 
 
 @pytest.fixture
@@ -81,6 +82,7 @@ def event_trigger():
         data=TEST_DATA,
         extra_options=TEST_EXTRA_OPTIONS,
         response_check_path=TEST_RESPONSE_CHECK_PATH,
+        poll_interval=TEST_POLL_INTERVAL,
     )
 
 
@@ -232,6 +234,7 @@ class TestHttpEventTrigger:
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
             "response_check_path": TEST_RESPONSE_CHECK_PATH,
+            "poll_interval": TEST_POLL_INTERVAL,
         }
 
     @pytest.mark.asyncio
