@@ -637,8 +637,8 @@ def _get_dag_assets(
     inlets: bool = True,
     outlets: bool = True,
 ) -> Iterable[tuple[str, AssetT]]:
-    for task in dag.data["dag"]["tasks"]:
-        task = task[Encoding.VAR]
+    for task_raw in dag.data["dag"]["tasks"]:
+        task = task_raw[Encoding.VAR]
         ports = _get_task_ports(task["partial_kwargs"] if task.get("_is_mapped") else task, inlets, outlets)
         for port in ports:
             if isinstance(obj := BaseSerialization.deserialize(port), of):

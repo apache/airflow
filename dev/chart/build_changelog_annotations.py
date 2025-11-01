@@ -89,8 +89,8 @@ past_significant_changes = False
 section = ""
 entries = []
 with open("chart/RELEASE_NOTES.rst") as f:
-    for line in f:
-        line = line.strip()
+    for line_raw in f:
+        line = line_raw.strip()
         if not line or line.startswith(('"""', "----", "^^^^")):
             pass
         elif line.startswith("Airflow Helm Chart"):

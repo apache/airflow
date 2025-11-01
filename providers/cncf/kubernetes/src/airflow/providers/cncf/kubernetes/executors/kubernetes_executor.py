@@ -568,8 +568,8 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
             kube_client: client.CoreV1Api = self.kube_client
-            for scheduler_job_id in scheduler_job_ids:
-                scheduler_job_id = self._make_safe_label_value(str(scheduler_job_id))
+            for scheduler_job_id_raw in scheduler_job_ids:
+                scheduler_job_id = self._make_safe_label_value(str(scheduler_job_id_raw))
                 # We will look for any pods owned by the no-longer-running scheduler,
                 # but will exclude only successful pods, as those TIs will have a terminal state
                 # and not be up for adoption!

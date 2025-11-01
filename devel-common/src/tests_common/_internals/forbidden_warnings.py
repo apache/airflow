@@ -46,8 +46,8 @@ class ForbiddenWarningsPlugin:
             "tests/dags_corrupted/",
             "tests/dags_with_system_exit/",
         }
-        for path in self.deprecations_ignore:
-            path = Path(path).resolve()
+        for path_raw in self.deprecations_ignore:
+            path = Path(path_raw).resolve()
             with path.open() as fp:
                 excluded_cases.update(yaml.safe_load(fp))
 

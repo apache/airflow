@@ -106,9 +106,9 @@ def create_docker(txt: str):
 def check_providers(files: list[str]):
     print("Checking providers from packages.txt:\n")
     missing_list = []
-    for name, version in get_packages():
-        print(f"Checking {name} {version}")
-        version = strip_rc_suffix(version)
+    for name, version_raw in get_packages():
+        print(f"Checking {name} {version_raw}")
+        version = strip_rc_suffix(version_raw)
         expected_files = expand_name_variations(
             [
                 f"{name.replace('-', '_')}-{version}.tar.gz",
