@@ -2574,6 +2574,7 @@ class SerializedDAG(BaseSerialization):
         # Note: Context is passed explicitly through method parameters, no class attributes needed
 
         for k_in, v_in in encoded_dag.items():
+            v: Any
             k = k_in
             if k_in == "_downstream_task_ids":
                 v = set(v_in)
