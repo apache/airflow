@@ -53,12 +53,18 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: string;
+  readonly includeDownstream: boolean;
+  readonly includeUpstream: boolean;
   readonly limit: number;
+  readonly onIncludeDownstreamChange: (include: boolean) => void;
+  readonly onIncludeUpstreamChange: (include: boolean) => void;
+  readonly onFilterRootChange: (root: string | undefined) => void;
   readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
@@ -68,6 +74,7 @@ type Props = {
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
+  readonly taskStreamFilterRoot: string | undefined;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -107,7 +114,12 @@ type Dependency = (typeof deps)[number];
 export const PanelButtons = ({
   dagRunStateFilter,
   dagView,
+  includeDownstream,
+  includeUpstream,
   limit,
+  onIncludeDownstreamChange,
+  onIncludeUpstreamChange,
+  onFilterRootChange,
   panelGroupRef,
   runTypeFilter,
   setDagRunStateFilter,
@@ -117,10 +129,11 @@ export const PanelButtons = ({
   setShowGantt,
   setTriggeringUserFilter,
   showGantt,
+  taskStreamFilterRoot,
   triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
-  const { dagId = "", runId } = useParams();
+  const { dagId = "", runId, taskId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
@@ -259,6 +272,15 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
+          <TaskStreamFilter
+            currentTaskId={taskId}
+            filterRoot={taskStreamFilterRoot}
+            includeDownstream={includeDownstream}
+            includeUpstream={includeUpstream}
+            onIncludeDownstreamChange={onIncludeDownstreamChange}
+            onIncludeUpstreamChange={onIncludeUpstreamChange}
+            onFilterRootChange={onFilterRootChange}
+          />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
