@@ -47,7 +47,7 @@ export const FieldObject = ({ name, namespace = "default", onUpdate }: FlexibleF
       editable={!disabled}
       id={`element_${name}`}
       onChange={handleChange}
-      value={JSON.stringify(param.value ?? [], undefined, 2)}
+      value={JSON.stringify(param.value ?? {}, undefined, 2)}
     />
   );
 };
