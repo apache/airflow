@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
+
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import DAGResponse
 from airflowctl.ctl import cli_parser
@@ -96,6 +98,19 @@ class TestDagCommands:
         )
         assert dag_response_dict["is_paused"] is False
 
+    def test_pause_fail(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.pause(
+                self.parser.parse_args(["dags", "pause", "--dag-id", self.dag_id]),
+                api_client=api_client,
+            )
+
     def test_unpause_dag(self, api_client_maker, monkeypatch):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",
@@ -109,3 +124,16 @@ class TestDagCommands:
             api_client=api_client,
         )
         assert dag_response_dict["is_paused"] is True
+
+    def test_unpause_fail(self, api_client_maker, monkeypatch):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.unpause(
+                self.parser.parse_args(["dags", "unpause", "--dag-id", self.dag_id]),
+                api_client=api_client,
+            )
