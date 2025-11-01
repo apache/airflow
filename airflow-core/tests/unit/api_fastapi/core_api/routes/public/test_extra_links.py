@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+import requests
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
@@ -24,6 +25,7 @@ from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollect
 from airflow.models.dagbag import DBDagBag
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
+from airflow.sdk import get_current_context, task
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -305,3 +307,72 @@ class TestGetExtraLinks:
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
+
+    def test_parameterized_extra_links_dag(self, dag_maker, test_client, session):
+        with dag_maker(dag_id="parameterized_extra_links_dag", serialized=True):
+
+            @task
+            def get_api_resource(extra_links: dict[str, str]):
+                rsp = requests.get("https://www.google.com", timeout=10)
+                extra_links["Google"] = "https://www.google.com"
+                return {"status_code": rsp.status_code}
+
+            get_api_resource(extra_links={})
+
+        dagrun = dag_maker.create_dagrun(
+            run_id="test_run",
+            logical_date=self.default_time,
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.MANUAL,
+            data_interval=(self.default_time, self.default_time),
+            session=session,
+        )
+
+        tis = dagrun.get_task_instances(session=session)
+        assert tis, f"No task instances created for DAG {dagrun.dag_id}"
+
+        ti = tis[0]
+        ti.run()
+
+        response = test_client.get(
+            f"/dags/{dagrun.dag_id}/dagRuns/{dagrun.run_id}/taskInstances/get_api_resource/links?map_index=-1"
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["extra_links"]["Google"] == "https://www.google.com"
+        assert body["total_entries"] == 1
+
+    def test_context_based_extra_links_dag(self, dag_maker, test_client, session):
+        with dag_maker(dag_id="context_based_extra_links_dag", serialized=True):
+
+            @task
+            def get_api_resource():
+                context = get_current_context()
+                context.setdefault("extra_links", {})
+                context["extra_links"]["Google"] = "https://www.google.com"
+                return {"status_code": 200}
+
+            get_api_resource()
+
+        dagrun = dag_maker.create_dagrun(
+            run_id="test_run",
+            logical_date=self.default_time,
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.MANUAL,
+            data_interval=(self.default_time, self.default_time),
+            session=session,
+        )
+
+        tis = dagrun.get_task_instances(session=session)
+        assert tis, f"No task instances created for DAG {dagrun.dag_id}"
+
+        ti = tis[0]
+        ti.run()
+
+        response = test_client.get(
+            f"/dags/{dagrun.dag_id}/dagRuns/{dagrun.run_id}/taskInstances/get_api_resource/links?map_index=-1"
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["extra_links"]["Google"] == "https://www.google.com"
+        assert body["total_entries"] == 1
