@@ -108,9 +108,8 @@ def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_pat
     the Python interpreter with the same arguments.
     """
     import subprocess
-    import threading
 
-    from watchfiles import watch
+    from watchfiles import DefaultFilter, watch
 
     process = None
     should_exit = False
@@ -153,8 +152,11 @@ def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_pat
     log.info("Hot-reload enabled. Watching for file changes...")
     log.info("Press Ctrl+C to stop")
 
+    # Create a custom filter that excludes specified patterns
+    watch_filter = DefaultFilter(ignore_paths=exclude_patterns)
+
     try:
-        for changes in watch(*watch_paths, watch_filter=None, ignore_patterns=exclude_patterns):
+        for changes in watch(*watch_paths, watch_filter=watch_filter):
             if should_exit:
                 break
 
