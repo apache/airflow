@@ -1,66 +1,45 @@
-use clap::Parser;
+use clap::Args;
+use serde::Deserialize;
 use std::time::Duration;
 
-#[derive(Debug)]
-pub struct DagProcessorManagerConfig {
-    pub processor_timeout: Duration,
-    pub parsing_processes: usize,
-    pub parsing_cleanup_interval: Duration,
-    pub min_file_process_interval: Duration,
-    pub stale_dag_threshold: Duration,
-    pub print_stats_interval: Duration,
-    pub max_callbacks_per_loop: u32,
-    pub base_log_dir: String,
-    pub bundle_refresh_check_interval: Duration,
-    pub file_parsing_sort_mode: String,
-    pub dags_folder: String,
+/// Converts a string of seconds into a Duration.
+fn de_duration_from_secs<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let secs: u64 = Deserialize::deserialize(deserializer)?;
+    Ok(Duration::from_secs(secs))
 }
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct CliConfig {
-    #[arg(long)]
-    processor_timeout: u64,
-    #[arg(long)]
-    parsing_processes: usize,
-    #[arg(long)]
-    parsing_cleanup_interval: u64,
-    #[arg(long)]
-    min_file_process_interval: u64,
-    #[arg(long)]
-    stale_dag_threshold: u64,
-    #[arg(long)]
-    print_stats_interval: u64,
-    #[arg(long)]
-    max_callbacks_per_loop: u32,
-    #[arg(long)]
-    base_log_dir: String,
-    #[arg(long)]
-    bundle_refresh_check_interval: u64,
-    #[arg(long)]
-    file_parsing_sort_mode: String,
-    #[arg(long)]
-    dags_folder: String,
-}
-
-impl DagProcessorManagerConfig {
-    pub fn from_cli() -> Self {
-        let cli_config = CliConfig::parse();
-
-        Self {
-            processor_timeout: Duration::from_secs(cli_config.processor_timeout),
-            parsing_processes: cli_config.parsing_processes,
-            parsing_cleanup_interval: Duration::from_secs(cli_config.parsing_cleanup_interval),
-            min_file_process_interval: Duration::from_secs(cli_config.min_file_process_interval),
-            stale_dag_threshold: Duration::from_secs(cli_config.stale_dag_threshold),
-            print_stats_interval: Duration::from_secs(cli_config.print_stats_interval),
-            max_callbacks_per_loop: cli_config.max_callbacks_per_loop,
-            base_log_dir: cli_config.base_log_dir,
-            bundle_refresh_check_interval: Duration::from_secs(
-                cli_config.bundle_refresh_check_interval,
-            ),
-            file_parsing_sort_mode: cli_config.file_parsing_sort_mode,
-            dags_folder: cli_config.dags_folder
-        }
+/// Parses a duration from a string. If no unit is specified, it defaults to seconds.
+fn parse_duration_from_string(s: &str) -> Result<Duration, String> {
+    if let Ok(secs) = s.parse::<u64>() {
+        return Ok(Duration::from_secs(secs));
     }
+    humantime::parse_duration(s).map_err(|e| e.to_string())
+}
+
+#[derive(Args, Deserialize, Debug)]
+pub struct DagProcessorManagerConfig {
+    #[arg(long, default_value_t = 10)]
+    pub parsing_processes: usize,
+
+    #[arg(long, value_parser = parse_duration_from_string, default_value = "30s")]
+    #[serde(deserialize_with = "de_duration_from_secs")]
+    pub min_file_process_interval: Duration,
+
+    #[arg(long, default_value = "/files/dags")]
+    pub dags_folder: String,
+
+    #[arg(long, value_parser = parse_duration_from_string, default_value = "5s")]
+    #[serde(deserialize_with = "de_duration_from_secs")]
+    pub bundle_refresh_check_interval: Duration,
+
+    #[arg(long, value_parser = parse_duration_from_string, default_value = "1800s")]
+    #[serde(deserialize_with = "de_duration_from_secs")]
+    pub processor_timeout: Duration,
+
+    #[arg(long, value_parser = parse_duration_from_string, default_value = "600s")]
+    #[serde(deserialize_with = "de_duration_from_secs")]
+    pub parsing_cleanup_interval: Duration,
 }

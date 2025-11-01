@@ -522,16 +522,14 @@ class DeserializationError(Exception):
 def __getattr__(name: str):
     """Provide backward compatibility for moved exceptions."""
     if name == "AirflowDagCycleException":
-        import warnings
-
         from airflow.sdk.exceptions import AirflowDagCycleException
 
-        warnings.warn(
-            "airflow.exceptions.AirflowDagCycleException is deprecated. "
-            "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        # warnings.warn(
+        #     "airflow.exceptions.AirflowDagCycleException is deprecated. "
+        #     "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
+        #     DeprecationWarning,
+        #     stacklevel=2,
+        # )
         return AirflowDagCycleException
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

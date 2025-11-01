@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use log::{debug, warn};
 use std::collections::HashMap;
@@ -9,10 +10,10 @@ const AIRFLOW_IGNORE_FILE: &str = ".airflowignore";
 
 /// Find python files in a directory, respecting .airflowignore files.
 /// This is a rust implementation of the logic in airflow.utils.file.find_dag_file_paths
-pub fn find_dag_file_paths(directory: &str) -> Vec<String> {
+pub fn find_dag_file_paths(directory: &str) -> Result<Vec<String>> {
     let base_dir = Path::new(directory);
     if !base_dir.is_dir() {
-        return vec![];
+        return Err(anyhow!("'{}' is not a directory", directory));
     }
 
     let mut file_paths = Vec::new();
@@ -47,7 +48,13 @@ pub fn find_dag_file_paths(directory: &str) -> Vec<String> {
                     }
                 }
             }
-            let new_patterns = current_patterns.build().unwrap();
+            let new_patterns = match current_patterns.build() {
+                Ok(patterns) => patterns,
+                Err(e) => {
+                    warn!("Error building glob set for {:?}: {}", parent, e);
+                    GlobSet::empty()
+                }
+            };
 
             // Check against all parent patterns
             let mut current_path = parent;
@@ -93,7 +100,7 @@ pub fn find_dag_file_paths(directory: &str) -> Vec<String> {
         }
     }
 
-    file_paths
+    Ok(file_paths)
 }
 
 fn is_dag_file(entry: &DirEntry) -> bool {
@@ -118,7 +125,7 @@ mod tests {
         File::create(dir.path().join("dag2.py")).unwrap();
         File::create(dir.path().join("not_a_dag.txt")).unwrap();
 
-        let mut result = find_dag_file_paths(dir.path().to_str().unwrap());
+        let mut result = find_dag_file_paths(dir.path().to_str().unwrap()).unwrap();
         result.sort();
 
         assert_eq!(result.len(), 2);
@@ -135,7 +142,7 @@ mod tests {
         let mut ignore_file = File::create(path.join(".airflowignore")).unwrap();
         writeln!(ignore_file, "ignored_*.py").unwrap();
 
-        let mut result = find_dag_file_paths(path.to_str().unwrap());
+        let mut result = find_dag_file_paths(path.to_str().unwrap()).unwrap();
         result.sort();
 
         assert_eq!(result.len(), 1);
@@ -156,7 +163,7 @@ mod tests {
         let mut ignore_file = File::create(subdir_path.join(".airflowignore")).unwrap();
         writeln!(ignore_file, "ignored_*.py").unwrap();
 
-        let mut result = find_dag_file_paths(path.to_str().unwrap());
+        let mut result = find_dag_file_paths(path.to_str().unwrap()).unwrap();
         result.sort();
 
         assert_eq!(result.len(), 2);
@@ -177,9 +184,28 @@ mod tests {
         let mut ignore_file = File::create(path.join(".airflowignore")).unwrap();
         writeln!(ignore_file, "ignored_subdir").unwrap();
 
-        let result = find_dag_file_paths(path.to_str().unwrap());
+        let result = find_dag_file_paths(path.to_str().unwrap()).unwrap();
 
         assert_eq!(result.len(), 1);
         assert!(result[0].ends_with("dag1.py"));
+    }
+
+    #[test]
+    fn test_find_dag_file_paths_with_invalid_airflowignore_pattern() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        File::create(path.join("dag1.py")).unwrap();
+        File::create(path.join("dag_to_be_ignored.py")).unwrap();
+        let mut ignore_file = File::create(path.join(".airflowignore")).unwrap();
+        // This is an invalid glob pattern, it should be ignored.
+        writeln!(ignore_file, "dag_to_be_ignored.py[").unwrap();
+
+        // We expect both files to be found, as the invalid pattern is skipped.
+        let mut result = find_dag_file_paths(path.to_str().unwrap()).unwrap();
+        result.sort();
+
+        assert_eq!(result.len(), 2);
+        assert!(result[0].ends_with("dag1.py"));
+        assert!(result[1].ends_with("dag_to_be_ignored.py"));
     }
 }
