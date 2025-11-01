@@ -100,6 +100,9 @@ class MockObject:
             return False
         return self.properties == other.properties and self.uuid == other.uuid
 
+    def __hash__(self):
+        return hash((self.properties, self.uuid))
+
 
 class TestWeaviateHook:
     """
