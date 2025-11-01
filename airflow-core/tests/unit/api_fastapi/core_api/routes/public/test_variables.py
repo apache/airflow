@@ -25,6 +25,7 @@ import pytest
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_variables
 from tests_common.test_utils.logs import check_last_log
 
@@ -293,7 +294,8 @@ class TestGetVariables(TestVariableEndpoint):
         self, session, test_client, query_params, expected_total_entries, expected_keys
     ):
         self.create_variables()
-        response = test_client.get("/variables", params=query_params)
+        with assert_queries_count(3):
+            response = test_client.get("/variables", params=query_params)
 
         assert response.status_code == 200
         body = response.json()
