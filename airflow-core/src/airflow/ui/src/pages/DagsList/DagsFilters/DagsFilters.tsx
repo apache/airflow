@@ -209,7 +209,7 @@ export const DagsFilters = () => {
           onUpdate={setPattern}
           selectedTags={selectedTags}
           tagFilterMode={tagFilterMode}
-          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+          tags={data?.pages.flatMap((dagResponse) => (dagResponse as { tags: Array<string> }).tags) ?? []}
         />
         <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
       </HStack>
