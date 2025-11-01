@@ -25,7 +25,7 @@ from typing import Any
 import click
 from click import Context, Parameter, ParamType
 
-from airflow_breeze.global_constants import GITHUB_REPO_BRANCH_PATTERN
+from airflow_breeze.global_constants import GITHUB_REPO_BRANCH_PATTERN, PR_NUMBER_PATTERN
 from airflow_breeze.utils.cache import (
     check_if_values_allowed,
     read_and_validate_value_from_cache,
@@ -250,6 +250,6 @@ class UseAirflowVersionType(BetterChoice):
         if re.match(GITHUB_REPO_BRANCH_PATTERN, value):
             return value
         # Check if it's a PR number (digits only)
-        if re.match(r"^\d+$", value):
+        if re.match(PR_NUMBER_PATTERN, value):
             return value
         return super().convert(value, param, ctx)

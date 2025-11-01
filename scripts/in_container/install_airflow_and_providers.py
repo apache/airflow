@@ -301,7 +301,7 @@ def resolve_pr_number_to_repo_branch(pr_number: str, github_repository: str) -> 
             sys.exit(1)
 
         pr_data = response.json()
-        
+
         # Check if the head repo exists (could be None if fork was deleted)
         if pr_data.get("head", {}).get("repo") is None:
             console.print(
@@ -309,7 +309,7 @@ def resolve_pr_number_to_repo_branch(pr_number: str, github_repository: str) -> 
                 "This can happen if the fork has been deleted."
             )
             sys.exit(1)
-        
+
         owner = pr_data["head"]["repo"]["owner"]["login"]
         repo = pr_data["head"]["repo"]["name"]
         branch = pr_data["head"]["ref"]
@@ -438,7 +438,7 @@ def find_installation_spec(
             owner, repo, branch = repo_match.groups()
             resolved_version = use_airflow_version
             console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
-        
+
         # Common logic for both PR number and repo:branch formats
         vcs_url = f"git+https://github.com/{owner}/{repo}.git@{branch}"
         if airflow_extras:
