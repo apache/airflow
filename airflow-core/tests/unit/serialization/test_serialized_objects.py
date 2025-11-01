@@ -22,6 +22,7 @@ import math
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
@@ -84,6 +85,9 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from pydantic.types import JsonValue
 
 DAG_ID = "dag_id_1"
 
@@ -227,7 +231,7 @@ EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
 
 
 def create_outlet_event_accessors(
-    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+    key: Asset | AssetAlias, extra: dict[str, JsonValue], asset_alias_events: list[AssetAliasEvent]
 ) -> OutletEventAccessors:
     o = OutletEventAccessors()
     o[key].extra = extra

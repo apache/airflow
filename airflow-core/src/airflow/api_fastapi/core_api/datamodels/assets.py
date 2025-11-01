@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import AliasPath, ConfigDict, Field, NonNegativeInt, field_validator
+from pydantic import AliasPath, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -73,7 +73,7 @@ class AssetResponse(BaseModel):
     name: str
     uri: str
     group: str
-    extra: dict | None = None
+    extra: dict[str, JsonValue] | None = None
     created_at: datetime
     updated_at: datetime
     scheduled_dags: list[DagScheduleAssetReference]
@@ -132,7 +132,7 @@ class AssetEventResponse(BaseModel):
     uri: str | None = Field(alias="uri", default=None)
     name: str | None = Field(alias="name", default=None)
     group: str | None = Field(alias="group", default=None)
-    extra: dict | None = None
+    extra: dict[str, JsonValue] | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None
     source_run_id: str | None = None

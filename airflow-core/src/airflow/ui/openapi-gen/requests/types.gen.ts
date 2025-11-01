@@ -64,7 +64,7 @@ export type AssetEventResponse = {
     name?: string | null;
     group?: string | null;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     source_task_id?: string | null;
     source_dag_id?: string | null;
@@ -83,7 +83,7 @@ export type AssetResponse = {
     uri: string;
     group: string;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     created_at: string;
     updated_at: string;

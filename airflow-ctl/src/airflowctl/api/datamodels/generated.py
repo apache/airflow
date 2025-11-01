@@ -1038,7 +1038,7 @@ class AssetEventResponse(BaseModel):
     uri: Annotated[str | None, Field(title="Uri")] = None
     name: Annotated[str | None, Field(title="Name")] = None
     group: Annotated[str | None, Field(title="Group")] = None
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
@@ -1056,7 +1056,7 @@ class AssetResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]

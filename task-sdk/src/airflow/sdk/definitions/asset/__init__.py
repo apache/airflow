@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
+    from pydantic.types import JsonValue
+
     from airflow.models.asset import AssetModel
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.serialization.serialized_objects import SerializedAssetWatcher
@@ -216,7 +218,7 @@ def _validate_asset_name(instance, attribute, value):
     return value
 
 
-def _set_extra_default(extra: dict | None) -> dict:
+def _set_extra_default(extra: dict[str, JsonValue] | None) -> dict:
     """
     Automatically convert None to an empty dict.
 
@@ -319,7 +321,7 @@ class Asset(os.PathLike, BaseAsset):
         default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
         validator=[_validate_identifier],
     )
-    extra: dict[str, Any] = attrs.field(
+    extra: dict[str, JsonValue] = attrs.field(
         factory=dict,
         converter=_set_extra_default,
     )
@@ -337,7 +339,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         *,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
@@ -348,7 +350,7 @@ class Asset(os.PathLike, BaseAsset):
         name: str,
         *,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
@@ -359,7 +361,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         uri: str | ObjectStoragePath,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
@@ -370,7 +372,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
     ) -> None:
         if name is None and uri is None:
@@ -686,4 +688,4 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
+    extra: dict[str, JsonValue]
