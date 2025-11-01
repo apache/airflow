@@ -51,6 +51,13 @@ def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
     print(settings.HEADER)
 
+    if hasattr(args, "dev") and args.dev:
+        log.info("Starting scheduler in development mode with hot-reload enabled")
+        from airflow.utils.hot_reload import run_with_reloader
+
+        run_with_reloader(lambda: _run_scheduler_job(args))
+        return
+
     run_command_with_daemon_option(
         args=args,
         process_name="scheduler",
