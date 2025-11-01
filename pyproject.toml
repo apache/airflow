@@ -608,6 +608,7 @@ extend-select = [
     "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
     "PLW1508", # Invalid type for environment variable default; expected str or None
     "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element

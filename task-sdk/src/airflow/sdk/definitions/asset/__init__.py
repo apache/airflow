@@ -426,6 +426,10 @@ class Asset(os.PathLike, BaseAsset):
         f = attrs.filters.include(*attrs.fields_dict(Asset))
         return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
 
+    def __hash__(self):
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return hash(attrs.asdict(self, filter=f))
+
     @property
     def normalized_uri(self) -> str | None:
         """
