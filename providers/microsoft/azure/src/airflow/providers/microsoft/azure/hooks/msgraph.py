@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import warnings
 from ast import literal_eval
+from collections.abc import Callable
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -62,6 +64,32 @@ if TYPE_CHECKING:
     from kiota_abstractions.serialization import ParsableFactory
 
     from airflow.providers.common.compat.sdk import Connection
+
+
+PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+
+def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Dynamically call a function by matching its signature to provided args/kwargs."""
+    sig = inspect.signature(func)
+    accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+    if not accepts_kwargs:
+        # Only pass arguments the function explicitly declares
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    else:
+        filtered_kwargs = kwargs
+
+    try:
+        sig.bind(*args, **filtered_kwargs)
+    except TypeError as err:
+        raise TypeError(
+            f"Failed to bind arguments to function {func.__name__}: {err}\n"
+            f"Expected parameters: {list(sig.parameters.keys())}\n"
+            f"Provided kwargs: {list(kwargs.keys())}"
+        ) from err
+
+    return func(*args, **filtered_kwargs)
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -128,7 +156,7 @@ class KiotaRequestAdapterHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
-        host: str = NationalClouds.Global.value,
+        host: str | None = None,
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
@@ -204,8 +232,10 @@ class KiotaRequestAdapterHook(BaseHook):
         )  # type: ignore
 
     def get_host(self, connection: Connection) -> str:
-        if connection.schema and connection.host:
-            return f"{connection.schema}://{connection.host}"
+        if not self.host:
+            if connection.schema and connection.host:
+                return f"{connection.schema}://{connection.host}"
+            return NationalClouds.Global.value
         return self.host
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
@@ -434,6 +464,27 @@ class KiotaRequestAdapterHook(BaseHook):
         except Exception as e:
             return False, str(e)
 
+    @staticmethod
+    def default_pagination(
+        response: dict,
+        url: str | None = None,
+        query_parameters: dict[str, Any] | None = None,
+        responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
+    ) -> tuple[Any, dict[str, Any] | None]:
+        if isinstance(response, dict):
+            odata_count = response.get("@odata.count")
+            if odata_count and query_parameters:
+                top = query_parameters.get("$top")
+
+                if top and odata_count:
+                    if len(response.get("value", [])) == top:
+                        results = responses()
+                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
+                        query_parameters["$skip"] = skip
+                        return url, query_parameters
+            return response.get("@odata.nextLink"), query_parameters
+        return None, query_parameters
+
     async def run(
         self,
         url: str = "",
@@ -462,6 +513,60 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.debug("response: %s", response)
 
         return response
+
+    async def paginated_run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+        pagination_function: PaginationCallable | None = None,
+    ):
+        if pagination_function is None:
+            pagination_function = self.default_pagination
+
+        responses: list[dict] = []
+
+        async def run(
+            url: str = "",
+            query_parameters: dict[str, Any] | None = None,
+        ):
+            while url:
+                response = await self.run(
+                    url=url,
+                    response_type=response_type,
+                    path_parameters=path_parameters,
+                    method=method,
+                    query_parameters=query_parameters,
+                    headers=headers,
+                    data=data,
+                )
+
+                if response:
+                    responses.append(response)
+
+                    if pagination_function:
+                        url, query_parameters = execute_callable(
+                            pagination_function,
+                            response=response,
+                            url=url,
+                            response_type=response_type,
+                            path_parameters=path_parameters,
+                            method=method,
+                            query_parameters=query_parameters,
+                            headers=headers,
+                            data=data,
+                            responses=lambda: responses,
+                        )
+                else:
+                    break
+
+        await run(url=url, query_parameters=query_parameters)
+
+        return responses
 
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
         conn = await self.get_async_conn()

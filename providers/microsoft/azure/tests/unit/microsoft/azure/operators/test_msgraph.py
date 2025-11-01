@@ -27,7 +27,11 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import Context
-from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
+from airflow.providers.microsoft.azure.operators.msgraph import (
+    MSGraphAsyncOperator,
+    default_pagination,
+    execute_callable,
+)
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -115,7 +119,7 @@ class TestMSGraphAsyncOperator:
                 conn_id="msgraph_api",
                 url="users",
                 result_processor=lambda result, **context: result.get("value"),
-                pagination_function=lambda operator, response, context: MSGraphAsyncOperator.paginate(
+                pagination_function=lambda operator, response, context: default_pagination(
                     operator, response, **context
                 ),
             )
@@ -298,7 +302,7 @@ class TestMSGraphAsyncOperator:
         )
         context = mock_context(task=operator)
         response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
-        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, **context)
+        next_link, query_parameters = default_pagination(operator, response, **context)
 
         assert next_link == response["@odata.nextLink"]
         assert query_parameters is None
@@ -313,7 +317,7 @@ class TestMSGraphAsyncOperator:
         context = mock_context(task=operator)
         response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         response["@odata.count"] = 100
-        url, query_parameters = MSGraphAsyncOperator.paginate(operator, response, **context)
+        url, query_parameters = default_pagination(operator, response, **context)
 
         assert url == "users"
         assert query_parameters == {"$skip": 12, "$top": 12}
