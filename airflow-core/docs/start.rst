@@ -79,7 +79,9 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       uv pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-4. Install Airflow on Windows, using WSL2. In Powershell, run the following commands to create WSL2 environment.
+If you are on Windows, you have to use WSL2 (Linux environment for Windows). 
+
+In Powershell, run the following commands to create WSL2 environment and install Airflow:
 
    .. code-block:: bash
 
