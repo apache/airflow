@@ -1319,7 +1319,7 @@ def tag_providers(
     release_date = os.environ.get("PACKAGE_DATE", datetime.now().strftime("%Y-%m-%d"))
 
     if found_remote is None:
-        raise ValueError("Could not find remote configured to push to apache/airflow")
+        raise ValueError("Could not find the remote configured to push to apache/airflow")
 
     extra_flags = []
     tags = []
@@ -1337,17 +1337,7 @@ def tag_providers(
                     check=True,
                 )
                 tags.append(tag)
-    providers_date_tag = f"providers/{release_date}"
     if tags:
-        run_command(
-            ["git", "tag", providers_date_tag, *extra_flags, "-m", f"Release {release_date} of providers"],
-            check=True,
-        )
-        get_console().print()
-        get_console().print("\n[info]The providers release have been tagged with:[/]")
-        get_console().print(providers_date_tag)
-        get_console().print()
-        tags.append(providers_date_tag)
         push_result = run_command(
             ["git", "push", found_remote, *extra_flags, *tags],
             check=True,
