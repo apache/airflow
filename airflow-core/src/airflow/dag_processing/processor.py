@@ -90,7 +90,7 @@ class DagFileParseRequest(BaseModel):
     any other necessary metadata.
     """
 
-    file: str
+    file: Path
 
     bundle_path: Path
     """Passing bundle path around lets us figure out relative file path."""
@@ -204,6 +204,56 @@ def _parse_file_entrypoint():
         comms_decoder.send(result)
 
 
+def _rust_parse_file_entrypoint():
+    """
+    Entrypoint for parsing a file when called from Rust.
+
+    Reads a JSON DagFileParseRequest from stdin, parses the file, and prints
+    a JSON DagFileParsingResult to stdout.
+    """
+    # Mark as client-side (runs user DAG code)
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+
+    import json
+    import logging
+
+    import structlog
+
+    # The Rust side doesn't provide a log file, so we need to configure a basic logger
+    # to see any output from the parser.
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    log = structlog.get_logger(logger_name="rust_processor")
+
+    try:
+        request_json = sys.stdin.readline()
+        if not request_json:
+            log.error("No input received from stdin.")
+            sys.exit(1)
+
+        request_data = json.loads(request_json)
+        msg = DagFileParseRequest.model_validate(request_data)
+
+        # Put bundle root on sys.path if needed.
+        if (bundle_root := os.fspath(msg.bundle_path)) not in sys.path:
+            sys.path.append(bundle_root)
+
+        # Redirect stdout to stderr to avoid printing logs to stdout, which is used for IPC.
+        original_stdout = sys.stdout
+        sys.stdout = sys.stderr
+        try:
+            result = _parse_file(msg, log)
+        finally:
+            sys.stdout = original_stdout
+
+        if result is not None:
+            # Use model_dump_json to correctly serialize Pydantic models
+            print(result.model_dump_json())
+
+    except Exception:
+        log.exception("Error during file parsing from Rust entrypoint.")
+        sys.exit(1)
+
+
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
@@ -222,7 +272,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
     result = DagFileParsingResult(
-        fileloc=msg.file,
+        fileloc=str(msg.file),
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
         # TODO: Make `bag.dag_warnings` not return SQLA model objects
