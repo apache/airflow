@@ -158,10 +158,6 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        sanitized_conn_id = sanitize_conn_id(conn_id)
-        if sanitized_conn_id is None:
-            raise ValueError("conn_id cannot be None after sanitization")
-        self.conn_id = sanitized_conn_id
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -174,9 +170,15 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
-            if conn_type is None:
-                raise ValueError("conn_type cannot be None")
-            self.conn_type = conn_type
+            # For non-URI connections, store values and let later validation handle issues
+            if conn_id is not None:
+                sanitized_id = sanitize_conn_id(conn_id)
+                if sanitized_id is not None:
+                    self.conn_id = sanitized_id
+
+            if conn_type is not None:
+                self.conn_type = conn_type
+
             self.host = host
             self.login = login
             self.password = password
@@ -260,14 +262,19 @@ class Connection(Base, LoggingMixin):
             return f"{protocol}://{host}"
         return host
 
-    def get_uri(self) -> str:
+    def get_uri(self) -> str | None:
         """
         Return the connection URI in Airflow format.
 
         The Airflow URI format examples: https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#uri-format-example
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
+
+        :return: The connection URI string, or None if conn_type is missing.
         """
+        # Return None only if conn_type is missing (required for URI)
+        if not self.conn_type:
+            return None
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
@@ -279,11 +286,14 @@ class Connection(Base, LoggingMixin):
         else:
             uri = "//"
 
+        host_to_use: str | None
+        protocol_to_add: str | None
+
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
             if protocol == self.conn_type:
-                host_to_use: str | None = self.host
+                host_to_use = self.host
                 protocol_to_add = None
             else:
                 # Different protocol, add it to the URI
@@ -523,7 +533,9 @@ class Connection(Base, LoggingMixin):
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
-                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                    connection_uri = conn.get_uri()
+                    if connection_uri is not None:
+                        SecretCache.save_connection_uri(conn_id, connection_uri)
                     return conn
             except Exception:
                 log.debug(
