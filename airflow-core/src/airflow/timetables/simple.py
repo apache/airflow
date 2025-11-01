@@ -50,6 +50,9 @@ class _TrivialTimetable(Timetable):
             return NotImplemented
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
     def serialize(self) -> dict[str, Any]:
         return {}
 
