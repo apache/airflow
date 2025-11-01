@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import get_kerberos_principal, renew_from_kt
+from airflow.security.kerberos import detect_conf_var, get_kerberos_principal, renew_from_kt
 
 from tests_common.test_utils.config import conf_vars
 
@@ -87,12 +87,12 @@ class TestKerberos:
     )
     @mock.patch("time.sleep", return_value=None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.subprocess")
     def test_renew_from_kt(self, mock_subprocess, mock_sleep, kerberos_config, expected_cmd, caplog):
         expected_cmd_text = " ".join(shlex.quote(f) for f in expected_cmd)
 
         with conf_vars(kerberos_config), caplog.at_level(logging.INFO, logger=kerberos.log.name):
+            detect_conf_var.cache_clear()
             caplog.clear()
             mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
             mock_subprocess.call.return_value = 0
@@ -120,13 +120,13 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b""))
     def test_renew_from_kt_without_workaround(self, mock_subprocess, caplog):
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 0
 
         with caplog.at_level(logging.INFO, logger=kerberos.log.name):
+            detect_conf_var.cache_clear()
             caplog.clear()
             renew_from_kt(principal="test-principal", keytab="keytab")
             assert caplog.messages == [
@@ -161,13 +161,13 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     def test_renew_from_kt_failed(self, mock_subprocess, caplog):
         mock_subp = mock_subprocess.Popen.return_value.__enter__.return_value
         mock_subp.returncode = 1
         mock_subp.stdout = mock.MagicMock(name="stdout", **{"readlines.return_value": ["STDOUT"]})
         mock_subp.stderr = mock.MagicMock(name="stderr", **{"readlines.return_value": ["STDERR"]})
 
+        detect_conf_var.cache_clear()
         caplog.clear()
         with pytest.raises(SystemExit) as ctx:
             renew_from_kt(principal="test-principal", keytab="keytab")
@@ -209,7 +209,6 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="HOST")
     @mock.patch("time.sleep", return_value=None)
@@ -217,6 +216,7 @@ class TestKerberos:
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 1
 
+        detect_conf_var.cache_clear()
         caplog.clear()
         with pytest.raises(SystemExit) as ctx:
             renew_from_kt(principal="test-principal", keytab="keytab")
