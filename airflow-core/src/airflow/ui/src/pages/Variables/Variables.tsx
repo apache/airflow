@@ -26,6 +26,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
+import { VariableService } from "openapi/requests/services.gen";
 import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -165,6 +166,27 @@ export const Variables = () => {
     setVariableKeyPattern(value);
   };
 
+  const handleExportVariables = () => {
+    const variableKeys = [...selectedRows.keys()];
+
+    VariableService.exportVariables({
+      requestBody: { variable_keys: variableKeys },
+    })
+      .then((response) => {
+        const exportData: Record<string, string | undefined> = {};
+
+        response.forEach((variable) => {
+          exportData[variable.key] = variable.value;
+        });
+
+        downloadJson(exportData, "variables");
+      })
+      .catch((exportError: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error("Failed to export variables:", exportError);
+      });
+  };
+
   useEffect(() => {
     const newSelection: Record<string, string | undefined> = { ...selectedVariables };
 
@@ -229,7 +251,7 @@ export const Variables = () => {
           <Tooltip content={translate("variables.exportTooltip")}>
             <Button
               colorPalette="info"
-              onClick={() => downloadJson(selectedVariables, "variables")}
+              onClick={handleExportVariables}
               size="sm"
               variant="outline"
             >
