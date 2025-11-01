@@ -58,7 +58,8 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "apache-airflow-providers-cncf-kubernetes>=5.1.0",
 ]
 
