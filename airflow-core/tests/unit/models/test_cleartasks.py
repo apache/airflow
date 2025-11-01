@@ -659,8 +659,8 @@ class TestClearTasks:
 
         SerializedDAG.clear_dags(dags, only_failed=True)
 
-        for ti in tis:
-            ti = _get_ti(ti)
+        for ti_in in tis:
+            ti = _get_ti(ti_in)
             if ti.dag_id == ti_fail.dag_id:
                 assert ti.state == State.NONE
                 assert ti.try_number == 2

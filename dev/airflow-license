@@ -74,8 +74,8 @@ if __name__ == "__main__":
 
     notices = get_notices()
 
-    for notice in notices:
-        notice = notice[0]
+    for notice_arr in notices:
+        notice = notice_arr[0]
         license = parse_license_file(notice[1])
         print(f"{notice[1]:<30}|{notice[2][:50]:<50}||{notice[0]:<20}||{license:<10}")
 

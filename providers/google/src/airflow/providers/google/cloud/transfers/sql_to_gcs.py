@@ -295,21 +295,21 @@ class BaseSQLToGCSOperator(BaseOperator):
 
             # Proceed to write the row to the localfile
             if self.export_format == "csv":
-                row = self.convert_types(schema, col_type_dict, row)
+                row2 = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
-                    row = [value or self.null_marker for value in row]
-                csv_writer.writerow(row)
+                    row2 = [value or self.null_marker for value in row2]
+                csv_writer.writerow(row2)
             elif self.export_format == "parquet":
-                row = self.convert_types(schema, col_type_dict, row)
+                row2 = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
-                    row = [value or self.null_marker for value in row]
-                rows_buffer.append(row)
+                    row2 = [value or self.null_marker for value in row2]
+                rows_buffer.append(row2)
                 if len(rows_buffer) >= self.parquet_row_group_size:
                     self._write_rows_to_parquet(parquet_writer, rows_buffer)
                     rows_buffer = []
             else:
-                row = self.convert_types(schema, col_type_dict, row)
-                row_dict = dict(zip(schema, row))
+                row2 = self.convert_types(schema, col_type_dict, row)
+                row_dict = dict(zip(schema, row2))
 
                 json.dump(row_dict, tmp_file_handle, sort_keys=True, ensure_ascii=False)
 

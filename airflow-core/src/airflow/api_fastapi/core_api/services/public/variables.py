@@ -148,9 +148,11 @@ class BulkVariableService(BulkService[VariableBody]):
             for variable in action.entities:
                 if variable.key not in update_keys:
                     continue
-                variable = update_orm_from_pydantic(variable.key, variable, action.update_mask, self.session)
+                variable_py = update_orm_from_pydantic(
+                    variable.key, variable, action.update_mask, self.session
+                )
 
-                results.success.append(variable.key)
+                results.success.append(variable_py.key)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
