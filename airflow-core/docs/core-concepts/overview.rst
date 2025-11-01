@@ -59,8 +59,8 @@ A minimal Airflow installation consists of the following components:
 * A folder of *Dag files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
-* A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags, variables,
-  Dags and tasks.
+* A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags and variables.
+
   Setting up a metadata database is described in :doc:`/howto/set-up-database` and is required for
   Airflow to work.
 
