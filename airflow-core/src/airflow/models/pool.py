@@ -182,9 +182,8 @@ class Pool(Base):
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
-        for pool_name, total_slots, include_deferred in pool_rows:
-            if total_slots == -1:
-                total_slots = float("inf")
+        for pool_name, total_slots_in, include_deferred in pool_rows:
+            total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
@@ -201,9 +200,9 @@ class Pool(Base):
         )
 
         # calculate queued and running metrics
-        for pool_name, state, count in state_count_by_pool:
+        for pool_name, state, count_raw in state_count_by_pool:
             # Some databases return decimal.Decimal here.
-            count = int(count)
+            count = int(count_raw)
 
             stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:

@@ -77,8 +77,8 @@ class ExecutorLoader:
         executor_names = []
         for team_name, executor_names_config in all_executor_names:
             executor_names_per_team = []
-            for name in executor_names_config:
-                if len(split_name := name.split(":")) == 1:
+            for name_raw in executor_names_config:
+                if len(split_name := name_raw.split(":")) == 1:
                     name = split_name[0]
                     # Check if this is an alias for a core airflow executor, module
                     # paths won't be provided by the user in that case.
@@ -109,7 +109,7 @@ class ExecutorLoader:
                         ExecutorName(alias=split_name[0], module_path=split_name[1], team_name=team_name)
                     )
                 else:
-                    raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
+                    raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name_raw}")
 
             # As of now, we do not allow duplicate executors (within teams).
             # Add all module paths to a set, since the actual code is what is unique

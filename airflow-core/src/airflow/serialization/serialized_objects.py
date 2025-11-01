@@ -1069,10 +1069,9 @@ class BaseSerialization:
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
         """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
         serialized_params = []
-        for k, v in params.items():
-            if isinstance(params, ParamsDict):
-                # Use native param object, not resolved value if possible
-                v = params.get_param(k)
+        for k, raw_v in params.items():
+            # Use native param object, not resolved value if possible
+            v = params.get_param(k) if isinstance(params, ParamsDict) else raw_v
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
@@ -1589,52 +1588,60 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         deserialized_partial_kwarg_defaults = {}
 
-        for k, v in encoded_op.items():
+        for k_in, v_in in encoded_op.items():
             # Use centralized field deserialization logic
-            if k in encoded_op.get("template_fields", []):
-                pass  # Template fields are handled separately
-            elif k == "_operator_extra_links":
+            if k_in in encoded_op.get("template_fields", []):
+                # Template fields are handled separately
+                k = k_in
+                v = v_in
+            elif k_in == "_operator_extra_links":
                 if cls._load_operator_extra_links:
-                    op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
+                    op_predefined_extra_links = cls._deserialize_operator_extra_links(v_in)
 
                     # If OperatorLinks with the same name exists, Links via Plugin have higher precedence
                     op_predefined_extra_links.update(op_extra_links_from_plugin)
                 else:
                     op_predefined_extra_links = {}
 
-                v = list(op_predefined_extra_links.values())
                 k = "operator_extra_links"
-
-            elif k == "params":
-                v = cls._deserialize_params_dict(v)
-            elif k == "partial_kwargs":
+                v = list(op_predefined_extra_links.values())
+            elif k_in == "params":
+                k = k_in
+                v = cls._deserialize_params_dict(v_in)
+            elif k_in == "partial_kwargs":
                 # Use unified deserializer that supports both encoded and non-encoded values
-                v = cls._deserialize_partial_kwargs(v, client_defaults)
-            elif k in {"expand_input", "op_kwargs_expand_input"}:
-                v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
-            elif k == "operator_class":
-                v = {k_: cls.deserialize(v_) for k_, v_ in v.items()}
-            elif k == "_is_sensor":
+                k = k_in
+                v = cls._deserialize_partial_kwargs(v_in, client_defaults)
+            elif k_in in {"expand_input", "op_kwargs_expand_input"}:
+                k = k_in
+                v = _ExpandInputRef(v_in["type"], cls.deserialize(v_in["value"]))
+            elif k_in == "operator_class":
+                k = k_in
+                v = {k_: cls.deserialize(v_) for k_, v_ in v_in.items()}
+            elif k_in == "_is_sensor":
                 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 
-                if v is False:
+                if v_in is False:
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
             elif (
-                k in cls._decorated_fields
-                or k not in op.get_serialized_fields()
-                or k in ("outlets", "inlets")
+                k_in in cls._decorated_fields
+                or k_in not in op.get_serialized_fields()
+                or k_in in ("outlets", "inlets")
             ):
-                v = cls.deserialize(v)
-            elif k == "_on_failure_fail_dagrun":
+                k = k_in
+                v = cls.deserialize(v_in)
+            elif k_in == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
-            elif k == "weight_rule":
+                v = v_in
+            elif k_in == "weight_rule":
                 k = "_weight_rule"
-                v = decode_priority_weight_strategy(v)
+                v = decode_priority_weight_strategy(v_in)
             else:
                 # Apply centralized deserialization for all other fields
-                v = cls._deserialize_field_value(k, v)
+                k = k_in
+                v = cls._deserialize_field_value(k, v_in)
 
             # Handle field differences between SerializedBaseOperator and MappedOperator
             # Fields that exist in SerializedBaseOperator but not in MappedOperator need to go to partial_kwargs
@@ -2566,13 +2573,14 @@ class SerializedDAG(BaseSerialization):
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
 
-        for k, v in encoded_dag.items():
-            if k == "_downstream_task_ids":
-                v = set(v)
-            elif k == "tasks":
+        for k_in, v_in in encoded_dag.items():
+            k = k_in
+            if k_in == "_downstream_task_ids":
+                v = set(v_in)
+            elif k_in == "tasks":
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
                 tasks = {}
-                for obj in v:
+                for obj in v_in:
                     if obj.get(Encoding.TYPE) == DAT.OP:
                         deser = SerializedBaseOperator.deserialize_operator(
                             obj[Encoding.VAR], client_defaults
@@ -2580,26 +2588,27 @@ class SerializedDAG(BaseSerialization):
                         tasks[deser.task_id] = deser
                 k = "task_dict"
                 v = tasks
-            elif k == "timezone":
-                v = cls._deserialize_timezone(v)
-            elif k == "dagrun_timeout":
-                v = cls._deserialize_timedelta(v)
-            elif k.endswith("_date"):
-                v = cls._deserialize_datetime(v)
-            elif k == "edge_info":
+            elif k_in == "timezone":
+                v = cls._deserialize_timezone(v_in)
+            elif k_in == "dagrun_timeout":
+                v = cls._deserialize_timedelta(v_in)
+            elif k_in.endswith("_date"):
+                v = cls._deserialize_datetime(v_in)
+            elif k_in == "edge_info":
                 # Value structure matches exactly
-                pass
-            elif k == "timetable":
-                v = decode_timetable(v)
-            elif k == "weight_rule":
-                v = decode_priority_weight_strategy(v)
-            elif k in cls._decorated_fields:
-                v = cls.deserialize(v)
-            elif k == "params":
-                v = cls._deserialize_params_dict(v)
-            elif k == "tags":
-                v = set(v)
-            # else use v as it is
+                v = v_in
+            elif k_in == "timetable":
+                v = decode_timetable(v_in)
+            elif k_in == "weight_rule":
+                v = decode_priority_weight_strategy(v_in)
+            elif k_in in cls._decorated_fields:
+                v = cls.deserialize(v_in)
+            elif k_in == "params":
+                v = cls._deserialize_params_dict(v_in)
+            elif k_in == "tags":
+                v = set(v_in)
+            else:
+                v = v_in
 
             object.__setattr__(dag, k, v)
 

@@ -365,26 +365,23 @@ def _register():
     _stringifiers.clear()
 
     with Stats.timer("serde.load_serializers") as timer:
-        for _, name, _ in iter_namespace(airflow.serialization.serializers):
-            name = import_module(name)
-            for s in getattr(name, "serializers", ()):
-                if not isinstance(s, str):
-                    s = qualname(s)
+        for _, module_name, _ in iter_namespace(airflow.serialization.serializers):
+            name = import_module(module_name)
+            for attr_s in getattr(name, "serializers", ()):
+                s = attr_s if isinstance(attr_s, str) else qualname(attr_s)
                 if s in _serializers and _serializers[s] != name:
                     raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
                 log.debug("registering %s for serialization", s)
                 _serializers[s] = name
-            for d in getattr(name, "deserializers", ()):
-                if not isinstance(d, str):
-                    d = qualname(d)
+            for attr_d in getattr(name, "deserializers", ()):
+                d = attr_d if isinstance(attr_d, str) else qualname(attr_d)
                 if d in _deserializers and _deserializers[d] != name:
                     raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
                 log.debug("registering %s for deserialization", d)
                 _deserializers[d] = name
                 _extra_allowed.add(d)
-            for c in getattr(name, "stringifiers", ()):
-                if not isinstance(c, str):
-                    c = qualname(c)
+            for attr_c in getattr(name, "stringifiers", ()):
+                c = attr_c if isinstance(attr_c, str) else qualname(attr_c)
                 if c in _deserializers and _deserializers[c] != name:
                     raise AttributeError(f"duplicate {c} for stringifiers in {name} and {_stringifiers[c]}")
                 log.debug("registering %s for stringifying", c)
