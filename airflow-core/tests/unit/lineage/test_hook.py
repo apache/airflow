@@ -38,9 +38,79 @@ from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestHookLineageCollector:
-    @pytest.fixture
-    def collector(self, scope="method"):
+    @pytest.fixture  # default scope is function
+    def collector(self):
         return HookLineageCollector()
+
+    def test_generate_hash_handles_non_serializable(self, collector):
+        class Obj:
+            def __str__(self):
+                return "<obj>"
+
+        h1 = collector._generate_hash({"a": Obj()})
+        h2 = collector._generate_hash({"a": "<obj>"})
+        assert isinstance(h1, str)
+        assert h1 == h2
+
+    def test_generate_hash_is_deterministic(self, collector):
+        h1 = collector._generate_hash({"foo": "bar"})
+        h2 = collector._generate_hash({"foo": "bar"})
+        assert h1 == h2
+
+    def test_generate_hash_changes_with_value(self, collector):
+        h1 = collector._generate_hash({"foo": "bar"})
+        h2 = collector._generate_hash({"foo": "different"})
+        assert h1 != h2
+
+    def test_generate_key_matches_generate_asset_entry_id(self, collector):
+        """Ensure legacy _generate_key matches new _generate_asset_entry_id."""
+        asset = Asset(uri="s3://bucket/a")
+        ctx = BaseHook()
+        assert collector._generate_key(asset, ctx) == collector._generate_asset_entry_id(asset, ctx)
+
+    def test_generate_asset_entry_id_deterministic(self, collector):
+        asset = Asset(uri="s3://bucket/file", extra={"x": 1})
+        ctx = BaseHook()
+        key1 = collector._generate_asset_entry_id(asset, ctx)
+        key2 = collector._generate_asset_entry_id(asset, ctx)
+        assert key1 == key2
+
+    def test_generate_asset_entry_id_differs_by_context(self, collector):
+        asset = Asset(uri="s3://bucket/file")
+        ctx1 = BaseHook()
+        ctx2 = BaseHook()
+        key1 = collector._generate_asset_entry_id(asset, ctx1)
+        key2 = collector._generate_asset_entry_id(asset, ctx2)
+        assert key1 != key2
+
+    def test_generate_asset_entry_id_differs_by_extra(self, collector):
+        ctx = BaseHook()
+        asset1 = Asset(uri="s3://bucket/file", extra={"foo": "bar"})
+        asset2 = Asset(uri="s3://bucket/file", extra={"foo": "other"})
+        key1 = collector._generate_asset_entry_id(asset1, ctx)
+        key2 = collector._generate_asset_entry_id(asset2, ctx)
+        assert key1 != key2
+
+    def test_generate_extra_entry_id_deterministic(self, collector):
+        ctx = BaseHook()
+        key1 = collector._generate_extra_entry_id("k", "v", ctx)
+        key2 = collector._generate_extra_entry_id("k", "v", ctx)
+        assert key1 == key2
+
+    def test_generate_extra_entry_id_differs_by_context(self, collector):
+        ctx1 = BaseHook()
+        ctx2 = BaseHook()
+        key1 = collector._generate_extra_entry_id("k", "v", ctx1)
+        key2 = collector._generate_extra_entry_id("k", "v", ctx2)
+        assert key1 != key2
+
+    def test_generate_extra_entry_id_differs_by_key_value(self, collector):
+        ctx = BaseHook()
+        key1 = collector._generate_extra_entry_id("k", "v1", ctx)
+        key2 = collector._generate_extra_entry_id("k", "v2", ctx)
+        key3 = collector._generate_extra_entry_id("k2", "v1", ctx)
+        assert key1 != key2
+        assert key1 != key3
 
     def test_are_assets_collected(self, collector):
         assert collector is not None
@@ -78,10 +148,10 @@ class TestHookLineageCollector:
         asset = MagicMock(spec=Asset, extra={})
         mock_asset.return_value = asset
 
-        hook = MagicMock(spec=BaseHook)
-        collector.add_input_asset(hook, uri="test_uri")
+        mock_hook = MagicMock(spec=BaseHook)
+        collector.add_input_asset(mock_hook, uri="test_uri")
 
-        assert next(iter(collector._inputs.values())) == (asset, hook)
+        assert next(iter(collector._inputs.values())) == (asset, mock_hook)
         mock_asset.assert_called_once_with(uri="test_uri")
 
     def test_grouping_assets(self, collector):
@@ -166,6 +236,9 @@ class TestHookLineageCollector:
             is None
         )
 
+    def test_create_asset_missing_parameters_returns_none(self, collector):
+        assert collector.create_asset() is None
+
     def test_collected_assets(self, collector):
         context_input = MagicMock(spec=BaseHook)
         context_output = MagicMock(spec=BaseHook)
@@ -187,8 +260,17 @@ class TestHookLineageCollector:
         collector._inputs = {"unique_key": (MagicMock(spec=Asset), MagicMock(spec=BaseHook))}
         assert collector.has_collected
 
-    def test_hooks_limit_input_output_assets(self):
-        collector = HookLineageCollector()
+    def test_has_collected_only_extra(self, collector):
+        assert collector.has_collected is False
+
+        collector.add_extra(MagicMock(spec=BaseHook), "event", "trigger")
+
+        assert collector.has_collected is True
+        assert len(collector.collected_assets.inputs) == 0
+        assert len(collector.collected_assets.outputs) == 0
+        assert len(collector.collected_assets.extra) == 1
+
+    def test_hooks_limit_input_output_assets(self, collector):
         assert not collector.has_collected
 
         for i in range(1000):
@@ -198,6 +280,52 @@ class TestHookLineageCollector:
         assert collector.has_collected
         assert len(collector._inputs) == 100
         assert len(collector._outputs) == 100
+
+    def test_add_extra(self, collector):
+        ctx = MagicMock(spec=BaseHook)
+        collector.add_extra(ctx, "k", "v")
+
+        data = collector.collected_assets.extra
+        assert len(data) == 1
+        assert data[0].key == "k"
+        assert data[0].value == "v"
+        assert data[0].context == ctx
+        assert data[0].count == 1
+
+        # adding again with same values only increments count
+        collector.add_extra(ctx, "k", "v")
+        assert collector.collected_assets.extra[0].count == 2
+        data = collector.collected_assets.extra
+        assert len(data) == 1
+
+    def test_add_extra_missing_key_or_value(self, collector):
+        ctx = MagicMock(spec=BaseHook)
+
+        collector.add_extra(ctx, "", "v")
+        collector.add_extra(ctx, "k", None)
+
+        # nothing added
+        assert len(collector.collected_assets.extra) == 0
+
+    def test_extra_limit(self, collector):
+        ctx = MagicMock(spec=BaseHook)
+
+        for i in range(501):
+            collector.add_extra(ctx, f"k{i}", f"v{i}")
+
+        assert len(collector.collected_assets.extra) == 200
+
+    def test_noop_collector(self):
+        noop = NoOpCollector()
+        ctx = MagicMock(spec=BaseHook)
+        noop.add_input_asset(ctx, uri="x")
+        noop.add_output_asset(ctx, uri="y")
+        noop.add_extra(ctx, "k", "v")
+
+        lineage = noop.collected_assets
+        assert lineage.inputs == []
+        assert lineage.outputs == []
+        assert lineage.extra == []
 
 
 class FakePlugin(plugins_manager.AirflowPlugin):
