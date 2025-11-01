@@ -123,9 +123,8 @@ In Powershell, run the following commands to create WSL2 environment and install
 
       airflow standalone
 
-   For accessing admin account details for Airflow installation on Windows WSL2, use contents in file ``simple_auth_manager_passwords.json.generated`` to login to Airflow UI.
 
-6. Access the Airflow UI:
+5. Access the Airflow UI:
 
    Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` Dag in the home page.
 
