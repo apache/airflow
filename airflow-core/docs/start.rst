@@ -115,7 +115,7 @@ In Powershell, run the following commands to create WSL2 environment and install
       # Verify installation
       airflow version
 
-5. Run Airflow Standalone:
+4. Run Airflow Standalone:
 
    The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
 
