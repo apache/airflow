@@ -669,7 +669,7 @@ ARG_SSL_KEY = Arg(
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
 )
-ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
+ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(

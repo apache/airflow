@@ -51,8 +51,8 @@ def run_with_reloader(
         import watchfiles
     except ImportError:
         log.error(
-            "watchfiles is not installed. Install it with: pip install 'apache-airflow[dev]' "
-            "or pip install watchfiles"
+            "watchfiles is not installed. This is a required dependency for --dev mode. "
+            "Please reinstall Airflow or install watchfiles separately: pip install watchfiles"
         )
         sys.exit(1)
 
@@ -129,6 +129,8 @@ def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_pat
 
         log.info("Starting process...")
         # Restart the process by re-executing Python with the same arguments
+        # Note: sys.argv is safe here as it comes from the original CLI invocation
+        # and is only used in development mode for hot-reloading the same process
         process = subprocess.Popen([sys.executable] + sys.argv)
         return process
 
@@ -153,7 +155,7 @@ def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_pat
     log.info("Press Ctrl+C to stop")
 
     # Create a custom filter that excludes specified patterns
-    watch_filter = DefaultFilter(ignore_paths=exclude_patterns)
+    watch_filter = DefaultFilter(ignore_patterns=exclude_patterns)
 
     try:
         for changes in watch(*watch_paths, watch_filter=watch_filter):
