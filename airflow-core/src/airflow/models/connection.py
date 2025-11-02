@@ -169,18 +169,7 @@ class Connection(Base, LoggingMixin):
             )
         if uri:
             self._parse_from_uri(uri)
-            # Even with URI, allow explicit conn_id to be set
-            if conn_id is not None:
-                sanitized_id = sanitize_conn_id(conn_id)
-                if sanitized_id is not None:
-                    self.conn_id = sanitized_id
         else:
-            # For non-URI connections, store values and let later validation handle issues
-            if conn_id is not None:
-                sanitized_id = sanitize_conn_id(conn_id)
-                if sanitized_id is not None:
-                    self.conn_id = sanitized_id
-
             if conn_type is not None:
                 self.conn_type = conn_type
 
@@ -190,6 +179,11 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if conn_id is not None:
+            sanitized_id = sanitize_conn_id(conn_id)
+            if sanitized_id is not None:
+                self.conn_id = sanitized_id
         if self.extra:
             self._validate_extra(self.extra, self.conn_id)
 
@@ -274,8 +268,6 @@ class Connection(Base, LoggingMixin):
         The Airflow URI format examples: https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#uri-format-example
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
-
-        :return: The connection URI string.
         """
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
