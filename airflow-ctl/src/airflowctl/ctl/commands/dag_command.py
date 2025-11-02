@@ -22,9 +22,10 @@ from typing import Literal
 
 import rich
 
-from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import DAGPatchBody
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.api.operations import ServerResponseError
 
 
 def update_dag_state(
