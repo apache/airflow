@@ -18,19 +18,24 @@
  */
 import { Box, Text } from "@chakra-ui/react";
 import { FiGitCommit } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
-export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => (
-  <Box
-    color="orange.fg"
-    left={-2}
-    position="absolute"
-    title={`Bundle Version: ${bundleVersion}`}
-    top={93}
-    zIndex={1}
-  >
-    <FiGitCommit size="15px" />
-  </Box>
-);
+export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => {
+  const { t: translate } = useTranslation("components");
+
+  return (
+    <Box
+      color="orange.fg"
+      left={-2}
+      position="absolute"
+      title={`${translate("versionDetails.bundleVersion")}: ${bundleVersion}`}
+      top={93}
+      zIndex={1}
+    >
+      <FiGitCommit size="15px" />
+    </Box>
+  );
+};
 
 export const DagVersionIndicator = ({
   dagVersionNumber,
