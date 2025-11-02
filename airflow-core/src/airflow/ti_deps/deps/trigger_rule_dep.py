@@ -20,25 +20,25 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView
-from typing import TYPE_CHECKING, NamedTuple, cast
+from collections.abc import Iterator, KeysView, Mapping
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow import DAG
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -69,8 +69,8 @@ class _UpstreamTIStates(NamedTuple):
 
         :param finished_upstreams: all the finished upstreams of the dag_run
         """
-        counter: dict[str, int] = Counter()
-        setup_counter: dict[str, int] = Counter()
+        counter: Counter[str] = Counter()
+        setup_counter: Counter[str] = Counter()
         for ti in finished_upstreams:
             if TYPE_CHECKING:
                 assert ti.task
@@ -129,9 +129,10 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
+        from airflow.exceptions import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.mappedoperator import is_mapped
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:
@@ -148,9 +149,7 @@ class TriggerRuleDep(BaseTIDep):
 
             return get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
-        def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
-            from airflow.models.mappedoperator import is_mapped
-
+        def _iter_expansion_dependencies(task_group: SerializedMappedTaskGroup | None) -> Iterator[str]:
             if (task := ti.task) is not None and is_mapped(task):
                 for op in task.iter_mapped_dependencies():
                     yield op.task_id
@@ -172,9 +171,10 @@ class TriggerRuleDep(BaseTIDep):
             """
             if TYPE_CHECKING:
                 assert ti.task
-                assert isinstance(ti.task.dag, DAG)
+                assert ti.task.dag
+                assert ti.task.task_group
 
-            if isinstance(ti.task.task_group, MappedTaskGroup):
+            if is_mapped(ti.task.task_group):
                 is_fast_triggered = ti.task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
                 if is_fast_triggered and upstream_id not in set(
                     _iter_expansion_dependencies(task_group=ti.task.task_group)
@@ -186,9 +186,7 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                # TODO (GH-52141): task_dict in scheduler should contain
-                # scheduler types instead, but currently it inherits SDK's DAG.
-                upstream=cast("MappedOperator | SerializedBaseOperator", ti.task.dag.task_dict[upstream_id]),
+                upstream=ti.task.dag.task_dict[upstream_id],
                 ti_count=expanded_ti_count,
                 session=session,
             )
@@ -262,7 +260,9 @@ class TriggerRuleDep(BaseTIDep):
                 else:
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
-        def _evaluate_setup_constraint(*, relevant_setups) -> Iterator[tuple[TIDepStatus, bool]]:
+        def _evaluate_setup_constraint(
+            *, relevant_setups: Mapping[str, BaseOperator | MappedOperator]
+        ) -> Iterator[tuple[TIDepStatus, bool]]:
             """
             Evaluate whether ``ti``'s trigger rule was met as part of the setup constraint.
 
@@ -383,7 +383,7 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts = session.execute(
+                task_id_counts: list[Row[tuple[str, int]]] = session.execute(
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))

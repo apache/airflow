@@ -135,7 +135,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({

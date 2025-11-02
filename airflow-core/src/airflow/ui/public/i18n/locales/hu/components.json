@@ -1,0 +1,138 @@
+{
+  "backfill": {
+    "affected_one": "1 futás lesz elindítva.",
+    "affected_other": "{{count}} futás lesz elindítva.",
+    "affectedNone": "Nincs a kiválasztott feltételeknek megfelelő futás.",
+    "allRuns": "Összes futás",
+    "backwards": "Futtatás visszafelé",
+    "dateRange": "Dátumtartomány",
+    "errorStartDateBeforeEndDate": "A kezdő dátumnak a befejező dátum előtt kell lennie.",
+    "maxRuns": "Maximális aktív futások",
+    "missingAndErroredRuns": "Hiányzó és hibás futások",
+    "missingRuns": "Hiányzó futások",
+    "reprocessBehavior": "Újrafeldolgozás viselkedése",
+    "run": "Backfill futtatása",
+    "selectDescription": "Futtasd ezt a Dag-et egy dátumtartományra",
+    "selectLabel": "Backfill",
+    "title": "Backfill futtatása",
+    "toaster": {
+      "success": {
+        "description": "A backfill feladatok sikeresen elindultak.",
+        "title": "Backfill létrehozva"
+      }
+    },
+    "tooltip": "A backfill futtatáshoz ütemezés szükséges",
+    "unpause": "{{dag_display_name}} folytatása indításkor",
+    "validation": {
+      "datesRequired": "A kezdő és a befejező dátumot is meg kell adni.",
+      "startBeforeEnd": "A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie a befejező dátumnál."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill folyamatban",
+    "cancel": "Backfill megszakítása",
+    "pause": "Backfill szüneteltetése",
+    "unpause": "Backfill folytatása"
+  },
+  "clipboard": {
+    "copy": "Másolás"
+  },
+  "close": "Bezárás",
+  "configForm": {
+    "advancedOptions": "Speciális beállítások",
+    "configJson": "Konfiguráció JSON",
+    "invalidJson": "Érvénytelen JSON formátum: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 hiba",
+    "error_other": "{{count}} hiba",
+    "errorAndWarning": "1 hiba és {{warningText}}",
+    "warning_one": "1 figyelmeztetés",
+    "warning_other": "{{count}} figyelmeztetés"
+  },
+  "durationChart": {
+    "duration": "Időtartam (másodperc)",
+    "lastDagRun_one": "Utolsó Dag futás",
+    "lastDagRun_other": "Utolsó {{count}} Dag futás",
+    "lastTaskInstance_one": "Utolsó feladatpéldány",
+    "lastTaskInstance_other": "Utolsó {{count}} feladatpéldány",
+    "queuedDuration": "Sorban állási idő",
+    "runAfter": "Futás ekkortól",
+    "runDuration": "Futás időtartama"
+  },
+  "fileUpload": {
+    "files_one": "1 fájl",
+    "files_other": "{{count}} fájl"
+  },
+  "flexibleForm": {
+    "placeholder": "Érték kiválasztása",
+    "placeholderArray": "Adjon meg minden sztringet új sorban",
+    "placeholderExamples": "Kezdjen el gépelni az opciók megjelenítéséhez",
+    "placeholderMulti": "Válasszon egy vagy több értéket",
+    "validationErrorArrayNotArray": "Az értéknek tömbnek kell lennie.",
+    "validationErrorArrayNotNumbers": "A tömb minden elemének számnak kell lennie.",
+    "validationErrorArrayNotObject": "A tömb minden elemének objektumnak kell lennie.",
+    "validationErrorRequired": "Ez a mező kötelező"
+  },
+  "graph": {
+    "directionDown": "Fentről lefelé",
+    "directionLeft": "Jobbról balra",
+    "directionRight": "Balról jobbra",
+    "directionUp": "Lentről felfelé",
+    "downloadImage": "Gráf kép letöltése",
+    "downloadImageError": "A gráf letöltése sikertelen.",
+    "downloadImageErrorTitle": "Sikertelen letöltés",
+    "otherDagRuns": "+További DAG futások",
+    "taskCount_one": "{{count}} feladat",
+    "taskCount_other": "{{count}} feladat",
+    "taskGroup": "Feladatcsoport"
+  },
+  "limitedList": "+{{count}} további",
+  "limitedList.allItems": "Összes {{count}} elem:",
+  "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ok szűréséhez",
+  "limitedList.clickToOpenFull": "Kattintson a \"+{{count}} további\" gombra a teljes nézethez",
+  "limitedList.copyPasteText": "A fenti szöveg másolható és beilleszthető",
+  "logs": {
+    "file": "Fájl",
+    "location": "{{name}} fájl {{line}}. sora"
+  },
+  "reparseDag": "Dag újrafeldolgozása",
+  "sortedAscending": "növekvő sorrend",
+  "sortedDescending": "csökkenő sorrend",
+  "sortedUnsorted": "nincs rendezve",
+  "taskTries": "Feladatpróbálkozások",
+  "toggleCardView": "Kártyanézet megjelenítése",
+  "toggleTableView": "Táblázatnézet megjelenítése",
+  "triggerDag": {
+    "button": "Indítás",
+    "loading": "Dag információk betöltése...",
+    "loadingFailed": "A DAG információk betöltése sikertelen. Kérem, próbálja újra.",
+    "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
+    "selectDescription": "Indítsd el ennek a Dag-nek egyetlen futását",
+    "selectLabel": "Egyszeri futás",
+    "title": "Dag indítása",
+    "toaster": {
+      "success": {
+        "description": "A Dag futás sikeresen elindult.",
+        "title": "Dag futás elindítva"
+      }
+    },
+    "unpause": "{{dagDisplayName}} folytatása indításkor"
+  },
+  "trimText": {
+    "details": "Részletek",
+    "empty": "Üres",
+    "noContent": "Nincs elérhető tartalom"
+  },
+  "versionDetails": {
+    "bundleLink": "Csomag hivatkozás",
+    "bundleName": "Csomag neve",
+    "bundleVersion": "Csomag verzió",
+    "createdAt": "Létrehozás ideje",
+    "versionId": "Verzióazonosító"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag verzió",
+    "versionCode": "v{{versionCode}}"
+  }
+}

@@ -157,4 +157,12 @@ def create_app():
     return fastapi_app
 
 
-app = create_app()
+app = None
+
+
+def get_app():
+    """Get or create the FastAPI app instance."""
+    global app
+    if app is None:
+        app = create_app()
+    return app

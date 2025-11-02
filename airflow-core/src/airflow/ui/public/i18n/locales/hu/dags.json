@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{count}} / {{total}} adatkészlet frissítve",
+  "dagActions": {
+    "delete": {
+      "button": "Dag törlése",
+      "warning": "Ez eltávolít minden, a Daghoz kapcsolódó metaadatot, beleértve a futásokat és a feladatokat is."
+    }
+  },
+  "favoriteDag": "Kedvenc Dag",
+  "filters": {
+    "allRunTypes": "Összes futástípus",
+    "allStates": "Összes állapot",
+    "favorite": {
+      "all": "Összes",
+      "favorite": "Kedvenc",
+      "unfavorite": "Nem kedvenc"
+    },
+    "paused": {
+      "active": "Aktív",
+      "all": "Összes",
+      "paused": "Szüneteltetett"
+    },
+    "runIdPatternFilter": "Dag futások keresése"
+  },
+  "ownerLink": "Tulajdonosi hivatkozás: {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Nem találhatók feladatok.",
+      "title": "Érintett feladatok: {{count}}"
+    },
+    "clear": {
+      "button": "{{type}} törlése",
+      "buttonTooltip": "Nyomja meg a Shift+C billentyűt a törléshez",
+      "error": "{{type}} törlése sikertelen",
+      "title": "{{type}} törlése"
+    },
+    "delete": {
+      "button": "{{type}} törlése",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} törlése",
+        "warning": "Ez eltávolít minden, a(z) {{type}}-hoz kapcsolódó metaadatot."
+      },
+      "error": "Hiba történt a(z) {{type}} törlésekor",
+      "success": {
+        "description": "A(z) {{type}} törlési kérelme sikeresen teljesült.",
+        "title": "{{type}} sikeresen törölve"
+      }
+    },
+    "markAs": {
+      "button": "{{type}} megjelölése mint...",
+      "buttonTooltip": {
+        "failed": "Nyomja meg a Shift+F billentyűt a sikertelenként jelöléshez",
+        "success": "Nyomja meg a Shift+S billentyűt a sikeresnek jelöléshez"
+      },
+      "title": "{{type}} megjelölése: {{state}}"
+    },
+    "options": {
+      "downstream": "Lefelé mutató (downstream)",
+      "existingTasks": "Meglévő feladatok törlése",
+      "future": "Jövőbeni",
+      "onlyFailed": "Csak a sikertelen feladatok törlése",
+      "past": "Múltbeli",
+      "queueNew": "Új feladatok sorba állítása",
+      "runOnLatestVersion": "Futtatás a legújabb csomagverzióval",
+      "upstream": "Felfelé mutató (upstream)"
+    }
+  },
+  "search": {
+    "advanced": "Részletes keresés",
+    "clear": "Keresés törlése",
+    "dags": "Dag-ek keresése",
+    "hotkey": "+K",
+    "tasks": "Feladatok keresése"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Rendezés megjelenített név szerint (A–Z)",
+      "desc": "Rendezés megjelenített név szerint (Z–A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Rendezés legutóbbi futás kezdési ideje szerint (legrégebbi–legújabb)",
+      "desc": "Rendezés legutóbbi futás kezdési ideje szerint (legújabb–legrégebbi)"
+    },
+    "lastRunState": {
+      "asc": "Rendezés legutóbbi futás állapota szerint (A–Z)",
+      "desc": "Rendezés legutóbbi futás állapota szerint (Z–A)"
+    },
+    "nextDagRun": {
+      "asc": "Rendezés következő Dag futás szerint (legrégebbi–legújabb)",
+      "desc": "Rendezés következő Dag futás szerint (legújabb–legrégebbi)"
+    },
+    "placeholder": "Rendezés alapja"
+  },
+  "unfavoriteDag": "Dag eltávolítása a kedvencek közül"
+}

@@ -39,7 +39,7 @@ def setup_task(func: Callable) -> Callable:
     """
     Decorate a function to mark it as a setup task.
 
-    A setup task runs before all other tasks in its DAG or TaskGroup context
+    A setup task runs before all other tasks in its Dag or TaskGroup context
     and can perform initialization or resource preparation.
 
     Example::
@@ -62,8 +62,8 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
     """
     Decorate a function to mark it as a teardown task.
 
-    A teardown task runs after all main tasks in its DAG or TaskGroup context.
-    If ``on_failure_fail_dagrun=True``, a failure in teardown will mark the DAG run as failed.
+    A teardown task runs after all main tasks in its Dag or TaskGroup context.
+    If ``on_failure_fail_dagrun=True``, a failure in teardown will mark the Dag run as failed.
 
     Example::
 

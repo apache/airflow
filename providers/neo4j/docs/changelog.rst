@@ -29,6 +29,44 @@
 Changelog
 ---------
 
+3.10.2
+......
+
+Misc
+~~~~
+
+* ``Fix mypy type errors in Neo4j provider for SQLAlchemy 2 upgrade (#56785)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
+
+3.10.1
+......
+
+
+Misc
+~~~~
+
+* ``Refactor and clean code of Neo4jHook (#54909)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 3.10.0
 ......
 

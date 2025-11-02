@@ -241,6 +241,8 @@ class TestGenericTransfer:
             destination_conn_id="{{ destination_conn_id }}",
             preoperator="{{ preoperator }}",
             insert_args="{{ insert_args }}",
+            page_size="{{ page_size }}",
+            paginated_sql_statement_clause="{{ paginated_sql_statement_clause }}",
             dag=dag,
         )
         operator.render_template_fields(
@@ -251,6 +253,8 @@ class TestGenericTransfer:
                 "destination_conn_id": "my_destination_conn_id",
                 "preoperator": "my_preoperator",
                 "insert_args": {"commit_every": 5000, "executemany": True, "replace": True},
+                "page_size": 1000,
+                "paginated_sql_statement_clause": "{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;",
             }
         )
         assert operator.sql == "my_sql"
@@ -259,6 +263,8 @@ class TestGenericTransfer:
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
         assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
+        assert operator.page_size == 1000
+        assert operator.paginated_sql_statement_clause == "{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY;"
 
     def test_non_paginated_read(self):
         with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
@@ -282,6 +288,38 @@ class TestGenericTransfer:
             **INSERT_ARGS,
             **{"rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
+
+    def test_non_paginated_read_for_multiple_sql_statements(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql=["SELECT * FROM HR.EMPLOYEES", "SELECT * FROM HR.PEOPLE"],
+                    destination_table="NEW_HR.EMPLOYEES",
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                )
+
+                operator.execute(context=mock_context(task=operator))
+
+            assert self.mocked_source_hook.get_records.call_count == 2
+            assert [call.args[0] for call in self.mocked_source_hook.get_records.call_args_list] == [
+                "SELECT * FROM HR.EMPLOYEES",
+                "SELECT * FROM HR.PEOPLE",
+            ]
+            assert self.mocked_destination_hook.insert_rows.call_count == 2
+            assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {
+                **INSERT_ARGS,
+                "rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]],
+                "table": "NEW_HR.EMPLOYEES",
+            }
+            assert self.mocked_destination_hook.insert_rows.call_args_list[1].kwargs == {
+                **INSERT_ARGS,
+                "rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]],
+                "table": "NEW_HR.EMPLOYEES",
+            }
 
     def test_paginated_read(self):
         """

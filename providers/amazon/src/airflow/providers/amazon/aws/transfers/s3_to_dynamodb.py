@@ -24,7 +24,7 @@ from botocore.exceptions import ClientError, WaiterError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

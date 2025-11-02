@@ -151,12 +151,18 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
         "commands": ["task-sdk-tests", "task-sdk-integration-tests"],
     },
     {
-        "name": "Airflow CTL Tests",
-        "commands": ["airflow-ctl-tests"],
+        "name": "airflowctl Tests",
+        "commands": ["airflow-ctl-tests", "airflow-ctl-integration-tests"],
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
+        "commands": [
+            "system-tests",
+            "helm-tests",
+            "docker-compose-tests",
+            "python-api-client-tests",
+            "airflow-e2e-tests",
+        ],
     },
 ]
 
@@ -205,6 +211,19 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--parallelism",
             ],
         },
+    ],
+    "breeze testing airflow-ctl-integration-tests": [
+        {
+            "name": "Docker-compose tests flag",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--include-success-outputs",
+                "--github-repository",
+                "--airflow-ctl-version",
+            ],
+        }
     ],
     "breeze testing core-integration-tests": [
         TEST_OPTIONS_DB,
@@ -265,5 +284,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
+    ],
+    "breeze testing airflow-e2e-tests": [
+        {
+            "name": "Airflow E2E tests flags",
+            "options": [
+                "--image-name",
+                "--python",
+                "--skip-docker-compose-deletion",
+                "--include-success-outputs",
+                "--github-repository",
+                "--e2e-test-mode",
+            ],
+        }
     ],
 }

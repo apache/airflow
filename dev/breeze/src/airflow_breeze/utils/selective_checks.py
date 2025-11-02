@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
@@ -48,6 +49,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -81,16 +83,18 @@ FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
-LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-
+ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
+
+# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
+FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
@@ -125,6 +129,7 @@ class FileGroupForCi(Enum):
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
     DEVEL_TOML_FILES = "devel_toml_files"
+    UI_ENGLISH_TRANSLATION_FILES = "ui_english_translation_files"
 
 
 class AllProvidersSentinel:
@@ -298,6 +303,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
+        ],
+        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
+            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
         ],
     }
 )
@@ -1198,6 +1206,8 @@ class SelectiveChecks:
             packages.append("docker-stack")
         if any(file.startswith("task-sdk/src/") for file in self._files):
             packages.append("task-sdk")
+        if any(file.startswith("airflow-ctl/") for file in self._files):
+            packages.append("apache-airflow-ctl")
         if providers_affected:
             for provider in providers_affected:
                 packages.append(provider.replace("-", "."))
@@ -1207,23 +1217,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        # Skip all mypy "individual" file checks if we are running mypy checks in CI
-        # In the CI we always run mypy for the whole "package" rather than for `--all-files` because
-        # The prek will semi-randomly skip such list of files into several groups and we want
-        # to make sure that such checks are always run in CI for whole "group" of files - i.e.
-        # whole package rather than for individual files. That's why we skip those checks in CI
-        # and run them via `mypy-all` command instead and dedicated CI job in matrix
-        # This will also speed up static-checks job usually as the jobs will be running in parallel
-        prek_hooks_to_skip.update(
-            {
-                "mypy-providers",
-                "mypy-airflow-core",
-                "mypy-dev",
-                "mypy-task-sdk",
-                "mypy-airflow-ctl",
-                "mypy-devel-common",
-            }
-        )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(
@@ -1310,6 +1303,63 @@ class SelectiveChecks:
             return ""
         return " ".join(sorted(affected_providers))
 
+    def get_job_label(self, event_type: str, branch: str):
+        import requests
+
+        job_name = "Basic tests"
+        workflow_name = "ci-amd-arm.yml"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if os.environ.get("GITHUB_TOKEN"):
+            headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
+
+        url = f"https://api.github.com/repos/{self._github_repository}/actions/workflows/{workflow_name}/runs"
+        payload = {"event": event_type, "status": "completed", "branch": branch}
+
+        response = requests.get(url, headers=headers, params=payload)
+        if response.status_code != 200:
+            get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
+            return None
+        runs = response.json().get("workflow_runs", [])
+        if not runs:
+            get_console().print(
+                f"[yellow]No runs information found for workflow {workflow_name}, params: {payload}.\n"
+            )
+            return None
+        jobs_url = runs[0].get("jobs_url")
+        jobs_response = requests.get(jobs_url, headers=headers)
+        jobs = jobs_response.json().get("jobs", [])
+        if not jobs:
+            get_console().print("[yellow]No jobs information found for jobs %s.\n", jobs_url)
+            return None
+
+        for job in jobs:
+            if job_name in job.get("name", ""):
+                runner_labels = job.get("labels", [])
+                if "windows-2025" in runner_labels:
+                    continue
+                if not runner_labels:
+                    get_console().print("[yellow]No labels found for job {job_name}.\n", jobs_url)
+                    return None
+                return runner_labels[0]
+
+        return None
+
+    @cached_property
+    def runner_type(self):
+        if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+            branch = self._github_context_dict.get("ref_name", "main")
+            label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
+
+            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
+
+        return PUBLIC_AMD_RUNNERS
+
+    @cached_property
+    def platform(self):
+        if "arm" in self.runner_type:
+            return "linux/arm64"
+        return "linux/amd64"
+
     @cached_property
     def amd_runners(self) -> str:
         return PUBLIC_AMD_RUNNERS
@@ -1345,6 +1395,13 @@ class SelectiveChecks:
         )  # ^ sort by Python minor version
         return json.dumps(sorted_providers_to_exclude)
 
+    def _is_disabled_integration(self, integration: str) -> bool:
+        return (
+            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            or integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM
+            and self.runner_type in PUBLIC_ARM_RUNNERS
+        )
+
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
@@ -1352,7 +1409,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_CORE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
@@ -1362,7 +1419,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
@@ -1435,80 +1492,38 @@ class SelectiveChecks:
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
 
-    @classmethod
-    def _find_caplog_in_def(cls, added_lines):
-        """
-        Find caplog in def
-
-        :param added_lines: lines added in the file
-        :return: True if caplog is found in def else False
-        """
-        line_counter = 0
-        while line_counter < len(added_lines):
-            if all(keyword in added_lines[line_counter] for keyword in ["def", "caplog", "(", ")"]):
-                return True
-            if "def" in added_lines[line_counter] and ")" not in added_lines[line_counter]:
-                while line_counter < len(added_lines) and ")" not in added_lines[line_counter]:
-                    if "caplog" in added_lines[line_counter]:
-                        return True
-                    line_counter += 1
-            line_counter += 1
-        return None
-
-    def _caplog_exists_in_added_lines(self) -> bool:
-        """
-        Check if caplog is used in added lines
-
-        :return: True if caplog is used in added lines else False
-        """
-        lines = run_command(
-            ["git", "diff", f"{self._commit_ref}^"],
-            capture_output=True,
-            text=True,
-            cwd=AIRFLOW_ROOT_PATH,
-            check=False,
-        )
-
-        if "caplog" not in lines.stdout or lines.stdout == "":
-            return False
-
-        added_caplog_lines = [
-            line.lstrip().lstrip("+") for line in lines.stdout.split("\n") if line.lstrip().startswith("+")
-        ]
-        return self._find_caplog_in_def(added_lines=added_caplog_lines)
-
-    @cached_property
-    def is_log_mocked_in_the_tests(self) -> bool:
-        """
-        Check if log is used without mock in the tests
-        """
-        if self._is_canary_run() or self._github_event not in (
-            GithubEvents.PULL_REQUEST,
-            GithubEvents.PULL_REQUEST_TARGET,
-        ):
-            return False
-        # Check if changed files are unit tests
-        if (
-            self._matching_files(FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES)
-            and LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL not in self._pr_labels
-        ):
-            if self._caplog_exists_in_added_lines():
-                get_console().print(
-                    f"[error]Caplog is used in the test. "
-                    f"Please be sure you are mocking the log. "
-                    "For example, use `patch.object` to mock `log`."
-                    "Using `caplog` directly in your test files can cause side effects "
-                    "and not recommended. If you think, `caplog` is the only way to test "
-                    "the functionality or there is and exceptional case, "
-                    "please ask maintainer to include as an exception using "
-                    f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label. "
-                    "It is up to maintainer decision to allow this exception.",
-                )
-                sys.exit(1)
-            else:
-                return True
-        return True
-
     @cached_property
     def force_pip(self):
         return FORCE_PIP_LABEL in self._pr_labels
+
+    @cached_property
+    def shared_distributions_as_json(self):
+        return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
+
+    @cached_property
+    def ui_english_translation_changed(self) -> bool:
+        _translation_changed = bool(
+            self._matching_files(
+                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
+                CI_FILE_GROUP_MATCHES,
+            )
+        )
+        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
+            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
+                get_console().print(
+                    "[warning]The 'allow translation change' label is set and English "
+                    "translation files changed. Bypassing the freeze period."
+                )
+                return True
+            get_console().print(
+                "[error]English translation changed but we are in a period of translation"
+                "freeze and label to allow it ('allow translation change') is not set"
+            )
+            get_console().print()
+            get_console().print(
+                "[warning]To allow translation change, please set the label "
+                "'allow translation change' on the PR, but this has to be communicated "
+                "and agreed to at the #i18n channel in slack"
+            )
+            sys.exit(1)
+        return _translation_changed

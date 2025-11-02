@@ -60,7 +60,7 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
 }
 
 RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Airflow CTL release commands",
+    "name": "airflowctl release commands",
     "commands": [
         "prepare-airflow-ctl-distributions",
     ],
@@ -86,15 +86,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
     "breeze release-management prepare-airflow-tarball": [
         {
             "name": "Package flags",
-            "options": [
-                "--version",
-            ],
+            "options": ["--version", "--distribution-name", "--tag"],
         }
     ],
     "breeze release-management prepare-task-sdk-distributions": [
@@ -104,6 +103,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
@@ -114,6 +114,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+                "--tag",
             ],
         }
     ],
@@ -234,6 +235,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-tag-check",
                 "--version-suffix",
                 "--distributions-list",
+                "--tag",
             ],
         }
     ],
@@ -241,7 +243,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Add tags to providers",
             "options": [
-                "--clean-local-tags",
+                "--clean-tags",
             ],
         },
     ],
@@ -368,10 +370,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Parallel running",
             "options": [
                 "--debug-resources",
-                "--include-success-outputs",
                 "--parallelism",
                 "--run-in-parallel",
-                "--skip-cleanup",
             ],
         },
     ],
@@ -421,7 +421,9 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--version",
                 "--previous-version",
+                "--task-sdk-version",
                 "--github-token",
+                "--remote-name",
             ],
         }
     ],
@@ -434,7 +436,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management start-release": [
-        {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+        {
+            "name": "Start release flags",
+            "options": ["--release-candidate", "--previous-release", "--task-sdk-release-candidate"],
+        }
     ],
     "breeze release-management update-constraints": [
         {

@@ -23,7 +23,7 @@ from asyncio import CancelledError, Future, sleep
 from unittest import mock
 
 import pytest
-from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
 
@@ -398,7 +398,7 @@ class TestDataprocBatchTrigger:
         expected_event = TriggerEvent(
             {
                 "batch_id": TEST_BATCH_ID,
-                "batch_state": Batch.State.SUCCEEDED,
+                "batch_state": Batch.State.SUCCEEDED.name,
                 "batch_state_message": TEST_BATCH_STATE_MESSAGE,
             }
         )
@@ -424,7 +424,7 @@ class TestDataprocBatchTrigger:
         expected_event = TriggerEvent(
             {
                 "batch_id": TEST_BATCH_ID,
-                "batch_state": Batch.State.FAILED,
+                "batch_state": Batch.State.FAILED.name,
                 "batch_state_message": TEST_BATCH_STATE_MESSAGE,
             }
         )
@@ -448,7 +448,7 @@ class TestDataprocBatchTrigger:
         expected_event = TriggerEvent(
             {
                 "batch_id": TEST_BATCH_ID,
-                "batch_state": Batch.State.CANCELLED,
+                "batch_state": Batch.State.CANCELLED.name,
                 "batch_state_message": TEST_BATCH_STATE_MESSAGE,
             }
         )
@@ -586,15 +586,15 @@ class TestDataprocSubmitTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     async def test_submit_trigger_run_success(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job completion."""
-        mock_hook = mock_get_async_hook.return_value
-        mock_hook.get_job = mock.AsyncMock(
-            return_value=mock.AsyncMock(status=mock.AsyncMock(state=JobStatus.State.DONE))
-        )
+        mock_job = Job(status=JobStatus(state=JobStatus.State.DONE))
+        future = asyncio.Future()
+        future.set_result(mock_job)
+        mock_get_async_hook.return_value.get_job.return_value = future
 
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE, "job": mock_hook.get_job.return_value}
+            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE.name, "job": Job.to_dict(mock_job)}
         )
         assert event.payload == expected_event.payload
 
@@ -602,15 +602,15 @@ class TestDataprocSubmitTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
     async def test_submit_trigger_run_error(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job error."""
-        mock_hook = mock_get_async_hook.return_value
-        mock_hook.get_job = mock.AsyncMock(
-            return_value=mock.AsyncMock(status=mock.AsyncMock(state=JobStatus.State.ERROR))
-        )
+        mock_job = Job(status=JobStatus(state=JobStatus.State.ERROR))
+        future = asyncio.Future()
+        future.set_result(mock_job)
+        mock_get_async_hook.return_value.get_job.return_value = future
 
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR, "job": mock_hook.get_job.return_value}
+            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR.name, "job": Job.to_dict(mock_job)}
         )
         assert event.payload == expected_event.payload
 

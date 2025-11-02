@@ -25,8 +25,8 @@ from jinja2.nativetypes import NativeEnvironment
 from pypsrp.powershell import Command, PowerShell
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.psrp.operators.psrp import PsrpOperator
-from airflow.providers.microsoft.psrp.version_compat import BaseOperator
 from airflow.settings import json
 
 CONNECTION_ID = "conn_id"
@@ -100,7 +100,7 @@ class TestPsrpOperator:
         else:
             output = op.execute(None)
             assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
-            is_logged = hook_impl.call_args.kwargs["on_output_callback"] == op.log.info
+            is_logged = hook_impl.call_args.kwargs["on_output_callback"] is not None
             assert do_xcom_push ^ is_logged
         expected_ps_calls = [
             call.add_command(psrp_session_init),

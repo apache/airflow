@@ -25,16 +25,14 @@ import pytest
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.utils import timezone
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    XCOM_RETURN_KEY,
+)
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
@@ -42,7 +40,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-
 else:
     from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
         setup,
@@ -51,11 +48,17 @@ else:
     )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment]
+    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TriggerRule, timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 pytestmark = pytest.mark.db_test
 
@@ -677,13 +680,11 @@ def test_mapped_decorator_shadow_context() -> None:
     def print_info(message: str, run_id: str = "") -> None:
         print(f"{run_id}: {message}")
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call partial\(\) on task context variable 'run_id'"):
         print_info.partial(run_id="hi")
-    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call expand\(\) on task context variable 'run_id'"):
         print_info.expand(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -699,9 +700,10 @@ def test_mapped_decorator_wrong_argument() -> None:
         print_info.expand(wrong_name=["hi", "there"])
     assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
 
-    with pytest.raises(ValueError) as cv:
+    with pytest.raises(
+        ValueError, match=r"expand\(\) got an unexpected type 'str' for keyword argument 'message'"
+    ):
         print_info.expand(message="hi")
-    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():

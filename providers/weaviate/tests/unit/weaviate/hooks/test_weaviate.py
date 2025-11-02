@@ -100,6 +100,9 @@ class MockObject:
             return False
         return self.properties == other.properties and self.uuid == other.uuid
 
+    def __hash__(self):
+        return hash((self.properties, self.uuid))
+
 
 class TestWeaviateHook:
     """
@@ -342,9 +345,13 @@ class TestWeaviateHook:
 
         weaviate_hook.create_object = mock_create_object
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="data_object and collection are required to create a new object"
+        ):
             weaviate_hook.get_or_create_object(data_object=None, collection_name="TestCollection")
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="data_object and collection are required to create a new object"
+        ):
             weaviate_hook.get_or_create_object(data_object={"name": "Test"}, collection_name=None)
 
     def test_get_all_objects(self, weaviate_hook):

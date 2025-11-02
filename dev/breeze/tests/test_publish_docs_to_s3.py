@@ -59,6 +59,7 @@ class TestPublishDocsToS3:
             "apache-airflow-providers-apache-kafka",
             "apache-airflow-providers-apache-cassandra",
             "helm-chart",
+            "apache-airflow-ctl",
         ]
 
         self.publish_docs_to_s3.exclude_docs = "amazon,docker-stack,apache.kafka"
@@ -69,6 +70,7 @@ class TestPublishDocsToS3:
                 "apache-airflow",
                 "apache-airflow-providers-apache-cassandra",
                 "helm-chart",
+                "apache-airflow-ctl",
             ]
         )
 

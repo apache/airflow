@@ -207,6 +207,7 @@ class TestAssetsOperations:
         producing_tasks=[],
         consuming_tasks=[],
         aliases=[],
+        watchers=[],
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
@@ -641,9 +642,10 @@ class TestConnectionsOperations:
 
 class TestDagOperations:
     dag_id = "dag_id"
+    dag_display_name = "dag_display_name"
     dag_response = DAGResponse(
         dag_id=dag_id,
-        dag_display_name="dag_display_name",
+        dag_display_name=dag_display_name,
         is_paused=False,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -764,6 +766,7 @@ class TestDagOperations:
                 warning_type=DagWarningType.NON_EXISTENT_POOL,
                 message="message",
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_display_name,
             )
         ],
         total_entries=1,
@@ -771,6 +774,44 @@ class TestDagOperations:
 
     dag_patch_body = DAGPatchBody(
         is_paused=True,
+    )
+
+    # DagRun related
+    trigger_dag_run = TriggerDAGRunPostBody(
+        conf=None,
+        note=None,
+    )
+
+    dag_id = "dag_id"
+    dag_run_id = "dag_run_id"
+    dag_run_response = DAGRunResponse(
+        dag_display_name=dag_run_id,
+        dag_run_id=dag_run_id,
+        dag_id=dag_id,
+        logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        queued_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+        triggered_by=DagRunTriggeredByType.UI,
+        conf={},
+        note=None,
+        dag_versions=[
+            DagVersionResponse(
+                id=uuid.uuid4(),
+                version_number=1,
+                dag_id=dag_id,
+                bundle_name="bundle_name",
+                bundle_version="1",
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
+            )
+        ],
     )
 
     def test_get(self):
@@ -809,13 +850,13 @@ class TestDagOperations:
         response = client.dags.list()
         assert response == self.dag_collection_response
 
-    def test_patch(self):
+    def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
             return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.patch(dag_id="dag_id", dag_body=self.dag_patch_body)
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
     def test_delete(self):
@@ -887,6 +928,15 @@ class TestDagOperations:
         response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
+    def test_trigger(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        assert response == self.dag_run_response
+
 
 class TestDagRunOperations:
     dag_id = "dag_id"
@@ -926,11 +976,6 @@ class TestDagRunOperations:
         total_entries=1,
     )
 
-    trigger_dag_run = TriggerDAGRunPostBody(
-        conf=None,
-        note=None,
-    )
-
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
@@ -954,15 +999,6 @@ class TestDagRunOperations:
             limit=1,
         )
         assert response == self.dag_run_collection_response
-
-    def test_trigger(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
-            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
-        assert response == self.dag_run_response
 
 
 class TestJobsOperations:

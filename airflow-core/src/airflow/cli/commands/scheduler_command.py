@@ -30,12 +30,14 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
 log = logging.getLogger(__name__)
 
 
+@enable_memray_trace(component=MemrayTraceComponents.scheduler)
 def _run_scheduler_job(args) -> None:
     job_runner = SchedulerJobRunner(job=Job(), num_runs=args.num_runs)
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
@@ -62,9 +64,9 @@ def _serve_logs(skip_serve_logs: bool = False):
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
-    executor_class, _ = ExecutorLoader.import_default_executor_cls()
-    if executor_class.serve_logs:
-        if skip_serve_logs is False:
+    if skip_serve_logs is False:
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
+        if executor_class.serve_logs:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
     try:

@@ -206,6 +206,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         return self._get_response()
 
+    async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
+        """Send a request to the parent without blocking."""
+        raise NotImplementedError
+
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...
 
@@ -497,7 +501,7 @@ class DagRunStateResult(DagRunStateResponse):
 
 
 class PreviousDagRunResult(BaseModel):
-    """Response containing previous DAG run information."""
+    """Response containing previous Dag run information."""
 
     dag_run: DagRun | None = None
     type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
@@ -547,7 +551,7 @@ class TaskStatesResult(TaskStatesResponse):
 
 
 class DRCount(BaseModel):
-    """Response containing count of DAG Runs matching certain filters."""
+    """Response containing count of Dag Runs matching certain filters."""
 
     count: int
     type: Literal["DRCount"] = "DRCount"
@@ -579,6 +583,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
     """Response to CreateHITLDetailPayload request."""
 
     type: Literal["HITLDetailRequestResult"] = "HITLDetailRequestResult"
+
+    @classmethod
+    def from_api_response(cls, hitl_request: HITLDetailRequest) -> HITLDetailRequestResult:
+        """
+        Get HITLDetailRequestResult from HITLDetailRequest (API response).
+
+        HITLDetailRequest is the API response model. We convert it to HITLDetailRequestResult
+        for communication between the Supervisor and task process, adding the discriminator field
+        required for the tagged union deserialization.
+        """
+        return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
 ToTask = Annotated[
@@ -788,6 +803,13 @@ class SetRenderedFields(BaseModel):
     type: Literal["SetRenderedFields"] = "SetRenderedFields"
 
 
+class SetRenderedMapIndex(BaseModel):
+    """Payload for setting rendered_map_index for a task instance."""
+
+    rendered_map_index: str
+    type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -820,11 +842,19 @@ class GetAssetByUri(BaseModel):
 class GetAssetEventByAsset(BaseModel):
     name: str | None
     uri: str | None
+    after: AwareDatetime | None = None
+    before: AwareDatetime | None = None
+    limit: int | None = None
+    ascending: bool = True
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
 class GetAssetEventByAssetAlias(BaseModel):
     alias_name: str
+    after: AwareDatetime | None = None
+    before: AwareDatetime | None = None
+    limit: int | None = None
+    ascending: bool = True
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
@@ -922,6 +952,7 @@ ToSupervisor = Annotated[
     | RescheduleTask
     | RetryTask
     | SetRenderedFields
+    | SetRenderedMapIndex
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

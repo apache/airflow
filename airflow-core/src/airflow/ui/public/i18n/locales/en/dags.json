@@ -20,8 +20,7 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Search Dag Runs",
-    "triggeringUserNameFilter": "Search by Triggering User"
+    "runIdPatternFilter": "Search Dag Runs"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {

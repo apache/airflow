@@ -15,9 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-What is Airflow CTL®?
-=====================
-Airflow CTL is a command line tool that helps you manage and deploy Apache Airflow environments.
+What is airflowctl?
+===================
+airflowctl is a command line tool that helps you communicate with API and provide similar functionality with Apache Airflow CLI.
+It is designed to be easy to use and provides a simple interface for managing your Airflow API calls and daily operations.
+
+Please head over to :doc:`/start` to get started.
 
 .. toctree::
     :hidden:
@@ -33,4 +36,4 @@ Airflow CTL is a command line tool that helps you manage and deploy Apache Airfl
     :caption: Usage
 
     start
-    cli-and-env-variables-ref
+    References <cli-and-env-variables-ref>

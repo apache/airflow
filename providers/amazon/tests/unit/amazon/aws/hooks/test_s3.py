@@ -21,6 +21,7 @@ import gzip as gz
 import inspect
 import os
 import re
+from collections.abc import Iterator
 from datetime import datetime as std_datetime, timezone
 from pathlib import Path
 from unittest import mock, mock as async_mock
@@ -53,6 +54,8 @@ try:
     BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
+KEY_VALUE_SPECIFICATION_ERROR = "Key and Value must be specified as a pair. Only one of the two had a value"
 
 
 @pytest.fixture
@@ -389,22 +392,26 @@ class TestAwsS3Hook:
 
         assert sorted(keys) == sorted(hook.list_keys(s3_bucket, delimiter="/", page_size=1))
 
-    def test_get_file_metadata(self, s3_bucket):
+    def test_iter_file_metadata(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key="test", Body=b"a")
 
-        assert len(hook.get_file_metadata("t", s3_bucket)) == 1
-        assert hook.get_file_metadata("t", s3_bucket)[0]["Size"] is not None
-        assert len(hook.get_file_metadata("test", s3_bucket)) == 1
-        assert len(hook.get_file_metadata("a", s3_bucket)) == 0
+        assert isinstance(hook.iter_file_metadata("t", s3_bucket), Iterator)
 
-    def test_get_file_metadata_when_requester_pays(self, s3_bucket):
+        # Since iter_file_metadata now returns an Iterator, it will first be cast to a `list` before being
+        # able to determine its length
+        assert len(list(hook.iter_file_metadata("t", s3_bucket))) == 1
+        assert next(hook.iter_file_metadata("t", s3_bucket))["Size"] is not None
+        assert len(list(hook.iter_file_metadata("test", s3_bucket))) == 1
+        assert len(list(hook.iter_file_metadata("a", s3_bucket))) == 0
+
+    def test_iter_file_metadata_when_requester_pays(self, s3_bucket):
         hook = S3Hook(requester_pays=True)
         hook.get_conn = MagicMock()
         hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
 
-        assert hook.get_file_metadata("test", s3_bucket) == []
+        assert not any(hook.iter_file_metadata("test", s3_bucket))  # Empty Iterator
 
         hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
             Bucket="airflow-test-s3-bucket",
@@ -1408,9 +1415,8 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key("s3://foo/bar.csv")
         assert test_bucket_name_with_key == ("foo", "bar.csv")
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Missing key parameter!"):
             fake_s3_hook.test_function_with_test_key("s3://foo/bar.csv")
-        assert isinstance(ctx.value, ValueError)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
@@ -1596,7 +1602,7 @@ class TestAwsS3Hook:
         hook = S3Hook(extra_args={"unknown_s3_args": "value"})
         path = tmp_path / "testfile"
         path.write_text("Content")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid extra_args key 'unknown_s3_args'"):
             hook.load_file_obj(path.open("rb"), "my_key", s3_bucket, acl_policy="public-read")
 
     def test_should_pass_extra_args(self, s3_bucket, tmp_path):
@@ -1721,7 +1727,7 @@ class TestAwsS3Hook:
 
         hook.create_bucket(bucket_name="new_bucket")
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key)
 
     @mock_aws
@@ -1729,7 +1735,7 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
         value = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value)
 
     @mock_aws
@@ -1738,7 +1744,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tag_set=tag_set)
 
     @mock_aws
@@ -1747,7 +1753,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         value = "Green"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tag_set=tag_set)
 
     @mock_aws
@@ -1794,6 +1800,7 @@ class TestAwsS3Hook:
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_01.py", Body=b"test data")
         s3_client.put_object(Bucket=s3_bucket, Key="dag_02.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/", Body=b"")
         s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_a.py", Body=b"test data")
         s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_b.py", Body=b"test data")
 

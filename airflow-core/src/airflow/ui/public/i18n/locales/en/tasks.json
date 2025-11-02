@@ -1,0 +1,10 @@
+{
+  "mapped": "Mapped",
+  "notMapped": "Not mapped",
+  "retries": "Retries",
+  "searchTasks": "Search tasks",
+  "selectMapped": "Select mapped",
+  "selectOperator": "Select operators",
+  "selectRetryValues": "Select retry values",
+  "selectTriggerRules": "Select trigger rules"
+}

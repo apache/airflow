@@ -25,6 +25,50 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Integrate KeycloakAuthManager with airflowctl (#55969)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update refresh token flow (#55506)``
+* ``Update authentication to handle JWT token in backend (#56633)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+
+0.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add 'LIST' scope in Keycloak auth manager (#54998)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs(keycloak): Update documentation for Keycloak auth manager CLI usage and permission management (#54928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 0.0.1
 .....
 

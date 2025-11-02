@@ -23,6 +23,7 @@ import { FiBarChart } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import { StateBadge } from "src/components/StateBadge";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { MetricSection } from "./MetricSection";
 
@@ -42,9 +43,9 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRu
     <Box borderRadius={5} borderWidth={1} p={4}>
       <HStack>
         <RouterLink
-          to={`/dag_runs?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
+          to={`/dag_runs?${SearchParamsKeys.START_DATE}=${startDate}${endDate === undefined ? "" : `&${SearchParamsKeys.END_DATE}=${endDate}`}`}
         >
-          <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+          <StateBadge colorPalette="brand" fontSize="md" variant="solid">
             <FiBarChart />
             {total}
           </StateBadge>

@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+3.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CLI command to remove all queues from Celery worker (#56195)``
+
+Misc
+~~~~
+
+* ``Remove CELERY_APP_NAME deprecation (#56835)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update celery broker_url config description (#56917)``
+* ``Update broken link for monkey-patch reference (#56862)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix use of DeprecationWarning in celery provider to AirflowProviderDeprecationWarning (#56526)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+3.12.4
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Only send hostname to celery worker if passed in cli (#55913)``
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Fix: Use get instead of hasattr for task_result in BulkStateFetcher (#52839)``
+
+Misc
+~~~~
+
+* ``AIP-67 - Multi Team: Pass args/kwargs to super in CeleryExecutor (#56006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest collection failure for classes decorated with context managers (#55915)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Switch all airflow logging to structlog (#52651)``
+   * ``Fix celery tests with Python 3.13 after 5.5.3 (#56017)``
+
+3.12.3
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+* ``Fix celery visibility timeout (set to 23.5h instead of the intended 24h) (#54480)``
+
+Misc
+~~~~
+
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 3.12.2
 ......
 

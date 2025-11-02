@@ -5,9 +5,39 @@
     "reason": "Powód",
     "title": "Zależności blokujące zaplanowanie zadania"
   },
+  "calendar": {
+    "daily": "Dziennie",
+    "hourly": "Godzinowo",
+    "legend": {
+      "less": "Mniej",
+      "mixed": "Mieszane",
+      "more": "Więcej"
+    },
+    "navigation": {
+      "nextMonth": "Następny miesiąc",
+      "nextYear": "Następny rok",
+      "previousMonth": "Poprzedni miesiąc",
+      "previousYear": "Poprzedni rok"
+    },
+    "noData": "Brak danych",
+    "noFailedRuns": "Brak nieudanych wykonań",
+    "noRuns": "Brak wykonań",
+    "totalRuns": "Łączna liczba wykonań",
+    "week": "Tydzień {{weekNumber}}",
+    "weekdays": {
+      "friday": "Pt",
+      "monday": "Pn",
+      "saturday": "So",
+      "sunday": "Nd",
+      "thursday": "Cz",
+      "tuesday": "Wt",
+      "wednesday": "Śr"
+    }
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
+    "parseDuration": "Czas parsowania:",
     "parsedAt": "Przeanalizowano o:"
   },
   "extraLinks": "Dodatkowe linki",
@@ -40,7 +70,6 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "Przeskocz: Shift+{{arrow}}",
     "navigation": "Przewiń: {{arrow}}",
     "toggleGroup": "Przełącz grupę: Space"
   },
@@ -66,6 +95,8 @@
       "assetEvent_other": "Utworzone zdarzenia zasobów"
     },
     "failedLogs": {
+      "hideLogs": "Ukryj logi",
+      "showLogs": "🐌 🐌 Pokaż logi",
       "title": "Ostatnie logi nieudanych zadań",
       "viewFullLogs": "Zobacz pełne logi"
     }
@@ -73,8 +104,9 @@
   "panel": {
     "buttons": {
       "options": "Opcje",
-      "showGraph": "Pokaż graf",
-      "showGrid": "Pokaż siatkę"
+      "showGantt": "Pokaż diagram Gantta",
+      "showGraphShortcut": "Pokaż graf (naciśnij g)",
+      "showGridShortcut": "Pokaż siatkę (naciśnij g)"
     },
     "dagRuns": {
       "label": "Liczba wykonań Daga"
@@ -109,6 +141,7 @@
     "assetEvents": "Zdarzenia zasobów",
     "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
+    "calendar": "Kalendarz",
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",

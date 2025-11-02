@@ -52,7 +52,7 @@ This is useful for workflows involving human guidance within large language mode
 
 You can click the task and find the Required Actions tab in the details panel.
 
-.. image:: /img/hitl_wait_for_input.png
+.. image:: /img/ui-light/hitl_wait_for_input.png
   :alt: Demo HITL task instance waiting for input
 
 |
@@ -71,7 +71,7 @@ Users can select one of the available options, which can be used to direct the w
 
 |
 
-.. image:: /img/hitl_wait_for_option.png
+.. image:: /img/ui-light/hitl_wait_for_option.png
   :alt: Demo HITL task instance waiting for an option
 
 |
@@ -86,7 +86,7 @@ Multiple options are also allowed.
 
 |
 
-.. image:: /img/hitl_wait_for_multiple_options.png
+.. image:: /img/ui-light/hitl_wait_for_multiple_options.png
   :alt: Demo HITL task instance waiting for multiple options
 
 |
@@ -95,6 +95,9 @@ Approval or Rejection
 ---------------------
 
 A specialized form of option selection, which has only 'Approval' and 'Rejection' as options.
+You can also set the ``assigned_users`` to restrict the users allowed to respond for a HITL operator.
+It should be a list of user ids and user names (both needed) (e.g., ``[{"id": "1", "name": "user1"}, {"id": "2", "name": "user2"}]``.
+ONLY the users within this list will be allowed to respond.
 
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
@@ -106,7 +109,7 @@ A specialized form of option selection, which has only 'Approval' and 'Rejection
 
 As you can see in the body of this code snippet, you can use XComs to get information provided by the user.
 
-.. image:: /img/hitl_approve_reject.png
+.. image:: /img/ui-light/hitl_approve_reject.png
   :alt: Demo HITL task instance waiting for approval or rejection
 
 |
@@ -136,22 +139,31 @@ And remember to specify their relationship in the workflow.
 
 |
 
-.. image:: /img/hitl_branch_selection.png
+.. image:: /img/ui-light/hitl_branch_selection.png
   :alt: Demo HITL task instance waiting for branch selection
 
 |
 
 After the branch is chosen, the workflow will proceed along the selected path.
 
-.. image:: /img/hitl_branch_selected.png
+.. image:: /img/ui-light/hitl_branch_selected.png
   :alt: Demo HITL task instance after branch selection
 
 Notifiers
 ---------
 
-A notifier is a callback mechanism that allows you to handle HITL events, such as when a task is waiting for human input, succeeds, or fails.
-The example uses a notifier ``LocalLogNotifier`` that logs messages for demonstration.
-You can implement your own notifier for different functionalities.
+A notifier is a callback mechanism for handling HITL events, such as when a task is waiting for human input, succeeds, or fails.
+The example uses the ``LocalLogNotifier``, which logs messages for demonstration purposes.
+
+The method ``HITLOperator.generate_link_to_ui_from_context`` can be used to generate a direct link to the UI page where the user should respond. It accepts four arguments:
+
+- ``context`` – automatically passed to ``notify`` by the notifier
+- ``base_url`` – (optional) the base URL of the Airflow UI; if not provided, ``api.base_url`` in the configuration will be used
+- ``options`` – (optional) pre-selected options for the UI page
+- ``params_inputs`` – (optional) pre-loaded inputs for the UI page
+
+This makes it easy to include actionable links in notifications or logs.
+You can also implement your own notifier to provide different functionalities.
 For more details, please refer to `Creating a notifier <https://airflow.apache.org/docs/apache-airflow/stable/howto/notifications.html>`_ and `Notifications <https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/notifications.html>`_.
 
 In the example Dag, the notifier is defined as follows:

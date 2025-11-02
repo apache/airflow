@@ -20,11 +20,11 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
-    Column,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -37,7 +37,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -45,7 +45,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 log = logging.getLogger(__name__)
 
@@ -63,17 +63,19 @@ class XComModel(TaskInstanceDependencies):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
+    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
-    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
@@ -103,6 +105,12 @@ class XComModel(TaskInstanceDependencies):
         passive_deletes="all",
     )
     logical_date = association_proxy("dag_run", "logical_date")
+
+    task = relationship(
+        "TaskInstance",
+        viewonly=True,
+        lazy="noload",
+    )
 
     @classmethod
     @provide_session
@@ -138,11 +146,11 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = select(cls).where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
         if map_index is not None:
-            query = query.filter_by(map_index=map_index)
+            query = query.where(cls.map_index == map_index)
 
-        for xcom in query:
+        for xcom in session.scalars(query):
             # print(f"Clearing XCOM {xcom} with value {xcom.value}")
             session.delete(xcom)
 
@@ -182,7 +190,7 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -227,7 +235,7 @@ class XComModel(TaskInstanceDependencies):
             )
         )
 
-        new = cast("Any", cls)(  # Work around Mypy complaining model not defining '__init__'.
+        new = cls(
             dag_run_id=dag_run_id,
             key=key,
             value=value,
@@ -240,7 +248,6 @@ class XComModel(TaskInstanceDependencies):
         session.flush()
 
     @classmethod
-    @provide_session
     def get_many(
         cls,
         *,
@@ -251,8 +258,7 @@ class XComModel(TaskInstanceDependencies):
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
-        session: Session = NEW_SESSION,
-    ) -> Query:
+    ) -> Select[tuple[XComModel]]:
         """
         Composes a query to get one or more XCom entries.
 
@@ -283,42 +289,42 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(cls).join(XComModel.dag_run)
+        query = select(cls).join(XComModel.dag_run)
 
         if key:
-            query = query.filter(XComModel.key == key)
+            query = query.where(XComModel.key == key)
 
         if is_container(task_ids):
-            query = query.filter(cls.task_id.in_(task_ids))
+            query = query.where(cls.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(cls.task_id == task_ids)
+            query = query.where(cls.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(cls.dag_id.in_(dag_ids))
+            query = query.where(cls.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(cls.dag_id == dag_ids)
+            query = query.where(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
+            query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
-            query = query.filter(cls.map_index.in_(map_indexes))
+            query = query.where(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(cls.map_index == map_indexes)
+            query = query.where(cls.map_index == map_indexes)
 
         if include_prior_dates:
             dr = (
-                session.query(
+                select(
                     func.coalesce(DagRun.logical_date, DagRun.run_after).label("logical_date_or_run_after")
                 )
-                .filter(DagRun.run_id == run_id)
+                .where(DagRun.run_id == run_id)
                 .subquery()
             )
 
-            query = query.filter(
+            query = query.where(
                 func.coalesce(DagRun.logical_date, DagRun.run_after) <= dr.c.logical_date_or_run_after
             )
         else:
-            query = query.filter(cls.run_id == run_id)
+            query = query.where(cls.run_id == run_id)
 
         query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
         if limit:
@@ -342,7 +348,7 @@ class XComModel(TaskInstanceDependencies):
             raise ValueError("XCom value must be JSON serializable")
 
     @staticmethod
-    def deserialize_value(result) -> Any:
+    def deserialize_value(result: Any) -> Any:
         """
         Deserialize XCom value from a database result.
 
@@ -391,7 +397,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
+    def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
         return select(XComModel.value).from_statement(stmt)
 
     @staticmethod

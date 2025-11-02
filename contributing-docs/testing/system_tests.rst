@@ -18,8 +18,8 @@
 Airflow System Tests
 ====================
 
-System tests verify the correctness of Airflow Operators by running them in DAGs and allowing to communicate with
-external services. A system test tries to look as close to a regular DAG as possible, and it generally checks the
+System tests verify the correctness of Airflow Operators by running them in Dags and allowing to communicate with
+external services. A system test tries to look as close to a regular Dag as possible, and it generally checks the
 "happy path" (a scenario featuring no errors) ensuring that the Operator works as expected.
 
 System tests need to communicate with external services/systems that are available
@@ -35,7 +35,7 @@ The purpose of these tests is to:
 - assure high quality of providers and their integration with Airflow core,
 - avoid regression in providers when doing changes to the Airflow,
 - autogenerate documentation for Operators from code,
-- provide runnable example DAGs with use cases for different Operators,
+- provide runnable example Dags with use cases for different Operators,
 - serve both as examples and test files.
 - the excerpts from these system tests are used to generate documentation
 
@@ -57,17 +57,17 @@ set it before running test command.
 Running the System Tests
 ------------------------
 
-There are multiple ways of running system tests. Each system test is a self-contained DAG, so it can be run as any
-other DAG. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
+There are multiple ways of running system tests. Each system test is a self-contained Dag, so it can be run as any
+other Dag. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
 prepare your  environment correctly, depending on the system tests you want to run - some may require additional
 configuration which should be documented by the relevant providers in their subdirectory
 ``tests/system/<provider_name>/README.md``.
 
-Running as Airflow DAGs
+Running as Airflow Dags
 .......................
 
 If you have a working Airflow environment with a scheduler and a webserver, you can import system test files into
-your Airflow instance as DAGs and they will be automatically triggered. If the setup of the environment is correct
+your Airflow instance as Dags and they will be automatically triggered. If the setup of the environment is correct
 (depending on the type of tests you want to run), they should be executed without any issues. The instructions on
 how to set up the environment is documented in each provider's system tests directory. Make sure that all resource
 required by the tests are also imported.

@@ -641,6 +641,9 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "allow_trigger_in_future"),
     ),
     ConfigChange(
+        config=ConfigParameter("scheduler", "dag_stale_not_seen_duration"),
+    ),
+    ConfigChange(
         config=ConfigParameter("scheduler", "catchup_by_default"),
         default_change=True,
         old_default="True",

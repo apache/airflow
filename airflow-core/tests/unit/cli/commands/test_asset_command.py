@@ -100,6 +100,7 @@ def test_cli_assets_details(parser: ArgumentParser, stdout_capture) -> None:
         "group": "asset",
         "extra": {},
         "aliases": [],
+        "watchers": [],
         "last_asset_event": None,
     }
 

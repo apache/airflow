@@ -32,7 +32,12 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
-from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
     from kubernetes.client import ApiClient, CustomObjectsApi

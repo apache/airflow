@@ -33,7 +33,6 @@ from moto import mock_aws
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
@@ -57,11 +56,16 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.timezone import datetime, utcnow
+else:
+    from airflow.utils.timezone import datetime, utcnow  # type: ignore[attr-defined,no-redef]
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -672,9 +676,7 @@ class TestS3DeleteObjectsOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=op, dag_version_id=dag_version.id)
         else:

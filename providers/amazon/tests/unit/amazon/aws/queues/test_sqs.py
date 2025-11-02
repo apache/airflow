@@ -41,6 +41,23 @@ def test_message_sqs_queue_matches():
     assert not provider.queue_matches("https://sqs.us-east-1.amazonaws.com/")
 
 
+@pytest.mark.parametrize(
+    "scheme, expected_result",
+    [
+        pytest.param("sqs", True, id="sqs_scheme"),
+        pytest.param("kafka", False, id="kafka_scheme"),
+        pytest.param("redis+pubsub", False, id="redis_scheme"),
+        pytest.param("unknown", False, id="unknown_scheme"),
+    ],
+)
+def test_message_sqs_scheme_matches(scheme, expected_result):
+    """Test the scheme_matches method with various schemes."""
+    from airflow.providers.amazon.aws.queues.sqs import SqsMessageQueueProvider
+
+    provider = SqsMessageQueueProvider()
+    assert provider.scheme_matches(scheme) == expected_result
+
+
 def test_message_sqs_queue_trigger_class():
     from airflow.providers.amazon.aws.queues.sqs import SqsMessageQueueProvider
 

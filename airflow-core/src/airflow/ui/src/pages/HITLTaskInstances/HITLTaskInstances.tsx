@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -30,12 +31,27 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import { HITLFilters } from "./HITLFilters";
+
 type TaskInstanceRow = { row: { original: HITLDetail } };
+
+const {
+  BODY_SEARCH,
+  CREATED_AT_GTE,
+  CREATED_AT_LTE,
+  DAG_DISPLAY_NAME_PATTERN,
+  MAP_INDEX,
+  OFFSET: OFFSET_PARAM,
+  RESPONDED_BY_USER_NAME,
+  RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM,
+  SUBJECT_SEARCH,
+  TASK_ID_PATTERN,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
   dagId,
@@ -49,7 +65,7 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
-    accessorKey: "task_instance.operator",
+    accessorKey: "task_instance_state",
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
@@ -71,6 +87,13 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "task_instance.dag_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+                <TruncatedText text={original.task_instance.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("common:dagId"),
         },
@@ -79,18 +102,27 @@ const taskInstanceColumns = ({
     ? []
     : [
         {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink
+                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+              >
+                <TruncatedText text={original.task_instance.dag_run_id} />
+              </RouterLink>
+            </Link>
+          ),
+          header: translate("common:dagRunId"),
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original.task_instance)}>
-                  <Time datetime={original.task_instance.run_after} />
-                </RouterLink>
-              </Link>
-            ) : (
-              <Time datetime={original.task_instance.run_after} />
-            ),
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Time datetime={original.task_instance.run_after} />
+          ),
           header: translate("common:dagRun.runAfter"),
         },
       ]),
@@ -100,23 +132,38 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.task_display_name} />
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+                <TruncatedText text={original.task_instance.task_display_name} />
+              </RouterLink>
+            </Link>
           ),
-          enableSorting: false,
           header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.rendered_map_index ?? ""} />,
     header: translate("common:mapIndex"),
   },
   {
-    accessorKey: "response_received",
-    header: translate("state.responseReceived"),
+    accessorKey: "task_instance_operator",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
+    header: translate("common:task.operator"),
   },
   {
-    accessorKey: "response_at",
-    cell: ({ row: { original } }) => <Time datetime={original.response_at} />,
+    accessorKey: "created_at",
+    cell: ({ row: { original } }) => <Time datetime={original.created_at} />,
+    header: translate("response.created"),
+  },
+  {
+    accessorKey: "responded_by_user_name",
+    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
+    header: translate("response.responded_by_user_name"),
+  },
+  {
+    accessorKey: "responded_at",
+    cell: ({ row: { original } }) => <Time datetime={original.responded_at} />,
     header: translate("response.received"),
   },
 ];
@@ -124,32 +171,83 @@ const taskInstanceColumns = ({
 export const HITLTaskInstances = () => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const responseReceived = searchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
-  const refetchInterval = useAutoRefresh({});
+  const baseRefetchInterval = useAutoRefresh({});
 
-  const { data, error, isLoading } = useHumanInTheLoopServiceGetHitlDetails(
+  const bodySearch = searchParams.get(BODY_SEARCH) ?? undefined;
+  const createdAtGte = searchParams.get(CREATED_AT_GTE) ?? undefined;
+  const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
+  const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
+  const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
+  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
+  const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
+  const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
+  const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
+
+  // Use the filter value if available, otherwise fall back to the old responseReceived param
+  const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
-      dagId,
-      dagRunId: runId,
-      responseReceived: Boolean(responseReceived) ? responseReceived === "true" : undefined,
+      bodySearch,
+      createdAtGte,
+      createdAtLte,
+      dagId: dagId ?? "~",
+      dagIdPattern,
+      dagRunId: runId ?? "~",
+      limit: pagination.pageSize,
+      mapIndex: parseInt(mapIndex, 10),
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+      respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
+      responseReceived:
+        Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
+          ? effectiveResponseReceived === "true"
+          : undefined,
+      state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+      subjectSearch,
       taskId,
+      taskIdPattern,
     },
     undefined,
     {
-      refetchInterval,
+      // Only continue auto-refetching when filtering for unreceived responses
+      // and at least one TaskInstance is still deferred without a response.
+      refetchInterval: (query) => {
+        const hasDeferredWithoutResponse = Boolean(
+          query.state.data?.hitl_details.some(
+            (detail: HITLDetail) =>
+              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+          ),
+        );
+
+        return hasDeferredWithoutResponse ? baseRefetchInterval : false;
+      },
     },
   );
 
+  const handleResponseChange = useCallback(() => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
+
   return (
-    <Box>
+    <VStack align="start">
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
         <Heading size="md">
           {data?.total_entries} {translate("requiredAction", { count: data?.total_entries })}
         </Heading>
       ) : undefined}
+      <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
         columns={taskInstanceColumns({
           dagId,
@@ -165,6 +263,6 @@ export const HITLTaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </VStack>
   );
 };

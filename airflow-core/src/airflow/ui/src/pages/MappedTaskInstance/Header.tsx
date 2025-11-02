@@ -37,8 +37,11 @@ export const Header = ({
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
-    entries.push({ label: translate("total", { state }), value: count });
+  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+    entries.push({
+      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      value: count,
+    });
     taskCount += count;
   });
   const stats = [

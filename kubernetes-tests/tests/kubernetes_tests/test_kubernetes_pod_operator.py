@@ -552,10 +552,11 @@ class TestKubernetesPodOperatorSystem:
                 task_id=str(uuid4()),
                 in_cluster=False,
                 do_xcom_push=False,
+                container_name_log_prefix_enabled=False,
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", StringContainingId("retrieved from mount"))
+            mock_logger.info.assert_any_call("%s", StringContainingId("retrieved from mount"))
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -969,20 +970,24 @@ class TestKubernetesPodOperatorSystem:
         await_pod_completion_mock.return_value = pod_mock
         context = create_context(k)
 
-        # I'm not really sure what the point is of this assert
-        with caplog.at_level(logging.DEBUG, logger="airflow.task.operators"):
+        # TODO: once Airflow 3.1 is the min version, replace this with out structlog-based caplog fixture
+        with mock.patch.object(k.log, "debug") as debug_logs:
             k.execute(context)
-            expected_lines = [
-                "Starting pod:",
-                "api_version: v1",
-                "kind: Pod",
-                "metadata:",
-                "  annotations: {}",
-                "  creation_timestamp: null",
-                "  deletion_grace_period_seconds: null",
-            ]
-            actual = next(x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s").splitlines()
-            assert actual[: len(expected_lines)] == expected_lines
+            expected_lines = "\n".join(
+                [
+                    "api_version: v1",
+                    "kind: Pod",
+                    "metadata:",
+                    "  annotations: {}",
+                    "  creation_timestamp: null",
+                    "  deletion_grace_period_seconds: null",
+                ]
+            )
+            # Make a nice assert if it's not there
+            debug_logs.assert_any_call("Starting pod:\n%s", mock.ANY)
+            # Now we know it is there, examine the second argument
+            mock_call = next(call for call in debug_logs.mock_calls if call[1][0] == "Starting pod:\n%s")
+            assert mock_call[1][1][: len(expected_lines)] == expected_lines
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         expected_dict = {
@@ -1427,6 +1432,63 @@ class TestKubernetesPodOperatorSystem:
             < calls_args.find(marker_from_init_container_to_log_2)
             < calls_args.find(marker_from_main_container)
         )
+
+    @pytest.mark.parametrize(
+        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        [
+            pytest.param(
+                True,
+                None,
+                lambda marker, record_message: f"[base] {marker}" in record_message,
+                id="log_prefix_enabled",
+            ),
+            pytest.param(
+                False,
+                None,
+                lambda marker, record_message: marker in record_message and "[base]" not in record_message,
+                id="log_prefix_disabled",
+            ),
+            pytest.param(
+                False,  # Ignored when log_formatter is provided
+                lambda container_name, message: f"CUSTOM[{container_name}]: {message}",
+                lambda marker, record_message: f"CUSTOM[base]: {marker}" in record_message,
+                id="custom_log_formatter",
+            ),
+        ],
+    )
+    def test_log_output_configurations(self, log_prefix_enabled, log_formatter, expected_log_message_check):
+        """
+        Tests various log output configurations (container_name_log_prefix_enabled, log_formatter)
+        for KubernetesPodOperator.
+        """
+        marker = f"test_log_{uuid4()}"
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="busybox",
+            cmds=["sh", "-cx"],
+            arguments=[f"echo {marker}"],
+            labels={"test_label": "test"},
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=True,
+            container_name_log_prefix_enabled=log_prefix_enabled,
+            log_formatter=log_formatter,
+        )
+
+        # Test the _log_message method directly
+        with mock.patch.object(k.pod_manager.log, "info") as mock_info:
+            k.pod_manager._log_message(
+                message=marker,
+                container_name="base",
+                container_name_log_prefix_enabled=log_prefix_enabled,
+                log_formatter=log_formatter,
+            )
+
+            # Check that the message was logged with the expected format
+            mock_info.assert_called_once()
+            logged_message = mock_info.call_args[0][1]  # Second argument is the message
+            assert expected_log_message_check(marker, logged_message)
 
 
 # TODO: Task SDK: https://github.com/apache/airflow/issues/45438

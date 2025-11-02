@@ -25,7 +25,7 @@ Released packages
 
     This page describes downloading and verifying Airflow® version
     ``{{ airflow_version }}`` using officially released packages.
-    You can also install ``Apache Airflow CTL`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
+    You can also install ``Apache airflowctl`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting a different version from the drop-down at
     the top-left of the page.
 
@@ -41,7 +41,7 @@ dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed
 2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
 released wheel packages.
 
-The |version| downloads of Airflow CTL are available at:
+The |version| downloads of airflowctl are available at:
 
 .. jinja:: official_download_page
 
@@ -52,7 +52,7 @@ The |version| downloads of Airflow CTL are available at:
     * `Whl package for airflow core package <{{ closer_lua_url }}/apache_airflow_ctl-{{ airflowctl_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow_ctl-{{ airflowctl_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow_ctl-{{ airflowctl_version }}-py3-none-any.whl.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
-a ``INSTALL`` file containing details on how you can build and install Airflow CTL.
+a ``INSTALL`` file containing details on how you can build and install airflowctl.
 
 Release integrity
 '''''''''''''''''
@@ -138,7 +138,7 @@ Example:
 Verifying PyPI releases
 '''''''''''''''''''''''
 
-You can verify the Airflow CTL ``.whl`` packages from PyPI by locally downloading the package and signature
+You can verify the airflowctl ``.whl`` packages from PyPI by locally downloading the package and signature
 and SHA sum files with the script below:
 
 

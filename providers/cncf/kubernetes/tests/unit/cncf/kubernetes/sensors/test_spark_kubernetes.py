@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import call, patch
+import logging
+from unittest.mock import ANY, patch
 
 import pytest
 from kubernetes.client.rest import ApiException
@@ -794,7 +795,6 @@ class TestSparkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_FAILED_APPLICATION,
     )
-    @patch("logging.Logger.error")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
@@ -802,9 +802,9 @@ class TestSparkKubernetesSensor:
     def test_driver_logging_failure(
         self,
         mock_log_call,
-        error_log_call,
         mock_get_namespaced_crd,
         mock_kube_conn,
+        caplog,
     ):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
@@ -817,20 +817,17 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
+        assert (ANY, logging.ERROR, TEST_POD_LOG_RESULT) in caplog.record_tuples
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
-    @patch("logging.Logger.info")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
     )
-    def test_driver_logging_completed(
-        self, mock_log_call, info_log_call, mock_get_namespaced_crd, mock_kube_conn
-    ):
+    def test_driver_logging_completed(self, mock_log_call, mock_get_namespaced_crd, mock_kube_conn, caplog):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
             attach_log=True,
@@ -841,20 +838,17 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls
+        assert (ANY, logging.INFO, TEST_POD_LOG_RESULT) in caplog.record_tuples
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
-    @patch("logging.Logger.warning")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         side_effect=ApiException("Test api exception"),
     )
-    def test_driver_logging_error(
-        self, mock_log_call, warn_log_call, mock_get_namespaced_crd, mock_kube_conn
-    ):
+    def test_driver_logging_error(self, mock_log_call, mock_get_namespaced_crd, mock_kube_conn, caplog):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
             attach_log=True,
@@ -862,19 +856,18 @@ class TestSparkKubernetesSensor:
             task_id="test_task_id",
         )
         sensor.poke({})
-        warn_log_call.assert_called_once()
+        assert (ANY, logging.WARNING, ANY) in caplog.record_tuples, "Expected something logged at warning"
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_DRIVER_WITH_SIDECAR_APPLICATION,
     )
-    @patch("logging.Logger.info")
     @patch(
         "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod_logs",
         return_value=TEST_POD_LOGS,
     )
     def test_sidecar_driver_logging_completed(
-        self, mock_log_call, info_log_call, mock_get_namespaced_crd, mock_kube_conn
+        self, mock_log_call, mock_get_namespaced_crd, mock_kube_conn, caplog
     ):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
@@ -886,4 +879,4 @@ class TestSparkKubernetesSensor:
         mock_log_call.assert_called_once_with(
             "spark-pi-2020-02-24-1-driver", namespace="default", container="spark-kubernetes-driver"
         )
-        assert call(TEST_POD_LOG_RESULT) in info_log_call.mock_calls
+        assert (ANY, logging.INFO, TEST_POD_LOG_RESULT) in caplog.record_tuples

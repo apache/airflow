@@ -33,13 +33,13 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <HStack colorPalette="blue" gap={1} pb={2}>
+    <HStack colorPalette="brand" gap={1} pb={2}>
       <Tooltip content={translate("toggleCardView")}>
         <IconButton
-          _hover={{ bg: "colorPalette.subtle" }}
+          _hover={{ bg: "colorPalette.emphasized" }}
           aria-label={translate("toggleCardView")}
           bg={display === "card" ? "colorPalette.muted" : "bg"}
-          borderColor="colorPalette.fg"
+          borderColor="border.emphasized"
           borderWidth={1}
           color="colorPalette.fg"
           height={8}
@@ -52,10 +52,10 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
       </Tooltip>
       <Tooltip content={translate("toggleTableView")}>
         <IconButton
-          _hover={{ bg: "colorPalette.subtle" }}
+          _hover={{ bg: "colorPalette.emphasized" }}
           aria-label={translate("toggleTableView")}
           bg={display === "table" ? "colorPalette.muted" : "bg"}
-          borderColor="colorPalette.fg"
+          borderColor="border.emphasized"
           borderWidth={1}
           color="colorPalette.fg"
           height={8}

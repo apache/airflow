@@ -33,15 +33,56 @@ const getChosenOptionsValue = (hitlDetail: HITLDetail) => {
   return hitlDetail.multiple ? sourceValues : sourceValues?.[0];
 };
 
-export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction): ParamsSpec => {
-  const paramsDict: ParamsSpec = {};
+export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail: HITLDetail) => {
+  const preloadedHITLParams: Record<string, number | string> = Object.fromEntries(
+    [...searchParams.entries()]
+      .filter(([key]) => key !== "_options")
+      .map(([key, value]) => [key, isNaN(Number(value)) ? value : Number(value)]),
+  );
 
-  if (hitlDetail.options.length > 4 || hitlDetail.multiple) {
+  const options = searchParams.get("_options") ?? "";
+  let preloadedHITLOptions: Array<string> = [];
+
+  if (options) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(options)) as Array<string>;
+
+      preloadedHITLOptions = Array.isArray(decoded) ? decoded : [];
+    } catch {
+      preloadedHITLOptions = [];
+    }
+  }
+
+  // Filter the preloaded options to only include the options that are in the hitlDetail.options
+  const filteredPreloadedHITLOptions: Array<string> | string | undefined = preloadedHITLOptions.filter(
+    (option) => hitlDetail.options.includes(option),
+  );
+
+  return {
+    preloadedHITLOptions: filteredPreloadedHITLOptions,
+    preloadedHITLParams,
+  };
+};
+
+export const getHITLParamsDict = (
+  hitlDetail: HITLDetail,
+  translate: TFunction,
+  searchParams: URLSearchParams,
+): ParamsSpec => {
+  const paramsDict: ParamsSpec = {};
+  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams, hitlDetail);
+  const isApprovalTask =
+    hitlDetail.options.includes("Approve") &&
+    hitlDetail.options.includes("Reject") &&
+    hitlDetail.options.length === 2;
+  const shouldRenderOptionDropdown = preloadedHITLOptions.length > 0 && !isApprovalTask;
+
+  if (shouldRenderOptionDropdown || hitlDetail.options.length > 4 || hitlDetail.multiple) {
     paramsDict.chosen_options = {
-      description: translate("hitl:response.optionsDescription"),
+      description: translate("response.optionsDescription"),
       schema: {
         const: undefined,
-        description_md: translate("hitl:response.optionsDescription"),
+        description_md: translate("response.optionsDescription"),
         enum: hitlDetail.options.length > 0 ? hitlDetail.options : undefined,
         examples: undefined,
         format: undefined,
@@ -51,12 +92,15 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
         minimum: undefined,
         minLength: undefined,
         section: undefined,
-        title: translate("hitl:response.optionsLabel"),
+        title: translate("response.optionsLabel"),
         type: hitlDetail.multiple ? "array" : "string",
         values_display: undefined,
       },
 
-      value: getChosenOptionsValue(hitlDetail),
+      // If the task is not multiple, we only show the first option
+      value:
+        getChosenOptionsValue(hitlDetail) ??
+        (hitlDetail.multiple ? preloadedHITLOptions : preloadedHITLOptions[0]),
     };
   }
 
@@ -84,7 +128,7 @@ export const getHITLParamsDict = (hitlDetail: HITLDetail, translate: TFunction):
           type: valueType,
           values_display: undefined,
         },
-        value,
+        value: preloadedHITLParams[key] ?? value,
       };
     });
   }
@@ -123,9 +167,21 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
 };
 
 export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
-  const { chosen_options: chosenOptions, options, params, response_received: responseReceived } = hitlDetail;
+  const {
+    chosen_options: chosenOptions,
+    options,
+    params,
+    response_received: responseReceived,
+    task_instance: { state: taskInstanceState },
+  } = hitlDetail;
+
+  const isNotDeferred = taskInstanceState !== "deferred";
 
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
+
+  if (!responseReceived && isNotDeferred) {
+    return translate("state.noResponseReceived");
+  }
 
   if (options.length === 2 && options.includes("Approve") && options.includes("Reject")) {
     // If options contain only "Approve" and "Reject" -> approval task
@@ -140,5 +196,5 @@ export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
 
   const [required, received] = stateType;
 
-  return translate(`hitl:state.${responseReceived ? received : required}`);
+  return translate(`state.${responseReceived ? received : required}`);
 };

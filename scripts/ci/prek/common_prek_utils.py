@@ -43,6 +43,8 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
+GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+
 try:
     from rich.console import Console
 
@@ -191,6 +193,7 @@ def run_command_via_breeze_shell(
     project_name: str = "prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
+    enable_pseudo_terminal: bool = False,
     **other_popen_kwargs,
 ) -> subprocess.CompletedProcess:
     extra_env = extra_env or {}
@@ -208,7 +211,7 @@ def run_command_via_breeze_shell(
         "--skip-image-upgrade-check",
         # Note: The terminal is disabled - because prek is run inside git without a pseudo-terminal
         "--tty",
-        "disabled",
+        "enabled" if enable_pseudo_terminal else "disabled",
     ]
     if warn_image_upgrade_needed:
         subprocess_cmd.append("--warn-image-upgrade-needed")
@@ -218,9 +221,12 @@ def run_command_via_breeze_shell(
         subprocess_cmd.extend(["--project-name", project_name])
     subprocess_cmd.append(" ".join([shlex.quote(arg) for arg in cmd]))
     if os.environ.get("VERBOSE_COMMANDS"):
-        console.print(
-            f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
-        )
+        if console:
+            console.print(
+                f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
+            )
+        else:
+            print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
     result = subprocess.run(
         subprocess_cmd,
         check=False,
@@ -273,17 +279,31 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
 def validate_cmd_result(cmd_result, include_ci_env_check=False):
     if include_ci_env_check:
         if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
-            console.print(
-                "\n[yellow]If you see strange stacktraces above, especially about missing imports "
-                "run this command:[/]\n"
-            )
-            console.print("[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n")
+            if console:
+                console.print(
+                    "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+                    "run this command:[/]\n"
+                )
+                console.print(
+                    "[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n"
+                )
+            else:
+                print(
+                    "\nIf you see strange stacktraces above, especially about missing imports "
+                    "run this command:\nbreeze ci-image build --python 3.10 --upgrade-to-newer-dependencies\n"
+                )
 
     elif cmd_result.returncode != 0:
-        console.print(
-            "[warning]\nIf you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.10` and try again."
-        )
+        if console:
+            console.print(
+                "[warning]\nIf you see strange stacktraces above, "
+                "run `breeze ci-image build --python 3.10` and try again."
+            )
+        else:
+            print(
+                "\nIf you see strange stacktraces above, "
+                "run `breeze ci-image build --python 3.10` and try again."
+            )
     sys.exit(cmd_result.returncode)
 
 
@@ -300,8 +320,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
             for providers_root_candidate in parent.parents:
                 if providers_root_candidate.name == "providers":
                     return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
-            else:
-                return None
+            return None
     return None
 
 
@@ -393,3 +412,27 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
                 imports.append(fullname)
 
     return imports
+
+
+def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+    if token:
+        return token
+    if GITHUB_TOKEN:
+        return GITHUB_TOKEN
+    output = subprocess.check_output(["gh", "auth", "token"])
+    token = output.decode().strip()
+    if not token:
+        if not console:
+            raise RuntimeError("Please add rich to your script dependencies and run it again")
+        console.print(
+            "[red]GITHUB_TOKEN environment variable is not set. "
+            "This might lead to failures on rate limits.[/]\n"
+            "You can fix that by installing `gh` and running `gh auth login` or "
+            f"set it to a valid GitHub token with {scopes} scope. "
+            f"You can create one by clicking the URL:\n\n"
+            f"https://github.com/settings/tokens/new?scopes={scopes}&description={description}\n\n"
+            "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
+            "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
+        )
+        sys.exit(1)
+    return token

@@ -1,0 +1,152 @@
+{
+  "backfill": {
+    "affected_many": "{{count}} execuções serão acionadas.",
+    "affected_one": "1 execução será acionada.",
+    "affected_other": "{{count}} execuções serão acionadas.",
+    "affected_zero": "Nenhuma execução será acionada.",
+    "affectedNone": "Nenhuma execução correspondente aos critérios selecionados.",
+    "allRuns": "Todas as Execuções",
+    "backwards": "Executar para trás",
+    "dateRange": "Intervalo de Data",
+    "errorStartDateBeforeEndDate": "A Data Inicial deve ser antes da Data Final",
+    "maxRuns": "Máximo de Execuções Ativas",
+    "missingAndErroredRuns": "Execuções Faltando e com Erro",
+    "missingRuns": "Execuções Faltando",
+    "reprocessBehavior": "Comportamento de Reprocessamento",
+    "run": "Executar Backfill",
+    "selectDescription": "Executar este DAG para um intervalo de datas",
+    "selectLabel": "Backfill",
+    "title": "Executar Backfill",
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs foram acionados com sucesso.",
+        "title": "Backfill gerado"
+      }
+    },
+    "tooltip": "Backfill requer um agendamento",
+    "unpause": "Despausar {{dag_display_name}} ao acionar",
+    "validation": {
+      "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
+      "startBeforeEnd": "A Data Inicial do Intervalo deve ser menor ou igual à Data Final do Intervalo."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill em progresso",
+    "cancel": "Cancelar backfill",
+    "pause": "Pausar backfill",
+    "unpause": "Despausar backfill"
+  },
+  "clipboard": {
+    "copy": "Copiar"
+  },
+  "close": "Fechar",
+  "configForm": {
+    "advancedOptions": "Opções Avançadas",
+    "configJson": "Configuração JSON",
+    "invalidJson": "Formato JSON inválido: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_many": "{{count}} Erros",
+    "error_one": "1 Erro",
+    "error_other": "{{count}} Erros",
+    "error_zero": "Nenhum erro",
+    "errorAndWarning": "1 Erro e {{warningText}}",
+    "warning_many": "{{count}} Avisos",
+    "warning_one": "1 Aviso",
+    "warning_other": "{{count}} Avisos",
+    "warning_zero": "Nenhum aviso"
+  },
+  "durationChart": {
+    "duration": "Duração (segundos)",
+    "lastDagRun_many": "Últimas {{count}} Execuções do DAG",
+    "lastDagRun_one": "Última Execução do DAG",
+    "lastDagRun_other": "Últimas {{count}} Execuções do DAG",
+    "lastDagRun_zero": "Nenhuma execução do DAG",
+    "lastTaskInstance_many": "Últimas {{count}} Instâncias de Tarefa",
+    "lastTaskInstance_one": "Última Instância de Tarefa",
+    "lastTaskInstance_other": "Últimas {{count}} Instâncias de Tarefa",
+    "lastTaskInstance_zero": "Nenhuma instância de tarefa",
+    "queuedDuration": "Duração da Fila",
+    "runAfter": "Executar Depois",
+    "runDuration": "Duração da Execução"
+  },
+  "fileUpload": {
+    "files_many": "{{count}} arquivos",
+    "files_one": "1 arquivo",
+    "files_other": "{{count}} arquivos",
+    "files_zero": "Nenhum arquivo"
+  },
+  "flexibleForm": {
+    "placeholder": "Selecionar Valor",
+    "placeholderArray": "Digite cada string em uma nova linha",
+    "placeholderExamples": "Comece a digitar para ver opções",
+    "placeholderMulti": "Selecione um ou vários valores",
+    "validationErrorArrayNotArray": "O valor deve ser um array.",
+    "validationErrorArrayNotNumbers": "Todos os elementos do array devem ser números.",
+    "validationErrorArrayNotObject": "Todos os elementos do array devem ser objetos.",
+    "validationErrorRequired": "Este campo é obrigatório"
+  },
+  "graph": {
+    "directionDown": "Superior para Inferior",
+    "directionLeft": "Direita para Esquerda",
+    "directionRight": "Esquerda para Direita",
+    "directionUp": "Inferior para Superior",
+    "downloadImage": "Baixar imagem do gráfico",
+    "downloadImageError": "Falha ao baixar a imagem do gráfico.",
+    "downloadImageErrorTitle": "Download Falhou",
+    "otherDagRuns": "+Outras Execuções do DAG",
+    "taskCount_many": "{{count}} Tarefas",
+    "taskCount_one": "{{count}} Tarefa",
+    "taskCount_other": "{{count}} Tarefas",
+    "taskCount_zero": "Nenhuma tarefa",
+    "taskGroup": "Grupo de Tarefas"
+  },
+  "limitedList": "+{{count}} mais",
+  "limitedList.allItems": "Todos os {{count}} itens:",
+  "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
+  "limitedList.clickToOpenFull": "Clique em \"+{{count}} mais\" para ver a lista completa",
+  "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
+  "logs": {
+    "file": "Arquivo",
+    "location": "linha {{line}} em {{name}}"
+  },
+  "reparseDag": "Reparse DAG",
+  "sortedAscending": "Ordenado em ordem crescente",
+  "sortedDescending": "Ordenado em ordem decrescente",
+  "sortedUnsorted": "Não ordenado",
+  "taskTries": "Tentativas de Tarefa",
+  "toggleCardView": "Mostrar visualização de cartão",
+  "toggleTableView": "Mostrar visualização de tabela",
+  "triggerDag": {
+    "button": "Acionar",
+    "loading": "Carregando informações do DAG...",
+    "loadingFailed": "Falha ao carregar informações do DAG. Por favor, tente novamente.",
+    "runIdHelp": "Opcional - será gerado se não for fornecido",
+    "selectDescription": "Acionar uma única execução deste DAG",
+    "selectLabel": "Execução Única",
+    "title": "Acionar DAG",
+    "toaster": {
+      "success": {
+        "description": "A execução do DAG foi acionada com sucesso.",
+        "title": "Execução do DAG acionada"
+      }
+    },
+    "unpause": "Despausar {{dagDisplayName}} ao acionar"
+  },
+  "trimText": {
+    "details": "Detalhes",
+    "empty": "Vazio",
+    "noContent": "Nenhum conteúdo disponível."
+  },
+  "versionDetails": {
+    "bundleLink": "Link do Bundle",
+    "bundleName": "Nome do Bundle",
+    "bundleVersion": "Versão do Bundle",
+    "createdAt": "Criado em",
+    "versionId": "ID da Versão"
+  },
+  "versionSelect": {
+    "dagVersion": "Versão do DAG",
+    "versionCode": "v{{versionCode}}"
+  }
+}

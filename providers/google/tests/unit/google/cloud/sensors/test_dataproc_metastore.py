@@ -41,8 +41,8 @@ MANIFEST_SUCCESS = {
 }
 MANIFEST_FAIL = {"status": {"code": 1, "message": "Bad things happened", "details": []}, "filenames": []}
 RESULT_FILE_CONTENT: dict[str, Any] = {"rows": [], "metadata": {}}
-ROW_1 = []
-ROW_2 = []
+ROW_1: list[Any] = []
+ROW_2: list[Any] = []
 TEST_SERVICE_ID = "test-service"
 TEST_REGION = "test-region"
 TEST_TABLE = "test_table"

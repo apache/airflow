@@ -32,7 +32,6 @@ from subprocess import check_output
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import google.auth
-import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
@@ -50,12 +49,12 @@ from requests import Session
 
 from airflow import version
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
-from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:

@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from base64 import decodebytes
 from collections.abc import Sequence
@@ -33,7 +34,7 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.exceptions import AirflowException
-from airflow.providers.ssh.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -391,6 +392,11 @@ class SSHHook(BaseHook):
                 host_pkey_directories=None,
             )
 
+        if not hasattr(self.log, "handlers"):
+            # We need to not hit this https://github.com/pahaz/sshtunnel/blob/dc0732884379a19a21bf7a49650d0708519ec54f/sshtunnel.py#L238-L239
+            paramkio_log = logging.getLogger("paramiko.transport")
+            paramkio_log.addHandler(logging.NullHandler())
+            paramkio_log.propagate = True
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 
         return client

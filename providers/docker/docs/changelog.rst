@@ -28,6 +28,48 @@ Changelog
 ---------
 
 
+4.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerSwarmOperator: Use inspect_service() instead of inspect_container() (#56043)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.4.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'version_compat' for Docker decorator with Airflow 3.0.X (#55447)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+
 4.4.2
 .....
 

@@ -17,17 +17,9 @@
 
 from __future__ import annotations
 
-import sys
-from typing import Any
-
 from pydantic import JsonValue, RootModel
 
 from airflow.api_fastapi.core_api.base import BaseModel
-
-if sys.version_info < (3, 12):
-    # zmievsa/cadwyn#262
-    # Setting this to "Any" doesn't have any impact on the API as it has to be parsed as valid JSON regardless
-    JsonValue = Any  # type: ignore [misc]
 
 
 class XComResponse(BaseModel):

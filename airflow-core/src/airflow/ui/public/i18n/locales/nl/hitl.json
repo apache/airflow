@@ -1,6 +1,15 @@
 {
+  "filters": {
+    "response": {
+      "all": "Alle",
+      "pending": "In afwachting",
+      "received": "Beoordeeld"
+    }
+  },
   "requiredAction_one": "Vereiste acties",
   "requiredAction_other": "Vereiste acties",
+  "requiredActionCount_one": "Vereiste acties ({{count}})",
+  "requiredActionCount_other": "Vereiste acties ({{count}})",
   "requiredActionState": "Vereiste actie status",
   "response": {
     "error": "Reactie mislukt",
@@ -16,6 +25,7 @@
     "approvalRequired": "Goedkeuring vereist",
     "choiceReceived": "Keuze ontvangen",
     "choiceRequired": "Keuze vereist",
+    "noResponseReceived": "Geen reactie ontvangen",
     "rejectionReceived": "Afwijzing ontvangen",
     "responseReceived": "Reactie ontvangen",
     "responseRequired": "Reactie vereist"

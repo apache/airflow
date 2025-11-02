@@ -21,6 +21,7 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -65,7 +66,7 @@ def list_dag_warnings(
 ) -> DAGWarningCollectionResponse:
     """Get a list of DAG warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        statement=select(DagWarning),
+        statement=select(DagWarning).options(joinedload(DagWarning.dag_model)),
         filters=[warning_type, dag_id, readable_dag_warning_filter],
         order_by=order_by,
         offset=offset,
@@ -75,6 +76,6 @@ def list_dag_warnings(
     dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=dag_warnings,
+        dag_warnings=list(dag_warnings),
         total_entries=total_entries,
     )

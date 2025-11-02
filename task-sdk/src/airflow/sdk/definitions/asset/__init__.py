@@ -196,8 +196,8 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    ## We use latin1_general_cs to store the name (and group, asset values etc) on MySQL.
-    ## relaxing this check for non mysql backend
+    # We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
+    # relaxing this check for non mysql backend
     if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
@@ -283,9 +283,9 @@ class AssetWatcher:
 
     name: str
     # This attribute serves double purpose.
-    # For a "normal" asset instance loaded from DAG, this holds the trigger used to monitor an external
+    # For a "normal" asset instance loaded from Dag, this holds the trigger used to monitor an external
     # resource. In that case, ``AssetWatcher`` is used directly by users.
-    # For an asset recreated from a serialized DAG, this holds the serialized data of the trigger. In that
+    # For an asset recreated from a serialized Dag, this holds the serialized data of the trigger. In that
     # case, `SerializedAssetWatcher` is used. We need to keep the two types to make mypy happy because
     # `SerializedAssetWatcher` is a subclass of `AssetWatcher`.
     trigger: BaseEventTrigger | dict
@@ -425,6 +425,10 @@ class Asset(os.PathLike, BaseAsset):
             return NotImplemented
         f = attrs.filters.include(*attrs.fields_dict(Asset))
         return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
+
+    def __hash__(self):
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return hash(attrs.asdict(self, filter=f))
 
     @property
     def normalized_uri(self) -> str | None:

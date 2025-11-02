@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import atexit
 import functools
-import json
+import json as json_lib
 import logging
 import os
 import sys
@@ -122,7 +122,7 @@ async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json_lib
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
@@ -372,7 +372,7 @@ def _configure_async_session() -> None:
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
-    from airflow.sdk.execution_time.secrets_masker import mask_secret
+    from airflow._shared.secrets_masker import mask_secret
 
     if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
@@ -589,6 +589,34 @@ def configure_adapters():
             pass
 
 
+def _configure_secrets_masker():
+    """Configure the secrets masker with values from config."""
+    from airflow._shared.secrets_masker import (
+        DEFAULT_SENSITIVE_FIELDS,
+        _secrets_masker as secrets_masker_core,
+    )
+    from airflow.configuration import conf
+
+    min_length_to_mask = conf.getint("logging", "min_length_masked_secret", fallback=5)
+    secret_mask_adapter = conf.getimport("logging", "secret_mask_adapter", fallback=None)
+    sensitive_fields = DEFAULT_SENSITIVE_FIELDS.copy()
+    sensitive_variable_fields = conf.get("core", "sensitive_var_conn_names")
+    if sensitive_variable_fields:
+        sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
+
+    core_masker = secrets_masker_core()
+    core_masker.min_length_to_mask = min_length_to_mask
+    core_masker.sensitive_variables_fields = list(sensitive_fields)
+    core_masker.secret_mask_adapter = secret_mask_adapter
+
+    from airflow.sdk._shared.secrets_masker import _secrets_masker as sdk_secrets_masker
+
+    sdk_masker = sdk_secrets_masker()
+    sdk_masker.min_length_to_mask = min_length_to_mask
+    sdk_masker.sensitive_variables_fields = list(sensitive_fields)
+    sdk_masker.secret_mask_adapter = secret_mask_adapter
+
+
 def configure_action_logging() -> None:
     """Any additional configuration (register callback) for airflow.utils.action_loggers module."""
 
@@ -603,6 +631,21 @@ def prepare_syspath_for_config_and_plugins():
 
     if PLUGINS_FOLDER not in sys.path:
         sys.path.append(PLUGINS_FOLDER)
+
+
+def __getattr__(name: str):
+    """Handle deprecated module attributes."""
+    if name == "MASK_SECRETS_IN_LOGS":
+        import warnings
+
+        warnings.warn(
+            "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
+            "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return False
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def import_local_settings():
@@ -657,14 +700,16 @@ def initialize():
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
-    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
-        is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-        if not is_worker:
-            configure_orm()
-    configure_action_logging()
+    # Configure secrets masker before masking secrets
+    _configure_secrets_masker()
 
-    # mask the sensitive_config_values
-    conf.mask_secrets()
+    is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+        configure_orm()
+
+        # mask the sensitive_config_values
+        conf.mask_secrets()
+    configure_action_logging()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
@@ -716,10 +761,6 @@ IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
 """Will be True if running in kubernetes executor pod."""
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean("core", "hide_sensitive_var_conn_fields")
-
-# By default this is off, but is automatically configured on when running task
-# instances
-MASK_SECRETS_IN_LOGS = False
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

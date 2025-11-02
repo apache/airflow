@@ -431,15 +431,16 @@ option_uv_http_timeout = click.option(
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
-    "`none`, `wheel`, or `sdist` to install from `dist` folder or `owner/repo:branch` to "
-    "install from GitHub repo. Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
+    "`none`, `wheel`, or `sdist` to install from `dist` folder, `owner/repo:branch` to "
+    "install from GitHub repo, or a PR number (e.g., `57219`) to install from a pull request. "
+    "Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
     "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
 option_allow_pre_releases = click.option(
     "--allow-pre-releases",
-    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    help="Allow pre-releases of Airflow, task-sdk, providers and airflowctl to be installed. "
     "Set to true automatically for pre-release --use-airflow-version)",
     is_flag=True,
     envvar="ALLOW_PRE_RELEASES",

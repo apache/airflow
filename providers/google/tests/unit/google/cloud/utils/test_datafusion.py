@@ -33,5 +33,5 @@ class TestDataFusionPipelineType:
         assert DataFusionPipelineType.from_str(str_value) == expected_item
 
     def test_from_str_error(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid value 'non-existing value'."):
             DataFusionPipelineType.from_str("non-existing value")

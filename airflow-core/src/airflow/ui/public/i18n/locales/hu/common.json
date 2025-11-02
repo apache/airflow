@@ -1,0 +1,309 @@
+{
+  "admin": {
+    "Config": "Beállítások",
+    "Connections": "Kapcsolatok",
+    "Plugins": "Bővítmények",
+    "Pools": "Poolok",
+    "Providers": "Szolgáltatók",
+    "Variables": "Változók"
+  },
+  "allOperators": "Összes adatkészlet",
+  "asset_one": "Adatkészlet",
+  "asset_other": "Adatkészletek",
+  "assetEvent_one": "Adatkészlet esemény",
+  "assetEvent_other": "Adatkészlet események",
+  "backfill_one": "Visszatöltés",
+  "backfill_other": "Visszatöltések",
+  "browse": {
+    "auditLog": "Audit napló",
+    "requiredActions": "Szükséges műveletek",
+    "xcoms": "XComok"
+  },
+  "collapseDetailsPanel": "Részletek panel összecsukása",
+  "createdAssetEvent_one": "Létrehozott adatkészlet esemény",
+  "createdAssetEvent_other": "Létrehozott adatkészlet események",
+  "dag_one": "Dag",
+  "dag_other": "Dag-ek",
+  "dagDetails": {
+    "catchup": "Bepótlás",
+    "dagRunTimeout": "Dag futási időkorlát",
+    "defaultArgs": "Alapértelmezett argumentumok",
+    "description": "Leírás",
+    "documentation": "Dag dokumentáció",
+    "fileLocation": "Fájl helye",
+    "hasTaskConcurrencyLimits": "Van feladat párhuzamossági korlát",
+    "lastExpired": "Legutóbb lejárt",
+    "lastParsed": "Legutóbb feldolgozva",
+    "latestDagVersion": "Legújabb Dag verzió",
+    "latestRun": "Legutóbbi futás",
+    "maxActiveRuns": "Max. aktív futások",
+    "maxActiveTasks": "Max. aktív feladatok",
+    "maxConsecutiveFailedDagRuns": "Max. egymást követő sikertelen Dag futások",
+    "nextRun": "Következő futás",
+    "owner": "Tulajdonos",
+    "params": "Paraméterek",
+    "schedule": "Ütemezés",
+    "tags": "Címkék"
+  },
+  "dagId": "Dag azonosító",
+  "dagRun": {
+    "conf": "Konfiguráció",
+    "dagVersions": "Dag verzió(k)",
+    "dataIntervalEnd": "Adatintervallum vége",
+    "dataIntervalStart": "Adatintervallum kezdete",
+    "lastSchedulingDecision": "Utolsó ütemezési döntés",
+    "queuedAt": "Sorba állítva ekkor",
+    "runAfter": "Futtatás ezután",
+    "runType": "Futtatás típusa",
+    "sourceAssetEvent": "Forrás adatkészlet esemény",
+    "triggeredBy": "Indította",
+    "triggeringUser": "Indító felhasználó neve"
+  },
+  "dagRun_one": "Dag futás",
+  "dagRun_other": "Dag futások",
+  "dagRunId": "Dag futás azonosító",
+  "dagWarnings": "Dag figyelmeztetések/hibák",
+  "defaultToGraphView": "Alapértelmezett gráf nézet",
+  "defaultToGridView": "Alapértelmezett rács nézet",
+  "direction": "Irány",
+  "docs": {
+    "documentation": "Dokumentáció",
+    "githubRepo": "GitHub repo",
+    "restApiReference": "REST API referencia"
+  },
+  "duration": "Időtartam",
+  "endDate": "Befejezés dátuma",
+  "error": {
+    "back": "Vissza",
+    "defaultMessage": "Váratlan hiba történt",
+    "home": "Kezdőlap",
+    "notFound": "Az oldal nem található",
+    "title": "Hiba"
+  },
+  "expand": {
+    "collapse": "Összecsukás",
+    "expand": "Kibontás",
+    "hotkey": "e",
+    "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a kibontáshoz"
+  },
+  "expression": {
+    "all": "Mind",
+    "and": "ÉS",
+    "any": "Bármely",
+    "or": "VAGY"
+  },
+  "filter": "Szűrő",
+  "filters": {
+    "logicalDateFrom": "Logikai dátum -tól",
+    "logicalDateTo": "Logikai dátum -ig",
+    "runAfterFrom": "Futás ekkortól",
+    "runAfterTo": "Futás eddig"
+  },
+  "logicalDate": "Logikai dátum",
+  "logout": "Kijelentkezés",
+  "logoutConfirmation": "Biztosan ki szeretne jelentkezni az alkalmazásból?",
+  "mapIndex": "Map Index",
+  "modal": {
+    "cancel": "Mégse",
+    "confirm": "Megerősítés",
+    "delete": {
+      "button": "Törlés",
+      "confirmation": "Biztosan törölni akarja ezt: {{resourceName}}? Ez a művelet nem vonható vissza."
+    }
+  },
+  "nav": {
+    "admin": "Admin",
+    "assets": "Adatkészletek",
+    "browse": "Böngészés",
+    "dags": "Dag-ek",
+    "docs": "Dokumentáció",
+    "home": "Kezdőlap",
+    "legacyFabViews": "Régi nézetek",
+    "plugins": "Bővítmények",
+    "security": "Biztonság"
+  },
+  "noItemsFound": "{{modelName}} nem található ",
+  "note": {
+    "add": "Jegyzet hozzáadása",
+    "dagRun": "Dag futás jegyzet",
+    "label": "Jegyzet",
+    "placeholder": "Jegyzet hozzáadása...",
+    "taskInstance": "Feladatpéldány jegyzet"
+  },
+  "pools": {
+    "deferred": "Várakozó",
+    "open": "Nyitott",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "Sorban áll",
+    "running": "Fut",
+    "scheduled": "Ütemezett"
+  },
+  "reset": "Alaphelyzetbe állítás",
+  "runId": "Futás azonosító",
+  "runTypes": {
+    "asset_triggered": "Adatkészlet által indított",
+    "backfill": "Visszatöltés",
+    "manual": "Kézi",
+    "scheduled": "Ütemezett"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "aljára",
+      "top": "tetejére"
+    },
+    "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a görgetéshez ide: {{direction}}"
+  },
+  "security": {
+    "actions": "Műveletek",
+    "permissions": "Jogosultságok",
+    "resources": "Erőforrások",
+    "roles": "Szerepkörök",
+    "users": "Felhasználók"
+  },
+  "selectLanguage": "Nyelv kiválasztása",
+  "showDetailsPanel": "Részletek panel megjelenítése",
+  "source": {
+    "hide": "Forrás elrejtése",
+    "hotkey": "s",
+    "show": "Forrás megjelenítése"
+  },
+  "sourceAssetEvent_one": "Forrás adatkészlet esemény",
+  "sourceAssetEvent_other": "Forrás adatkészlet események",
+  "startDate": "Kezdési dátum",
+  "state": "Állapot",
+  "states": {
+    "deferred": "Várakozó",
+    "failed": "Sikertelen",
+    "no_status": "Nincs állapot",
+    "none": "Nincs állapot",
+    "planned": "Tervezett",
+    "queued": "Sorban áll",
+    "removed": "Eltávolítva",
+    "restarting": "Újraindítás",
+    "running": "Fut",
+    "scheduled": "Ütemezett",
+    "skipped": "Kihagyva",
+    "success": "Sikeres",
+    "up_for_reschedule": "Újraütemezésre vár",
+    "up_for_retry": "Újrapróbálkozásra vár",
+    "upstream_failed": "Előfeltétel sikertelen"
+  },
+  "table": {
+    "completedAt": "Befejezve ekkor",
+    "createdAt": "Létrehozva ekkor",
+    "filterByTag": "Szűrés címke alapján",
+    "filterColumns": "Táblázat oszlopainak szűrése",
+    "filterReset_one": "Szűrő visszaállítása",
+    "filterReset_other": "Szűrők visszaállítása",
+    "from": "Ettől",
+    "maxActiveRuns": "Max. aktív futások",
+    "noTagsFound": "Nem találhatók címkék",
+    "tagMode": {
+      "all": "Mind",
+      "any": "Bármely"
+    },
+    "tagPlaceholder": "Szűrés címke alapján",
+    "to": "Eddig"
+  },
+  "task": {
+    "documentation": "Feladat dokumentáció",
+    "lastInstance": "Legutóbbi példány",
+    "operator": "Operátor",
+    "triggerRule": "Indítási szabály"
+  },
+  "task_one": "Feladat",
+  "task_other": "Feladatok",
+  "taskGroup": "Feladatcsoport",
+  "taskId": "Feladat azonosító",
+  "taskInstance": {
+    "dagVersion": "Dag verzió",
+    "executor": "Végrehajtó",
+    "executorConfig": "Végrehajtó konfiguráció",
+    "hostname": "Hostname",
+    "maxTries": "Max. próbálkozások",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Pool slotok",
+    "priorityWeight": "Prioritás súlya",
+    "queue": "Sor",
+    "queuedWhen": "Sorba állítva ekkor",
+    "scheduledWhen": "Ütemezve ekkor",
+    "triggerer": {
+      "assigned": "Hozzárendelt indító",
+      "class": "Indító osztály",
+      "createdAt": "Indító létrehozás ideje",
+      "id": "Indító azonosító",
+      "latestHeartbeat": "Legutóbbi indító szívverés",
+      "title": "Indító információ"
+    },
+    "unixname": "Unix név"
+  },
+  "taskInstance_one": "Feladatpéldány",
+  "taskInstance_other": "Feladatpéldányok",
+  "timeRange": {
+    "last12Hours": "Elmúlt 12 óra",
+    "last24Hours": "Elmúlt 24 óra",
+    "lastHour": "Elmúlt óra",
+    "pastWeek": "Elmúlt hét"
+  },
+  "timestamp": {
+    "hide": "Időbélyegek elrejtése",
+    "hotkey": "t",
+    "show": "Időbélyegek megjelenítése"
+  },
+  "timezone": "Időzóna",
+  "timezoneModal": {
+    "current-timezone": "Jelenlegi időzóna:",
+    "placeholder": "Válassz időzónát",
+    "title": "Időzóna kiválasztása",
+    "utc": "UTC (egyezményes koordinált világidő)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Tömeges törlés kérése sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
+        "title": "Tömeges törlés kérelem elküldve: {{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "Létrehozás kérése sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} sikeresen létrehozva.",
+        "title": "Létrehozási kérelem elküldve: {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "Törlési kérelem sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} sikeresen törölve.",
+        "title": "Törlési kérelem elküldve: {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "Importálási kérelem sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} sikeresen importálva.",
+        "title": "Importálási kérelem elküldve: {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "Frissítési kérelem sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} sikeresen frissítve.",
+        "title": "Frissítési kérelem elküldve: {{resourceName}}"
+      }
+    }
+  },
+  "total": "Összes: {{state}}",
+  "triggered": "Indítva",
+  "tryNumber": "Próbálkozás száma",
+  "user": "Felhasználó",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a sortördelés ki/be kapcsolásához",
+    "unwrap": "Sortördelés kikapcsolása",
+    "wrap": "Sortördelés"
+  }
+}

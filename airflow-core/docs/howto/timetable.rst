@@ -16,7 +16,7 @@
     under the License.
 
 
-Customizing DAG Scheduling with Timetables
+Customizing Dag Scheduling with Timetables
 ==========================================
 
 For our example, let's say a company wants to run a job after each weekday to
@@ -66,7 +66,7 @@ The following is a skeleton for us to implement a new timetable:
         timetables = [AfterWorkdayTimetable]
 
 Next, we'll start putting code into ``AfterWorkdayTimetable``. After the
-implementation is finished, we should be able to use the timetable in our DAG
+implementation is finished, we should be able to use the timetable in our Dag
 file:
 
 .. code-block:: python
@@ -89,13 +89,13 @@ file:
 Define Scheduling Logic
 -----------------------
 
-When Airflow's scheduler encounters a DAG, it calls one of the two methods to
-know when to schedule the DAG's next run.
+When Airflow's scheduler encounters a Dag, it calls one of the two methods to
+know when to schedule the Dag's next run.
 
 * ``next_dagrun_info``: The scheduler uses this to learn the timetable's regular
   schedule, i.e. the "one for every workday, run at the end of it" part in our
   example.
-* ``infer_manual_data_interval``: When a DAG run is manually triggered (from the web
+* ``infer_manual_data_interval``: When a Dag run is manually triggered (from the web
   UI, for example), the scheduler uses this method to learn about how to
   reverse-infer the out-of-schedule run's data interval.
 
@@ -108,7 +108,7 @@ We'll start with ``infer_manual_data_interval`` since it's the easier of the two
     :end-before: [END howto_timetable_infer_manual_data_interval]
 
 The method accepts one argument ``run_after``, a ``pendulum.DateTime`` object
-that indicates when the DAG is externally triggered. Since our timetable creates
+that indicates when the Dag is externally triggered. Since our timetable creates
 a data interval for each complete work day, the data interval inferred here
 should usually start at the midnight one day prior to ``run_after``, but if
 ``run_after`` falls on a Sunday or Monday (i.e. the prior day is Saturday or
@@ -127,21 +127,21 @@ Next is the implementation of ``next_dagrun_info``:
 
 This method accepts two arguments. ``last_automated_data_interval`` is a
 :class:`~airflow.timetables.base.DataInterval` instance indicating the data
-interval of this DAG's previous non-manually-triggered run, or ``None`` if this
-is the first time ever the DAG is being scheduled. ``restriction`` encapsulates
-how the DAG and its tasks specify the schedule, and contains three attributes:
+interval of this Dag's previous non-manually-triggered run, or ``None`` if this
+is the first time ever the Dag is being scheduled. ``restriction`` encapsulates
+how the Dag and its tasks specify the schedule, and contains three attributes:
 
-* ``earliest``: The earliest time the DAG may be scheduled. This is a
+* ``earliest``: The earliest time the Dag may be scheduled. This is a
   ``pendulum.DateTime`` calculated from all the ``start_date`` arguments from
-  the DAG and its tasks, or ``None`` if there are no ``start_date`` arguments
+  the Dag and its tasks, or ``None`` if there are no ``start_date`` arguments
   found at all.
-* ``latest``: Similar to ``earliest``, this is the latest time the DAG may be
+* ``latest``: Similar to ``earliest``, this is the latest time the Dag may be
   scheduled, calculated from ``end_date`` arguments.
-* ``catchup``: A boolean reflecting the DAG's ``catchup`` argument. Defaults to ``False``.
+* ``catchup``: A boolean reflecting the Dag's ``catchup`` argument. Defaults to ``False``.
 
 .. note::
 
-    Both ``earliest`` and ``latest`` apply to the DAG run's logical date
+    Both ``earliest`` and ``latest`` apply to the Dag run's logical date
     (the *start* of the data interval), not when the run will be scheduled
     (usually after the end of the data interval).
 
@@ -163,7 +163,7 @@ attributes:
 * ``data_interval``: A :class:`~airflow.timetables.base.DataInterval` instance
   describing the next run's data interval.
 * ``run_after``: A ``pendulum.DateTime`` instance that tells the scheduler when
-  the DAG run can be scheduled.
+  the Dag run can be scheduled.
 
 A ``DagRunInfo`` can be created like this:
 
@@ -183,7 +183,7 @@ provides a shortcut for this:
     info = DagRunInfo.interval(start=start, end=end)
     assert info.data_interval.end == info.run_after  # Always True.
 
-For reference, here's our plugin and DAG files in their entirety:
+For reference, here's our plugin and Dag files in their entirety:
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/workday.py
     :language: python
@@ -212,8 +212,8 @@ Parameterized Timetables
 ------------------------
 
 Sometimes we need to pass some run-time arguments to the timetable. Continuing
-with our ``AfterWorkdayTimetable`` example, maybe we have dags running on
-different timezones, and we want to schedule some dags at 8am the next day,
+with our ``AfterWorkdayTimetable`` example, maybe we have Dags running on
+different timezones, and we want to schedule some Dags at 8am the next day,
 instead of on midnight. Instead of creating a separate timetable for each
 purpose, we'd want to do something like:
 
@@ -231,7 +231,7 @@ purpose, we'd want to do something like:
                 run_after=DateTime.combine(end.date(), self._schedule_at).replace(tzinfo=UTC),
             )
 
-However, since the timetable is a part of the DAG, we need to tell Airflow how
+However, since the timetable is a part of the Dag, we need to tell Airflow how
 to serialize it with the context we provide in ``__init__``. This is done by
 implementing two additional methods on our timetable class:
 
@@ -247,9 +247,9 @@ implementing two additional methods on our timetable class:
         def deserialize(cls, value: dict[str, Any]) -> Timetable:
             return cls(Time.fromisoformat(value["schedule_at"]))
 
-When the DAG is being serialized, ``serialize`` is called to obtain a
+When the Dag is being serialized, ``serialize`` is called to obtain a
 JSON-serializable value. That value is passed to ``deserialize`` when the
-serialized DAG is accessed by the scheduler to reconstruct the timetable.
+serialized Dag is accessed by the scheduler to reconstruct the timetable.
 
 
 Timetable Display in UI
@@ -267,7 +267,7 @@ our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
     def summary(self) -> str:
         return f"after each workday, at {self._schedule_at}"
 
-So for a DAG declared like this:
+So for a Dag declared like this:
 
 .. code-block:: python
 
@@ -309,7 +309,7 @@ You can also wrap this inside ``__init__``, if you want to derive description.
 
 This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.
 
-So for a DAG declared like this:
+So for a Dag declared like this:
 
 .. code-block:: python
 
@@ -352,4 +352,4 @@ For example to have the Run ID show a "human friendly" date of when the run star
         )
 
 
-Remember that the RunID is limited to 250 characters, and must be unique within a DAG.
+Remember that the RunID is limited to 250 characters, and must be unique within a Dag.

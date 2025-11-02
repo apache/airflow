@@ -26,6 +26,105 @@
 Changelog
 ---------
 
+2.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix openlineage dag state event emit on timed out dag (#56542)``
+* ``Only import OpenLineage plugin listeners/hooks if plugin is enabled (#56266)``
+
+Misc
+~~~~
+
+* ``nit: Bump required OL client for Openlineage provider (#56302)``
+* ``chore: safeguard external call in OL sqlparser (#55692)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore: add sleep in ol test operator (#54807)``
+   * ``Fix DagBag imports in 3.2+ (#56109)``
+
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``Adjust OpenLineage utils to be compatible with Airflow 3.1.0 (#56040)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+   * ``Move DagBag to airflow/dag_processing (#55139)``
+
+2.7.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
+Misc
+~~~~
+
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Decouple secrets_masker project from airflow configuration (#55259)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.7.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``add tasksDuration to state run facet (#53644)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+
+Misc
+~~~~
+
+* ``Decouple serialization and deserialization code for tasks (#54569)``
+* ``Move secrets_masker over to airflow_shared distribution (#54449)``
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``docs: fix broken link on OpenLineage developer section (#54356)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``chore: add more test cases to OpenLineage system tests (#55138)``
+   * ``chore: update ol system tests after bug fix in AF3 (#54629)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove SDK BaseOperator in TaskInstance (#53223)``
+   * ``chore: Adjust OL system tests to latest changes (#54352)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Move email notifications from scheduler to DAG processor (#55238)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 2.6.1
 .....
 

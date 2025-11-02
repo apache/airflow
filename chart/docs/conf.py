@@ -38,9 +38,6 @@ import re
 from typing import Any
 
 import yaml
-from packaging.version import parse as parse_version
-
-import airflow
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -59,6 +56,9 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
 )
+from packaging.version import parse as parse_version
+
+import airflow
 
 PACKAGE_NAME = "helm-chart"
 CHART_ROOT_PATH = AIRFLOW_REPO_ROOT_PATH / "chart"

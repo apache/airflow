@@ -305,6 +305,8 @@ ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", 
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
+# teams
+ARG_TEAM_NAME = Arg(("name",), help="Team name")
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -1391,6 +1393,26 @@ VARIABLES_COMMANDS = (
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),
 )
+TEAMS_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
+        args=(ARG_TEAM_NAME, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="delete",
+        help="Delete a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_delete"),
+        args=(ARG_TEAM_NAME, ARG_YES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="list",
+        help="List teams",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
@@ -1834,6 +1856,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name="teams",
+        help="Manage teams",
+        subcommands=TEAMS_COMMANDS,
     ),
     GroupCommand(
         name="jobs",

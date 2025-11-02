@@ -81,8 +81,7 @@ def _get_version_revision(version: str, revision_heads_map: dict[str, str] | Non
 
         if current < wanted:
             return head
-    else:
-        return None
+    return None
 
 
 def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
@@ -220,6 +219,14 @@ def check_migrations(args):
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
+def _quote_mysql_password_for_cnf(password: str | None) -> str:
+    """Escape and quote MySQL password for use in my.cnf option file."""
+    if password is None or password == "":
+        return ""
+    val = password.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{val}"'
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def shell(args):
@@ -232,11 +239,11 @@ def shell(args):
             content = textwrap.dedent(
                 f"""
                 [client]
-                host     = {url.host}
-                user     = {url.username}
-                password = {url.password or ""}
+                host     = {(url.host or "")}
+                user     = {(url.username or "")}
+                password = {_quote_mysql_password_for_cnf(url.password)}
                 port     = {url.port or "3306"}
-                database = {url.database}
+                database = {(url.database or "")}
                 """
             ).strip()
             f.write(content.encode())

@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "पहला {{count}} पसंदीदा डैग",
+    "favoriteDags_other": "पहले {{count}} पसंदीदा डैग्स",
+    "noDagRuns": "इस डैग के लिए अभी तक कोई डैगरन नहीं है।",
+    "noFavoriteDags": "अभी तक कोई पसंदीदा नहीं। अपने पसंदीदा में जोड़ने के लिए सूची में किसी डैग के बगल में स्टार आइकन पर क्लिक करें।"
+  },
+  "group": "ग्रुप",
+  "health": {
+    "dagProcessor": "डैग प्रोसेसर",
+    "health": "स्वास्थ्य",
+    "healthy": "स्वस्थ",
+    "lastHeartbeat": "अंतिम हार्टबीट",
+    "metaDatabase": "मेटा डेटाबेस",
+    "scheduler": "शेड्यूलर",
+    "status": "स्थिति",
+    "triggerer": "ट्रिगरर",
+    "unhealthy": "अस्वस्थ"
+  },
+  "history": "इतिहास",
+  "importErrors": {
+    "dagImportError_one": "डैग आयात त्रुटि",
+    "dagImportError_other": "डैग आयात त्रुटियां",
+    "searchByFile": "फ़ाइल द्वारा खोजें",
+    "timestamp": "टाइमस्टैम्प"
+  },
+  "managePools": "पूल्स प्रबंधित करें",
+  "noAssetEvents": "कोई एसेट इवेंट्स नहीं मिले।",
+  "poolSlots": "पूल स्लॉट्स",
+  "sortBy": {
+    "newestFirst": "नवीनतम पहले",
+    "oldestFirst": "पुराने पहले"
+  },
+  "source": "स्रोत",
+  "stats": {
+    "activeDags": "सक्रिय डैग्स",
+    "failedDags": "विफल डैग्स",
+    "queuedDags": "कतार में डैग्स",
+    "requiredActions": "आवश्यक क्रियाएं",
+    "runningDags": "चल रहे डैग्स",
+    "stats": "आंकड़े"
+  },
+  "uri": "URI",
+  "welcome": "स्वागत है"
+}

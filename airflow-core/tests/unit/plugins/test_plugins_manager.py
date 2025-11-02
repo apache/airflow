@@ -79,8 +79,6 @@ class TestPluginsManager:
         plugins_manager.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         with mock_plugin_manager(plugins=[]):
             from airflow import plugins_manager
 
@@ -94,7 +92,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert len(plugins_manager.plugins) == 9
+            assert len(plugins_manager.plugins) == 10
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert plugin.name == "postload"
@@ -120,8 +118,6 @@ class TestPluginsManager:
             assert "testplugin.py" in received_logs
 
     def test_should_warning_about_incompatible_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -156,12 +152,10 @@ class TestPluginsManager:
         ]
 
     def test_should_warning_about_conflicting_url_route(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}]
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
@@ -184,24 +178,44 @@ class TestPluginsManager:
             assert len(plugins_manager.external_views) == 1
             assert len(plugins_manager.react_apps) == 0
 
+    def test_should_warning_about_external_views_or_react_app_wrong_object(self, caplog):
+        class TestPluginA(AirflowPlugin):
+            name = "test_plugin_a"
+
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+
+        with (
+            mock_plugin_manager(plugins=[TestPluginA()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager.initialize_ui_plugins()
+
+            # Verify that the conflicting external view and react app are not loaded
+            plugin_a = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_a")
+            assert plugin_a.external_views == [{"url_route": "/test_route"}]
+            assert plugin_a.react_apps == [{"url_route": "/test_route_react_app"}]
+            assert len(plugins_manager.external_views) == 1
+            assert len(plugins_manager.react_apps) == 1
+
         assert caplog.record_tuples == [
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_b' has an external view with an URL route '/test_route' "
-                "that conflicts with another plugin 'test_plugin_a'. The view will not be loaded.",
+                "Plugin 'test_plugin_a' has an external view that is not a dictionary. "
+                "The view will not be loaded.",
             ),
             (
                 "airflow.plugins_manager",
                 logging.WARNING,
-                "Plugin 'test_plugin_b' has a React App with an URL route '/test_route' "
-                "that conflicts with another plugin 'test_plugin_a'. The React App will not be loaded.",
+                "Plugin 'test_plugin_a' has a React App that is not a dictionary. "
+                "The React App will not be loaded.",
             ),
         ]
 
     def test_should_not_warning_about_fab_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -223,8 +237,6 @@ class TestPluginsManager:
         assert caplog.record_tuples == []
 
     def test_should_not_warning_about_fab_and_flask_admin_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -346,8 +358,6 @@ class TestPluginsManager:
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_not_double_import_entrypoint_provider_plugins(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         from airflow import plugins_manager
 
         mock_entrypoint = mock.Mock()

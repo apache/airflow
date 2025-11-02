@@ -28,8 +28,8 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.sql
-isort:skip_file
+Definition of the public interface for
+airflow.providers.common.sql.src.airflow.providers.common.sql.hooks.sql.
 """
 
 from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
@@ -109,7 +109,7 @@ class DbApiHook(BaseHook):
     ) -> PandasDataFrame: ...
     def get_pandas_df_by_chunks(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, *, chunksize: int, **kwargs
-    ) -> Generator[PandasDataFrame, None, None]: ...
+    ) -> Generator[PandasDataFrame]: ...
     def get_records(
         self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
     ) -> Any: ...
@@ -143,7 +143,7 @@ class DbApiHook(BaseHook):
         chunksize: int,
         df_type: Literal["pandas"] = "pandas",
         **kwargs,
-    ) -> Generator[PandasDataFrame, None, None]: ...
+    ) -> Generator[PandasDataFrame]: ...
     @overload
     def get_df_by_chunks(
         self,
@@ -153,7 +153,7 @@ class DbApiHook(BaseHook):
         chunksize: int,
         df_type: Literal["polars"],
         **kwargs,
-    ) -> Generator[PolarsDataFrame, None, None]: ...
+    ) -> Generator[PolarsDataFrame]: ...
     @staticmethod
     def strip_sql_string(sql: str) -> str: ...
     @staticmethod

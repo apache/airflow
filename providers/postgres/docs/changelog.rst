@@ -27,6 +27,62 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure IAM/Entra ID support for PostgresHook (#55729)``
+
+Misc
+~~~~
+
+* ``fix mypy type errors in common/sql provider for sqlalchemy 2 upgrade (#56824)``
+* ``Migrate postgres provider to ''common.compat'' (#57022)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#55980)``
+
+6.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Added specialized insert_rows in PostgresHook which uses faster psycopg execute_batch method (#54988)``
+* ``Add rudimentary support for psycopg3 (#52976)``
+* ``Implemented native get_column_names in PostgresDialect to become SQLAlchemy independent (#54437)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``PostgresDialect should use index instead of name in get_column_names and get_primary_keys (#54832)``
+
+Misc
+~~~~
+
+* ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 6.2.3
 .....
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console
@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -105,56 +106,40 @@ ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
 )
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
-ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
-)
+ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity"
 
-ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
-)
-ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk"
-)
+ALL_SKIPPED_COMMITS_IF_NO_UI = "identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = "identity,lint-helm-chart"
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
-    "mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "identity,lint-helm-chart,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,identity,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "check-provider-yaml-valid,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,"
-    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
 )
 
@@ -163,16 +148,12 @@ All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
     "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,"
     "check-extra-packages-references,check-provider-yaml-valid,"
     "compile-fab-assets,generate-openapi-spec-fab,identity,"
-    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,"
-    "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"
+    "lint-helm-chart,validate-operators-init"
 )
 
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
-
-# Use me if you are adding test for the changed files that includes caplog
-LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 
 
 def escape_ansi_colors(line):
@@ -647,8 +628,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google "
-                    "openlineage pgvector postgres",
+                    "selected-providers-list-as-string": "amazon common.compat common.sql google "
+                    "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -670,7 +651,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.sql,openlineage,pgvector,postgres] "
+                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -690,7 +671,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord google http",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -711,7 +692,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -722,12 +703,21 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
+                                "description": "atlassian.jir...common.compat",
+                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
+                            },
+                            {
                                 "description": "dbt.cloud...dingding",
                                 "test_types": "Providers[dbt.cloud] Providers[dingding]",
                             },
-                            {"description": "discord", "test_types": "Providers[discord]"},
-                            {"description": "google", "test_types": "Providers[google]"},
-                            {"description": "http", "test_types": "Providers[http]"},
+                            {
+                                "description": "discord...google",
+                                "test_types": "Providers[discord] Providers[google]",
+                            },
+                            {
+                                "description": "http...pagerduty",
+                                "test_types": "Providers[http] Providers[pagerduty]",
+                            },
                         ]
                     ),
                     "run-mypy": "true",
@@ -745,7 +735,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/airbyte/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "airbyte",
+                    "selected-providers-list-as-string": "airbyte common.compat",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -763,7 +753,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [{"description": "Always", "test_types": "Always"}]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                        [
+                            {
+                                "description": "airbyte,common.compat",
+                                "test_types": "Providers[airbyte,common.compat]",
+                            }
+                        ]
                     ),
                 },
                 id="Helm tests, airbyte providers, kubernetes tests and "
@@ -871,7 +866,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/airbyte/tests/airbyte/__init__.py",),
             {
-                "selected-providers-list-as-string": "airbyte",
+                "selected-providers-list-as-string": "airbyte common.compat",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -889,7 +884,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [{"description": "Always", "test_types": "Always"}]
                 ),
                 "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                    [
+                        {
+                            "description": "airbyte,common.compat",
+                            "test_types": "Providers[airbyte,common.compat]",
+                        }
+                    ]
                 ),
                 "run-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
@@ -1112,7 +1112,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,mypy-airflow-core,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
+                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1170,7 +1170,7 @@ def test_expected_output_pull_request_main(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=tuple(),
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1548,10 +1548,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         (
             pytest.param(
                 ("INTHEWILD.md", "providers/asana/tests/asana.py"),
-                (
-                    "full tests needed",
-                    LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,
-                ),
+                ("full tests needed",),
                 "v2-7-stable",
                 {
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1706,7 +1703,7 @@ def test_expected_output_pull_request_v2_7(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=(),
         default_branch="v2-7-stable",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1943,7 +1940,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
@@ -1954,7 +1951,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1964,7 +1961,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
+                            "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,oracle,"
                             "postgres,sftp,snowflake,trino] Providers[google]",
                         }
                     ]
@@ -1984,7 +1981,7 @@ def test_expected_output_pull_request_target(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST_TARGET,
-        pr_labels=(LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
+        pr_labels=(),
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -2133,7 +2130,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.sql databricks elasticsearch "
+                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -2142,14 +2139,14 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst",),
             {
-                "docs-list-as-string": "airbyte",
+                "docs-list-as-string": "airbyte common.compat",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte",
+                "docs-list-as-string": "apache-airflow airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -2160,7 +2157,7 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
@@ -2173,7 +2170,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "celery cncf.kubernetes"},
+            {"docs-list-as-string": "celery cncf.kubernetes common.compat"},
             id="Celery python files changed",
         ),
         pytest.param(
@@ -2447,215 +2444,338 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_fail(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks_caplop(self, caplog)
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
+@patch("airflow_breeze.utils.selective_checks.FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED", True)
+def test_ui_english_translation_changed_fail_on_change():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
     with pytest.raises(SystemExit):
-        assert (
-            "[error]please ask maintainer to include as an exception using "
-            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
-            in escape_ansi_colors(
-                str(
-                    SelectiveChecks(
-                        files=files,
-                        commit_ref=NEUTRAL_COMMIT,
-                        pr_labels=pr_labels,
-                        github_event=GithubEvents.PULL_REQUEST,
-                        default_branch="main",
-                    )
-                )
-            )
-        )
+        SelectiveChecks(
+            files=(translation_file,),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).ui_english_translation_changed
 
 
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_fail_formatted(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks(
-        +     self,
-        +     caplog
-        + )
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
-    with pytest.raises(SystemExit):
-        assert (
-            "[error]please ask maintainer to include as an exception using "
-            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
-            in escape_ansi_colors(
-                str(
-                    SelectiveChecks(
-                        files=files,
-                        commit_ref=NEUTRAL_COMMIT,
-                        pr_labels=pr_labels,
-                        github_event=GithubEvents.PULL_REQUEST,
-                        default_branch="main",
-                    )
-                )
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, github_event",
-    [
-        pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
-        ),
-        pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
-        ),
-        pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
-        ),
-    ],
-)
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_not_fail(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-         + #Test Change
-         + def test_selective_checks(self)
-         +   assert "I am just a test" == "I am just a test"
-     """
-    mock_run_command.return_value = mock_run_command_result
+def test_ui_english_translation_changed_allowed_in_canary_run():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
     selective_checks = SelectiveChecks(
-        files=files,
+        files=(translation_file,),
         commit_ref=NEUTRAL_COMMIT,
-        pr_labels=pr_labels,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+    )
+    assert selective_checks.ui_english_translation_changed
+
+
+def test_ui_english_translation_changed_allowed_with_label():
+    translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
+    selective_checks = SelectiveChecks(
+        files=(translation_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow translation change",),
         github_event=GithubEvents.PULL_REQUEST,
         default_branch="main",
     )
-    assert selective_checks.is_log_mocked_in_the_tests
+    assert selective_checks.ui_english_translation_changed is True
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == "ubuntu-22.04"
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_not_found(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result is None
+
+
+def test_runner_type_pr():
+    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
+
+    result = selective_checks.runner_type
+
+    assert result == PUBLIC_AMD_RUNNERS
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_runner_type_schedule(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.SCHEDULE,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.runner_type
+
+    assert result == '["ubuntu-22.04-arm"]'
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, github_event",
+    "integration, runner_type, expected_result",
     [
+        # Test integrations disabled for all CI environments
         pytest.param(
-            ("airflow-core/tests/unit/test.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the the git diff Tests",
+            "elasticsearch",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="elasticsearch_disabled_on_amd",
         ),
         pytest.param(
-            ("providers/common/sql/tests/unit/common/sql/operators/test_sql.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff Providers",
+            "mssql",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="mssql_disabled_on_amd",
         ),
         pytest.param(
-            ("task-sdk/tests/definitions/test_dag.py",),
-            (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
-            GithubEvents.PULL_REQUEST,
-            id="Caplog is in the git diff TaskSDK",
+            "localstack",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="localstack_disabled_on_arm",
+        ),
+        # Test integrations disabled only for ARM runners
+        pytest.param(
+            "kerberos",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="kerberos_disabled_on_arm",
+        ),
+        pytest.param(
+            "drill",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="drill_disabled_on_arm",
+        ),
+        pytest.param(
+            "tinkerpop",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="tinkerpop_disabled_on_arm",
+        ),
+        pytest.param(
+            "pinot",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="pinot_disabled_on_arm",
+        ),
+        pytest.param(
+            "trino",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="trino_disabled_on_arm",
+        ),
+        pytest.param(
+            "ydb",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="ydb_disabled_on_arm",
+        ),
+        # Test integrations that are NOT disabled on AMD runners
+        pytest.param(
+            "kerberos",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="kerberos_enabled_on_amd",
+        ),
+        pytest.param(
+            "drill",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="drill_enabled_on_amd",
+        ),
+        pytest.param(
+            "tinkerpop",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="tinkerpop_enabled_on_amd",
+        ),
+        # Test an integration that is not in any disabled list
+        pytest.param(
+            "postgres",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="postgres_enabled_on_amd",
+        ),
+        pytest.param(
+            "postgres",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="postgres_enabled_on_arm",
+        ),
+        pytest.param(
+            "redis",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="redis_enabled_on_amd",
+        ),
+        pytest.param(
+            "redis",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="redis_enabled_on_arm",
         ),
     ],
 )
-# Patch run_command
-@patch("airflow_breeze.utils.selective_checks.run_command")
-def test_is_log_mocked_in_the_tests_not_fail_with_label(
-    mock_run_command,
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    github_event: GithubEvents,
-):
-    mock_run_command_result = MagicMock()
-    mock_run_command_result.stdout = """
-        + #Test Change
-        + def test_selective_checks_caplop(self, caplog)
-        +   caplog.set_level(logging.INFO)
-        +   "test log" in caplog.text
-    """
-    mock_run_command.return_value = mock_run_command_result
+def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+    """Test that _is_disabled_integration correctly identifies disabled integrations."""
     selective_checks = SelectiveChecks(
-        files=files,
-        commit_ref=NEUTRAL_COMMIT,
-        pr_labels=pr_labels,
+        files=(),
         github_event=GithubEvents.PULL_REQUEST,
-        default_branch="main",
+        github_repository="apache/airflow",
+        github_context_dict={},
     )
-    assert selective_checks.is_log_mocked_in_the_tests
+
+    # Mock the runner_type property
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
+    ):
+        result = selective_checks._is_disabled_integration(integration)
+        assert result == expected_result
+
+
+def test_testable_core_integrations_excludes_disabled():
+    """Test that testable_core_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
+        ["postgres", "elasticsearch", "kerberos"],
+    ):
+        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" in result
+            assert "elasticsearch" not in result
+
+
+def test_testable_core_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_core_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS", ["postgres", "kerberos", "drill"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" not in result
+            assert "drill" not in result
+
+
+def test_testable_providers_integrations_excludes_disabled():
+    """Test that testable_providers_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS",
+        ["postgres", "mssql", "trino"],
+    ):
+        # Test with AMD runner - should exclude mssql (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" in result
+            assert "mssql" not in result
+
+
+def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_providers_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS", ["postgres", "trino", "ydb"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" not in result
+            assert "ydb" not in result

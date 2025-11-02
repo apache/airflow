@@ -27,6 +27,57 @@
 Changelog
 ---------
 
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: async slack notifier (#56685)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+
+9.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid secret false positive from trivy in example dag (#54504)``
+
+9.2.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``AIP-86 - Add async support for Notifiers (#53831)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make slack providers tests db independent (#54660)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 9.1.4
 .....
 

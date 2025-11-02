@@ -47,11 +47,11 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 # [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry  # isort:skip
+from google.api_core.retry import Retry
 
 # [END howto_operator_vision_retry_import]
 # [START howto_operator_vision_product_set_import]
-from google.cloud.vision_v1.types import ProductSet  # isort:skip
+from google.cloud.vision_v1.types import ProductSet
 
 # [END howto_operator_vision_product_set_import]
 # [START howto_operator_vision_product_import]
@@ -59,7 +59,7 @@ from google.cloud.vision_v1.types import Product  # isort:skip
 
 # [END howto_operator_vision_product_import]
 # [START howto_operator_vision_reference_image_import]
-from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
+from google.cloud.vision_v1.types import ReferenceImage
 
 # [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]

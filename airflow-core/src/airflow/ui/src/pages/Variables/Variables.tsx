@@ -57,7 +57,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(row.original.key)}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
@@ -67,7 +67,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),
@@ -227,7 +227,12 @@ export const Variables = () => {
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
           <Tooltip content={translate("variables.exportTooltip")}>
-            <Button onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
+            <Button
+              colorPalette="info"
+              onClick={() => downloadJson(selectedVariables, "variables")}
+              size="sm"
+              variant="outline"
+            >
               <FiShare />
               {translate("variables.export")}
             </Button>

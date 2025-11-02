@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
+from urllib.parse import quote
 
 import attrs
 import lazy_object_proxy
@@ -79,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -105,6 +107,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
+from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -129,6 +132,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
+    _context: Context | None = None
+    """The Task Instance context."""
+
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -146,8 +152,6 @@ class RuntimeTaskInstance(TaskInstance):
     """True if the original task was mapped."""
 
     rendered_map_index: str | None = None
-
-    log_url: str | None = None
 
     def __rich_repr__(self):
         yield "id", self.id
@@ -173,7 +177,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
-        context: Context = {
+        # Cache the context object, which ensures that all calls to get_template_context
+        # are operating on the same context object.
+        self._context: Context = self._context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -182,8 +188,6 @@ class RuntimeTaskInstance(TaskInstance):
             "run_id": self.run_id,
             "task": self.task,
             "task_instance": self,
-            # TODO: Ensure that ti.log_url and such are available to use in context
-            #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
             "inlet_events": InletEventsAccessors(self.task.inlets),
@@ -215,7 +219,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            context.update(context_from_server)
+            self._context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -226,7 +230,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                context.update(
+                self._context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -253,7 +257,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return context
+        return self._context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -310,8 +314,8 @@ class RuntimeTaskInstance(TaskInstance):
             manually). To remove the filter, pass *None*.
         :param task_ids: Only XComs from tasks with matching ids will be
             pulled. Pass *None* to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
-            (default), the DAG of the calling task is used.
+        :param dag_id: If provided, only pulls XComs from this Dag. If *None*
+            (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
             If *None* (default), this is inferred from the task(s) being pulled
             (see below for details).
@@ -443,13 +447,13 @@ class RuntimeTaskInstance(TaskInstance):
         return response.start_date
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRun | None:
-        """Return the previous DAG run before the given logical date, optionally filtered by state."""
+        """Return the previous Dag run before the given logical date, optionally filtered by state."""
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
         log = structlog.get_logger(logger_name="task")
 
-        log.debug("Getting previous DAG run", dag_run=dag_run)
+        log.debug("Getting previous Dag run", dag_run=dag_run)
 
         if dag_run is None:
             return None
@@ -527,7 +531,7 @@ class RuntimeTaskInstance(TaskInstance):
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
     ) -> int:
-        """Return the number of DAG runs matching the given criteria."""
+        """Return the number of Dag runs matching the given criteria."""
         response = SUPERVISOR_COMMS.send(
             GetDRCount(
                 dag_id=dag_id,
@@ -544,13 +548,33 @@ class RuntimeTaskInstance(TaskInstance):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str:
-        """Return the state of the DAG run with the given Run ID."""
+        """Return the state of the Dag run with the given Run ID."""
         response = SUPERVISOR_COMMS.send(msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
 
         if TYPE_CHECKING:
             assert isinstance(response, DagRunStateResult)
 
         return response.state
+
+    @property
+    def log_url(self) -> str:
+        run_id = quote(self.run_id)
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
+        map_index_value = self.map_index
+        map_index = (
+            f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
+        )
+        try_number_value = self.try_number
+        try_number = (
+            f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
+        )
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        return _log_uri
+
+    @property
+    def mark_success_url(self) -> str:
+        """URL to mark TI success."""
+        return self.log_url
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
@@ -581,28 +605,10 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def get_log_url_from_ti(ti: RuntimeTaskInstance) -> str:
-    from urllib.parse import quote
-
-    from airflow.configuration import conf
-
-    run_id = quote(ti.run_id)
-    base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-    map_index_value = getattr(ti, "map_index", -1)
-    map_index = f"/mapped/{map_index_value}" if map_index_value is not None and map_index_value >= 0 else ""
-    try_number_value = getattr(ti, "try_number", 0)
-    try_number = (
-        f"?try_number={try_number_value}" if try_number_value is not None and try_number_value > 0 else ""
-    )
-    _log_uri = f"{base_url}dags/{ti.dag_id}/runs/{run_id}/tasks/{ti.task_id}{map_index}{try_number}"
-    return _log_uri
-
-
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
-
-    from airflow.models.dagbag import DagBag
+    from airflow.dag_processing.dagbag import DagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -630,9 +636,9 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         dag = bag.dags[what.ti.dag_id]
     except KeyError:
         log.error(
-            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+            "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        exit(1)
+        sys.exit(1)
 
     # install_loader()
 
@@ -640,13 +646,13 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         task = dag.task_dict[what.ti.task_id]
     except KeyError:
         log.error(
-            "Task not found in DAG during start up",
+            "Task not found in Dag during start up",
             dag_id=dag.dag_id,
             task_id=what.ti.task_id,
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        exit(1)
+        sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
@@ -688,20 +694,15 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
         # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
         os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
-        msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
-        logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
-        if isinstance(logs, SentFDs):
-            from airflow.sdk.log import configure_logging
-
-            log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
-        else:
-            print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
+        reinit_supervisor_comms()
 
         # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
         # on stdout
@@ -710,8 +711,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # normal entry point
         msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
 
-    if not isinstance(msg, StartupDetails):
-        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+        if not isinstance(msg, StartupDetails):
+            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -728,8 +730,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
-        ti.log_url = get_log_url_from_ti(ti)
-    log.debug("DAG file parsed", file=msg.dag_rel_path)
+    log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
@@ -806,6 +807,19 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
+
+    # Try to render map_index_template early with available context (will be re-rendered after execution)
+    # This provides a partial label during task execution for templates using pre-execution context
+    # If rendering fails here, we suppress the error since it will be re-rendered after execution
+    try:
+        if rendered_map_index := _render_map_index(context, ti=ti, log=log):
+            ti.rendered_map_index = rendered_map_index
+            log.debug("Sending early rendered map index", length=len(rendered_map_index))
+            SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=rendered_map_index))
+    except Exception:
+        log.debug(
+            "Early rendering of map_index_template failed, will retry after task execution", exc_info=True
+        )
 
     _validate_task_inlets_and_outlets(ti=ti, log=log)
 
@@ -905,6 +919,7 @@ def run(
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
                     run_id=ti.run_id,
+                    map_index=ti.map_index,
                 )
 
         with set_current_context(context):
@@ -922,10 +937,20 @@ def run(
 
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
                 with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                    previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                    # Send update only if value changed (e.g., user set context variables during execution)
+                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                        SUPERVISOR_COMMS.send(
+                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
+                        )
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
+                previous_rendered_map_index = ti.rendered_map_index
                 ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
+                # Send update only if value changed (e.g., user set context variables during execution)
+                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1008,6 +1033,16 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance success metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_successes", tags=stats_tags)
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -1200,7 +1235,7 @@ def _get_email_subject_content(
         "max_tries": task_instance.max_tries,
     }
 
-    # Use the DAG's get_template_env() to set force_sandboxed. Don't add
+    # Use the Dag's get_template_env() to set force_sandboxed. Don't add
     # the flag to the function on task object -- that function can be
     # overridden, and adding a flag breaks backward compatibility.
     dag = task_instance.task.get_dag()
@@ -1304,12 +1339,13 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
-    """Render named map index if the DAG author defined map_index_template at the task level."""
+    """Render named map index if the Dag author defined map_index_template at the task level."""
     if (template := context.get("map_index_template")) is None:
         return None
+    log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
-    log.info("Map index rendered as %s", rendered_map_index)
+    log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
 
@@ -1365,6 +1401,14 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
+    # Record task duration metrics for all terminal states
+    if ti.start_date and ti.end_date:
+        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
+        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
+        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
@@ -1416,7 +1460,6 @@ def finalize(
 
 
 def main():
-    # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
@@ -1443,6 +1486,30 @@ def main():
         if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
             with suppress(Exception):
                 SUPERVISOR_COMMS.socket.close()
+
+
+def reinit_supervisor_comms() -> None:
+    """
+    Re-initialize supervisor comms and logging channel in subprocess.
+
+    This is not needed for most cases, but is used when either we re-launch the process via sudo for
+    run_as_user, or from inside the python code in a virtualenv (et al.) operator to re-connect so those tasks
+    can continue to access variables etc.
+    """
+    if "SUPERVISOR_COMMS" not in globals():
+        global SUPERVISOR_COMMS
+        log = structlog.get_logger(logger_name="task")
+
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+
+    logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+    if isinstance(logs, SentFDs):
+        from airflow.sdk.log import configure_logging
+
+        log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
+        configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
+    else:
+        print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
 
 if __name__ == "__main__":

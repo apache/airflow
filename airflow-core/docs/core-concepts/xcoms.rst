@@ -53,7 +53,7 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
-XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
+XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a Dag run, while Variables are global and designed for overall configuration and value sharing.
 
 If you want to push multiple XComs at once you can set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
 
@@ -78,7 +78,7 @@ An example of pushing multiple XComs and pulling them individually:
 
 .. note::
 
-  If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
+  If the first task was not successful then on every retry task XComs will be cleared to make the task run idempotent. XComs therefore can't be used to persist state across task retries or :doc:`./sensors` poke.
 
 
 Object Storage XCom Backend

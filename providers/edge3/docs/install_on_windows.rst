@@ -25,6 +25,8 @@ Install Edge Worker on Windows
     Windows-based setup is intended solely for testing at your own risk. It is technically limited
     due to Python OS restrictions and if currently of Proof-of-Concept quality.
 
+    It is known that due to changes in Task SDK running in Windows is not possible.
+
 
 The setup was tested on Windows 10 with Python 3.12.8, 64-bit. Backend for tests was Airflow 2.10.5.
 To setup a instance of Edge Worker on Windows, you need to follow the steps below:
@@ -35,8 +37,8 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
 4. Activate the virtual environment via: ``venv\Scripts\activate.bat``
 5. Install Edge provider using the Airflow constraints as of your Airflow version via
    ``pip install apache-airflow-providers-edge3 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.12.txt``.
-6. Create a new folder ``dags`` in ``C:\Airflow`` and copy the relevant DAG files in it.
-   (At least the DAG files which should be executed on the edge alongside the dependencies.)
+6. Create a new folder ``dags`` in ``C:\Airflow`` and copy the relevant Dag files in it.
+   (At least the Dag files which should be executed on the edge alongside the dependencies.)
 7. Collect needed parameters from your running Airflow backend, at least the following:
 
   - ``api_auth`` / ``jwt_token``: The shared secret key between the api-server and the Edge Worker
@@ -65,7 +67,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
     @REM Add if needed: set https_proxy=http://my-company-proxy.com:3128
     airflow edge worker --concurrency 4 --queues windows
 
-9. Note on logs: Per default the DAG Run ID is used as path in the log structure and per default the date and time
+9. Note on logs: Per default the Dag Run ID is used as path in the log structure and per default the date and time
    is contained in the Run ID. Windows fails with a colon (":") in a file or folder name and this also
    the Edge Worker fails.
    Therefore you might consider changing the config ``AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE`` to avoid the colon.
@@ -73,7 +75,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
    Note that the log filename template is resolved on server side and not on the worker side. So you need to make
    this as a global change.
    Alternatively for testing purposes only you must use Run IDs without a colon, e.g. set the Run ID manually when
-   starting a DAG run.
+   starting a Dag run.
 10. Start the worker via: ``start_worker.bat``
     Watch the console for errors.
-11. Run a DAG as test and see if the result is as expected.
+11. Run a Dag as test and see if the result is as expected.

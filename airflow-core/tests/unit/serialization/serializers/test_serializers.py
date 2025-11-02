@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from importlib import metadata
+from typing import ClassVar
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -33,10 +34,12 @@ from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
+from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -68,103 +71,76 @@ class FooBarModel(BaseModel):
     foo: str = Field()
 
 
+@pydantic_dataclass
+class PydanticDataclass:
+    __version__: ClassVar[int] = 1
+    a: int
+    b: str
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestSerializers:
-    def test_datetime(self):
-        i = datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC)
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
+    @pytest.mark.parametrize(
+        "input_obj",
+        [
+            pytest.param(
+                datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC),
+                id="datetime_utc",
+            ),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC), id="pendulum_datetime_utc"),
+            pytest.param(datetime.date(2022, 7, 10), id="date"),
+            pytest.param(datetime.timedelta(days=320), id="timedelta"),
+            pytest.param(
+                datetime.datetime(
+                    2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
+                ),
+                id="datetime_ny_tz",
+            ),
+            pytest.param(
+                DateTime(2022, 7, 10, tzinfo=pendulum.timezone("America/New_York")),
+                id="pendulum_datetime_ny_tz",
+            ),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=tzutc()), id="datetime_tzutc"),
+            pytest.param(DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")), id="datetime_zoneinfo"),
+            pytest.param(datetime.datetime.now(), id="datetime_now"),
+        ],
+    )
+    def test_datetime(self, input_obj):
+        """Test serialization and deserialization of various datetime-related objects."""
+        serialized_obj = serialize(input_obj)
+        deserialized_obj = deserialize(serialized_obj)
+        if isinstance(input_obj, (datetime.date, datetime.timedelta)):
+            assert input_obj == deserialized_obj
+        else:
+            assert input_obj.timestamp() == deserialized_obj.timestamp()
 
-        i = DateTime(2022, 7, 10, tzinfo=pendulum.tz.UTC)
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-        i = datetime.date(2022, 7, 10)
-        s = serialize(i)
-        d = deserialize(s)
-        assert i == d
-
-        i = datetime.timedelta(days=320)
-        s = serialize(i)
-        d = deserialize(s)
-        assert i == d
-
-        i = datetime.datetime(
-            2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
-        )
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-        i = DateTime(2022, 7, 10, tzinfo=pendulum.timezone("America/New_York"))
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-        i = DateTime(2022, 7, 10, tzinfo=tzutc())
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-        i = DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris"))
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-        i = datetime.datetime.now()
-        s = serialize(i)
-        d = deserialize(s)
-        assert i.timestamp() == d.timestamp()
-
-    def test_deserialize_datetime_v1(self):
-        s = {
+    @pytest.mark.parametrize(
+        "tz_input, expected_tz_name",
+        [
+            pytest.param("UTC", "UTC", id="utc"),
+            pytest.param("Europe/Paris", "Europe/Paris", id="europe_paris"),
+            pytest.param("America/New_York", "America/New_York", id="america_new_york"),
+            pytest.param("EDT", "-04:00", id="edt_ambiguous"),
+            pytest.param("CDT", "-05:00", id="cdt_ambiguous"),
+            pytest.param("MDT", "-06:00", id="mdt_ambiguous"),
+            pytest.param("PDT", "-07:00", id="pdt_ambiguous"),
+        ],
+    )
+    def test_deserialize_datetime_v1(self, tz_input, expected_tz_name):
+        """Test deserialization of datetime objects from version 1 format."""
+        serialized_data = {
             "__classname__": "pendulum.datetime.DateTime",
             "__version__": 1,
             "__data__": {"timestamp": 1657505443.0, "tz": "UTC"},
         }
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "UTC"
 
-        s["__data__"]["tz"] = "Europe/Paris"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "Europe/Paris"
-
-        s["__data__"]["tz"] = "America/New_York"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "America/New_York"
-
-        s["__data__"]["tz"] = "EDT"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "-04:00"
-        # assert that it's serializable with the new format
-        assert deserialize(serialize(d)) == d
-
-        s["__data__"]["tz"] = "CDT"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "-05:00"
-        # assert that it's serializable with the new format
-        assert deserialize(serialize(d)) == d
-
-        s["__data__"]["tz"] = "MDT"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "-06:00"
-        # assert that it's serializable with the new format
-        assert deserialize(serialize(d)) == d
-
-        s["__data__"]["tz"] = "PDT"
-        d = deserialize(s)
-        assert d.timestamp() == 1657505443.0
-        assert d.tzinfo.name == "-07:00"
-        # assert that it's serializable with the new format
-        assert deserialize(serialize(d)) == d
+        serialized_data["__data__"]["tz"] = tz_input
+        deserialized_dt = deserialize(serialized_data)
+        assert deserialized_dt.timestamp() == 1657505443.0
+        assert deserialized_dt.tzinfo.name == expected_tz_name
+        # Assert that it's serializable with the new format for ambiguous timezones
+        if tz_input in ["EDT", "CDT", "MDT", "PDT"]:
+            assert deserialize(serialize(deserialized_dt)) == deserialized_dt
 
     @pytest.mark.parametrize(
         "expr, expected",
@@ -261,7 +237,6 @@ class TestSerializers:
         ("klass", "ver", "value", "msg"),
         [
             (np.int32, 999, 123, r"serialized version is newer"),
-            (np.float32, 1, 123, r"unsupported numpy\.float32"),
         ],
     )
     def test_numpy_deserialize_errors(self, klass, ver, value, msg):
@@ -423,6 +398,18 @@ class TestSerializers:
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
+
+    def test_pydantic_dataclass(self):
+        orig = PydanticDataclass(a=5, b="SerDe Pydantic Dataclass Test")
+        serialized = serialize(orig)
+        assert orig.__version__ == serialized[VERSION]
+        assert qualname(orig) == serialized[CLASSNAME]
+        assert serialized[DATA]
+
+        decoded = deserialize(serialized)
+        assert decoded.a == orig.a
+        assert decoded.b == orig.b
+        assert type(decoded) is type(orig)
 
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(

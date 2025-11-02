@@ -27,10 +27,7 @@
 #
 # You can read more in the README_API.md file
 #
-"""
-Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer
-isort:skip_file
-"""
+"""Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer."""
 
 from collections.abc import Sequence
 from functools import cached_property as cached_property
@@ -60,7 +57,7 @@ class GenericTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: str | list[str],
         destination_table: str,
         source_conn_id: str,
         source_hook_params: dict | None = None,

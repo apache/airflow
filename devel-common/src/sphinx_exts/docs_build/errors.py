@@ -24,9 +24,7 @@ from typing import NamedTuple
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-
-from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH  # isort:skip (needed to workaround isort bug)
-
+from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
@@ -46,6 +44,9 @@ class DocBuildError(NamedTuple):
         left = (self.file_path, self.line_no, self.message)
         right = (other.file_path, other.line_no, other.message)
         return left == right
+
+    def __hash__(self):
+        return hash((self.file_path, self.line_no, self.message))
 
     def __ne__(self, other):
         return not self == other

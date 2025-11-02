@@ -17,14 +17,11 @@
 
 from __future__ import annotations
 
-import datetime
 from argparse import BooleanOptionalAction
 from textwrap import dedent
-from typing import Any
 
 import pytest
 
-from airflowctl.api.datamodels.generated import ReprocessBehavior
 from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
 
 
@@ -59,7 +56,7 @@ def test_args_create():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -69,7 +66,7 @@ def test_args_create():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -89,7 +86,7 @@ def test_args_create():
                 "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
-                "type": dict[str, Any],
+                "type": dict,
                 "dest": None,
             },
         ),
@@ -99,7 +96,7 @@ def test_args_create():
                 "help": "reprocess_behavior for backfill operation",
                 "action": None,
                 "default": None,
-                "type": ReprocessBehavior,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -228,7 +225,7 @@ class TestCommandFactory:
                 class BackfillsOperations(BaseOperations):
                     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
                         try:
-                            self.response = self.client.post("backfills", data=backfill.model_dump())
+                            self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
                             return BackfillResponse.model_validate_json(self.response.content)
                         except ServerResponseError as e:
                             raise e

@@ -1,6 +1,15 @@
 {
+  "filters": {
+    "response": {
+      "all": "Hepsi",
+      "pending": "Beklemede",
+      "received": "İncelendi"
+    }
+  },
   "requiredAction_one": "Gerekli işlem",
   "requiredAction_other": "Gerekli işlemler",
+  "requiredActionCount_one": "Gerekli işlem ({{count}})",
+  "requiredActionCount_other": "Gerekli işlemler ({{count}})",
   "requiredActionState": "Gerekli işlemin durumu",
   "response": {
     "error": "Yanıt alınamadı",
@@ -16,6 +25,7 @@
     "approvalRequired": "Onay gerekli",
     "choiceReceived": "Seçim alındı",
     "choiceRequired": "Seçim gerekli",
+    "noResponseReceived": "Cevap alınmadı",
     "rejectionReceived": "Reddetme alındı",
     "responseReceived": "Yanıt alındı",
     "responseRequired": "Yanıt gerekli"

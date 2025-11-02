@@ -206,7 +206,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
             </Field.Root>
           ) : undefined}
           {eventType === "materialize" && dag?.is_paused ? (
-            <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+            <Checkbox checked={unpause} colorPalette="brand" onChange={() => setUnpause(!unpause)}>
               {translate("createEvent.materialize.unpauseDag", { dagName: dag.dag_display_name })}
             </Checkbox>
           ) : undefined}
@@ -214,7 +214,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
         </Dialog.Body>
         <Dialog.Footer>
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={Boolean(extraError)}
             loading={isPending || isMaterializePending}
             onClick={handleSubmit}

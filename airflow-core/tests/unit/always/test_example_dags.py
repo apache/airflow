@@ -27,7 +27,8 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.models import Connection, DagBag
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import Connection
 from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
@@ -163,8 +164,6 @@ def relative_path(path):
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags())
 def test_should_be_importable(example: str):
-    pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,

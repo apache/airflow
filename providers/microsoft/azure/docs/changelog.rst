@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+12.8.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Microsoft Graph filesystem integration (#55454)``
+* ``update AzureBaseHook to return credentials that supports get_token method" (#56228)``
+
+Misc
+~~~~
+
+* ``Migrate microsoft providers to ''common.compat'' (#56995)``
+* ``improve exception handling in AzureDataFactoryTrigger (#56350)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Databricks provider import error without fab provider (#56702)``
+   * ``Remove 'pytest.importorskip("flask_appbuilder")' from tests (#56679)``
+   * ``Revert "update AzureBaseHook to return credentials that supports get_token me…" (#56223)``
+   * ``update AzureBaseHook to return credentials that supports get_token method (#52182)``
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+
+12.7.1
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[OSSTaskHandler, CloudwatchTaskHandler, S3TaskHandler, HdfsTaskHandler, ElasticsearchTaskHandler, GCSTaskHandler, OpensearchTaskHandler, RedisTaskHandler, WasbTaskHandler] supports log file size handling (#55455)``
+* ``Avoid using extra_dejson method on connection in KiotaRequestAdapterHook to avoid AsyncToSync RuntimeError (#55179)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove db dependency from test_wasb trigger tests (#55624)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
+12.7.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Add setter for blob_service_client in WasbHook to support async injection (#54219)``
+* ``Add CI support for SQLAlchemy 2.0 (#52233)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Made get_conn method async for KiotaRequestAdapterHook to fix AsyncToSync  error (#54598)``
+* ``fix unreachable mypy warnings for microsoft/azure (#53647)``
+
+Misc
+~~~~
+
+* ``Remove portalocker dependency (#54751)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix short names in test_adls (#54907)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 12.6.1
 ......
 

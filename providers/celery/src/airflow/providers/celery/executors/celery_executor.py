@@ -268,6 +268,12 @@ CELERY_COMMANDS = (
             ARG_FULL_CELERY_HOSTNAME,
         ),
     ),
+    ActionCommand(
+        name="remove-all-queues",
+        help="Unsubscribe Celery worker from all its active queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.remove_all_queues"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
 )
 
 
@@ -290,8 +296,8 @@ class CeleryExecutor(BaseExecutor):
         # TODO: TaskSDK: move this type change into BaseExecutor
         queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
@@ -344,7 +350,7 @@ class CeleryExecutor(BaseExecutor):
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
         first_task = next(t[-1] for t in task_tuples_to_send)
 
-        # Celery state queries will stuck if we do not use one same backend
+        # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
         cached_celery_backend = first_task.backend
 

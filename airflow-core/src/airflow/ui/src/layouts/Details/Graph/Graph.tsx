@@ -34,6 +34,7 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -65,12 +66,12 @@ export const Graph = () => {
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
-    "white",
-    "black",
-    "gray.200",
-    "gray.800",
-    "gray.200",
-    "gray.800",
+    "bg",
+    "fg",
+    "bg.muted",
+    "bg.emphasized",
+    "bg.muted",
+    "bg.emphasized",
   ]);
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
@@ -164,6 +165,7 @@ export const Graph = () => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
+      style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
       <Controls showInteractive={false} />

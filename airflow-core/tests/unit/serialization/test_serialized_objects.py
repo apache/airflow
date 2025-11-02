@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 
@@ -74,9 +75,9 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     LazyDeserializedDAG,
     SerializedDAG,
+    _has_kubernetes,
     create_scheduler_operator,
 )
-from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.state import DagRunState, State
@@ -159,6 +160,16 @@ def test_strict_mode():
         BaseSerialization.serialize(obj, strict=True)  # now raises
 
 
+def test_prevent_re_serialization_of_serialized_operators():
+    """SerializedBaseOperator should not be re-serializable."""
+    from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
+
+    serialized_op = SerializedBaseOperator(task_id="test_task")
+
+    with pytest.raises(SerializationError, match="Encountered unexpected type"):
+        BaseSerialization.serialize(serialized_op, strict=True)
+
+
 def test_validate_schema():
     from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -196,7 +207,7 @@ TI_WITH_START_DAY = TaskInstance(
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
-TI_WITH_START_DAY.start_date = timezone.utcnow()
+TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
@@ -494,29 +505,6 @@ def test_backcompat_deserialize_connection(conn_uri):
     assert deserialized.get_uri() == conn_uri
 
 
-@pytest.mark.db_test
-def test_serialized_mapped_operator_unmap(dag_maker):
-    from airflow.serialization.serialized_objects import SerializedDAG
-
-    from tests_common.test_utils.mock_operators import MockOperator
-
-    with dag_maker(dag_id="dag") as dag:
-        MockOperator(task_id="task1", arg1="x")
-        MockOperator.partial(task_id="task2").expand(arg1=["a", "b"])
-
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-    assert serialized_dag.dag_id == "dag"
-
-    serialized_task1 = serialized_dag.get_task("task1")
-    assert serialized_task1.dag is serialized_dag
-
-    serialized_task2 = serialized_dag.get_task("task2")
-    assert serialized_task2.dag is serialized_dag
-
-    serialized_unmapped_task = serialized_task2.unmap(None)
-    assert serialized_unmapped_task.dag is serialized_dag
-
-
 def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
@@ -613,90 +601,6 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
-@pytest.mark.db_test
-@pytest.mark.parametrize(
-    "create_dag_run_kwargs",
-    (
-        {},
-        {
-            "data_interval": None,
-            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        },
-        {"data_interval": None, "logical_date": None},
-    ),
-    ids=["post-AIP-39", "pre-AIP-39-should-infer", "pre-AIP-39"],
-)
-def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
-    """Test whether LazyDeserializedDAG can correctly get dag run data_interval
-
-    post-AIP-39: the dag run itself contains both data_interval start and data_interval end, and thus can
-        be retrieved directly
-    pre-AIP-39-should-infer: the dag run itself has neither data_interval_start nor data_interval_end,
-        and thus needs to infer the data_interval from its timetable
-    pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
-        is none. it should return data_interval as none
-    """
-    with dag_maker(dag_id="test_dag", session=session, serialized=False) as dag:
-        BaseOperator(task_id="test_task")
-    session.commit()
-
-    dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
-    ser_dict = SerializedDAG.to_dict(dag)
-    deser_dag = LazyDeserializedDAG(data=ser_dict)
-    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval is None
-    else:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval == DataInterval(
-            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
-            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        )
-
-
-def test_get_task_assets():
-    asset1 = Asset("1")
-    with DAG("testdag") as source_dag:
-        a = BashOperator(task_id="a", outlets=[asset1], bash_command="echo u")
-        b = BashOperator(task_id="b", inlets=[asset1], bash_command="echo v")
-        c = BashOperator.partial(task_id="c", inlets=[asset1]).expand(bash_command=["echo w", "echo x"])
-        d = BashOperator.partial(task_id="d", outlets=[asset1]).expand(bash_command=["echo y", "echo z"])
-        a >> b >> c >> d
-
-    deser_dag = LazyDeserializedDAG(data=SerializedDAG.to_dict(source_dag))
-    assert sorted(deser_dag.get_task_assets()) == [
-        ("a", asset1),
-        ("b", asset1),
-        ("c", asset1),
-        ("d", asset1),
-    ]
-
-
-def test_lazy_dag_run_interval_wrong_dag():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
-
-    with pytest.raises(ValueError, match="different DAGs"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_missing_interval():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-
-    with pytest.raises(ValueError, match="Unsure how to deserialize version '<not present>'"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_success():
-    run = DAG_RUN
-    run.data_interval_start = datetime(2025, 1, 1)
-    run.data_interval_end = datetime(2025, 1, 2)
-
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-    interval = lazy.get_run_data_interval(run)
-
-    assert isinstance(interval, DataInterval)
-
-
 def test_hash_property():
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -790,7 +694,7 @@ def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 
     assert encode_timezone(FixedTimezone(0)) == "UTC"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
 
 
@@ -816,3 +720,29 @@ class TestSerializedBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+
+class TestKubernetesImportAvoidance:
+    """Test that serialization doesn't import kubernetes unnecessarily."""
+
+    def test_has_kubernetes_no_import_when_not_needed(self):
+        """Ensure _has_kubernetes() doesn't import k8s when not already loaded."""
+        # Remove kubernetes from sys.modules if present
+        k8s_modules = [m for m in list(sys.modules.keys()) if m.startswith("kubernetes")]
+        if k8s_modules:
+            pytest.skip("Kubernetes already imported, cannot test import avoidance")
+
+        # Call _has_kubernetes() - should check sys.modules and return False without importing
+        result = _has_kubernetes()
+
+        assert result is False
+        assert "kubernetes.client" not in sys.modules
+
+    def test_has_kubernetes_uses_existing_import(self):
+        """Ensure _has_kubernetes() uses k8s when it's already imported."""
+        pytest.importorskip("kubernetes")
+
+        # Now k8s is imported, should return True
+        result = _has_kubernetes()
+
+        assert result is True

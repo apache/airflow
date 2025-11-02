@@ -462,7 +462,7 @@ def _one_scheduling_decision_iteration(
     decision = dr.task_instance_scheduling_decisions(session=session)
     return (
         {_key(ti): ti for ti in decision.schedulable_tis},
-        {_key(ti): ti.state for ti in decision.finished_tis},
+        {_key(ti): ti.state for ti in decision.finished_tis if ti.state is not None},
     )
 
 

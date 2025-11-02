@@ -24,7 +24,7 @@ from pydantic import computed_field
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
@@ -77,7 +77,7 @@ class GridRunsResponse(BaseModel):
     start_date: datetime | None
     end_date: datetime | None
     run_after: datetime
-    state: TaskInstanceState | None
+    state: DagRunState | None
     run_type: DagRunType
 
     @computed_field

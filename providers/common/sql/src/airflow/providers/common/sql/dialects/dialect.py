@@ -26,6 +26,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Inspector
+    from sqlalchemy.engine.interfaces import ReflectedColumn
 
 T = TypeVar("T")
 
@@ -85,16 +86,13 @@ class Dialect(LoggingMixin):
             return self.escape_word_format.format(word)
         return word
 
-    def unescape_word(self, word: str | None) -> str | None:
+    def unescape_word(self, word: str) -> str:
         """
         Remove escape characters from each part of a dotted identifier (e.g., schema.table).
 
         :param word: Escaped schema, table, or column name, potentially with multiple segments.
         :return: The word without escaped characters.
         """
-        if not word:
-            return word
-
         escape_char_start = self.escape_word_format[0]
         escape_char_end = self.escape_word_format[-1]
 
@@ -112,20 +110,19 @@ class Dialect(LoggingMixin):
 
     @lru_cache(maxsize=None)
     def get_column_names(
-        self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
+        self,
+        table: str,
+        schema: str | None = None,
+        predicate: Callable[[T | ReflectedColumn], bool] = lambda column: True,
     ) -> list[str] | None:
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        column_names = list(
-            column["name"]
-            for column in filter(
-                predicate,
-                self.inspector.get_columns(
-                    table_name=self.unescape_word(table),
-                    schema=self.unescape_word(schema) if schema else None,
-                ),
-            )
-        )
+        table_name = self.unescape_word(table)
+        schema = self.unescape_word(schema) if schema else None
+        column_names = []
+        for column in self.inspector.get_columns(table_name=table_name, schema=schema):
+            if predicate(column):
+                column_names.append(column["name"])
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
 

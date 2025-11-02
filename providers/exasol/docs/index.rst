@@ -75,9 +75,7 @@ apache-airflow-providers-exasol package
 `Exasol <https://www.exasol.com/>`__
 
 
-Release: 4.8.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 4.8.3
 
 Provider package
 ----------------
@@ -88,7 +86,7 @@ All classes for this package are included in the ``airflow.providers.exasol`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-exasol``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
@@ -132,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-exasol 4.8.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-exasol 4.8.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-exasol 4.8.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-exasol 4.8.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.8.3-py3-none-any.whl.sha512>`__)

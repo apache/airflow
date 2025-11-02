@@ -335,7 +335,7 @@ class TestSalesforceHook:
         assert salesforce_objects == mock_make_query.return_value
 
     def test_write_object_to_file_invalid_format(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Format value is not recognized: test"):
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
     @patch(
@@ -377,7 +377,9 @@ class TestSalesforceHook:
         )
 
         mock_describe_object.assert_called_once_with(obj_name)
-        mock_data_frame.return_value.to_json.assert_called_once_with(filename, "records", date_unit="s")
+        mock_data_frame.return_value.to_json.assert_called_once_with(
+            filename, orient="records", date_unit="s"
+        )
         pd.testing.assert_frame_equal(
             data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
         )
@@ -396,7 +398,7 @@ class TestSalesforceHook:
         )
 
         mock_data_frame.return_value.to_json.assert_called_once_with(
-            filename, "records", lines=True, date_unit="s"
+            filename, orient="records", lines=True, date_unit="s"
         )
         pd.testing.assert_frame_equal(
             data_frame,

@@ -72,8 +72,7 @@
     "tooltip": "Verwijder geselecteerde connecties"
   },
   "formActions": {
-    "reset": "Reset",
-    "save": "Opsalaan"
+    "save": "Opslaan"
   },
   "plugins": {
     "columns": {

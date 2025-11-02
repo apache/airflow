@@ -27,3 +27,11 @@ class PodMutationHookException(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class KubernetesApiError(AirflowException):
+    """Raised when an error is encountered while trying access Kubernetes API."""
+
+
+class KubernetesApiPermissionError(AirflowException):
+    """Raised when an error is encountered while trying access Kubernetes API."""

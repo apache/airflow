@@ -37,7 +37,7 @@ Create and Delete Alibaba Cloud OSS Buckets
 Purpose
 """""""
 
-This example dag uses ``OSSCreateBucketOperator`` and ``OSSDeleteBucketOperator`` to create a
+This example Dag uses ``OSSCreateBucketOperator`` and ``OSSDeleteBucketOperator`` to create a
 new OSS bucket with a given bucket name then delete it.
 
 Defining tasks

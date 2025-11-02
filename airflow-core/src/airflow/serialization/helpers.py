@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
-from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.settings import json
 
 
