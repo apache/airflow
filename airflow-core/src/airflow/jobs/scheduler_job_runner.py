@@ -2703,8 +2703,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return self.job.executor
 
         for e in self.job.executors:
-            if e.name.alias == executor_name or e.name.module_path == executor_name:
+            if e.name and (e.name.alias == executor_name or e.name.module_path == executor_name):
                 return e
+
+        # Check if executor_name matches the default executor (first in the list)
+        # This handles the case where ti.executor is populated with the default executor's name
+        # but that executor isn't in the job.executors list (e.g., in unit tests)
+        default_executor = self.job.executor
+        if default_executor.name and (
+            default_executor.name.alias == executor_name or default_executor.name.module_path == executor_name
+        ):
+            return default_executor
 
         # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
         # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor

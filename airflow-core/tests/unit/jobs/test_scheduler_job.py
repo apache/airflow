@@ -231,7 +231,14 @@ class TestSchedulerJob:
 
         with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
             executors_mock.return_value = [default_executor, second_executor]
-            yield [default_executor, second_executor]
+            # Mock get_default_executor_name to return the default executor's name
+            # This is needed because TaskInstance.insert_mapping() and refresh_from_task()
+            # now populate ti.executor with the default executor name when task.executor is None
+            with mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+                return_value=default_executor.name,
+            ):
+                yield [default_executor, second_executor]
 
     @pytest.fixture
     def mock_executor(self, mock_executors):
@@ -711,36 +718,43 @@ class TestSchedulerJob:
         scheduler_dag = sync_dag_to_db(dag)
         dag_v = DagVersion.get_latest_version(dag.dag_id)
 
-        data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
-        dag_run = create_dagrun(
-            scheduler_dag,
-            logical_date=DEFAULT_DATE,
-            run_type=DagRunType.SCHEDULED,
-            data_interval=data_interval,
-        )
-
-        # Create asset alias and event with full relationships
-        asset_alias = AssetAliasModel(name="test_alias", group="test_group")
-        session.add(asset_alias)
-        session.flush()
-
-        asset_event = AssetEvent(
-            asset_id=asset_model.id,
-            source_task_id="upstream_task",
-            source_dag_id="upstream_dag",
-            source_run_id="upstream_run",
-            source_map_index=-1,
-        )
-        session.add(asset_event)
-        session.flush()
-
-        # Attach alias to event and event to dag run
-        asset_event.source_aliases.append(asset_alias)
-        dag_run.consumed_asset_events.append(asset_event)
-        session.add_all([asset_event, dag_run])
-        session.flush()
-
         executor = MockExecutor()
+        # Mock get_default_executor_name to return the MockExecutor's name
+        # This is needed because TaskInstance.insert_mapping() and refresh_from_task()
+        # now populate ti.executor with the default executor name when task.executor is None
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=executor.name,
+        ):
+            data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
+            dag_run = create_dagrun(
+                scheduler_dag,
+                logical_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                data_interval=data_interval,
+            )
+
+            # Create asset alias and event with full relationships
+            asset_alias = AssetAliasModel(name="test_alias", group="test_group")
+            session.add(asset_alias)
+            session.flush()
+
+            asset_event = AssetEvent(
+                asset_id=asset_model.id,
+                source_task_id="upstream_task",
+                source_dag_id="upstream_dag",
+                source_run_id="upstream_run",
+                source_map_index=-1,
+            )
+            session.add(asset_event)
+            session.flush()
+
+            # Attach alias to event and event to dag run
+            asset_event.source_aliases.append(asset_alias)
+            dag_run.consumed_asset_events.append(asset_event)
+            session.add_all([asset_event, dag_run])
+            session.flush()
+
         scheduler_job = Job(executor=executor)
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.return_value = executor
@@ -795,7 +809,12 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        # Mock get_default_executor_name before creating dagrun
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=self.null_exec.name,
+        ):
+            dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
         ti1 = TaskInstance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
@@ -1432,9 +1451,14 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED)
+        # Mock get_default_executor_name before creating dagruns
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=executor.name,
+        ):
+            dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+            dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+            dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED)
 
         ti1_1 = dr1.get_task_instance(task1.task_id)
         ti2 = dr1.get_task_instance(task2.task_id)
@@ -2508,21 +2532,33 @@ class TestSchedulerJob:
 
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
+        from airflow.executors.executor_utils import ExecutorName
+        from airflow.executors.local_executor import LocalExecutor
+
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
-        dr = dag_maker.create_dagrun()
+        # Mock get_default_executor_name before creating dagrun
+        # Need to get the actual LocalExecutor name
+        local_executor = LocalExecutor()
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=ExecutorName(
+                alias="LocalExecutor", module_path="airflow.executors.local_executor.LocalExecutor"
+            ),
+        ):
+            dr = dag_maker.create_dagrun()
+
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
-        from airflow.executors.local_executor import LocalExecutor
 
         assert "revoke_task" in BaseExecutor.__dict__
         # this is just verifying that LocalExecutor is good enough for this test
         # in that it does not implement revoke_task
         assert "revoke_task" not in LocalExecutor.__dict__
-        scheduler_job = Job(executor=LocalExecutor())
+        scheduler_job = Job(executor=local_executor)
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
@@ -3318,7 +3354,12 @@ class TestSchedulerJob:
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=2)
-        run_job(scheduler_job, execute_callable=self.job_runner._execute)
+        # Mock import_default_executor_cls to avoid trying to import fake executor module
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.import_default_executor_cls",
+            return_value=(type(mock_executor), None),
+        ):
+            run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         first_run = DagRun.find(dag_id=dag_id)[0]
         ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
@@ -3902,7 +3943,12 @@ class TestSchedulerJob:
                     "airflow.executors.executor_loader.ExecutorLoader.load_executor"
                 ) as loader_mock:
                     loader_mock.side_effect = executor.get_mock_loader_side_effect()
-                    run_job(scheduler_job, execute_callable=self.job_runner._execute)
+                    # Mock get_default_executor_name for dagrun creation during scheduler execution
+                    with mock.patch(
+                        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+                        return_value=executor.name,
+                    ):
+                        run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         do_schedule()
         with create_session() as session:
@@ -4837,13 +4883,18 @@ class TestSchedulerJob:
             # Can't use EmptyOperator as that goes straight to success
             BashOperator(task_id="dummy1", bash_command="true")
 
-        run1 = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE + timedelta(hours=1),
-            state=State.RUNNING,
-        )
-
         executor = MockExecutor(do_update=False)
+        # Mock get_default_executor_name before creating dagrun
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=executor.name,
+        ):
+            run1 = dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE + timedelta(hours=1),
+                state=State.RUNNING,
+            )
+
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
@@ -6219,42 +6270,54 @@ class TestSchedulerJob:
 
         dag_v = DagVersion.get_latest_version(dag.dag_id)
 
-        data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
-
-        dag_run = create_dagrun(
-            scheduler_dag,
-            logical_date=DEFAULT_DATE,
-            run_type=DagRunType.SCHEDULED,
-            data_interval=data_interval,
-        )
-
         executor = MockExecutor()
+        # Mock get_default_executor_name before creating dagrun
+        with mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+            return_value=executor.name,
+        ):
+            data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
+
+            dag_run = create_dagrun(
+                scheduler_dag,
+                logical_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                data_interval=data_interval,
+            )
+
         scheduler_job = Job(executor=executor)
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.return_value = executor
-            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            # Also need the mock for get_default_executor_name when TIs are created
+            with mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+                return_value=executor.name,
+            ):
+                self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-            # We will provision 2 tasks so we can check we only find task instances without heartbeats from this scheduler
-            tasks_to_setup = ["branching", "run_this_first"]
+                # We will provision 2 tasks so we can check we only find task instances without heartbeats from this scheduler
+                tasks_to_setup = ["branching", "run_this_first"]
 
-            for task_id in tasks_to_setup:
-                task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
+                for task_id in tasks_to_setup:
+                    task = dag.get_task(task_id=task_id)
+                    ti = TaskInstance(
+                        task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id
+                    )
 
-                ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
-                ti.start_date = timezone.utcnow() - timedelta(minutes=10)
-                ti.queued_by_job_id = 999
+                    ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+                    ti.start_date = timezone.utcnow() - timedelta(minutes=10)
+                    ti.queued_by_job_id = 999
 
-                session.add(ti)
+                    session.add(ti)
+                    session.flush()
+
+                assert task.task_id == "run_this_first"  # Make sure we have the task/ti we expect
+
+                ti.queued_by_job_id = scheduler_job.id
                 session.flush()
-
-            assert task.task_id == "run_this_first"  # Make sure we have the task/ti we expect
-
-            ti.queued_by_job_id = scheduler_job.id
-            session.flush()
-            executor.running.add(ti.key)  # The executor normally does this during heartbeat.
-            self.job_runner._find_and_purge_task_instances_without_heartbeats()
-            assert ti.key not in executor.running
+                executor.running.add(ti.key)  # The executor normally does this during heartbeat.
+                self.job_runner._find_and_purge_task_instances_without_heartbeats()
+                assert ti.key not in executor.running
 
         executor.callback_sink.send.assert_called_once()
         callback_requests = executor.callback_sink.send.call_args.args
