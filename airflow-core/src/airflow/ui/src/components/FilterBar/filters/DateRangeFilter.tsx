@@ -16,22 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, IconButton, Input, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
-import { MdCalendarToday, MdClose } from "react-icons/md";
+import { MdAccessTime, MdCalendarToday, MdClose } from "react-icons/md";
 
 import { Popover } from "src/components/ui";
-import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
+import { useTimezone } from "src/context/timezone";
+import { useDateRangeFilter, DATE_INPUT_FORMAT, TIME_INPUT_FORMAT } from "src/hooks/useDateRangeFilter";
 
 import { FilterPill } from "../FilterPill";
 import type { DateRangeValue, FilterPluginProps } from "../types";
 import { isValidDateValue, isValidFilterValue } from "../utils";
 import { DateRangeCalendar } from "./DateRangeCalendar";
-import { DateRangeInputs } from "./DateRangeInputs";
 
 export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const { t: translate } = useTranslation(["common"]);
+  const { selectedTimezone } = useTimezone();
   const value =
     filter.value !== null && filter.value !== undefined && typeof filter.value === "object"
       ? (filter.value as DateRangeValue)
@@ -42,7 +43,11 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const { editingState, formatDisplayValue, handleDateClick, handleInputChange, setEditingState } =
-    useDateRangeFilter({ onChange, value });
+    useDateRangeFilter({
+      onChange,
+      value,
+      translate
+    });
 
   return (
     <FilterPill
@@ -114,20 +119,130 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
             </HStack>
           </Box>
         </Popover.Trigger>
-        <Popover.Content p={3} w="300px">
+        <Popover.Content p={3} w="320px">
           <VStack gap={4} w="full">
-            <DateRangeInputs
-              editingState={editingState}
-              endDateValue={endDateValue}
-              onChange={handleInputChange}
-              onClearEnd={() => onChange({ ...value, endDate: undefined })}
-              onClearStart={() => onChange({ ...value, startDate: undefined })}
-              setEditingState={setEditingState}
-              setSelectionTarget={(target) =>
-                setEditingState((prev) => ({ ...prev, selectionTarget: target }))
-              }
-              startDateValue={startDateValue}
-            />
+            <VStack gap={3} w="full">
+              <HStack justify="flex-start" w="full">
+                <HStack gap={1}>
+                  <MdAccessTime size={14} />
+                  <Text color="fg.muted" fontSize="xs">
+                    {selectedTimezone}
+                  </Text>
+                </HStack>
+              </HStack>
+
+              <HStack gap={2} w="full">
+                <Box flex="1" position="relative">
+                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
+                    {translate("common:table.from")}
+                  </Text>
+                  <Input
+                    _focus={{ borderColor: "brand.focusRing" }}
+                    borderColor={editingState.selectionTarget === "start" ? "brand.focusRing" : "border"}
+                    fontSize="sm"
+                    fontWeight="medium"
+                    onBlur={() => {
+                      if (
+                        startDateValue &&
+                        editingState.inputs.start &&
+                        !dayjs(editingState.inputs.start, DATE_INPUT_FORMAT, true).isValid()
+                      ) {
+                        setEditingState((prev) => ({
+                          ...prev,
+                          inputs: { ...prev.inputs, start: startDateValue.format(DATE_INPUT_FORMAT) },
+                        }));
+                      }
+                    }}
+                    onChange={handleInputChange("start", "date")}
+                    onFocus={() => setEditingState((prev) => ({ ...prev, selectionTarget: "start" }))}
+                    placeholder={DATE_INPUT_FORMAT}
+                    value={editingState.inputs.start}
+                  />
+                  {Boolean(editingState.inputs.start) && (
+                    <IconButton
+                      aria-label="Clear start date"
+                      onClick={() => onChange({ ...value, startDate: undefined })}
+                      position="absolute"
+                      right={1}
+                      size="2xs"
+                      top="50%"
+                      variant="ghost"
+                    >
+                      <MdClose size={12} />
+                    </IconButton>
+                  )}
+                </Box>
+
+                <Box flex="1" position="relative">
+                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
+                    {translate("common:table.to")}
+                  </Text>
+                  <Input
+                    _focus={{ borderColor: "brand.focusRing" }}
+                    borderColor={editingState.selectionTarget === "end" ? "brand.focusRing" : "border"}
+                    fontSize="sm"
+                    fontWeight="medium"
+                    onBlur={() => {
+                      if (
+                        endDateValue &&
+                        editingState.inputs.end &&
+                        !dayjs(editingState.inputs.end, DATE_INPUT_FORMAT, true).isValid()
+                      ) {
+                        setEditingState((prev) => ({
+                          ...prev,
+                          inputs: { ...prev.inputs, end: endDateValue.format(DATE_INPUT_FORMAT) },
+                        }));
+                      }
+                    }}
+                    onChange={handleInputChange("end", "date")}
+                    onFocus={() => setEditingState((prev) => ({ ...prev, selectionTarget: "end" }))}
+                    placeholder={DATE_INPUT_FORMAT}
+                    value={editingState.inputs.end}
+                  />
+                  {Boolean(editingState.inputs.end) && (
+                    <IconButton
+                      aria-label="Clear end date"
+                      onClick={() => onChange({ ...value, endDate: undefined })}
+                      position="absolute"
+                      right={1}
+                      size="2xs"
+                      top="50%"
+                      variant="ghost"
+                    >
+                      <MdClose size={12} />
+                    </IconButton>
+                  )}
+                </Box>
+              </HStack>
+
+              <HStack gap={2} w="full">
+                <Box flex="1">
+                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
+                    {translate("common:filters.startTime")}
+                  </Text>
+                  <Input
+                    fontSize="sm"
+                    onChange={handleInputChange("start", "time")}
+                    placeholder={TIME_INPUT_FORMAT}
+                    value={editingState.inputs.startTime}
+                    w="full"
+                  />
+                </Box>
+
+                <Box flex="1">
+                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
+                    {translate("common:filters.endTime")}
+                  </Text>
+                  <Input
+                    fontSize="sm"
+                    onChange={handleInputChange("end", "time")}
+                    placeholder={TIME_INPUT_FORMAT}
+                    value={editingState.inputs.endTime}
+                    w="full"
+                  />
+                </Box>
+              </HStack>
+            </VStack>
             <DateRangeCalendar
               currentMonth={editingState.currentMonth}
               onDateClick={handleDateClick}

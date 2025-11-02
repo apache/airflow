@@ -110,11 +110,13 @@
   "filters": {
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
-    "selectDateRange": "Select Date Range"
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",

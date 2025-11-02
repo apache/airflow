@@ -17,12 +17,19 @@
  * under the License.
  */
 import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import type { TFunction } from "i18next";
 import { useEffect, useMemo, useState } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
+import { useTimezone } from "src/context/timezone";
+
+dayjs.extend(timezone);
 
 export const DATE_INPUT_FORMAT = "YYYY/MM/DD";
+export const TIME_INPUT_FORMAT = "HH:mm";
+export const DATETIME_INPUT_FORMAT = `${DATE_INPUT_FORMAT} ${TIME_INPUT_FORMAT}`;
 
 export type DateSelection = "end" | "start" | undefined;
 
@@ -30,17 +37,44 @@ export type DateRangeEditingState = {
   currentMonth: dayjs.Dayjs;
   inputs: {
     end: string;
+    endTime: string;
     start: string;
+    startTime: string;
   };
   selectionTarget: DateSelection;
 };
 
 type UseDateRangeFilterArgs = {
   onChange: (next: DateRangeValue) => void;
+  translate: TFunction;
   value: DateRangeValue;
 };
 
-export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) => {
+const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): string => {
+  const date = dayjs(dateStr, DATE_INPUT_FORMAT, true);
+
+  if (!date.isValid()) {
+    return "";
+  }
+
+  if (!timeStr.trim()) {
+    // If no time is provided, set to 00:00
+    return date.startOf("day").tz(tz, true).toISOString();
+  }
+
+  const time = dayjs(`2000-01-01 ${timeStr}`, `YYYY-MM-DD ${TIME_INPUT_FORMAT}`, true);
+
+  if (!time.isValid()) {
+    return date.startOf("day").tz(tz, true).toISOString();
+  }
+
+  const combined = date.hour(time.hour()).minute(time.minute()).second(0).millisecond(0);
+
+  return combined.tz(tz, true).toISOString();
+};
+
+export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFilterArgs) => {
+  const { selectedTimezone } = useTimezone();
   const startDateValue = useMemo(
     () => (isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined),
     [value.startDate],
@@ -54,7 +88,9 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
     currentMonth: startDateValue ?? endDateValue ?? dayjs(),
     inputs: {
       end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+      endTime: endDateValue?.format(TIME_INPUT_FORMAT) ?? "",
       start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+      startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
     },
     selectionTarget: undefined,
   }));
@@ -64,29 +100,33 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
       ...prev,
       inputs: {
         end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+        endTime: endDateValue?.format(TIME_INPUT_FORMAT) ?? "",
         start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
+        startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
       },
     }));
   }, [startDateValue, endDateValue]);
 
   const handleDateClick = (clickedDate: dayjs.Dayjs) => {
-    const newDateStr = clickedDate.toISOString();
     const currentTarget = editingState.selectionTarget;
-
     let nextTarget: DateSelection = "end";
     let newStartDate = value.startDate;
     let newEndDate = value.endDate;
 
     if (currentTarget === "start" || (!startDateValue && !endDateValue)) {
-      newStartDate = newDateStr;
-      if (endDateValue && clickedDate.isAfter(endDateValue)) {
+      // Set start date with start of day time
+      newStartDate = clickedDate.startOf("day").toISOString();
+
+      if (endDateValue && clickedDate.isAfter(endDateValue, "day")) {
         newEndDate = undefined;
       }
     } else {
-      newEndDate = newDateStr;
-      if (startDateValue && clickedDate.isBefore(startDateValue)) {
-        newStartDate = newDateStr;
-        newEndDate = value.startDate;
+      // Set end date with end of day time
+      newEndDate = clickedDate.endOf("day").toISOString();
+
+      if (startDateValue && clickedDate.isBefore(startDateValue, "day")) {
+        newStartDate = clickedDate.startOf("day").toISOString();
+        newEndDate = clickedDate.endOf("day").toISOString();
       }
       nextTarget = undefined;
     }
@@ -99,38 +139,61 @@ export const useDateRangeFilter = ({ onChange, value }: UseDateRangeFilterArgs) 
     }));
   };
 
-  const handleInputChange = (field: "end" | "start") => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = event.target.value;
+  const handleInputChange =
+    (field: "end" | "start", inputType: "date" | "time") => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = event.target.value;
+      const inputKey = inputType === "date" ? field : (`${field}Time` as const);
 
-    setEditingState((prev) => ({
-      ...prev,
-      inputs: { ...prev.inputs, [field]: inputValue },
-    }));
+      setEditingState((prev) => ({
+        ...prev,
+        inputs: { ...prev.inputs, [inputKey]: inputValue },
+      }));
 
-    const parsedDate = dayjs(inputValue, DATE_INPUT_FORMAT, true);
+      const currentInputs = { ...editingState.inputs, [inputKey]: inputValue };
+      const dateStr = field === "start" ? currentInputs.start : currentInputs.end;
+      const timeStr = field === "start" ? currentInputs.startTime : currentInputs.endTime;
 
-    if (parsedDate.isValid()) {
-      onChange({
-        ...value,
-        [field === "start" ? "startDate" : "endDate"]: parsedDate.toISOString(),
-      });
+      if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
+        const combinedDateTime = combineDateAndTime(dateStr, timeStr, selectedTimezone);
 
-      setEditingState((prev) => ({ ...prev, currentMonth: parsedDate }));
-    }
+        if (combinedDateTime) {
+          onChange({
+            ...value,
+            [field === "start" ? "startDate" : "endDate"]: combinedDateTime,
+          });
+        }
+      }
+    };
+
+  const formatDateTime = (date: dayjs.Dayjs) => {
+    const dateStr = date.tz(selectedTimezone).format("MMM DD, YYYY");
+
+    return `${dateStr} ${date.tz(selectedTimezone).format("HH:mm")}`;
   };
 
   const formatDisplayValue = () => {
     if (!startDateValue && !endDateValue) {
       return "";
     }
+
     if (startDateValue && endDateValue) {
-      return `${startDateValue.format("MMM DD, YYYY")} - ${endDateValue.format("MMM DD, YYYY")}`;
-    }
-    if (startDateValue) {
-      return `From ${startDateValue.format("MMM DD, YYYY")}`;
+      // simplified format for same-day ranges
+      if (startDateValue.isSame(endDateValue, "day")) {
+        const dateStr = startDateValue.tz(selectedTimezone).format("MMM DD, YYYY");
+        const startTime = startDateValue.tz(selectedTimezone).format("HH:mm");
+        const endTime = endDateValue.tz(selectedTimezone).format("HH:mm");
+
+        return `${dateStr} ${startTime} - ${endTime}`;
+      }
+
+      return `${formatDateTime(startDateValue)} - ${formatDateTime(endDateValue)}`;
     }
 
-    return `To ${endDateValue?.format("MMM DD, YYYY") ?? ""}`;
+    if (startDateValue) {
+      return `${translate("common:filters.from")} ${formatDateTime(startDateValue)}`;
+    }
+
+    return endDateValue ? `${translate("common:filters.to")} ${formatDateTime(endDateValue)}` : "";
   };
 
   return {
