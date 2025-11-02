@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box } from "@chakra-ui/react";
+import { HStack, Box , Text, Code } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -128,6 +128,25 @@ export const AssetLayout = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
+            {asset?.extra && Object.keys(asset.extra).length > 0 && (
+            <Box mt={3} mb={3} px={3}>
+              <Text fontWeight="bold" mb={2}>
+                 Static Asset Metadata
+            </Text>
+            <Code
+              display="block"
+              whiteSpace="pre"
+              w="full"
+              p={2}
+              borderRadius="md"
+              background="bg.subtle"
+              color="fg.default"
+              fontSize="sm"
+            >
+              {JSON.stringify(asset.extra, null, 2)}
+            </Code>
+          </Box>
+       )}
             <Box h="100%" overflow="auto" pt={2}>
               <AssetEvents
                 assetId={asset?.id}
