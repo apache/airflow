@@ -26,6 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
@@ -193,7 +194,8 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 2,
         }
 
-        response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
+        with assert_queries_count(2):
+            response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])
@@ -281,7 +283,8 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 3,
         }
 
-        response = test_client.get(API_PREFIX)
+        with assert_queries_count(2):
+            response = test_client.get(API_PREFIX)
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])
@@ -435,7 +438,9 @@ class TestGetDagStats(TestDagStatsEndpoint):
     )
     def test_single_dag_in_dag_ids(self, test_client, session, testing_dag_bundle, url, params, exp_payload):
         self._create_dag_and_runs(session)
-        response = test_client.get(url, params=params)
+
+        with assert_queries_count(2):
+            response = test_client.get(url, params=params)
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])

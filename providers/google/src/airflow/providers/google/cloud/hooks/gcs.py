@@ -371,8 +371,7 @@ class GCSHook(GoogleBaseHook):
                         num_max_attempts,
                     )
                     raise
-        else:
-            raise NotImplementedError  # should not reach this, but makes mypy happy
+        raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def download_as_byte_array(
         self,

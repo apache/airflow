@@ -33,16 +33,20 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serde import (
     CLASSNAME,
     DATA,
+    PYDANTIC_MODEL_QUALNAME,
     SCHEMA_ID,
     VERSION,
+    _deserializers,
     _get_patterns,
     _get_regexp_patterns,
     _match,
     _match_glob,
     _match_regexp,
+    _serializers,
     deserialize,
     serialize,
 )
+from airflow.serialization.typing import is_pydantic_model
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 from tests_common.test_utils.config import conf_vars
@@ -142,6 +146,9 @@ class Z:
     def __eq__(self, other):
         return self.x == other.x
 
+    def __hash__(self):
+        return hash(self.x)
+
 
 @attr.define
 class Y:
@@ -191,6 +198,18 @@ class T:
 class C:
     def __call__(self):
         return None
+
+
+class PydanticModelWithCustomSerDe(BaseModel):
+    ignored_field_in_serialization: int = 0
+    x: str
+
+    @staticmethod
+    def deserialize(data: dict, version: int):
+        return PydanticModelWithCustomSerDe(ignored_field_in_serialization=-1, x=data["x"])
+
+    def serialize(self) -> dict:
+        return {"x": self.x}
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -511,3 +530,21 @@ class TestSerDe:
             TypeError, match="cannot serialize object of type <class 'unit.serialization.test_serde.C'>"
         ):
             serialize(i)
+
+    def test_custom_serde_methods_are_prioritized_over_builtins(self):
+        """
+        There is a built-in SerDe for pydantic classes.
+        Test that the custom defined SerDe methods take precedence over the built-in ones.
+        """
+        orig = PydanticModelWithCustomSerDe(ignored_field_in_serialization=200, x="SerDe Test")
+
+        assert is_pydantic_model(orig)
+        assert PYDANTIC_MODEL_QUALNAME in _serializers
+        assert PYDANTIC_MODEL_QUALNAME in _deserializers
+
+        serialized = serialize(orig)
+        assert "ignored_field_in_serialization" not in serialized
+        deserialized: PydanticModelWithCustomSerDe = deserialize(serialized)
+        assert deserialized.ignored_field_in_serialization == -1
+        assert deserialized.x == orig.x
+        assert type(orig) is type(deserialized)

@@ -104,9 +104,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_get_dag_version(self, mock_hasattr, test_client, dag_id, dag_version, expected_response):
-        mock_hasattr.return_value = False
+    def test_get_dag_version(self, test_client, dag_id, dag_version, expected_response):
         response = test_client.get(f"/dags/{dag_id}/dagVersions/{dag_version}")
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -180,7 +178,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
 
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     @mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager.view_url")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
+    @mock.patch("airflow.models.dag_version.hasattr")
     def test_get_dag_version_with_unconfigured_bundle(
         self, mock_hasattr, mock_view_url, test_client, dag_maker, session
     ):
@@ -305,9 +303,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_get_dag_versions(self, mock_hasattr, test_client, dag_id, expected_response):
-        mock_hasattr.return_value = False
+    def test_get_dag_versions(self, test_client, dag_id, expected_response):
         response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
         assert response.json() == expected_response

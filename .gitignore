@@ -276,4 +276,8 @@ _api/
 #while running go tests inside the go-sdk, it can generate log files for dags, ignore all logs
 go-sdk/**/*.log
 
+# E2e tests
 _e2e_test_report.json
+
+# UV cache
+.uv-cache/

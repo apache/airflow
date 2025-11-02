@@ -354,6 +354,9 @@ class ConnectionAccessor:
         # All instances of ConnectionAccessor are equal since it is a stateless dynamic accessor
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
         from airflow.exceptions import AirflowNotFoundException
 
@@ -378,6 +381,9 @@ class VariableAccessor:
             return False
         # All instances of VariableAccessor are equal since it is a stateless dynamic accessor
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
@@ -414,6 +420,9 @@ class MacrosAccessor:
         if not isinstance(other, MacrosAccessor):
             return False
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
 
 class _AssetRefResolutionMixin:

@@ -169,6 +169,7 @@ class TestSqlAlchemyUtils:
         session = mock.Mock()
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
+        session.get_bind.return_value = session.bind
         with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf):
             returned_value = with_row_locks(query=query, session=session, nowait=True)
 
@@ -291,7 +292,7 @@ class TestExecutorConfigType:
         under older kubernetes library version.
         """
 
-        class MockAttrError:
+        class MockAttrError:  # noqa: PLW1641
             def __eq__(self, other):
                 raise AttributeError("hello")
 

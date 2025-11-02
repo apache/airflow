@@ -57,7 +57,7 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "impyla>=0.18.0,<1.0",
+    "impyla>=0.22.0,<1.0",
     "apache-airflow-providers-common-sql>=1.26.0",
     "apache-airflow>=2.10.0",
 ]

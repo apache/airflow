@@ -85,6 +85,7 @@ class TestMwaaTriggerDagRunOperator:
                 "conf": OP_KWARGS["conf"],
                 "note": OP_KWARGS["note"],
             },
+            airflow_version=None,
         )
         assert op_ret_val == HOOK_RETURN_VALUE
 

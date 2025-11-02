@@ -229,8 +229,8 @@ class TestTemplateJobStartTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current job status is: {JobState.JOB_STATE_RUNNING}"
-        assert f"Sleeping for {POLL_SLEEP} seconds."
+        assert "Current job status is: JOB_STATE_RUNNING" in caplog.text
+        assert f"Sleeping for {POLL_SLEEP} seconds." in caplog.text
         # cancel the task to suppress test warnings
         task.cancel()
 

@@ -18,13 +18,11 @@
  */
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import axios from "axios";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { FC } from "react";
 
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
-import { tokenHandler } from "src/utils";
 
 import { system } from "./theme";
 
@@ -38,9 +36,6 @@ const PluginComponent: FC<PluginComponentProps> = () => {
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
   OpenAPI.BASE = baseUrl.pathname.replace(/\/$/, ""); // Remove trailing slash
-
-  // ensure HTTP API calls are authenticated with current session token
-  axios.interceptors.request.use(tokenHandler);
 
   const queryClient = new QueryClient({
     defaultOptions: {

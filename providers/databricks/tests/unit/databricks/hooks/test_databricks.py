@@ -26,9 +26,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
-import aiohttp.client_exceptions
 import azure.identity
-import azure.identity.aio
 import pytest
 import tenacity
 from azure.core.credentials import AccessToken

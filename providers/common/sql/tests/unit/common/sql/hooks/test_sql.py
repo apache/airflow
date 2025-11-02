@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-import logging.config
 from unittest.mock import MagicMock
 
 import pandas as pd

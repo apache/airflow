@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
@@ -48,7 +49,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
-    RUNNERS_TYPE_MAPPING,
+    RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
@@ -1318,7 +1319,6 @@ class SelectiveChecks:
         if response.status_code != 200:
             get_console().print(f"[red]Error while listing workflow runs error: {response.json()}.\n")
             return None
-        get_console().print(f"[blue]Response received for workflow run {response.json()}.\n")
         runs = response.json().get("workflow_runs", [])
         if not runs:
             get_console().print(
@@ -1335,6 +1335,11 @@ class SelectiveChecks:
         for job in jobs:
             if job_name in job.get("name", ""):
                 runner_labels = job.get("labels", [])
+                if "windows-2025" in runner_labels:
+                    continue
+                if not runner_labels:
+                    get_console().print("[yellow]No labels found for job {job_name}.\n", jobs_url)
+                    return None
                 return runner_labels[0]
 
         return None
@@ -1344,9 +1349,8 @@ class SelectiveChecks:
         if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
             branch = self._github_context_dict.get("ref_name", "main")
             label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
-            if not label:
-                return PUBLIC_AMD_RUNNERS
-            return RUNNERS_TYPE_MAPPING[label]
+
+            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
 
         return PUBLIC_AMD_RUNNERS
 
@@ -1391,6 +1395,13 @@ class SelectiveChecks:
         )  # ^ sort by Python minor version
         return json.dumps(sorted_providers_to_exclude)
 
+    def _is_disabled_integration(self, integration: str) -> bool:
+        return (
+            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            or integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM
+            and self.runner_type in PUBLIC_ARM_RUNNERS
+        )
+
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
@@ -1398,7 +1409,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_CORE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property
@@ -1408,7 +1419,7 @@ class SelectiveChecks:
         return [
             integration
             for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            if not self._is_disabled_integration(integration)
         ]
 
     @cached_property

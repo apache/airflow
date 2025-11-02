@@ -588,7 +588,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
                 job = await self.get_job(
                     project_id=project_id,
                     job_id=job_id,
-                    session=session,  #  type: ignore
+                    session=session,  # type: ignore
                 )
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)

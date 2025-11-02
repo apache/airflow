@@ -39,6 +39,7 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
@@ -236,20 +237,24 @@ def get_dag_run_dict(run: DagRun):
         "dag_display_name": run.dag_model.dag_display_name,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
-        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+        "logical_date": from_datetime_to_zulu_without_ms(run.logical_date) if run.logical_date else None,
         "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
         "run_after": from_datetime_to_zulu_without_ms(run.run_after),
-        "start_date": from_datetime_to_zulu_without_ms(run.start_date),
-        "end_date": from_datetime_to_zulu_without_ms(run.end_date),
+        "start_date": from_datetime_to_zulu_without_ms(run.start_date) if run.start_date else None,
+        "end_date": from_datetime_to_zulu_without_ms(run.end_date) if run.end_date else None,
         "duration": run.duration,
-        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
-        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+        "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start)
+        if run.data_interval_start
+        else None,
+        "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end)
+        if run.data_interval_end
+        else None,
         "last_scheduling_decision": (
             from_datetime_to_zulu(run.last_scheduling_decision) if run.last_scheduling_decision else None
         ),
         "run_type": run.run_type,
         "state": run.state,
-        "triggered_by": run.triggered_by.value,
+        "triggered_by": run.triggered_by.value if run.triggered_by else None,
         "triggering_user_name": run.triggering_user_name,
         "conf": run.conf,
         "note": run.note,
@@ -323,7 +328,10 @@ class TestGetDagRun:
 
 
 class TestGetDagRuns:
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    @pytest.mark.parametrize(
+        "dag_id, total_entries",
+        [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
+    )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/dags/{dag_id}/dagRuns")
@@ -380,7 +388,10 @@ class TestGetDagRuns:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
-        response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
+        with assert_queries_count(7):
+            response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
@@ -803,7 +814,8 @@ class TestGetDagRuns:
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        response = test_client.post("/dags/~/dagRuns/list", json={})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
@@ -844,7 +856,8 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
@@ -1348,9 +1361,10 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        response = test_client.get(
-            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
-        )
+        with assert_queries_count(3):
+            response = test_client.get(
+                "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+            )
         assert response.status_code == 200
         expected_response = {
             "asset_events": [
@@ -1559,6 +1573,7 @@ class TestTriggerDagRun:
         run = (
             session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
         )
+
         expected_response_json = {
             "bundle_version": None,
             "conf": {},

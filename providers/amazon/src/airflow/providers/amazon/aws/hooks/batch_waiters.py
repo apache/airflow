@@ -33,7 +33,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import botocore.client
 import botocore.exceptions
 import botocore.waiter
 

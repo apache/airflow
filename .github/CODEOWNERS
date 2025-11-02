@@ -13,7 +13,7 @@
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
-/chart/ @dstandish @jedcunningham @hussein-awala
+/chart/ @dstandish @jedcunningham @hussein-awala @jscheffl
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
@@ -30,7 +30,7 @@
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
 # UI
-/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
+/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @shubhamraj-git @guan404ming
 
 # Translation Owners (i18n)
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid

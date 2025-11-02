@@ -165,6 +165,7 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self.completed: set[KubernetesResults] = set()
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -342,6 +343,9 @@ class KubernetesExecutor(BaseExecutor):
                         self.result_queue.put(results)
                 finally:
                     self.result_queue.task_done()
+
+                for result in self.completed:
+                    self._change_state(result)
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
@@ -720,7 +724,16 @@ class KubernetesExecutor(BaseExecutor):
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
-            self.running.add(ti_id)
+            self.completed.add(
+                KubernetesResults(
+                    key=ti_id,
+                    state="completed",
+                    pod_name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=pod.metadata.resource_version,
+                    failure_details=None,
+                )
+            )
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:

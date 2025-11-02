@@ -54,7 +54,7 @@ REGULAR_IMAGE_PROVIDERS = [
     if not provider_id.startswith("#")
 ]
 
-testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", False)
+testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", str(False)).lower() in ("true", "1", "yes")
 
 
 class TestCommands:

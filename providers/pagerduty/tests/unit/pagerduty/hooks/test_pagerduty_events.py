@@ -69,11 +69,14 @@ class TestPrepareEventData:
         assert even_data == exp_event_data
 
     def test_prepare_event_data_invalid_action(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Event action must be one of: trigger, acknowledge, resolve"):
             prepare_event_data(summary="test", severity="error", action="should_raise")
 
     def test_prepare_event_missing_dedup_key(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="The dedup_key property is required for action=acknowledge events, and it must be a string",
+        ):
             prepare_event_data(summary="test", severity="error", action="acknowledge")
 
 

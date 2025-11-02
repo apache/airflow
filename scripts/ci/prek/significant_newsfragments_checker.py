@@ -32,7 +32,6 @@ import glob
 import re
 
 import docutils.nodes
-import docutils.parsers.rst
 from docutils.core import publish_doctree
 from jinja2 import BaseLoader, Environment
 

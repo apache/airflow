@@ -991,9 +991,9 @@ class TestBulkPools(TestPoolsEndpoint):
 
         # Assert: fetch from DB and check only masked field changed
         updated_pool = session.query(Pool).filter_by(pool="pool1").one()
-        assert updated_pool.slots == 50  #  updated
-        assert updated_pool.description is None  #  unchanged
-        assert updated_pool.include_deferred is True  #  unchanged
+        assert updated_pool.slots == 50  # updated
+        assert updated_pool.description is None  # unchanged
+        assert updated_pool.include_deferred is True  # unchanged
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/pools", json={})

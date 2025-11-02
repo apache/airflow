@@ -41,7 +41,7 @@ class TestSecretCache:
         SecretCache.init()
 
     @staticmethod
-    def teardown_method(self) -> None:
+    def teardown_method() -> None:
         SecretCache.reset()
 
     def test_cache_accessible_from_other_process(self):

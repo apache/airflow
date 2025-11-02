@@ -251,6 +251,16 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
+        # The manager needs MetastoreBackend to retrieve connections from the database
+        # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
+        # This marks the manager as "server" context so ensure_secrets_backend_loaded() provides
+        # MetastoreBackend instead of falling back to EnvironmentVariablesBackend only.
+        # Child parser processes explicitly override this by setting _AIRFLOW_PROCESS_CONTEXT=client
+        # in _parse_file_entrypoint() to prevent inheriting server privileges.
+        # Related: https://github.com/apache/airflow/pull/57459
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -636,12 +646,15 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_filelocs.append(str(rel_sub_path))
 
         with create_session() as session:
-            DagModel.deactivate_deleted_dags(
+            any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
                 rel_filelocs=rel_filelocs,
                 session=session,
             )
-            remove_references_to_deleted_dags(session=session)
+            # Only run cleanup if we actually deactivated any DAGs
+            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
+            if any_deactivated:
+                remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -918,6 +931,7 @@ class DagFileProcessorManager(LoggingMixin):
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
+            bundle_name=dag_file.bundle_name,
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,

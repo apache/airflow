@@ -147,7 +147,6 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
 
         if asset is None:
             raise ValueError("No active asset found with either name or uri.")
-
         return asset.to_public()
 
 

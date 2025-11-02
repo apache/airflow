@@ -58,6 +58,7 @@ class TestDbtCloudJobRunSensor:
             account_id=ACCOUNT_ID,
             timeout=30,
             poke_interval=15,
+            hook_params={"retry_limit": 3, "retry_delay": 2.0},
         )
 
     def test_init(self):
@@ -65,6 +66,7 @@ class TestDbtCloudJobRunSensor:
         assert self.sensor.run_id == RUN_ID
         assert self.sensor.timeout == 30
         assert self.sensor.poke_interval == 15
+        assert self.sensor.hook_params == {"retry_limit": 3, "retry_delay": 2.0}
 
     @pytest.mark.parametrize(
         argnames=("job_run_status", "expected_poke_result"),

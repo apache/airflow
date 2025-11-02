@@ -1,0 +1,14 @@
+# Potentialy created files
+.uv-cache
+dist
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
