@@ -1429,9 +1429,7 @@ my_postgres_conn:
         ) as dag:
             EmptyOperator(task_id=task_id)
 
-        if settings.Session is None:
-            raise RuntimeError("Session not configured. Call configure_orm() first.")
-        session = settings.Session()
+        session = settings.get_session()()
         dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,

@@ -1637,9 +1637,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
-            if settings.Session is None:
-                raise RuntimeError("Session not configured. Call configure_orm() first.")
-            session = settings.Session()
+            session = settings.get_session()()
 
         from airflow.exceptions import NotMapped
         from airflow.models.mappedoperator import get_mapped_ti_count

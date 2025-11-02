@@ -131,6 +131,21 @@ NonScopedSession: sessionmaker | None = None
 async_engine: AsyncEngine | None = None
 AsyncSession: Callable[..., SAAsyncSession] | None = None
 
+
+def get_engine():
+    """Get the configured engine, raising an error if not configured."""
+    if engine is None:
+        raise RuntimeError("Engine not configured. Call configure_orm() first.")
+    return engine
+
+
+def get_session():
+    """Get the configured Session, raising an error if not configured."""
+    if Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
+    return Session
+
+
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json_lib
 
