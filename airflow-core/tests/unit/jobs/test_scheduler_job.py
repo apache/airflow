@@ -7347,23 +7347,29 @@ class TestSchedulerJobQueriesCount:
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             sync_bag_to_db(dagbag, "testing", None)
 
-            scheduler_job = Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+            executor = MockExecutor(do_update=False)
+            scheduler_job = Job(job_type=SchedulerJobRunner.job_type, executor=executor)
             scheduler_job.heartbeat = mock.MagicMock()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
 
-            failures = []  # Collects assertion errors and report all of them at the end.
-            message = "Expected {expected_count} query, but got {current_count} located at:"
-            for expected_query_count in expected_query_counts:
-                with create_session() as session:
-                    try:
-                        with assert_queries_count(expected_query_count, message_fmt=message, margin=15):
-                            self.job_runner._do_scheduling(session)
-                    except AssertionError as e:
-                        failures.append(str(e))
-            if failures:
-                prefix = "Collected database query count mismatches:"
-                joined = "\n\n".join(failures)
-                raise AssertionError(f"{prefix}\n\n{joined}")
+            # Mock get_default_executor_name to avoid extra queries from executor field population
+            with mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor_name",
+                return_value=executor.name,
+            ):
+                failures = []  # Collects assertion errors and report all of them at the end.
+                message = "Expected {expected_count} query, but got {current_count} located at:"
+                for expected_query_count in expected_query_counts:
+                    with create_session() as session:
+                        try:
+                            with assert_queries_count(expected_query_count, message_fmt=message, margin=15):
+                                self.job_runner._do_scheduling(session)
+                        except AssertionError as e:
+                            failures.append(str(e))
+                if failures:
+                    prefix = "Collected database query count mismatches:"
+                    joined = "\n\n".join(failures)
+                    raise AssertionError(f"{prefix}\n\n{joined}")
 
 
 def test_mark_backfills_completed(dag_maker, session):
