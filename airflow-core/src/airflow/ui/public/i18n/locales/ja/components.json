@@ -1,0 +1,140 @@
+{
+  "backfill": {
+    "affected_one": "1 回の実行をトリガーします",
+    "affected_other": "{{count}} 回の実行をトリガーします",
+    "affectedNone": "選択した条件に一致する実行はありません",
+    "allRuns": "すべての実行",
+    "backwards": "逆実行",
+    "dateRange": "日付範囲",
+    "errorStartDateBeforeEndDate": "開始日が終了日より前にする必要があります",
+    "maxRuns": "最大アクティブ実行数",
+    "missingAndErroredRuns": "欠落およびエラー発生した実行",
+    "missingRuns": "欠落実行",
+    "reprocessBehavior": "再処理動作",
+    "run": "過去分再実行の実行",
+    "selectDescription": "この Dag を指定した日付範囲で実行します",
+    "selectLabel": "過去分再実行",
+    "title": "過去分再実行",
+    "toaster": {
+      "success": {
+        "description": "過去分再実行ジョブが正常にトリガーされました",
+        "title": "過去分再実行処理を生成しました"
+      }
+    },
+    "tooltip": "過去分再実行処理には Dag にスケジューリングが必要です",
+    "unpause": "{{dag_display_name}} がトリガーされると一時停止を解除します",
+    "validation": {
+      "datesRequired": "データ範囲の開始日と終了日は必須です",
+      "startBeforeEnd": "データ範囲の開始日は終了日以前である必要があります"
+    }
+  },
+  "banner": {
+    "backfillInProgress": "過去分再実行中",
+    "cancel": "過去分再実行をキャンセルします",
+    "pause": "過去分再実行を一時停止します",
+    "unpause": "過去分再実行の停止を解除します"
+  },
+  "clipboard": {
+    "copy": "コピー"
+  },
+  "close": "閉じる",
+  "configForm": {
+    "advancedOptions": "詳細設定",
+    "configJson": "JSON の設定",
+    "invalidJson": "無効な JSON 形式: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 件のエラー",
+    "errorAndWarning": "1 件のエラーと {{warningText}}",
+    "warning_one": "1 件の警告",
+    "warning_other": "{{count}} 件の警告"
+  },
+  "durationChart": {
+    "duration": "期間（秒）",
+    "lastDagRun_one": "最新の Dag 実行",
+    "lastDagRun_other": "直近の {{count}} 回の Dag 実行",
+    "lastTaskInstance_one": "最新のタスクインスタンス",
+    "lastTaskInstance_other": "直近の {{count}} 個のタスクインスタンス",
+    "queuedDuration": "キューイングされた時間",
+    "runAfter": "最も早い実行可能時間",
+    "runDuration": "実行期間"
+  },
+  "fileUpload": {
+    "files_other": "{{count}} 個のファイル"
+  },
+  "flexibleForm": {
+    "placeholder": "値を選択してください",
+    "placeholderArray": "各文字列を新しい行に入力してください",
+    "placeholderExamples": "入力を開始するとオプションが表示されます",
+    "placeholderMulti": "１ つまたは複数の値を選択してください",
+    "validationErrorArrayNotArray": "値は配列でなければなりません",
+    "validationErrorArrayNotNumbers": "配列内のすべての要素が数値でなければなりません",
+    "validationErrorArrayNotObject": "配列内のすべての要素がオブジェクトでなければなりません",
+    "validationErrorRequired": "この項目は必須です"
+  },
+  "graph": {
+    "directionDown": "上から下へ",
+    "directionLeft": "右から左へ",
+    "directionRight": "左から右へ",
+    "directionUp": "下から上へ",
+    "downloadImage": "グラフ画像のダウンロード",
+    "downloadImageError": "グラフ画像のダウンロードに失敗しました",
+    "downloadImageErrorTitle": "ダウンロードに失敗しました",
+    "otherDagRuns": "+その他の Dag 実行",
+    "taskCount_one": "{{count}} 個のタスク",
+    "taskCount_other": "{{count}} 個のタスク",
+    "taskGroup": "タスクグループ"
+  },
+  "limitedList": "その他 +{{count}} 件",
+  "limitedList.allItems": "全 {{count}} 件:",
+  "limitedList.allTags_one": "すべてのタグ (1)",
+  "limitedList.allTags_other": "すべてのタグ ({{count}})",
+  "limitedList.clickToInteract": "タグをクリックして Dag をフィルタリング",
+  "limitedList.clickToOpenFull": "\"+{{count}} もっと見る\" をクリックして全体を表示",
+  "limitedList.copyPasteText": "上記のテキストをコピーして貼り付けることが可能",
+  "limitedList.showingItems_one": "1 件表示",
+  "limitedList.showingItems_other": "{{count}} 件の表示",
+  "logs": {
+    "file": "ファイル",
+    "location": "{{name}} の {{line}} 行目"
+  },
+  "reparseDag": "Dag の再パース",
+  "sortedAscending": "昇順ソート",
+  "sortedDescending": "降順でソート",
+  "sortedUnsorted": "未ソート",
+  "taskTries": "タスクの試行",
+  "toggleCardView": "カードビューを表示",
+  "toggleTableView": "テーブルビューを表示",
+  "triggerDag": {
+    "button": "トリガー",
+    "loading": "Dag 情報を読込中...",
+    "loadingFailed": "情報読込に失敗しました。もう一度試してください",
+    "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
+    "selectDescription": "この Dag の単体での実行をトリガーします",
+    "selectLabel": "単体での実行",
+    "title": "Dag のトリガー",
+    "toaster": {
+      "success": {
+        "description": "Dag の実行が正常にトリガーされました。",
+        "title": "Dag の実行がトリガーされました"
+      }
+    },
+    "unpause": "{{dagDisplayName}} トリガーで停止を解除します"
+  },
+  "trimText": {
+    "details": "詳細",
+    "empty": "空",
+    "noContent": "利用可能なコンテンツがありません。"
+  },
+  "versionDetails": {
+    "bundleLink": "バンドルのリンク",
+    "bundleName": "バンドル名",
+    "bundleVersion": "バンドルバージョン",
+    "createdAt": "作成時刻",
+    "versionId": "バージョン ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag バージョン",
+    "versionCode": "v{{versionCode}}"
+  }
+}
