@@ -240,7 +240,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             },
             "duration": None,
             "end_date": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "id": sample_ti.id,
