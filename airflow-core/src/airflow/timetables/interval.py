@@ -201,6 +201,9 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
             return NotImplemented
         return self._delta == other._delta
 
+    def __hash__(self):
+        return hash(self._delta)
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta
 

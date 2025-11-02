@@ -92,7 +92,7 @@ system packages. It's easier to install extras one-by-one as needed.
     quoted_command = " ".join([shlex.quote(parameter) for parameter in uv_install_command])
     print()
     print(f"Running command: \n   {quoted_command}\n")
-    e = subprocess.run(uv_install_command)
+    e = subprocess.run(uv_install_command, check=False)
     return e.returncode
 
 
@@ -115,7 +115,7 @@ def main():
 
     if not check_if_in_virtualenv():
         version = get_python_version()
-        e = subprocess.run(["uv", "venv", "--python", version])
+        e = subprocess.run(["uv", "venv", "--python", version], check=False)
         if e.returncode != 0:
             print(f"There was a problem with 'uv venv'. Error code: {e.returncode}")
 
@@ -167,7 +167,7 @@ def main():
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
     env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
     env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], env=env)
+    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], check=False, env=env)
 
     print("\nResetting AIRFLOW sqlite unit test database...")
     env = os.environ.copy()
@@ -176,7 +176,7 @@ def main():
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
     env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
     env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], env=env)
+    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], check=False, env=env)
 
     print("\nInitialization of environment complete! Go ahead and develop Airflow!")
 

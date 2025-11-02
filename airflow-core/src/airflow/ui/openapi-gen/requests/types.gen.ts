@@ -858,7 +858,7 @@ export type DagVersionResponse = {
     bundle_version: string | null;
     created_at: string;
     dag_display_name: string;
-    readonly bundle_url: string | null;
+    bundle_url: string | null;
 };
 
 /**
@@ -1798,6 +1798,7 @@ export type DAGRunLightResponse = {
     start_date: string | null;
     end_date: string | null;
     state: DagRunState;
+    readonly duration: number | null;
 };
 
 /**
@@ -1860,7 +1861,7 @@ export type DAGWithLatestDagRunsResponse = {
     asset_expression: {
     [key: string]: unknown;
 } | null;
-    latest_dag_runs: Array<DAGRunResponse>;
+    latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**

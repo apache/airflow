@@ -20,13 +20,13 @@ import { Box, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunLightResponse } from "openapi/requests/types.gen";
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {
   readonly dagId: string;
   readonly dagName: string;
-  readonly latestRuns: Array<DAGRunResponse>;
+  readonly latestRuns: Array<DAGRunLightResponse>;
 };
 
 export const FavoriteDagCard = ({ dagId, dagName, latestRuns }: FavoriteDagProps) => {

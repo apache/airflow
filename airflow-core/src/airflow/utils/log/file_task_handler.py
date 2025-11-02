@@ -177,7 +177,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
         algorithm="HS512",
         # We must set an empty private key here as otherwise it can be automatically loaded by JWTGenerator
         # and secret_key and private_key cannot be set together
-        private_key=None,  #  type: ignore[arg-type]
+        private_key=None,  # type: ignore[arg-type]
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",

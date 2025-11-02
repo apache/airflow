@@ -303,7 +303,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: d0bc12378d4f1619265f64726c5726f2c072a7ed  # frozen: v1.16.0
+    rev: bbd57e2e77d04e39722d2976d5d6bfa227f101e8  # frozen: v1.16.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -340,7 +340,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.2']
+        additional_dependencies: ['ruff==0.14.3']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -647,27 +647,6 @@ repos:
         entry: koalaman/shellcheck:v0.8.0 -x -a
         files: \.(bash|sh)$|^hooks/build$|^hooks/push$
         exclude: ^dev/breeze/autocomplete/.*$
-        # Note: Actually the compile-ui-assets prek hook would be best in airflow-core/.pre-commit-config.yaml
-        #       See also https://github.com/j178/prek/issues/973
-      - id: compile-ui-assets
-        name: Compile ui assets (manual)
-        language: node
-        stages: ['manual']
-        types_or: [javascript, ts, tsx]
-        files: ^airflow-core/src/airflow/ui/|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/
-        entry: ./scripts/ci/prek/compile_ui_assets.py
-        pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
-        # Note: Keeping compile-ui-assets-dev together with ^^^
-      - id: compile-ui-assets-dev
-        name: Compile ui assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        types_or: [javascript, ts, tsx]
-        files: ^airflow-core/src/airflow/ui/|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/
-        entry: ./scripts/ci/prek/compile_ui_assets_dev.py
-        pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
       - id: check-integrations-list-consistent
         name: Sync integrations list with docs
         entry: ./scripts/ci/prek/check_integrations_list.py

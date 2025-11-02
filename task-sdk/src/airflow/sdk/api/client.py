@@ -48,6 +48,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     DagRunType,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
@@ -77,7 +78,6 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     SkipDownstreamTasks,
@@ -366,7 +366,7 @@ class ConnectionOperations:
             resp = self.client.get(f"connections/{conn_id}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "Connection not found",
                     conn_id=conn_id,
                     detail=e.detail,
@@ -754,7 +754,7 @@ class HITLOperations:
         multiple: bool = False,
         params: dict[str, Any] | None = None,
         assigned_users: list[HITLUser] | None = None,
-    ) -> HITLDetailRequestResult:
+    ) -> HITLDetailRequest:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
             ti_id=ti_id,
@@ -770,7 +770,7 @@ class HITLOperations:
             f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
         )
-        return HITLDetailRequestResult.model_validate_json(resp.read())
+        return HITLDetailRequest.model_validate_json(resp.read())
 
     def update_response(
         self,
@@ -807,7 +807,7 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-# This exists as a aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
+# This exists as an aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
     path = request.url.path
@@ -851,9 +851,9 @@ def _should_retry_api_request(exception: BaseException) -> bool:
 
 
 class Client(httpx.Client):
-    @classmethod
     @lru_cache()
-    def _get_ssl_context_cached(cls, ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
+    @staticmethod
+    def _get_ssl_context_cached(ca_file: str, ca_path: str | None = None) -> ssl.SSLContext:
         """Cache SSL context to prevent memory growth from repeated context creation."""
         ctx = ssl.create_default_context(cafile=ca_file)
         if ca_path:

@@ -39,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     TerminalTIState,
@@ -49,7 +50,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     RescheduleTask,
@@ -1300,7 +1300,7 @@ class TestHITLOperations:
             params=None,
             multiple=False,
         )
-        assert isinstance(result, HITLDetailRequestResult)
+        assert isinstance(result, HITLDetailRequest)
         assert result.ti_id == ti_id
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"
@@ -1370,10 +1370,10 @@ class TestHITLOperations:
 
 
 class TestSSLContextCaching:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def clear_ssl_context_cache(self):
         Client._get_ssl_context_cached.cache_clear()
-
-    def teardown_method(self):
+        yield
         Client._get_ssl_context_cached.cache_clear()
 
     def test_cache_hit_on_same_parameters(self):
@@ -1381,6 +1381,13 @@ class TestSSLContextCaching:
         ctx1 = Client._get_ssl_context_cached(ca_file, None)
         ctx2 = Client._get_ssl_context_cached(ca_file, None)
         assert ctx1 is ctx2
+
+    def test_cache_miss_if_cache_cleared(self):
+        ca_file = certifi.where()
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
+        Client._get_ssl_context_cached.cache_clear()
+        ctx2 = Client._get_ssl_context_cached(ca_file, None)
+        assert ctx1 is not ctx2
 
     def test_cache_miss_on_different_parameters(self):
         ca_file = certifi.where()

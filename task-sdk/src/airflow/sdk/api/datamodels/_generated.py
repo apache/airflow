@@ -508,7 +508,7 @@ class AssetEventResponse(BaseModel):
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
-    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = -1
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
 
 
 class AssetEventsResponse(BaseModel):

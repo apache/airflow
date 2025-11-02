@@ -93,6 +93,13 @@ We are using the [SEMVER](https://semver.org/) versioning scheme for the `airflo
 to give the users confidence about maintaining backwards compatibility in the new releases of those
 packages.
 
+Decision made in [VOTE for RC Release](https://lists.apache.org/thread/cnz3k2pox69ddkk647mt8gpfy0t70f94) made the starting version from `1.*` to `0.*`.
+This caused a side effect where we won't be able to use following versions in further releases which are yanked.
+
+- [1.0.0b1](https://pypi.org/project/apache-airflow-ctl/1.0.0b1/)
+- [1.0.0rc1](https://pypi.org/project/apache-airflow-ctl/1.0.0rc1/)
+- [1.0.0rc2](https://pypi.org/project/apache-airflow-ctl/1.0.0rc2/)
+
 Set version env variable
 
 ```shell script
@@ -451,6 +458,7 @@ How to verify it:
 1) Change directory where your airflow sources are checked out
 
 ```shell
+VERSION=1.0.0rc1
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
@@ -458,7 +466,7 @@ Choose the tag you used for release:
 
 ```shell
 git fetch apache --tags
-git checkout airflow-ctl/1.0.0rc1
+git checkout airflow-ctl/${VERSION}
 ```
 
 3) Remove all the packages you have in dist folder
@@ -471,7 +479,7 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
+breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION}
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
