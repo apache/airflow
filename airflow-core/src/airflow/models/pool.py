@@ -42,11 +42,11 @@ if TYPE_CHECKING:
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
-    total: int | float
+    total: int | float  # Note: float("inf") is used to mark infinite slots
     running: int
     deferred: int
     queued: int
-    open: int
+    open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
 
 
@@ -221,7 +221,7 @@ class Pool(Base):
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
-            stats_dict["open"] = int(stats_dict["total"]) - stats_dict["running"] - stats_dict["queued"]
+            stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
             if pool_includes_deferred[pool_name]:
                 stats_dict["open"] -= stats_dict["deferred"]
 
