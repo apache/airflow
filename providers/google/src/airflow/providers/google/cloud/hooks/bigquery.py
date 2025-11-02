@@ -1800,27 +1800,28 @@ class BigQueryCursor(BigQueryBaseCursor):
         if cluster_fields:
             cluster_fields = {"fields": cluster_fields}  # type: ignore
 
-        query_param_list: list[tuple[Any, str, type | tuple[type]]] = [
-            (sql, "query", (str,)),
-            (priority, "priority", (str,)),
-            (use_legacy_sql, "useLegacySql", bool),
-            (query_params, "queryParameters", list),
-            (udf_config, "userDefinedFunctionResources", list),
-            (maximum_billing_tier, "maximumBillingTier", int),
-            (maximum_bytes_billed, "maximumBytesBilled", float),
-            (time_partitioning, "timePartitioning", dict),
-            (range_partitioning, "rangePartitioning", dict),
-            (schema_update_options, "schemaUpdateOptions", list),
-            (destination_dataset_table, "destinationTable", dict),
-            (cluster_fields, "clustering", dict),
+        query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
+            (sql, "query", None, (str,)),
+            (priority, "priority", priority, (str,)),
+            (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
+            (query_params, "queryParameters", None, list),
+            (udf_config, "userDefinedFunctionResources", None, list),
+            (maximum_billing_tier, "maximumBillingTier", None, int),
+            (maximum_bytes_billed, "maximumBytesBilled", None, float),
+            (time_partitioning, "timePartitioning", {}, dict),
+            (range_partitioning, "rangePartitioning", {}, dict),
+            (schema_update_options, "schemaUpdateOptions", None, list),
+            (destination_dataset_table, "destinationTable", None, dict),
+            (cluster_fields, "clustering", None, dict),
         ]
 
-        for param_raw, param_name, param_type in query_param_list:
+        for param_raw, param_name, param_default, param_type in query_param_list:
+            param: Any
             if param_name not in configuration["query"] and param_raw in [None, {}, ()]:
                 if param_name == "timePartitioning":
                     param = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
                 else:
-                    param = param_raw
+                    param = param_default
             else:
                 param = param_raw
 
