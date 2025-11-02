@@ -115,7 +115,33 @@ def _check_flag_and_exit_if_server_response_error(func):
             raise response
         return response
 
+    def _class_exists(module, class_name):
+        """Check if a class with a given name exists in the imported module."""
+        import inspect
+
+        for name, obj in inspect.getmembers(module, inspect.isclass):
+            # Make sure the class is defined in this module, not imported
+            if obj.__module__ == module.__name__ and name == class_name:
+                return True
+        return False
+
     def wrapped(self, *args, **kwargs):
+        # Set self.client.datamodel according to function first argument in one of above modules
+        # This is to ensure that the correct datamodel is used for validation in the client before creating the request
+        import airflowctl.api.datamodels.auth_generated as auth_datamodels
+        import airflowctl.api.datamodels.generated as datamodels
+
+        if func.__annotations__:
+            for param in func.__annotations__.values():
+                if _class_exists(datamodels, param):
+                    # Assign class from datamodels or auth_datamodels
+                    self.client.datamodel.append(getattr(datamodels, param))
+                    break
+                if _class_exists(auth_datamodels, param):
+                    self.client.datamodel.append(getattr(datamodels, param))
+                    break
+
+        # Set highest level error handler to each method with decorator
         try:
             if self.exit_in_error:
                 return _exit_if_server_response_error(response=func(self, *args, **kwargs))
@@ -230,8 +256,6 @@ class AssetsOperations(BaseOperations):
         """Create an asset event."""
         try:
             # Ensure extra is initialised before sent to API
-            if asset_event_body.extra is None:
-                asset_event_body.extra = {}
             self.response = self.client.post("assets/events", json=asset_event_body.model_dump(mode="json"))
             return AssetEventResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -302,7 +326,7 @@ class BackfillOperations(BaseOperations):
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a backfill."""
         try:
-            self.response = self.client.post("backfills", data=backfill.model_dump(mode="json"))
+            self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -310,7 +334,7 @@ class BackfillOperations(BaseOperations):
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
         try:
-            self.response = self.client.post("backfills/dry_run", data=backfill.model_dump(mode="json"))
+            self.response = self.client.post("backfills/dry_run", json=backfill.model_dump(mode="json"))
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -331,7 +355,7 @@ class BackfillOperations(BaseOperations):
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/pause")
+            self.response = self.client.put(f"backfills/{backfill_id}/pause")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -339,7 +363,7 @@ class BackfillOperations(BaseOperations):
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/unpause")
+            self.response = self.client.put(f"backfills/{backfill_id}/unpause")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -347,7 +371,7 @@ class BackfillOperations(BaseOperations):
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/cancel")
+            self.response = self.client.put(f"backfills/{backfill_id}/cancel")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -525,8 +549,6 @@ class DagsOperations(BaseOperations):
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
         """Create a dag run."""
-        if trigger_dag_run.conf is None:
-            trigger_dag_run.conf = {}
         try:
             self.response = self.client.post(
                 f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
