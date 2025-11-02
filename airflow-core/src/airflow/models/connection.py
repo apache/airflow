@@ -169,6 +169,11 @@ class Connection(Base, LoggingMixin):
             )
         if uri:
             self._parse_from_uri(uri)
+            # Even with URI, allow explicit conn_id to be set
+            if conn_id is not None:
+                sanitized_id = sanitize_conn_id(conn_id)
+                if sanitized_id is not None:
+                    self.conn_id = sanitized_id
         else:
             # For non-URI connections, store values and let later validation handle issues
             if conn_id is not None:
@@ -262,7 +267,7 @@ class Connection(Base, LoggingMixin):
             return f"{protocol}://{host}"
         return host
 
-    def get_uri(self) -> str | None:
+    def get_uri(self) -> str:
         """
         Return the connection URI in Airflow format.
 
@@ -270,11 +275,8 @@ class Connection(Base, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
 
-        :return: The connection URI string, or None if conn_type is missing.
+        :return: The connection URI string.
         """
-        # Return None only if conn_type is missing (required for URI)
-        if not self.conn_type:
-            return None
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
@@ -533,9 +535,7 @@ class Connection(Base, LoggingMixin):
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
-                    connection_uri = conn.get_uri()
-                    if connection_uri is not None:
-                        SecretCache.save_connection_uri(conn_id, connection_uri)
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn
             except Exception:
                 log.debug(
