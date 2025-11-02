@@ -877,7 +877,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
 
         if in_env_var_format and not key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
             key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
-        elif not key.startswith(DEFAULT_FORMAT_PREFIX):
+        elif not key_raw.startswith(DEFAULT_FORMAT_PREFIX):
             key = DEFAULT_FORMAT_PREFIX + key_raw
         else:
             key = key_raw
