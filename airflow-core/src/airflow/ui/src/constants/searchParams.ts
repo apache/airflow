@@ -74,6 +74,9 @@ export enum SearchParamsKeys {
   TRY_NUMBER = "try_number",
   USER = "user",
   VERSION_NUMBER = "version_number",
+  // Date range filters for specific use cases
+  EVENT_DATE_RANGE = "event_date_range",
+  ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
 }
 
 export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;

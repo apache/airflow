@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -56,6 +57,13 @@ export const useFilterConfigs = () => {
       icon: <MdDateRange />,
       label: translate("common:table.from"),
       type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
+      endKey: SearchParamsKeys.END_DATE,
+      icon: <MdDateRange />,
+      label: translate("common:date"),
+      startKey: SearchParamsKeys.START_DATE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.BEFORE]: {
       icon: <MdDateRange />,
@@ -125,6 +133,13 @@ export const useFilterConfigs = () => {
       icon: <MdDateRange />,
       label: translate("common:table.to"),
       type: FilterTypes.DATE,
+    },
+    [SearchParamsKeys.EVENT_DATE_RANGE]: {
+      endKey: SearchParamsKeys.BEFORE,
+      icon: <MdDateRange />,
+      label: translate("common:date"),
+      startKey: SearchParamsKeys.AFTER,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
@@ -277,7 +292,7 @@ export const useFilterConfigs = () => {
       icon: <FiUser />,
       label: translate("common:user"),
       type: FilterTypes.TEXT,
-    },
+    }
   };
 
   const getFilterConfig = (key: keyof typeof filterConfigMap): FilterConfig => ({

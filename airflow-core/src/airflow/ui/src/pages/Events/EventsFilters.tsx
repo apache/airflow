@@ -31,8 +31,7 @@ type EventsFiltersProps = {
 export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersProps) => {
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.AFTER,
-      SearchParamsKeys.BEFORE,
+      SearchParamsKeys.EVENT_DATE_RANGE,
       SearchParamsKeys.EVENT_TYPE,
       SearchParamsKeys.USER,
       SearchParamsKeys.MAP_INDEX,
