@@ -242,9 +242,12 @@ export const DagRuns = () => {
   return (
     <>
       <DagRunsFilters dagId={dagId} />
-      <Heading py={3} size="md">
-        {`${data?.total_entries ?? 0} ${translate("dagRun", { count: data?.total_entries ?? 0 })}`}
-      </Heading>
+      {(data?.total_entries ?? 0) > 0 && (
+        <Heading py={3} size="md">
+          {`${data?.total_entries} ${translate("dagRun", { count: data?.total_entries })}`}
+        </Heading>
+      )}
+
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}

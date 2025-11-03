@@ -301,6 +301,11 @@ export const TaskInstances = () => {
   return (
     <>
       <TaskInstancesFilter />
+      {(data?.total_entries ?? 0) > 0 && (
+        <Heading py={3} size="md">
+          {`${data?.total_entries ?? 0} ${translate("taskInstance", { count: data?.total_entries ?? 0 })}`}
+        </Heading>
+      )}
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
