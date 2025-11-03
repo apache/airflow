@@ -828,7 +828,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
             config,
             script,
         ) as env,
-        settings.engine.connect() as connection,
+        settings.get_engine().connect() as connection,
     ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
@@ -1044,7 +1044,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     :param revisions: list of Alembic revision ids
     :return: None
     """
-    dbname = settings.engine.dialect.name
+    dbname = settings.get_engine().dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
     min_version, min_revision = ("2.7.0", "937cbd173ca1")
@@ -1257,7 +1257,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             fab_version,
         )
         return
-    connection = settings.engine.connect()
+    connection = settings.get_engine().connect()
     insp = inspect(connection)
     if not fab_version and insp.has_table("ab_user"):
         log.info(
