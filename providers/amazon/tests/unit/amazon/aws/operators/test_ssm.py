@@ -208,7 +208,8 @@ class TestSsmRunCommandOperator:
             with pytest.raises(WaiterError):
                 self.operator.execute({})
 
-    def test_operator_passes_parameter_to_trigger(self, mock_conn):
+    @mock.patch("airflow.providers.amazon.aws.operators.ssm.SsmRunCommandTrigger")
+    def test_operator_passes_parameter_to_trigger(self, mock_trigger_class, mock_conn):
         """
         Test that fail_on_nonzero_exit parameter is passed to trigger in deferrable mode.
 
@@ -218,18 +219,23 @@ class TestSsmRunCommandOperator:
         self.operator.deferrable = True
         self.operator.fail_on_nonzero_exit = False
 
-        command_id = self.operator.execute({})
+        with mock.patch.object(self.operator, "defer") as mock_defer:
+            command_id = self.operator.execute({})
 
-        assert command_id == COMMAND_ID
-        mock_conn.send_command.assert_called_once_with(DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS)
+            assert command_id == COMMAND_ID
+            mock_conn.send_command.assert_called_once_with(
+                DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS
+            )
 
-        # Verify defer was called with fail_on_nonzero_exit parameter
-        self.operator.defer.assert_called_once()
-        call_args = self.operator.defer.call_args
-        trigger = call_args[1]["trigger"]
+            # Verify defer was called
+            mock_defer.assert_called_once()
 
-        # Verify the trigger has fail_on_nonzero_exit set correctly
-        assert trigger.fail_on_nonzero_exit is False
+            # Verify the trigger was instantiated with correct parameters
+            mock_trigger_class.assert_called_once()
+            call_kwargs = mock_trigger_class.call_args[1]
+
+            assert call_kwargs["command_id"] == COMMAND_ID
+            assert call_kwargs["fail_on_nonzero_exit"] is False
 
 
 class TestSsmGetCommandInvocationOperator:

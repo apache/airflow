@@ -20,8 +20,7 @@ System test for SSM operators and sensors with exit code handling.
 
 This system test demonstrates the enhanced fail_on_nonzero_exit parameter
 for both SsmRunCommandOperator and SsmRunCommandCompletedSensor, enabling
-workflow routing based on command exit codes similar to traditional agent-based
-schedulers like Autosys.
+workflow routing based on command exit codes.
 """
 
 from __future__ import annotations
@@ -268,8 +267,7 @@ with DAG(
     # ============================================================================
     # PATTERN 3: Exit Code Routing with BranchPythonOperator
     # ============================================================================
-    # This pattern demonstrates how to route workflows based on command exit codes,
-    # similar to traditional agent-based schedulers like Autosys.
+    # This pattern demonstrates how to route workflows based on command exit codes.
     # Use case: Complex workflows where different exit codes trigger different
     # downstream processing paths.
 
@@ -279,8 +277,8 @@ with DAG(
         """
         Route workflow based on command exit code.
 
-        This demonstrates Autosys-like workflow routing where different
-        exit codes trigger different downstream tasks.
+        This demonstrates workflow routing where different exit codes
+        trigger different downstream tasks.
         """
         # Get the command output from the async pattern
         async_output = context["ti"].xcom_pull(task_ids="get_async_output")

@@ -27,9 +27,9 @@ Overview
 ========
 
 Apache Airflow's Amazon SSM integration provides enhanced exit code handling capabilities that enable
-sophisticated workflow routing patterns similar to traditional agent-based schedulers like Autosys.
-The ``fail_on_nonzero_exit`` parameter allows tasks to complete successfully regardless of command
-exit codes, enabling you to capture exit codes and route workflows based on different exit conditions.
+workflow routing patterns. The ``fail_on_nonzero_exit`` parameter allows tasks to complete
+successfully regardless of command exit codes, enabling you to capture exit codes and route workflows
+based on different exit conditions.
 
 This feature is particularly useful when:
 
@@ -118,8 +118,7 @@ It's ideal for short-running commands where blocking the worker is acceptable.
 Pattern 3: Exit Code Routing
 ----------------------------
 
-This pattern demonstrates how to route workflows based on command exit codes, similar to traditional
-agent-based schedulers like Autosys.
+This pattern demonstrates how to route workflows based on command exit codes.
 
 **Use case**: Complex workflows where different exit codes trigger different downstream processing paths.
 
