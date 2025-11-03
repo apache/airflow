@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
-
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -33,9 +31,10 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowException, DownstreamTasksSkipped
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped, ParamValidationError
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
     ApprovalOperator,
@@ -46,7 +45,6 @@ from airflow.providers.standard.operators.hitl import (
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import HITLUser
-from airflow.utils.context import Context
 
 from tests_common.test_utils.config import conf_vars
 
@@ -137,9 +135,27 @@ class TestHITLOperator:
                 params=ParamsDict({"input_1": 1}),
             )
 
-    def test_validate_params_with__options(self) -> None:
+    @pytest.mark.parametrize(
+        ("params", "exc", "error_msg"),
+        (
+            (ParamsDict({"_options": 1}), ValueError, '"_options" is not allowed in params'),
+            (
+                ParamsDict({"param": Param("", type="integer")}),
+                ParamValidationError,
+                (
+                    "Invalid input for param param: '' is not of type 'integer'\n\n"
+                    "Failed validating 'type' in schema:\n"
+                    "    {'type': 'integer'}\n\n"
+                    "On instance:\n    ''"
+                ),
+            ),
+        ),
+    )
+    def test_validate_params(
+        self, params: ParamsDict, exc: type[ValueError | ParamValidationError], error_msg: str
+    ) -> None:
         # validate_params is called during initialization
-        with pytest.raises(ValueError, match='"_options" is not allowed in params'):
+        with pytest.raises(exc, match=error_msg):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",
@@ -147,7 +163,7 @@ class TestHITLOperator:
                 body="This is body",
                 defaults=["1"],
                 multiple=False,
-                params=ParamsDict({"_options": 1}),
+                params=params,
             )
 
     def test_validate_defaults(self) -> None:
@@ -330,21 +346,47 @@ class TestHITLOperator:
                 },
             )
 
-    def test_validate_params_input_with_invalid_input(self) -> None:
+    @pytest.mark.parametrize(
+        ("params", "params_input", "exc", "error_msg"),
+        (
+            (
+                ParamsDict({"input": 1}),
+                {"no such key": 2, "input": 333},
+                ValueError,
+                "params_input {'no such key': 2, 'input': 333} does not match params {'input': 1}",
+            ),
+            (
+                ParamsDict({"input": Param(3, type="number", minimum=3)}),
+                {"input": 0},
+                ParamValidationError,
+                (
+                    "Invalid input for param input: 0 is less than the minimum of 3\n\n"
+                    "Failed validating 'minimum' in schema:\n.*"
+                ),
+            ),
+        ),
+    )
+    def test_validate_params_input_with_invalid_input(
+        self,
+        params: ParamsDict,
+        params_input: dict[str, Any],
+        exc: type[ValueError | ParamValidationError],
+        error_msg: str,
+    ) -> None:
         hitl_op = HITLOperator(
             task_id="hitl_test",
             subject="This is subject",
             body="This is body",
             options=["1", "2", "3", "4", "5"],
-            params={"input": 1},
+            params=params,
         )
 
-        with pytest.raises(ValueError, match="no such key"):
+        with pytest.raises(exc, match=error_msg):
             hitl_op.execute_complete(
                 context={},
                 event={
                     "chosen_options": ["1"],
-                    "params_input": {"no such key": 2, "input": 333},
+                    "params_input": params_input,
                     "responded_by_user": {"id": "test", "name": "test"},
                 },
             )
