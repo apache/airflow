@@ -1416,8 +1416,9 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
+        context = {"execution_date": datetime(2025, 1, 1), "logical_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(context=mock.MagicMock())
+            sensor.execute(context=context)
 
         assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
@@ -1508,8 +1509,9 @@ class TestExternalTaskAsyncSensor:
             failed_states=failed_states,
         )
 
+        context = {"execution_date": datetime(2025, 1, 1), "logical_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(context=mock.MagicMock())
+            sensor.execute(context=context)
 
         trigger = exc.value.trigger
         assert isinstance(trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"

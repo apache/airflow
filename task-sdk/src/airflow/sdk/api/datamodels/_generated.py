@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-01-01"
+API_VERSION: Final[str] = "2025-11-05"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -61,30 +61,6 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
-
-
-class AssetReferenceAssetEventDagRun(BaseModel):
-    """
-    Schema for AssetModel used in AssetEventDagRunReference.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    extra: Annotated[dict[str, Any], Field(title="Extra")]
-
-
-class AssetResponse(BaseModel):
-    """
-    Asset schema for responses with fields that are needed for Runtime.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -477,6 +453,74 @@ class TriggerRule(str, Enum):
     ALL_SKIPPED = "all_skipped"
 
 
+class AssetReferenceAssetEventDagRun(BaseModel):
+    """
+    Schema for AssetModel used in AssetEventDagRunReference.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    extra: Annotated[dict[str, JsonValue], Field(title="Extra")]
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+
+
+class HITLDetailRequest(BaseModel):
+    """
+    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    ti_id: Annotated[UUID, Field(title="Ti Id")]
+    options: Annotated[list[str], Field(min_length=1, title="Options")]
+    subject: Annotated[str, Field(title="Subject")]
+    body: Annotated[str | None, Field(title="Body")] = None
+    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
+    multiple: Annotated[bool | None, Field(title="Multiple")] = False
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+
+
+class HITLDetailResponse(BaseModel):
+    """
+    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
+    """
+
+    response_received: Annotated[bool, Field(title="Response Received")]
+    responded_by_user: HITLUser | None = None
+    responded_at: Annotated[AwareDatetime | None, Field(title="Responded At")] = None
+    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
+    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+
+
+class HTTPValidationError(BaseModel):
+    detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class TITerminalStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a terminal state except SUCCESS state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalStateNonSuccess
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+
+
 class AssetEventDagRunReference(BaseModel):
     """
     Schema for AssetEvent model used in DagRun.
@@ -486,7 +530,7 @@ class AssetEventDagRunReference(BaseModel):
         extra="forbid",
     )
     asset: AssetReferenceAssetEventDagRun
-    extra: Annotated[dict[str, Any], Field(title="Extra")]
+    extra: Annotated[dict[str, JsonValue], Field(title="Extra")]
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
@@ -502,7 +546,7 @@ class AssetEventResponse(BaseModel):
 
     id: Annotated[int, Field(title="Id")]
     timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     asset: AssetResponse
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
@@ -543,37 +587,6 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
 
 
-class HITLDetailRequest(BaseModel):
-    """
-    Schema for the request part of a Human-in-the-loop detail for a specific task instance.
-    """
-
-    ti_id: Annotated[UUID, Field(title="Ti Id")]
-    options: Annotated[list[str], Field(min_length=1, title="Options")]
-    subject: Annotated[str, Field(title="Subject")]
-    body: Annotated[str | None, Field(title="Body")] = None
-    defaults: Annotated[list[str] | None, Field(title="Defaults")] = None
-    multiple: Annotated[bool | None, Field(title="Multiple")] = False
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
-
-
-class HITLDetailResponse(BaseModel):
-    """
-    Schema for the response part of a Human-in-the-loop detail for a specific task instance.
-    """
-
-    response_received: Annotated[bool, Field(title="Response Received")]
-    responded_by_user: HITLUser | None = None
-    responded_at: Annotated[AwareDatetime | None, Field(title="Responded At")] = None
-    chosen_options: Annotated[list[str] | None, Field(title="Chosen Options")] = None
-    params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
-
-
-class HTTPValidationError(BaseModel):
-    detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
-
-
 class TIRunContext(BaseModel):
     """
     Response schema for TaskInstance run context.
@@ -591,16 +604,3 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
-
-
-class TITerminalStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a terminal state except SUCCESS state.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: TerminalStateNonSuccess
-    end_date: Annotated[AwareDatetime, Field(title="End Date")]
-    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
