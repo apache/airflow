@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
-import json as jsonlib
+import json
 import os
 import sys
 from collections.abc import Callable
@@ -62,7 +62,6 @@ if TYPE_CHECKING:
             return f
 
         return wrapper
-
 else:
     from methodtools import lru_cache
 
@@ -136,14 +135,14 @@ class Credentials:
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
-            jsonlib.dump({"api_url": self.api_url}, f)
+            json.dump({"api_url": self.api_url}, f)
 
         try:
             if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
                 with open(
                     os.path.join(default_config_dir, f"debug_creds_{self.input_cli_config_file}"), "w"
                 ) as f:
-                    jsonlib.dump({f"api_token_{self.api_environment}": self.api_token}, f)
+                    json.dump({f"api_token_{self.api_environment}": self.api_token}, f)
             else:
                 keyring.set_password("airflowctl", f"api_token_{self.api_environment}", self.api_token)
         except NoKeyringError as e:
@@ -159,14 +158,14 @@ class Credentials:
         config_path = os.path.join(default_config_dir, self.input_cli_config_file)
         try:
             with open(config_path) as f:
-                credentials = jsonlib.load(f)
+                credentials = json.load(f)
                 self.api_url = credentials["api_url"]
                 if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
                     debug_creds_path = os.path.join(
                         default_config_dir, f"debug_creds_{self.input_cli_config_file}"
                     )
                     with open(debug_creds_path) as df:
-                        debug_credentials = jsonlib.load(df)
+                        debug_credentials = json.load(df)
                         self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
                 else:
                     self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
