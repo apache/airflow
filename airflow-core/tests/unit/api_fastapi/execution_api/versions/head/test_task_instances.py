@@ -482,7 +482,7 @@ class TestTIRunState:
         ti_1.state = TaskInstanceState.SKIPPED
         session.flush()
 
-        # Now task_2 in mapped tagk group is not expanded and also skipped..
+        # Now task_2 in mapped task group is not expanded and also skipped.
         decision = dr.task_instance_scheduling_decisions(session=session)
         for ti in decision.schedulable_tis:
             ti.state = TaskInstanceState.SKIPPED
