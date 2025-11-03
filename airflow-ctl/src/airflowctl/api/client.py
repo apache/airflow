@@ -22,7 +22,6 @@ import enum
 import json as jsonlib
 import os
 import sys
-import typing
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
@@ -30,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 import httpx
 import keyring
 import structlog
-from httpx import URL, USE_CLIENT_DEFAULT, Response
+from httpx import URL
 from keyring.errors import NoKeyringError
 from uuid6 import uuid7
 
@@ -64,18 +63,6 @@ if TYPE_CHECKING:
 
         return wrapper
 
-    from httpx._client import UseClientDefault
-    from httpx._types import (
-        AuthTypes,
-        CookieTypes,
-        HeaderTypes,
-        QueryParamTypes,
-        RequestContent,
-        RequestData,
-        RequestExtensions,
-        RequestFiles,
-        TimeoutTypes,
-    )
 else:
     from methodtools import lru_cache
 
@@ -210,8 +197,6 @@ class BearerAuth(httpx.Auth):
 class Client(httpx.Client):
     """Client for the Airflow REST API."""
 
-    datamodel: list
-
     def __init__(
         self,
         *,
@@ -220,7 +205,6 @@ class Client(httpx.Client):
         kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
         **kwargs: Any,
     ) -> None:
-        self.datamodel = []
         auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
@@ -229,79 +213,6 @@ class Client(httpx.Client):
             headers={"user-agent": f"apache-airflow-ctl/{version} (Python/{pyver})"},
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
-        )
-
-    def _clean_empty_values(self, data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Recursively remove keys with None or empty values from a dictionary if they are not required in the datamodels.
-
-        Args:
-            data (dict): The input dictionary to clean.
-        Returns:
-            dict: The cleaned dictionary with empty values removed.
-        """
-        if not self.datamodel:
-            return data
-        # Check each datamodel and clean if field is nullable
-        cleaned_data = {}
-        for datamodel in self.datamodel:
-            # Create map from field name and required status
-            required_fields = []
-            for field_name, field_info in datamodel.__pydantic_fields__.items():
-                if field_info.is_required():
-                    required_fields.append(field_name)
-
-            for key, value in data.items():
-                if key in required_fields:
-                    cleaned_data[key] = value
-                else:
-                    # clean only if value is not None or empty
-                    if value is not None:
-                        if isinstance(value, dict):
-                            cleaned_data[key] = self._clean_empty_values(value)
-                        else:
-                            cleaned_data[key] = value
-        return cleaned_data
-
-    # Override request method to include more validation
-    def request(
-        self,
-        method: str,
-        url: URL | str,
-        *,
-        content: RequestContent | None = None,
-        data: RequestData | None = None,
-        files: RequestFiles | None = None,
-        json: typing.Any | None = None,
-        params: QueryParamTypes | None = None,
-        headers: HeaderTypes | None = None,
-        cookies: CookieTypes | None = None,
-        auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
-        follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
-        timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT,
-        extensions: RequestExtensions | None = None,
-    ) -> Response:
-        """Make a request with the client."""
-        # Include any validation below if needed
-        if json is not None:
-            # Validate JSON body before sending the request and cleanse empty values
-            # This is needed because of model_dump including None values for optional fields which send to API as empty
-            json = self._clean_empty_values(data=json)
-
-        return super().request(
-            method,
-            url,
-            content=content,
-            data=data,
-            files=files,
-            json=json,
-            params=params,
-            headers=headers,
-            cookies=cookies,
-            auth=auth,
-            follow_redirects=follow_redirects,
-            timeout=timeout,
-            extensions=extensions,
         )
 
     def refresh_base_url(
