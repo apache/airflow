@@ -121,5 +121,8 @@ class Secret(K8SModel):
             and self.key == other.key
         )
 
+    def __hash__(self):
+        return hash((self.deploy_type, self.deploy_target, self.secret, self.key))
+
     def __repr__(self):
         return f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"

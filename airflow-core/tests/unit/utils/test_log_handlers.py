@@ -21,7 +21,6 @@ import heapq
 import io
 import itertools
 import logging
-import logging.config
 import os
 import re
 from http import HTTPStatus
