@@ -634,6 +634,11 @@ class DagModel(Base):
             else:
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
+        # todo: AIP-76 NEXT THING TO DO
+        #  we should be able to reuse the boolean evaluator logic
+        #  basically, we can figure out the statuses of each asset dep by evaluating the key log records
+        #  this would give us essenitally our statuses dictionary
+        #  then we can apply this to determine whether it's go or no go
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
             dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
             for dag_id, adrqs in adrq_by_dag.items()

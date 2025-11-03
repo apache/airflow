@@ -303,8 +303,14 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     def __init__(self, *, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
+        # todo: AIP-76 we need to constrain so people don't do boolean logic etc
         self.asset_condition = assets
         self.partition_mapper = partition_mapper
+        # todo: AIP-76 in order to evaluate whether a run should be created, we need to
+        #  know if all the partitions that map to it are there
+        #  so essentially we need to either wrap each asset dep with a mapper class, or maybe
+        #  this mapper attribute could be a dictionary of asset -> mapper, OR we apply the same
+        #  mapper to all asset deps but that doesn't really sound all that great
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_condition, encode_partition_mapper

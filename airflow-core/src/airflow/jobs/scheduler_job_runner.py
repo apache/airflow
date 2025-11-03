@@ -3046,3 +3046,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here
 SchedulerDagBag = DBDagBag
+# todo: AIP-76 need to update the ui schedule info "0 of 2 assets updated" etc
+
+# todo: AIP-76 what to do with "old" asset_partition_dag_run records?  perhaps we need to use events to
+#  trigger reprocessing, or we expire them, or we limit the number considered
+
+# todo: AIP-76 could possibly consider running the partition evaluations in parallel
+
+# todo: AIP-76 need to verify that the partition mappings produce alignment
