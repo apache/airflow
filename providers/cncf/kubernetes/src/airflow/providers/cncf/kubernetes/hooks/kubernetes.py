@@ -912,7 +912,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def read_logs(
         self, name: str, namespace: str, container_name: str | None = None, since_seconds: int | None = None
-    ):
+    ) -> list[str]:
         """
         Read logs inside the pod while starting containers inside.
 
