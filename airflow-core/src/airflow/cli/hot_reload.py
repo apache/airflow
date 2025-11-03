@@ -82,14 +82,49 @@ def _run_reloader(watch_paths: list[str]):
         """Start or restart the subprocess."""
         nonlocal process
         if process is not None:
-            log.info("Stopping process...")
-            process.terminate()
+            log.info("Stopping process and all its children...")
+            # Use psutil to terminate the entire process tree
             try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                log.warning("Process did not terminate gracefully, killing...")
-                process.kill()
-                process.wait()
+                import psutil
+                
+                parent = psutil.Process(process.pid)
+                # Get all child processes recursively
+                children = parent.children(recursive=True)
+                
+                # Terminate all children first
+                for child in children:
+                    try:
+                        child.terminate()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                
+                # Terminate the parent
+                parent.terminate()
+                
+                # Wait for all processes to terminate
+                gone, alive = psutil.wait_procs(children + [parent], timeout=5)
+                
+                # Force kill any remaining processes
+                for proc in alive:
+                    try:
+                        log.warning("Force killing process %s", proc.pid)
+                        proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                        
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process already terminated
+                pass
+            except Exception as e:
+                log.warning("Error terminating process tree: %s", e)
+                # Fallback to simple termination
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    log.warning("Process did not terminate gracefully, killing...")
+                    process.kill()
+                    process.wait()
 
         log.info("Starting process...")
         # Restart the process by re-executing Python with the same arguments
@@ -104,8 +139,32 @@ def _run_reloader(watch_paths: list[str]):
         should_exit = True
         log.info("Received signal %s, shutting down...", signum)
         if process:
-            process.terminate()
-            process.wait()
+            # Terminate the entire process tree
+            try:
+                import psutil
+                
+                parent = psutil.Process(process.pid)
+                children = parent.children(recursive=True)
+                
+                # Terminate all children
+                for child in children:
+                    try:
+                        child.terminate()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                
+                # Terminate parent
+                parent.terminate()
+                
+                # Wait for processes to terminate
+                psutil.wait_procs(children + [parent], timeout=5)
+            except Exception:
+                # Fallback to simple termination
+                try:
+                    process.terminate()
+                    process.wait()
+                except Exception:
+                    pass
         sys.exit(0)
 
     # Set up signal handlers
