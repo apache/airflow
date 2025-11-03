@@ -1416,6 +1416,8 @@ migrateDatabaseJob:
 apiServer:
   enabled: true
   # Number of Airflow API servers in the deployment
+  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
+  # as HPA will automatically manage the number of replicas based on the configured metrics.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1430,7 +1432,9 @@ apiServer:
   allowPodLogReading: true
   env: []
 
-  # Allow HPA
+  # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
+  # HPA automatically scales the number of apiServer pods based on observed metrics.
+  # HPA automatically adjusts apiServer replicas between minReplicaCount and maxReplicaCount based on metrics.
   hpa:
     enabled: false
 
@@ -1447,7 +1451,7 @@ apiServer:
           name: cpu
           target:
             type: Utilization
-            averageUtilization: 80
+            averageUtilization: 50
 
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}

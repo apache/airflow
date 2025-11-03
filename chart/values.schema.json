@@ -5077,7 +5077,7 @@
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow API server replicas should run.",
+                    "description": "How many Airflow API server replicas should run. This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled",
                     "type": "integer",
                     "default": 1
                 },
@@ -5125,22 +5125,22 @@
                     "default": null
                 },
                 "hpa": {
-                    "description": "HPA configuration.",
+                    "description": "Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow HPA autoscaling",
+                            "description": "Enable HPA autoscaling for API server",
                             "type": "boolean",
                             "default": false
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of webservers created by HPA.",
+                            "description": "Minimum number of apiServer replicas created by HPA if HPA enabled.",
                             "type": "integer",
                             "default": 1
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of webservers created by HPA.",
+                            "description": "Maximum number of apiServer replicas created by HPA if HPA enabled.",
                             "type": "integer",
                             "default": 5
                         },
@@ -5154,7 +5154,7 @@
                                         "name": "cpu",
                                         "target": {
                                             "type": "Utilization",
-                                            "averageUtilization": 80
+                                            "averageUtilization": 50
                                         }
                                     }
                                 }
