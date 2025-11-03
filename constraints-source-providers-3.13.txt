@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-03T05:59:03.170091
+# This constraints file was automatically generated on 2025-11-03T13:36:32.352051
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -345,7 +345,7 @@ litellm==1.76.3
 lockfile==0.12.2
 looker-sdk==25.18.0
 lxml==6.0.2
-lz4==4.4.4
+lz4==4.4.5
 markdown-it-py==4.0.0
 marshmallow==3.26.1
 matplotlib-inline==0.2.1
