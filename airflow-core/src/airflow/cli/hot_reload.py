@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 import signal
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -130,7 +130,7 @@ def _terminate_process_tree(
                 process.wait()
 
 
-def _run_reloader(watch_paths: list[str | Path]) -> None:
+def _run_reloader(watch_paths: Sequence[str | Path]) -> None:
     """
     Watch for changes and restart the process.
 
