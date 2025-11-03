@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import itertools
+import json
 import logging
 import math
 import uuid
@@ -1389,7 +1390,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, frozenset], set[str]]:
+        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, str], set[str]]:
             d = defaultdict(set)
             for event in outlet_events:
                 try:
@@ -1399,19 +1400,20 @@ class TaskInstance(Base, LoggingMixin):
                 if alias_name not in outlet_alias_names:
                     continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
-                extra_key = frozenset(event["extra"].items())
-                d[asset_key, extra_key].add(alias_name)
+                extra_json = json.dumps(event["extra"], sort_keys=True)
+                d[asset_key, extra_json].add(alias_name)
             return d
 
         outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
         if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
-            for (asset_key, extra_key), event_aliase_names in event_extras_from_aliases.items():
+            for (asset_key, extra_json), event_aliase_names in event_extras_from_aliases.items():
+                extra = json.loads(extra_json)
                 ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
                 event = asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=asset_key,
                     source_alias_names=event_aliase_names,
-                    extra=dict(extra_key),
+                    extra=extra,
                     session=session,
                 )
                 if event is None:
@@ -1422,7 +1424,7 @@ class TaskInstance(Base, LoggingMixin):
                         task_instance=ti,
                         asset=asset_key,
                         source_alias_names=event_aliase_names,
-                        extra=dict(extra_key),
+                        extra=extra,
                         session=session,
                     )
 
