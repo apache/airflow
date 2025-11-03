@@ -193,6 +193,12 @@ class AirflowConfigParser(ConfigParser):
         sensitive.update(depr_section, depr_option)
         return sensitive
 
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
+
+    @overload
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
+
     def get_default_value(self, section: str, key: str, fallback: Any = None, raw=False, **kwargs) -> Any:
         """
         Retrieve default value from default config parser.
@@ -408,7 +414,7 @@ class AirflowConfigParser(ConfigParser):
                 return option
         return None
 
-    def get(
+    def get(  # type: ignore[misc]
         self,
         section: str,
         key: str,

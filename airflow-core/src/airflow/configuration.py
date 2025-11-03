@@ -214,6 +214,10 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     :param configuration_description: description of configuration to use
     """
 
+    # Override base class type annotations - core always sets these in __init__
+    configuration_description: dict[str, dict[str, Any]]
+    _default_values: ConfigParser
+
     def __init__(
         self,
         default_config: str | None = None,
@@ -1613,7 +1617,6 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
                 stacklevel=1,
             )
         else:
-            # there
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
             warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
 

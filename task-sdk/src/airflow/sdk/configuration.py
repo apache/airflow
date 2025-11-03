@@ -98,6 +98,10 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
     Eventually SDK will have its own config.yml with only authoring-related configs.
     """
 
+    # Override base class type annotations - task sdk always sets these in __init__
+    configuration_description: dict[str, dict[str, Any]]
+    _default_values: ConfigParser
+
     def __init__(
         self,
         default_config: str | None = None,
