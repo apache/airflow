@@ -607,7 +607,7 @@ def delete_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-) -> None:
+):
     """Delete queued asset events for an asset."""
     where_clause = _generate_queued_event_where_clause(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
@@ -641,7 +641,7 @@ def delete_dag_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-) -> None:
+):
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -674,7 +674,7 @@ def delete_dag_asset_queued_event(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
-) -> None:
+):
     """Delete a queued asset event for a DAG."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
