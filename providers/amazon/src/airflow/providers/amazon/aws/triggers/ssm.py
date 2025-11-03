@@ -86,8 +86,6 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        from botocore.exceptions import WaiterError
-
         hook = self.hook()
         async with await hook.get_async_conn() as client:
             response = await client.list_command_invocations(CommandId=self.command_id)
@@ -106,7 +104,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         self.status_message,
                         self.status_queries,
                     )
-                except WaiterError as e:
+                except Exception as e:
                     if not self.fail_on_nonzero_exit:
                         # Enhanced mode: check if it's an AWS-level failure
                         invocation = await client.get_command_invocation(

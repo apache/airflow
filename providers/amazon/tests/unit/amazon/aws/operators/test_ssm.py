@@ -20,6 +20,7 @@ from collections.abc import Generator
 from unittest import mock
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.ssm import SsmGetCommandInvocationOperator, SsmRunCommandOperator
@@ -97,6 +98,129 @@ class TestSsmRunCommandOperator:
         assert trigger.verify is False
         assert trigger.botocore_config == {"retries": {"max_attempts": 5}}
         assert trigger.aws_conn_id == self.operator.aws_conn_id
+
+    def test_operator_default_fails_on_nonzero_exit(self, mock_conn):
+        """
+        Test traditional mode where fail_on_nonzero_exit=True (default).
+
+        Verifies that when fail_on_nonzero_exit is True (the default), the operator
+        raises an exception when the waiter encounters a command failure.
+        """
+        self.operator.wait_for_completion = True
+
+        # Mock waiter to raise WaiterError (simulating command failure)
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Failed"},
+        )
+
+        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter):
+            # Should raise WaiterError in traditional mode
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    def test_operator_enhanced_mode_tolerates_failed_status(self, mock_conn):
+        """
+        Test enhanced mode where fail_on_nonzero_exit=False tolerates Failed status.
+
+        Verifies that when fail_on_nonzero_exit is False, the operator completes
+        successfully even when the command returns a Failed status with non-zero exit code.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Failed"},
+        )
+
+        # Mock get_command_invocation to return Failed status with exit code
+        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
+            SsmHook, "get_command_invocation", return_value={"Status": "Failed", "ResponseCode": 1}
+        ):
+            # Should NOT raise in enhanced mode for Failed status
+            command_id = self.operator.execute({})
+            assert command_id == COMMAND_ID
+
+    def test_operator_enhanced_mode_fails_on_timeout(self, mock_conn):
+        """
+        Test enhanced mode still fails on TimedOut status.
+
+        Verifies that even when fail_on_nonzero_exit is False, the operator
+        still raises an exception for AWS-level failures like TimedOut.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "TimedOut"},
+        )
+
+        # Mock get_command_invocation to return TimedOut status
+        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
+            SsmHook, "get_command_invocation", return_value={"Status": "TimedOut", "ResponseCode": -1}
+        ):
+            # Should raise even in enhanced mode for TimedOut
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    def test_operator_enhanced_mode_fails_on_cancelled(self, mock_conn):
+        """
+        Test enhanced mode still fails on Cancelled status.
+
+        Verifies that even when fail_on_nonzero_exit is False, the operator
+        still raises an exception for AWS-level failures like Cancelled.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Cancelled"},
+        )
+
+        # Mock get_command_invocation to return Cancelled status
+        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
+            SsmHook, "get_command_invocation", return_value={"Status": "Cancelled", "ResponseCode": -1}
+        ):
+            # Should raise even in enhanced mode for Cancelled
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    def test_operator_passes_parameter_to_trigger(self, mock_conn):
+        """
+        Test that fail_on_nonzero_exit parameter is passed to trigger in deferrable mode.
+
+        Verifies that when using deferrable mode, the fail_on_nonzero_exit parameter
+        is correctly passed to the SsmRunCommandTrigger.
+        """
+        self.operator.deferrable = True
+        self.operator.fail_on_nonzero_exit = False
+
+        command_id = self.operator.execute({})
+
+        assert command_id == COMMAND_ID
+        mock_conn.send_command.assert_called_once_with(DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS)
+
+        # Verify defer was called with fail_on_nonzero_exit parameter
+        self.operator.defer.assert_called_once()
+        call_args = self.operator.defer.call_args
+        trigger = call_args[1]["trigger"]
+
+        # Verify the trigger has fail_on_nonzero_exit set correctly
+        assert trigger.fail_on_nonzero_exit is False
 
 
 class TestSsmGetCommandInvocationOperator:
