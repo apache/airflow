@@ -75,6 +75,11 @@ This supports secure deployment patterns where environment-based secrets (e.g. v
 
 If you want variables to appear in the UI for visibility or editing, define them in the metadata database instead.
 
+Exporting variables to file
+---------------------------
+
+You can export to file variables stored in the database (e.g. for migrating variables from one environment to another). See :ref:`Exporting Variables <cli-export-variables>` for usage.
+
 Securing Variables
 ------------------
 

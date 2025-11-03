@@ -1251,31 +1251,3 @@ class TestBulkVariables(TestVariableEndpoint):
             },
         )
         assert response.status_code == 403
-
-
-class TestExportVariables(TestVariableEndpoint):
-    @pytest.mark.enable_redact
-    def test_export_variables_with_unmasked_values(self, test_client, session):
-        self.create_variables()
-
-        response = test_client.post(
-            "/variables/export",
-            json={
-                "variable_keys": [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
-            },
-        )
-
-        assert response.status_code == 200
-        exported_vars = response.json()
-        assert len(exported_vars) == 3
-
-        var_dict = {var["key"]: var for var in exported_vars}
-
-        assert var_dict[TEST_VARIABLE_KEY]["value"] == TEST_VARIABLE_VALUE
-        assert var_dict[TEST_VARIABLE_KEY]["description"] == TEST_VARIABLE_DESCRIPTION
-
-        assert var_dict[TEST_VARIABLE_KEY2]["value"] == TEST_VARIABLE_VALUE2
-        assert var_dict[TEST_VARIABLE_KEY2]["value"] != "***"
-
-        assert var_dict[TEST_VARIABLE_KEY3]["value"] == TEST_VARIABLE_VALUE3
-        assert '{"password": "***"}' not in var_dict[TEST_VARIABLE_KEY3]["value"]

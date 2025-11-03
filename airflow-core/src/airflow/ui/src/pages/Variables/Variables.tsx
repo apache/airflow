@@ -21,23 +21,20 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiShare } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
-import { VariableService } from "openapi/requests/services.gen";
 import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Button, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { TrimText } from "src/utils/TrimText";
-import { downloadJson } from "src/utils/downloadJson";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
@@ -166,26 +163,6 @@ export const Variables = () => {
     setVariableKeyPattern(value);
   };
 
-  const handleExportVariables = () => {
-    const variableKeys = [...selectedRows.keys()];
-
-    VariableService.exportVariables({
-      requestBody: { variable_keys: variableKeys },
-    })
-      .then((response) => {
-        const exportData: Record<string, string | undefined> = {};
-
-        response.forEach((variable) => {
-          exportData[variable.key] = variable.value;
-        });
-
-        downloadJson(exportData, "variables");
-      })
-      .catch((exportError: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error("Failed to export variables:", exportError);
-      });
-  };
 
   useEffect(() => {
     const newSelection: Record<string, string | undefined> = { ...selectedVariables };
@@ -247,17 +224,6 @@ export const Variables = () => {
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
-          </Tooltip>
-          <Tooltip content={translate("variables.exportTooltip")}>
-            <Button
-              colorPalette="info"
-              onClick={handleExportVariables}
-              size="sm"
-              variant="outline"
-            >
-              <FiShare />
-              {translate("variables.export")}
-            </Button>
           </Tooltip>
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>

@@ -72,18 +72,3 @@ class VariablesImportResponse(BaseModel):
     created_variable_keys: list[str]
     import_count: int
     created_count: int
-
-
-class VariableExportResponse(BaseModel):
-    """Variable serializer for export (unmasked values)."""
-
-    key: str
-    val: str = Field(alias="value")
-    description: str | None
-    is_encrypted: bool
-
-
-class VariableExportBody(StrictBaseModel):
-    """Variable export request body."""
-
-    variable_keys: list[str] = Field(description="List of variable keys to export")
