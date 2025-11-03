@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-01T11:12:00.111693
+# This constraints file was automatically generated on 2025-11-03T06:02:52.472966
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -236,7 +236,7 @@ bcrypt==5.0.0
 beartype==0.21.0
 beautifulsoup4==4.14.2
 billiard==4.2.2
-bitarray==3.7.2
+bitarray==3.8.0
 black==25.9.0
 bleach==6.3.0
 blinker==1.9.0
@@ -533,7 +533,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
-psutil==7.1.2
+psutil==7.1.3
 psycopg2-binary==2.9.11
 ptyprocess==0.7.0
 pure-sasl==0.6.2
@@ -565,7 +565,7 @@ pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.0.1
 pyspnego==0.12.0
-python-arango==8.2.2
+python-arango==8.2.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
