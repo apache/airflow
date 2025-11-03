@@ -22,7 +22,7 @@ import datetime
 import operator
 import os
 import pathlib
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -87,6 +87,11 @@ from tests_common.test_utils import db
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
 
@@ -1602,14 +1607,19 @@ class TestTaskInstance:
         ti.set_duration()
         assert ti.duration is None
 
-    def test_outlet_asset_extra(self, dag_maker, session):
+    def test_outlet_asset_extra(self, dag_maker: DagMaker, session: Session):
         from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
-            def write1(*, outlet_events):
-                outlet_events[Asset("test_outlet_asset_extra_1")].extra = {"foo": "bar"}
+            def write1(*, outlet_events=None):
+                if TYPE_CHECKING:
+                    assert isinstance(outlet_events, dict)
+                outlet_events[Asset("test_outlet_asset_extra_1")].extra = {
+                    "foo": "bar",
+                    "this": {"is": "nested", "value": 1},
+                }
 
             write1()
 
@@ -1634,7 +1644,7 @@ class TestTaskInstance:
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
         assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
-        assert events["write1"].extra == {"foo": "bar"}
+        assert events["write1"].extra == {"foo": "bar", "this": {"is": "nested", "value": 1}}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
