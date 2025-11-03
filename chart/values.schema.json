@@ -2606,7 +2606,7 @@
                             }
                         },
                         "queueGroups": {
-                            "description": "Celery queue groups for different queues and node assignments. When defined, ONLY these worker groups will be created (no default worker deployment). Each worker group creates a separate Deployment assigned to specific nodes and queues.",
+                            "description": "Celery queue groups for different queues and node assignments. When defined, ONLY these worker groups will be created (no default worker deployment). Each worker group creates a separate Deployment assigned to specific nodes and queues. However, autoscaling (KEDA and HPA) is unsupported; you must use a fixed number of workers.",
                             "type": "array",
                             "default": [],
                             "items": {
@@ -2678,7 +2678,7 @@
                                         "type": "string"
                                     },
                                     "env": {
-                                        "description": "Additional environment variables",
+                                        "description": "Additional environment variables used to customize the behavior of workers for each queue group. For instance, set AIRFLOW__CELERY__WORKER_CONCURRENCY to override concurrency for a specific worker group.",
                                         "type": "array",
                                         "items": {
                                             "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"

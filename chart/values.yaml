@@ -707,6 +707,7 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
+  # Note: KEDA autoscaling is not supported when using workers.celery.queueGroups
   keda:
     enabled: false
     namespaceLabels: {}
@@ -753,6 +754,7 @@ workers:
     usePgbouncer: true
 
   # Allow HPA for Airflow Celery workers (KEDA must be disabled)
+  # Note: HPA autoscaling is not supported when using workers.celery.queueGroups
   hpa:
     enabled: false
 
@@ -1017,6 +1019,9 @@ workers:
     # Celery queue groups for different queues and node assignments
     # When defined, ONLY these worker groups will be created (no default worker deployment)
     # Each worker group creates a separate Deployment assigned to specific nodes and queues
+    # Note: All worker groups share the same base Celery command line definition. To customize settings,
+    # use the 'env' field to set environment variables (e.g., AIRFLOW__CELERY__WORKER_CONCURRENCY).
+    # IMPORTANT: KEDA and HPA autoscaling are not currently supported when using queueGroups.
     queueGroups: []
     # queueGroups:
     # - name: base-workers
