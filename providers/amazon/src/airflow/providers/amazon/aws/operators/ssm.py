@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import WaiterError
+
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -50,6 +52,12 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         (default: 120)
     :param waiter_max_attempts: Maximum number of attempts to check for job
         completion. (default: 75)
+    :param fail_on_nonzero_exit: If True (default), the operator will fail when
+        the command returns a non-zero exit code. If False, the operator will
+        complete successfully regardless of the command exit code, allowing
+        downstream tasks to handle exit codes for workflow routing. Note that
+        AWS-level failures (Cancelled, TimedOut) will still raise exceptions
+        even when this is False. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the
         cluster to stop. This implies waiting for completion. This mode
         requires aiobotocore module to be installed. (default: False)
@@ -81,6 +89,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
+        fail_on_nonzero_exit: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -88,6 +97,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.fail_on_nonzero_exit = fail_on_nonzero_exit
         self.deferrable = deferrable
 
         self.document_name = document_name
@@ -118,6 +128,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
                     command_id=command_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
+                    fail_on_nonzero_exit=self.fail_on_nonzero_exit,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     verify=self.verify,
@@ -132,14 +143,36 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
 
             instance_ids = response["Command"]["InstanceIds"]
             for instance_id in instance_ids:
-                waiter.wait(
-                    CommandId=command_id,
-                    InstanceId=instance_id,
-                    WaiterConfig={
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    },
-                )
+                try:
+                    waiter.wait(
+                        CommandId=command_id,
+                        InstanceId=instance_id,
+                        WaiterConfig={
+                            "Delay": self.waiter_delay,
+                            "MaxAttempts": self.waiter_max_attempts,
+                        },
+                    )
+                except WaiterError:
+                    if not self.fail_on_nonzero_exit:
+                        # Enhanced mode: distinguish between AWS-level and command-level failures
+                        invocation = self.hook.get_command_invocation(command_id, instance_id)
+                        status = invocation.get("Status", "")
+
+                        # AWS-level failures should always raise
+                        if status in ("Cancelled", "TimedOut"):
+                            self.log.error("Command failed with AWS-level error: %s", status)
+                            raise
+
+                        # Command-level failure - tolerate it in enhanced mode
+                        self.log.info(
+                            "Command completed with status %s (exit code: %s). "
+                            "Continuing due to fail_on_nonzero_exit=False",
+                            status,
+                            invocation.get("ResponseCode", "unknown"),
+                        )
+                    else:
+                        # Traditional mode: all failures raise
+                        raise
 
         return command_id
 
