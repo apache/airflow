@@ -23,10 +23,13 @@ from fastapi import HTTPException, status
 from sqlalchemy import asc, desc
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import InstrumentedAttribute
     from sqlalchemy.sql.elements import ColumnElement
 
 
-def build_ordering(order_by: str, *, allowed: Mapping[str, ColumnElement[Any]]) -> ColumnElement[Any]:
+def build_ordering(
+    order_by: str, *, allowed: Mapping[str, ColumnElement[Any]] | Mapping[str, InstrumentedAttribute[Any]]
+) -> ColumnElement[Any]:
     """
     Build an SQLAlchemy ORDER BY expression from the `order_by` parameter.
 

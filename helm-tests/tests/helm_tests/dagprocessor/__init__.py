@@ -14,14 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-try:
-    from sqlalchemy.orm import mapped_column
-except ImportError:
-    # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):  # type: ignore[misc]
-        from sqlalchemy import Column
-
-        return Column(*args, **kwargs)
