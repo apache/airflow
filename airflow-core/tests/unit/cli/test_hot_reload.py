@@ -29,10 +29,15 @@ from airflow.cli import hot_reload
 class TestHotReload:
     """Tests for hot reload utilities."""
 
-    def test_run_with_reloader_missing_watchfiles(self):
-        """Test that run_with_reloader exits gracefully when watchfiles is not installed."""
-        with mock.patch.dict(sys.modules, {"watchfiles": None}):
-            with pytest.raises(SystemExit):
+    @mock.patch("airflow.cli.hot_reload._run_reloader")
+    def test_run_with_reloader_missing_watchfiles(self, mock_run_reloader):
+        """Test that run_with_reloader handles missing watchfiles by raising ImportError."""
+        # Simulate watchfiles not being available when _run_reloader tries to import it
+        mock_run_reloader.side_effect = ImportError("No module named 'watchfiles'")
+
+        # Clear the reloader PID env var to simulate being the main process
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(ImportError):
                 hot_reload.run_with_reloader(lambda: None)
 
     @mock.patch("airflow.cli.hot_reload._run_reloader")
@@ -59,29 +64,25 @@ class TestHotReload:
             callback.assert_called_once()
 
     @mock.patch("subprocess.Popen")
-    @mock.patch("airflow.cli.hot_reload.watch")
+    @mock.patch("watchfiles.watch")
     def test_run_reloader_starts_process(self, mock_watch, mock_popen):
         """Test that _run_reloader starts a subprocess."""
         mock_process = mock.Mock()
         mock_popen.return_value = mock_process
         mock_watch.return_value = []  # Empty iterator, will exit immediately
 
-        def test_callback():
-            """Test callback function."""
-            pass
-
         watch_paths = ["/tmp/test"]
-        exclude_patterns = ["*.pyc"]
 
-        hot_reload._run_reloader(test_callback, watch_paths, exclude_patterns)
+        hot_reload._run_reloader(watch_paths)
 
         # Should have started a process
         mock_popen.assert_called_once()
         assert mock_popen.call_args[0][0] == [sys.executable] + sys.argv
 
+    @mock.patch("airflow.cli.hot_reload._terminate_process_tree")
     @mock.patch("subprocess.Popen")
-    @mock.patch("airflow.cli.hot_reload.watch")
-    def test_run_reloader_restarts_on_changes(self, mock_watch, mock_popen):
+    @mock.patch("watchfiles.watch")
+    def test_run_reloader_restarts_on_changes(self, mock_watch, mock_popen, mock_terminate):
         """Test that _run_reloader restarts the process on file changes."""
         mock_process = mock.Mock()
         mock_popen.return_value = mock_process
@@ -89,16 +90,11 @@ class TestHotReload:
         # Simulate one file change and then exit
         mock_watch.return_value = iter([[("change", "/tmp/test/file.py")]])
 
-        def test_callback():
-            """Test callback function."""
-            pass
-
         watch_paths = ["/tmp/test"]
-        exclude_patterns = ["*.pyc"]
 
-        hot_reload._run_reloader(test_callback, watch_paths, exclude_patterns)
+        hot_reload._run_reloader(watch_paths)
 
         # Should have started process twice (initial + restart)
         assert mock_popen.call_count == 2
         # Should have terminated the first process
-        mock_process.terminate.assert_called()
+        mock_terminate.assert_called()

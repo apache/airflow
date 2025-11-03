@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
@@ -31,8 +30,6 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-log = logging.getLogger(__name__)
 
 
 @contextmanager

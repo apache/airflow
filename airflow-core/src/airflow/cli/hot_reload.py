@@ -24,8 +24,12 @@ import signal
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    import subprocess
 
 log = structlog.getLogger(__name__)
 
@@ -65,7 +69,7 @@ def run_with_reloader(
 
 
 def _terminate_process_tree(
-    process: "subprocess.Popen[bytes]",
+    process: subprocess.Popen[bytes],
     timeout: int = 5,
     force_kill_remaining: bool = True,
 ) -> None:
@@ -83,24 +87,24 @@ def _terminate_process_tree(
 
     try:
         import psutil
-        
+
         parent = psutil.Process(process.pid)
         # Get all child processes recursively
         children = parent.children(recursive=True)
-        
+
         # Terminate all children first
         for child in children:
             try:
                 child.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
-        
+
         # Terminate the parent
         parent.terminate()
-        
+
         # Wait for all processes to terminate
         gone, alive = psutil.wait_procs(children + [parent], timeout=timeout)
-        
+
         # Force kill any remaining processes if requested
         if force_kill_remaining:
             for proc in alive:
@@ -109,7 +113,7 @@ def _terminate_process_tree(
                     proc.kill()
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
-                    
+
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         # Process already terminated
         pass
