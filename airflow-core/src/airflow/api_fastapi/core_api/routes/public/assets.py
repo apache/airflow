@@ -24,6 +24,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.sql import ColumnElement
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -89,7 +90,7 @@ def _generate_queued_event_where_clause(
     dag_id: str | None = None,
     before: datetime | str | None = None,
     permitted_dag_ids: set[str] | None = None,
-) -> list:
+) -> list[ColumnElement[bool]]:
     """Get AssetDagRunQueue where clause."""
     where_clause = []
     if dag_id is not None:
@@ -246,7 +247,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=list(session.scalars(asset_aliases_select)),
+        asset_aliases=list(session.scalars(asset_aliases_select).all()),
         total_entries=total_entries,
     )
 
