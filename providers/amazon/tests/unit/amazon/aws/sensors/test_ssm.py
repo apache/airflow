@@ -131,16 +131,16 @@ class TestSsmRunCommandCompletedSensor:
     def test_sensor_passes_parameter_to_trigger(self, mock_trigger_class):
         """Test that fail_on_nonzero_exit parameter is passed correctly to trigger in deferrable mode."""
         sensor = self.SENSOR(**self.default_op_kwarg, fail_on_nonzero_exit=False, deferrable=True)
-        
+
         with mock.patch.object(sensor, "defer") as mock_defer:
             sensor.execute({})
-            
+
             # Verify defer was called
             assert mock_defer.called
-            
+
             # Verify the trigger was instantiated with correct parameters
             mock_trigger_class.assert_called_once()
             call_kwargs = mock_trigger_class.call_args[1]
-            
+
             assert call_kwargs["command_id"] == COMMAND_ID
             assert call_kwargs["fail_on_nonzero_exit"] is False

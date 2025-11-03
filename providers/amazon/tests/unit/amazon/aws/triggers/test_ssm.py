@@ -125,12 +125,12 @@ class TestSsmRunCommandTrigger:
     ):
         """Test traditional mode (fail_on_nonzero_exit=True) raises exception on waiter error."""
         mock_ssm_list_invocations(mock_get_async_conn)
-        mock_async_wait.side_effect = Exception("SSM run command failed.")
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
 
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=True)
         generator = trigger.run()
 
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             await generator.asend(None)
 
     @pytest.mark.asyncio
@@ -143,7 +143,7 @@ class TestSsmRunCommandTrigger:
         """Test enhanced mode (fail_on_nonzero_exit=False) tolerates Failed status."""
         mock_client = mock_ssm_list_invocations(mock_get_async_conn)
         # Mock async_wait to raise exception (simulating waiter failure)
-        mock_async_wait.side_effect = Exception("SSM run command failed.")
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
         # Mock get_command_invocation to return Failed status
         mock_client.get_command_invocation = mock.AsyncMock(
             return_value={"Status": "Failed", "ResponseCode": 1}
@@ -167,7 +167,7 @@ class TestSsmRunCommandTrigger:
         """Test enhanced mode (fail_on_nonzero_exit=False) still fails on AWS-level errors."""
         mock_client = mock_ssm_list_invocations(mock_get_async_conn)
         # Mock async_wait to raise exception (simulating waiter failure)
-        mock_async_wait.side_effect = Exception("SSM run command failed.")
+        mock_async_wait.side_effect = AirflowException("SSM run command failed.")
         # Mock get_command_invocation to return TimedOut status (AWS-level failure)
         mock_client.get_command_invocation = mock.AsyncMock(
             return_value={"Status": "TimedOut", "ResponseCode": -1}
@@ -176,7 +176,7 @@ class TestSsmRunCommandTrigger:
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=False)
         generator = trigger.run()
 
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             await generator.asend(None)
 
         # Test with Cancelled status as well
@@ -187,7 +187,7 @@ class TestSsmRunCommandTrigger:
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID, fail_on_nonzero_exit=False)
         generator = trigger.run()
 
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             await generator.asend(None)
 
     def test_trigger_serialization_includes_parameter(self):

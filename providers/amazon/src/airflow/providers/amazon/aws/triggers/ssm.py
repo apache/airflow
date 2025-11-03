@@ -104,7 +104,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         self.status_message,
                         self.status_queries,
                     )
-                except Exception as e:
+                except Exception:
                     if not self.fail_on_nonzero_exit:
                         # Enhanced mode: check if it's an AWS-level failure
                         invocation = await client.get_command_invocation(

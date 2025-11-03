@@ -140,8 +140,11 @@ class TestSsmRunCommandOperator:
         )
 
         # Mock get_command_invocation to return Failed status with exit code
-        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
-            SsmHook, "get_command_invocation", return_value={"Status": "Failed", "ResponseCode": 1}
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "Failed", "ResponseCode": 1}
+            ),
         ):
             # Should NOT raise in enhanced mode for Failed status
             command_id = self.operator.execute({})
@@ -166,8 +169,11 @@ class TestSsmRunCommandOperator:
         )
 
         # Mock get_command_invocation to return TimedOut status
-        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
-            SsmHook, "get_command_invocation", return_value={"Status": "TimedOut", "ResponseCode": -1}
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "TimedOut", "ResponseCode": -1}
+            ),
         ):
             # Should raise even in enhanced mode for TimedOut
             with pytest.raises(WaiterError):
@@ -192,8 +198,11 @@ class TestSsmRunCommandOperator:
         )
 
         # Mock get_command_invocation to return Cancelled status
-        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter), mock.patch.object(
-            SsmHook, "get_command_invocation", return_value={"Status": "Cancelled", "ResponseCode": -1}
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "Cancelled", "ResponseCode": -1}
+            ),
         ):
             # Should raise even in enhanced mode for Cancelled
             with pytest.raises(WaiterError):
