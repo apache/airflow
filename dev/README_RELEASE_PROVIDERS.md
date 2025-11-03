@@ -368,20 +368,20 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
+create package list
 
 ```shell script
-breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
-echo "Tagging with providers/${PACKAGE_DATE}"
-git tag -s providers/${PACKAGE_DATE} -m "Tag providers for ${PACKAGE_DATE}" --force
-git push apache providers/${PACKAGE_DATE}
-breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
+export PACKAGE_LIST="PACKAGE1 PACKAGE2"
 ```
 
-if you only build few packages, run:
+In case you release all packages
+```shell script
+export PACKAGE_LIST=""
+```
+
 
 ```shell script
-breeze release-management prepare-provider-distributions  --include-removed-providers \
---distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both ${PACKAGE_LIST}
 echo "Tagging with providers/${PACKAGE_DATE}"
 git tag -s providers/${PACKAGE_DATE} -m "Tag providers for ${PACKAGE_DATE}" --force
 git push apache providers/${PACKAGE_DATE}
@@ -391,6 +391,18 @@ breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --di
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
 you want to release it before you switch their state to ``ready``), you need to pass
 ``--include-not-ready-providers`` flag to the command above.
+
+In case you see
+
+```
+error: gpg failed to sign the data
+error: unable to sign the tag
+```
+
+Set:
+```shell script
+export GPG_TTY=$(tty)
+```
 
 * Sign all your packages
 
