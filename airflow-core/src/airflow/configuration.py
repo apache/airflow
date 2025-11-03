@@ -237,6 +237,17 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         self._suppress_future_warnings = False
         self._providers_configuration_loaded = False
 
+    def _raise_config_exception(self, message: str) -> None:
+        """
+        Override to raise core's AirflowConfigException instead of shared one.
+
+        This ensures that exceptions raised by shared parser methods are catchable
+        by exception handlers that users would catch for conf usually.
+        """
+        from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
+
+        raise CoreAirflowConfigException(message)
+
     def _update_logging_deprecated_template_to_one_from_defaults(self):
         default = self.get_default_value("logging", "log_filename_template")
         if default:
