@@ -53,6 +53,9 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Extract prek hooks for Edge provider (#57104)``
    * ``Prepare edge3 provider ad-hoc release (October 2025) (#57280)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Prepare edge3 provider ad-hoc release rc2 (October 2025) (#57538)``
 
 1.4.0
 .....

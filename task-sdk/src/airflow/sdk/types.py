@@ -27,7 +27,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from pydantic import AwareDatetime
+    from pydantic import AwareDatetime, JsonValue
 
     from airflow.sdk._shared.logging.types import Logger as Logger
     from airflow.sdk.api.datamodels._generated import TaskInstanceState
@@ -129,17 +129,17 @@ class OutletEventAccessorProtocol(Protocol):
     """Protocol for managing access to a specific outlet event accessor."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any]
+    extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
 
     def __init__(
         self,
         *,
         key: BaseAssetUniqueKey,
-        extra: dict[str, Any],
+        extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

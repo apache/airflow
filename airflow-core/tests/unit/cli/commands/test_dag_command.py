@@ -931,9 +931,7 @@ class TestCliDags:
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch(
-        "airflow.sdk.execution_time.task_runner._execute_task", return_value="dummy task return value"
-    )
+    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
     def test_dag_test_with_mark_success(self, mock__execute_task):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
