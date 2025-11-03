@@ -19,20 +19,19 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import signal
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
-log = logging.getLogger(__name__)
+import structlog
+
+log = structlog.getLogger(__name__)
 
 
 def run_with_reloader(
     callback: Callable,
-    watch_paths: list[str | Path] | None = None,
-    exclude_patterns: list[str] | None = None,
 ):
     """
     Run a callback function with automatic reloading on file changes.
@@ -42,74 +41,39 @@ def run_with_reloader(
 
     :param callback: The function to run. This should be the main entry point
         of the command that needs hot-reload support.
-    :param watch_paths: List of paths to watch for changes. If None, watches
-        the Airflow source directory.
-    :param exclude_patterns: List of glob patterns to exclude from watching.
-        Common patterns like __pycache__, .git, etc. are excluded by default.
     """
-    try:
-        import watchfiles
-    except ImportError:
-        log.error(
-            "watchfiles is not installed. This is a required dependency for --dev mode. "
-            "Please reinstall Airflow or install watchfiles separately: pip install watchfiles"
-        )
-        sys.exit(1)
-
     # Default watch paths - watch the airflow source directory
-    if watch_paths is None:
-        import airflow
+    import airflow
 
-        airflow_root = Path(airflow.__file__).parent
-        watch_paths = [airflow_root]
-
-    # Default exclude patterns
-    default_excludes = [
-        "**/__pycache__/**",
-        "**/*.pyc",
-        "**/*.pyo",
-        "**/.git/**",
-        "**/.venv/**",
-        "**/venv/**",
-        "**/node_modules/**",
-        "**/.tox/**",
-        "**/build/**",
-        "**/dist/**",
-        "**/*.egg-info/**",
-        "**/logs/**",
-        "**/.pytest_cache/**",
-        "**/.mypy_cache/**",
-        "**/.ruff_cache/**",
-    ]
-
-    if exclude_patterns:
-        default_excludes.extend(exclude_patterns)
+    airflow_root = Path(airflow.__file__).parent
+    watch_paths = [airflow_root]
 
     log.info("Starting in development mode with hot-reload enabled")
     log.info("Watching paths: %s", watch_paths)
-    log.info("Excluding patterns: %s", default_excludes)
 
     # Check if we're the main process or a reloaded child
     reloader_pid = os.environ.get("AIRFLOW_DEV_RELOADER_PID")
     if reloader_pid is None:
         # We're the main process - set up the reloader
         os.environ["AIRFLOW_DEV_RELOADER_PID"] = str(os.getpid())
-        _run_reloader(callback, watch_paths, default_excludes)
+        _run_reloader(watch_paths)
     else:
         # We're a child process - just run the callback
         callback()
 
 
-def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_patterns: list[str]):
+def _run_reloader(watch_paths: list[str]):
     """
-    Internal function to run the reloader loop.
+    Watch for changes and restart the process.
 
-    This function watches for changes and restarts the process by re-executing
-    the Python interpreter with the same arguments.
+    Watches the provided paths and restarts the process by re-executing the
+    Python interpreter with the same arguments.
+
+    :param watch_paths: List of paths to watch for changes.
     """
     import subprocess
 
-    from watchfiles import DefaultFilter, watch
+    from watchfiles import watch
 
     process = None
     should_exit = False
@@ -154,11 +118,8 @@ def _run_reloader(callback: Callable, watch_paths: list[str | Path], exclude_pat
     log.info("Hot-reload enabled. Watching for file changes...")
     log.info("Press Ctrl+C to stop")
 
-    # Create a custom filter that excludes specified patterns
-    watch_filter = DefaultFilter(ignore_patterns=exclude_patterns)
-
     try:
-        for changes in watch(*watch_paths, watch_filter=watch_filter):
+        for changes in watch(*watch_paths):
             if should_exit:
                 break
 
