@@ -468,14 +468,7 @@ you should clean up dist folder before generating the packages, so you will only
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-provider-distributions  --include-removed-providers \
- --version-suffix rc1 --distribution-format both
-```
-
-If you only build few packages, run:
-
-```shell script
-breeze release-management prepare-provider-distributions \
---version-suffix rc1 --distribution-format both PACKAGE PACKAGE ....
+ --version-suffix rc1 --distribution-format both ${PACKAGE_LIST}
 ```
 
 Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
