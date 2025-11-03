@@ -281,10 +281,10 @@ This command can be utilized to manage git tags for providers within the Airflow
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
-The flag ``--clean-local-tags`` can be used to delete the local tags.
+The flag ``--clean-tags`` can be used to delete the local tags.
 
 However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-local-tags`` flag.
+``--no-clean-tags`` flag.
 
 .. code-block:: bash
 

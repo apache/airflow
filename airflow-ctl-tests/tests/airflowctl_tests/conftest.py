@@ -182,7 +182,6 @@ def docker_compose_up(tmp_path_factory):
 
 def docker_compose_down():
     """Tear down Docker Compose environment."""
-    global docker_client
     if docker_client:
         docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
 
