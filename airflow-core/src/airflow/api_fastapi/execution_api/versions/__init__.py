@@ -33,8 +33,8 @@ from airflow.api_fastapi.execution_api.versions.v2025_11_05 import AddTriggering
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2025-11-05", MakeDagRunConfNullable),
-    Version("2025-10-10", AddTriggeringUserNameField),
+    Version("2025-11-05", AddTriggeringUserNameField),
+    Version("2025-10-27", MakeDagRunConfNullable),
     Version("2025-09-23", AddDagVersionIdField),
     Version(
         "2025-08-10",
