@@ -497,6 +497,14 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Confirm that the packages are available under the links printed and look good.
 
+## Push the RC tags
+
+Before we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
+
+```shell script
+breeze release-management tag-providers
+```
+
 ## Prepare documentation in Staging
 
 Documentation is an essential part of the product and should be made available to users.
