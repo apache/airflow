@@ -70,10 +70,12 @@ def triggerer(args):
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
     if hasattr(args, "dev") and args.dev:
-        log.info("Starting triggerer in development mode with hot-reload enabled")
         from airflow.cli.hot_reload import run_with_reloader
 
-        run_with_reloader(lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate))
+        run_with_reloader(
+            lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+            process_name="triggerer",
+        )
         return
 
     run_command_with_daemon_option(

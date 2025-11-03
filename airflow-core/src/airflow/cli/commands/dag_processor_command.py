@@ -53,10 +53,12 @@ def dag_processor(args):
     job_runner = _create_dag_processor_job_runner(args)
 
     if hasattr(args, "dev") and args.dev:
-        log.info("Starting dag-processor in development mode with hot-reload enabled")
         from airflow.cli.hot_reload import run_with_reloader
 
-        run_with_reloader(lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute))
+        run_with_reloader(
+            lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+            process_name="dag-processor",
+        )
         return
 
     run_command_with_daemon_option(

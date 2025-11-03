@@ -32,6 +32,7 @@ log = structlog.getLogger(__name__)
 
 def run_with_reloader(
     callback: Callable,
+    process_name: str = "process",
 ):
     """
     Run a callback function with automatic reloading on file changes.
@@ -41,6 +42,7 @@ def run_with_reloader(
 
     :param callback: The function to run. This should be the main entry point
         of the command that needs hot-reload support.
+    :param process_name: Name of the process being run (for logging purposes)
     """
     # Default watch paths - watch the airflow source directory
     import airflow
@@ -48,7 +50,7 @@ def run_with_reloader(
     airflow_root = Path(airflow.__file__).parent
     watch_paths = [airflow_root]
 
-    log.info("Starting in development mode with hot-reload enabled")
+    log.info("Starting %s in development mode with hot-reload enabled", process_name)
     log.info("Watching paths: %s", watch_paths)
 
     # Check if we're the main process or a reloaded child
@@ -62,7 +64,11 @@ def run_with_reloader(
         callback()
 
 
-def _terminate_process_tree(process, timeout: int = 5, force_kill_remaining: bool = True):
+def _terminate_process_tree(
+    process: "subprocess.Popen[bytes]",
+    timeout: int = 5,
+    force_kill_remaining: bool = True,
+) -> None:
     """
     Terminate a process and all its children recursively.
 
@@ -120,7 +126,7 @@ def _terminate_process_tree(process, timeout: int = 5, force_kill_remaining: boo
                 process.wait()
 
 
-def _run_reloader(watch_paths: list[str]):
+def _run_reloader(watch_paths: list[str | Path]) -> None:
     """
     Watch for changes and restart the process.
 
