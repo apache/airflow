@@ -215,7 +215,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
                 poke_interval=self.poke_interval,
                 should_check_fn=bool(self.check_fn),
                 use_regex=self.use_regex,
-                metadata_keys = self.metadata_keys,
+                metadata_keys=self.metadata_keys,
             ),
             method_name="execute_complete",
         )

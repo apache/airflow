@@ -73,7 +73,7 @@ class TestS3KeyTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
-    async def test_run_success(self, mock_client):
+    async def test_run_success2(self, mock_client):
         """
         Test if the task is run is in triggerr successfully.
         """
@@ -115,13 +115,14 @@ class TestS3KeyTrigger:
         mock_get_files_async,
     ):
         """Test if the task retrieves metadata correctly when should_check_fn is True."""
-        mock_check_key_async.return_value = True    
-        mock_get_files_async.return_value = ["file1.txt", "file2.txt"]            
+        mock_check_key_async.return_value = True
+        mock_get_files_async.return_value = ["file1.txt", "file2.txt"]
+
         async def fake_get_head_object_async(*args, **kwargs):
             key = kwargs.get("key")
             if key == "file1.txt":
                 return {"ContentLength": 1024, "LastModified": "2023-10-01T12:00:00Z"}
-            elif key == "file2.txt":
+            if key == "file2.txt":
                 return {"ContentLength": 2048, "LastModified": "2023-10-02T12:00:00Z"}
 
         mock_get_head_object_async.side_effect = fake_get_head_object_async
@@ -133,14 +134,16 @@ class TestS3KeyTrigger:
             metadata_keys=["Size", "LastModified"],
             poke_interval=0.1,  # reduce waiting time
         )
-        result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)    
-        expected = TriggerEvent({
-            "status": "running",
-            "files": [
-                {"Size": 1024, "LastModified": "2023-10-01T12:00:00Z", "Key": "file1.txt"},
-                {"Size": 2048, "LastModified": "2023-10-02T12:00:00Z", "Key": "file2.txt"},
-            ],
-        })
+        result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)
+        expected = TriggerEvent(
+            {
+                "status": "running",
+                "files": [
+                    {"Size": 1024, "LastModified": "2023-10-01T12:00:00Z", "Key": "file1.txt"},
+                    {"Size": 2048, "LastModified": "2023-10-02T12:00:00Z", "Key": "file2.txt"},
+                ],
+            }
+        )
 
         assert result == expected
 
@@ -149,18 +152,22 @@ class TestS3KeyTrigger:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
-    async def test_run_with_all_metadata(self, mock_get_async_conn, mock_check_key_async, mock_get_head_object_async, mock_get_files_async):
+    async def test_run_with_all_metadata(
+        self, mock_get_async_conn, mock_check_key_async, mock_get_head_object_async, mock_get_files_async
+    ):
         """
         Test if the task retrieves all metadata when metadata_keys contains '*'.
         """
         mock_check_key_async.return_value = True
         mock_get_files_async.return_value = ["file1.txt"]
+
         async def fake_get_head_object_async(*args, **kwargs):
             return {
                 "ContentLength": 1024,
                 "LastModified": "2023-10-01T12:00:00Z",
                 "ETag": "abc123",
             }
+
         mock_get_head_object_async.side_effect = fake_get_head_object_async
         mock_get_async_conn.return_value.__aenter__.return_value = async_mock.AsyncMock()
         trigger = S3KeyTrigger(
@@ -171,15 +178,19 @@ class TestS3KeyTrigger:
             poke_interval=0.1,
         )
         result = await asyncio.wait_for(trigger.run().__anext__(), timeout=2)
-        expected = TriggerEvent({
-            "status": "running",
-            "files": [{
-                "ContentLength": 1024,
-                "LastModified": "2023-10-01T12:00:00Z",
-                "ETag": "abc123",
-                "Key": "file1.txt",
-            }],
-        })
+        expected = TriggerEvent(
+            {
+                "status": "running",
+                "files": [
+                    {
+                        "ContentLength": 1024,
+                        "LastModified": "2023-10-01T12:00:00Z",
+                        "ETag": "abc123",
+                        "Key": "file1.txt",
+                    }
+                ],
+            }
+        )
         assert result == expected
 
 

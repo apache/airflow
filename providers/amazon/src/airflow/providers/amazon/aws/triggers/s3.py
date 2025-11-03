@@ -122,7 +122,9 @@ class S3KeyTrigger(BaseTrigger):
                             files = []
                             for f in raw_objects:
                                 metadata = {}
-                                obj = await self.hook.get_head_object_async(client=client, key=f, bucket_name=self.bucket_name)
+                                obj = await self.hook.get_head_object_async(
+                                    client=client, key=f, bucket_name=self.bucket_name
+                                )
                                 if obj is None:
                                     return
 
@@ -130,11 +132,11 @@ class S3KeyTrigger(BaseTrigger):
                                     metadata = obj
                                 else:
                                     for mk in self.metadata_keys:
-                                        if mk == 'Size':
+                                        if mk == "Size":
                                             metadata[mk] = obj.get("ContentLength")
                                         else:
                                             metadata[mk] = obj.get(mk, None)
-                                metadata['Key'] = f
+                                metadata["Key"] = f
                                 files.append(metadata)
                             await asyncio.sleep(self.poke_interval)
                             yield TriggerEvent({"status": "running", "files": files})
@@ -264,4 +266,3 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-
