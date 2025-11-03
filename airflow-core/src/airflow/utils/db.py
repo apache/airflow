@@ -1615,6 +1615,9 @@ class LazySelectSequence(Sequence[T]):
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
         return all(x == y for x, y in z)
 
+    def __hash__(self):
+        return hash(tuple(x for x in iter(self)))
+
     def __reversed__(self) -> Iterator[T]:
         return iter(self._process_row(r) for r in self._session.execute(self._select_desc))
 

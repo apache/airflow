@@ -1035,6 +1035,7 @@ def doctor(ctx):
 )
 @click.argument("command", required=True)
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
+@option_answer
 @option_backend
 @option_builder
 @option_docker_host

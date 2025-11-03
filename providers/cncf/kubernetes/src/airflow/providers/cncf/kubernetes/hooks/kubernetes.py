@@ -37,6 +37,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.container import (
@@ -48,7 +49,7 @@ from airflow.utils import yaml
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import V1Job, V1Pod
+    from kubernetes.client.models import CoreV1EventList, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -879,12 +880,17 @@ class AsyncKubernetesHook(KubernetesHook):
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
-            v1_api = async_client.CoreV1Api(connection)
-            pod: V1Pod = await v1_api.read_namespaced_pod(
-                name=name,
-                namespace=namespace,
-            )
-        return pod
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                pod: V1Pod = await v1_api.read_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                )
+                return pod
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
 
     async def delete_pod(self, name: str, namespace: str):
         """
@@ -932,6 +938,21 @@ class AsyncKubernetesHook(KubernetesHook):
             except HTTPError:
                 self.log.exception("There was an error reading the kubernetes API.")
                 raise
+
+    async def get_pod_events(self, name: str, namespace: str) -> CoreV1EventList:
+        """Get pod's events."""
+        async with self.get_conn() as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                events: CoreV1EventList = await v1_api.list_namespaced_event(
+                    field_selector=f"involvedObject.name={name}",
+                    namespace=namespace,
+                )
+                return events
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
 
     async def get_job_status(self, name: str, namespace: str) -> V1Job:
         """
