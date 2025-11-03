@@ -22,7 +22,7 @@ import datetime
 import operator
 import os
 import pathlib
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -87,6 +87,11 @@ from tests_common.test_utils import db
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
 
