@@ -52,6 +52,9 @@ Waiter. Additionally, you can use the following components to track the status o
 :class:`~airflow.providers.amazon.aws.sensors.ssm.SsmRunCommandCompletedSensor` Sensor,
 or the :class:`~airflow.providers.amazon.aws.triggers.ssm.SsmRunCommandTrigger` Trigger.
 
+.. seealso::
+    For advanced exit code handling and workflow routing patterns, see :doc:`ssm_exit_codes`.
+
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ssm.py
     :language: python
