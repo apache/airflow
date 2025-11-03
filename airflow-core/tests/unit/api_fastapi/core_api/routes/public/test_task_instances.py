@@ -1260,7 +1260,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             update_extras=update_extras,
             task_instances=task_instances,
         )
-        with mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.DagBundlesManager"):
+        with mock.patch("airflow.models.dag_version.DagBundlesManager"):
             # Mock DagBundlesManager to avoid checking if dags-folder bundle is configured
             response = test_client.get(url, params=params)
         if params == {"task_id_pattern": "task_match_id"}:
