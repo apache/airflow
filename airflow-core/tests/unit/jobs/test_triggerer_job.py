@@ -130,11 +130,11 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
 
-    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name, session=session)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
-    dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id, session=session)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
