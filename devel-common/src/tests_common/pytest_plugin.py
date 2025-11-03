@@ -2490,6 +2490,11 @@ def create_runtime_ti(mocked_parse):
         if upstream_map_indexes is not None:
             ti_context.upstream_map_indexes = upstream_map_indexes
 
+        compat_fields = {
+            "requests_fd": 0,
+            "sentry_integration": "",
+        }
+
         startup_details = StartupDetails(
             ti=TaskInstance(
                 id=ti_id,
@@ -2505,7 +2510,7 @@ def create_runtime_ti(mocked_parse):
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
             # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
-            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
+            **{k: v for k, v in compat_fields.items() if k in StartupDetails.model_fields},  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)
