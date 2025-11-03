@@ -1091,7 +1091,7 @@ def _build_provider_distributions(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains s[ace separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
