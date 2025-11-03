@@ -500,7 +500,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 ## Push the RC tags
 
-Before we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
+Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
 ```shell script
 breeze release-management tag-providers
