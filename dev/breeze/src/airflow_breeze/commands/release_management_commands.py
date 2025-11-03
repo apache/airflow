@@ -3632,6 +3632,18 @@ def prepare_helm_chart_tarball(
     values_content = yaml.safe_load(VALUES_YAML_FILE.read_text())
     airflow_version_in_values = values_content["airflowVersion"]
     default_airflow_tag_in_values = values_content["defaultAirflowTag"]
+
+    # Check if this is an RC version and replace documentation links with staging URLs
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
+    if is_rc_version:
+        get_console().print(
+            f"[info]RC version detected ({version_suffix}). Replacing documentation links with staging URLs.[/]"
+        )
+        # Replace production URLs with staging URLs for RC versions
+        chart_yaml_file_content = chart_yaml_file_content.replace(
+            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
+        )
+        get_console().print("[success]Documentation links updated to staging environment for RC version.[/]")
     if ignore_version_check:
         if not version:
             version = version_in_chart
@@ -3763,9 +3775,15 @@ def prepare_helm_chart_tarball(
     envvar="SIGN_EMAIL",
     default="",
 )
+@click.option(
+    "--version-suffix",
+    help="Version suffix used to determine if RC version. For RC versions, documentation links will be replaced with staging URLs.",
+    default="",
+    envvar="VERSION_SUFFIX",
+)
 @option_dry_run
 @option_verbose
-def prepare_helm_chart_package(sign_email: str):
+def prepare_helm_chart_package(sign_email: str, version_suffix: str):
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (
@@ -3774,71 +3792,96 @@ def prepare_helm_chart_package(sign_email: str):
         sync_virtualenv,
     )
 
-    chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
-    version = chart_yaml_dict["version"]
-    result = sync_virtualenv(force_venv_setup=False)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    make_sure_helm_installed()
-    get_console().print(f"[info]Packaging the chart for Helm Chart {version}[/]")
-    k8s_env = os.environ.copy()
-    k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
-    # Tar on modern unix options requires --wildcards parameter to work with globs
-    # See https://github.com/technosophos/helm-gpg/issues/1
-    k8s_env["TAR_OPTIONS"] = "--wildcards"
-    archive_name = f"airflow-{version}.tgz"
-    OUT_PATH.mkdir(parents=True, exist_ok=True)
-    result = run_command(
-        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
-        env=k8s_env,
-        check=False,
-    )
-    if result.returncode != 0:
-        get_console().print("[error]Error packaging the chart[/]")
-        sys.exit(result.returncode)
-    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
-    final_archive = AIRFLOW_DIST_PATH / archive_name
-    final_archive.unlink(missing_ok=True)
-    source_archive = OUT_PATH / archive_name
-    result = repack_deterministically(
-        source_archive=source_archive,
-        dest_archive=final_archive,
-        prepend_path=None,
-        timestamp=get_source_date_epoch(CHART_DIR),
-    )
-    if result.returncode != 0:
+    # Check if this is an RC version and temporarily replace documentation links
+    chart_yaml_backup = None
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
+
+    if is_rc_version:
         get_console().print(
-            f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
+            f"[info]RC version detected ({version_suffix}). Temporarily replacing documentation links with staging URLs for packaging.[/]"
         )
-        sys.exit(result.returncode)
-    else:
-        get_console().print(f"[success]Package created in {final_archive}[/]")
-    if sign_email:
-        get_console().print(f"[info]Signing the package with {sign_email}[/]")
-        prov_file = final_archive.with_suffix(".tgz.prov")
-        if prov_file.exists():
-            get_console().print(f"[warning]Removing existing {prov_file}[/]")
-            prov_file.unlink()
-        result = run_command(
-            cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
-            cwd=AIRFLOW_DIST_PATH.as_posix(),
-            env=k8s_env,
-            check=False,
+        # Backup original content
+        chart_yaml_backup = CHART_YAML_FILE.read_text()
+        # Replace production URLs with staging URLs for RC versions
+        chart_yaml_content = chart_yaml_backup.replace(
+            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
         )
+        CHART_YAML_FILE.write_text(chart_yaml_content)
+        get_console().print(
+            "[success]Documentation links temporarily updated to staging environment for RC version packaging.[/]"
+        )
+
+    try:
+        chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
+        version = chart_yaml_dict["version"]
+        result = sync_virtualenv(force_venv_setup=False)
         if result.returncode != 0:
-            get_console().print("[error]Error signing the chart[/]")
             sys.exit(result.returncode)
+        make_sure_helm_installed()
+        get_console().print(f"[info]Packaging the chart for Helm Chart {version}[/]")
+        k8s_env = os.environ.copy()
+        k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
+        # Tar on modern unix options requires --wildcards parameter to work with globs
+        # See https://github.com/technosophos/helm-gpg/issues/1
+        k8s_env["TAR_OPTIONS"] = "--wildcards"
+        archive_name = f"airflow-{version}.tgz"
+        OUT_PATH.mkdir(parents=True, exist_ok=True)
         result = run_command(
-            cmd=["helm", "gpg", "verify", archive_name],
-            cwd=AIRFLOW_DIST_PATH.as_posix(),
+            cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
             env=k8s_env,
             check=False,
         )
         if result.returncode != 0:
-            get_console().print("[error]Error signing the chart[/]")
+            get_console().print("[error]Error packaging the chart[/]")
+            sys.exit(result.returncode)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+        final_archive = AIRFLOW_DIST_PATH / archive_name
+        final_archive.unlink(missing_ok=True)
+        source_archive = OUT_PATH / archive_name
+        result = repack_deterministically(
+            source_archive=source_archive,
+            dest_archive=final_archive,
+            prepend_path=None,
+            timestamp=get_source_date_epoch(CHART_DIR),
+        )
+        if result.returncode != 0:
+            get_console().print(
+                f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
+            )
             sys.exit(result.returncode)
         else:
-            get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+            get_console().print(f"[success]Package created in {final_archive}[/]")
+        if sign_email:
+            get_console().print(f"[info]Signing the package with {sign_email}[/]")
+            prov_file = final_archive.with_suffix(".tgz.prov")
+            if prov_file.exists():
+                get_console().print(f"[warning]Removing existing {prov_file}[/]")
+                prov_file.unlink()
+            result = run_command(
+                cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
+                cwd=AIRFLOW_DIST_PATH.as_posix(),
+                env=k8s_env,
+                check=False,
+            )
+            if result.returncode != 0:
+                get_console().print("[error]Error signing the chart[/]")
+                sys.exit(result.returncode)
+            result = run_command(
+                cmd=["helm", "gpg", "verify", archive_name],
+                cwd=AIRFLOW_DIST_PATH.as_posix(),
+                env=k8s_env,
+                check=False,
+            )
+            if result.returncode != 0:
+                get_console().print("[error]Error signing the chart[/]")
+                sys.exit(result.returncode)
+            else:
+                get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+    finally:
+        # Restore original Chart.yaml content if it was modified for RC version
+        if is_rc_version and chart_yaml_backup:
+            CHART_YAML_FILE.write_text(chart_yaml_backup)
+            get_console().print("[info]Restored original Chart.yaml content after packaging.[/]")
 
 
 def generate_issue_content(

@@ -594,7 +594,10 @@ extend-select = [
     "PLW0127", # Self-assignment of variable
     "PLW0128", # Redeclared variable {name} in assignment
     "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0131", # Named expression used without context
     "PLW0133", # Missing raise statement on exception
+    "PLW0177", # Comparing against a NaN value; use math.isnan instead
+    "PLW0211", # First argument of a static method should not be named {argument_name}
     "PLW0245", # super call is missing parentheses
     "PLW0406", # Module {name} imports itself
     "PLW0602", # Using global for {name} but no assignment is done
@@ -605,6 +608,7 @@ extend-select = [
     "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
     "PLW1508", # Invalid type for environment variable default; expected str or None
     "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
