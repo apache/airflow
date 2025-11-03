@@ -290,7 +290,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         """
         from airflow.api_fastapi.auth.managers.simple.routes.login import login_router
 
-        dev_mode = os.environ.get("DEV_MODE", False) == "true"
+        dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
         directory = Path(__file__).parent.joinpath("ui", "dev" if dev_mode else "dist")
         directory.mkdir(exist_ok=True)
 
