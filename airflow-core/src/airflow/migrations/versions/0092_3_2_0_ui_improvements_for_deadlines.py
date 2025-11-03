@@ -27,6 +27,7 @@ Create Date: 2025-10-17 16:04:55.016272
 from __future__ import annotations
 
 import json
+import zlib
 
 import sqlalchemy as sa
 import uuid6
@@ -124,7 +125,21 @@ def replace_all_deadline_data(conn, dag_id, deadline_alert_ids):
 
     uuid_array = json.dumps([str(uuid_id) for uuid_id in deadline_alert_ids])
 
-    if dialect == "postgresql":
+    check_compressed = conn.execute(
+        sa.text("SELECT data_compressed FROM serialized_dag WHERE dag_id = :dag_id"),
+        {"dag_id": dag_id}
+    ).fetchone()
+
+    if check_compressed and check_compressed.data_compressed:
+        decompressed = zlib.decompress(check_compressed.data_compressed)
+        dag_data = json.loads(decompressed)
+        dag_data["dag"]["deadline"] = [str(uuid_id) for uuid_id in deadline_alert_ids]
+        new_compressed = zlib.compress(json.dumps(dag_data).encode('utf-8'))
+        conn.execute(
+            sa.text("UPDATE serialized_dag SET data_compressed = :data WHERE dag_id = :dag_id"),
+            {"data": new_compressed, "dag_id": dag_id}
+        )
+    elif dialect == "postgresql":
         conn.execute(
             sa.text("""
                     UPDATE serialized_dag
@@ -186,7 +201,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
 
     conn = op.get_bind()
 
-    total_dags = conn.execute(sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL")).scalar()
+    total_dags = conn.execute(sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")).scalar()
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
     print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
@@ -197,9 +212,9 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
 
         result = conn.execute(
             sa.text("""
-                SELECT dag_id, data, created_at
+                SELECT dag_id, data, data_compressed, created_at
                 FROM serialized_dag
-                WHERE data IS NOT NULL
+                WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
                   AND dag_id > :last_dag_id
                 ORDER BY dag_id
                 LIMIT :batch_size
@@ -213,7 +228,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
 
         print(f"Processing batch {batch_num}...")
 
-        for dag_id, data, created_at in batch_results:
+        for dag_id, data, data_compressed, created_at in batch_results:
             processed_dags_count += 1
             last_dag_id = dag_id
 
@@ -221,6 +236,10 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
             savepoint = conn.begin_nested()
 
             try:
+                if data_compressed:
+                    decompressed = zlib.decompress(data_compressed)
+                    data = json.loads(decompressed)
+
                 if dag_deadline := data.get("dag", {}).get("deadline", None):
                     dags_with_deadlines_count += 1
                     deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
@@ -368,14 +387,12 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
     conn = op.get_bind()
     dialect = conn.dialect.name
 
-    # Count Dags that have deadline UUIDs (arrays of strings)
     total_dags = conn.execute(
         sa.text("""
                 SELECT COUNT(*)
                 FROM serialized_dag
-                WHERE data IS NOT NULL
-                  AND data -> 'dag' -> 'deadline' IS NOT NULL
-                  AND jsonb_typeof(data -> 'dag' -> 'deadline') = 'array'
+                WHERE (data IS NOT NULL AND data -> 'dag' -> 'deadline' IS NOT NULL AND jsonb_typeof(data -> 'dag' -> 'deadline') = 'array')
+                   OR data_compressed IS NOT NULL
                 """)
     ).scalar()
 
@@ -389,11 +406,9 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
 
         result = conn.execute(
             sa.text("""
-                    SELECT dag_id, data
+                    SELECT dag_id, data, data_compressed
                     FROM serialized_dag
-                    WHERE data IS NOT NULL
-                      AND data -> 'dag' -> 'deadline' IS NOT NULL
-                      AND jsonb_typeof(data -> 'dag' -> 'deadline') = 'array'
+                    WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
                       AND dag_id > :last_dag_id
                     ORDER BY dag_id
                     LIMIT :batch_size
@@ -406,14 +421,18 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
             break
         print(f"Processing batch {batch_num}...")
 
-        for dag_id, data in batch_results:
+        for dag_id, data, data_compressed in batch_results:
             processed_dags_count += 1
             last_dag_id = dag_id
 
-            # Create a savepoint for this Dag to allow rollback on error
+            # Create a savepoint for this Dag to allow rollback on error.
             savepoint = conn.begin_nested()
 
             try:
+                if data_compressed:
+                    decompressed = zlib.decompress(data_compressed)
+                    data = json.loads(decompressed)
+
                 deadline_uuids = data.get("dag", {}).get("deadline", [])
 
                 if not isinstance(deadline_uuids, list) or not deadline_uuids:
@@ -452,9 +471,17 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
                     restored_deadline_objects.append(deadline_object)
                     restored_alerts_count += 1
 
-                # Replace the UUID array with the restored objects
+                # Replace the UUID array with the restored objects.
                 if restored_deadline_objects:
-                    if dialect == "postgresql":
+                    if data_compressed:
+                        dag_data = json.loads(zlib.decompress(data_compressed))
+                        dag_data["dag"]["deadline"] = restored_deadline_objects
+                        new_compressed = zlib.compress(json.dumps(dag_data).encode('utf-8'))
+                        conn.execute(
+                            sa.text("UPDATE serialized_dag SET data_compressed = :data WHERE dag_id = :dag_id"),
+                            {"data": new_compressed, "dag_id": dag_id}
+                        )
+                    elif dialect == "postgresql":
                         deadline_json = json.dumps(restored_deadline_objects)
                         conn.execute(
                             sa.text("""
@@ -490,7 +517,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
                             {"data": json.dumps(dag_data), "dag_id": dag_id}
                         )
 
-                # Commit the savepoint if everything succeeded for this Dag
+                # Commit the savepoint if everything succeeded for this Dag.
                 savepoint.commit()
 
             except Exception as e:
