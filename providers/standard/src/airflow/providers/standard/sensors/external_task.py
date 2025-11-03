@@ -479,7 +479,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         if not dag_to_wait:
             raise ExternalDagNotFoundError(f"The external DAG {self.external_dag_id} does not exist.")
 
-        if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
+        path = correct_maybe_zipped(dag_to_wait.fileloc)
+        if not path or not os.path.exists(path):
             raise ExternalDagDeletedError(f"The external DAG {self.external_dag_id} was deleted.")
 
         if self.external_task_ids:
