@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import logging.config
 from importlib import reload
 from unittest import mock
 

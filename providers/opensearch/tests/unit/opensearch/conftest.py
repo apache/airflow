@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.opensearch.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 try:
     from opensearchpy import OpenSearch

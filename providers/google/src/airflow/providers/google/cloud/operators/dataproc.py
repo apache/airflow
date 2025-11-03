@@ -72,7 +72,7 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class PreemptibilityType(Enum):

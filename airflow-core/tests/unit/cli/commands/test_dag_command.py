@@ -548,7 +548,7 @@ class TestCliDags:
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
             dag_command.dag_trigger(
                 self.parser.parse_args(
                     [
@@ -784,6 +784,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
+            bundle_name="testing",
             include_examples=False,
         )
 
@@ -805,6 +806,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 
@@ -836,6 +838,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 

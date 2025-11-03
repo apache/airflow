@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from google.cloud.bigquery.table import Table
 
     from airflow.providers.common.compat.openlineage.facet import Dataset
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 log = logging.getLogger(__name__)
