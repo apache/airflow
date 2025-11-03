@@ -93,8 +93,8 @@ class DBDagBag:
         """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        for serdag in session.scalars(select(SerializedDagModel)):
-            if dag := self._read_dag(serdag):
+        for sdm in session.scalars(select(SerializedDagModel)):
+            if dag := self._read_dag(sdm):
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
