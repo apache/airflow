@@ -253,7 +253,6 @@ class TestS3KeysUnchangedTrigger:
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
-
         # TriggerEvent was not returned
         assert task.done() is False
         asyncio.get_event_loop().stop()
