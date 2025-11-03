@@ -372,8 +372,6 @@ def _configure_async_session() -> None:
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
-    from airflow._shared.secrets_masker import mask_secret
-
     if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
 
@@ -382,55 +380,65 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
-    global NonScopedSession
-    global Session
-    global engine
+    def _configure_session():
+        """(Re)create engine, NonScopedSession, Session using SQLAlchemy."""
+        global NonScopedSession
+        global Session
+        global engine
 
-    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
-        # Skip DB initialization in unit tests, if DB tests are skipped
-        Session = SkipDBTestsSession
-        engine = None
-        return
-    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
-    engine_args = prepare_engine_args(disable_connection_pool, pool_class)
+        from airflow._shared.secrets_masker import mask_secret
 
-    connect_args = _get_connect_args("sync")
-    if SQL_ALCHEMY_CONN.startswith("sqlite"):
-        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
-        # to use objects created in another threads by default. Allowing that in test
-        # to so the `test` thread and the tested endpoints can use common objects.
-        connect_args["check_same_thread"] = False
+        log.debug("Setting up DB connection pool (PID %s)", os.getpid())
 
-    engine = create_engine(
-        SQL_ALCHEMY_CONN,
-        connect_args=connect_args,
-        **engine_args,
-        future=True,
-    )
-    _configure_async_session()
-    mask_secret(engine.url.password)
-    setup_event_handlers(engine)
+        if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+            # Skip DB initialization in unit tests, if DB tests are skipped
+            Session = SkipDBTestsSession
+            engine = None
+            return
 
-    if conf.has_option("database", "sql_alchemy_session_maker"):
-        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
-    else:
-        _session_maker = functools.partial(
-            sessionmaker,
-            autocommit=False,
-            autoflush=False,
-            expire_on_commit=False,
+        engine_args = prepare_engine_args(disable_connection_pool, pool_class)
+
+        connect_args = _get_connect_args("sync")
+        if SQL_ALCHEMY_CONN.startswith("sqlite"):
+            connect_args["check_same_thread"] = False
+
+        engine = create_engine(
+            SQL_ALCHEMY_CONN,
+            connect_args=connect_args,
+            **engine_args,
+            future=True,
         )
-    NonScopedSession = _session_maker(engine)
-    Session = scoped_session(NonScopedSession)
+
+        mask_secret(engine.url.password)
+        setup_event_handlers(engine)
+
+        if conf.has_option("database", "sql_alchemy_session_maker"):
+            _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+        else:
+            _session_maker = functools.partial(
+                sessionmaker,
+                autocommit=False,
+                autoflush=False,
+                expire_on_commit=False,
+            )
+
+        NonScopedSession = _session_maker(engine)
+        Session = scoped_session(NonScopedSession)
+
+    _configure_session()
+    _configure_async_session()
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
         def clean_in_fork():
             _globals = globals()
             if engine := _globals.get("engine"):
-                engine.dispose(close=False)
-            if async_engine := _globals.get("async_engine"):
-                async_engine.sync_engine.dispose(close=False)
+                if "mysql" in engine.dialect.name:
+                    _configure_session()
+                else:
+                    engine.dispose(close=False)
+            if _globals.get("async_engine"):
+                _configure_async_session()
 
         # Won't work on Windows
         register_at_fork(after_in_child=clean_in_fork)
