@@ -28,7 +28,6 @@ import pytest
 from httpx import URL
 
 from airflowctl.api.client import Client, ClientKind, Credentials
-from airflowctl.api.datamodels.generated import ConnectionBody, VariableBody
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import AirflowCtlNotFoundException
 
@@ -100,43 +99,6 @@ class TestClient:
         client = Client(base_url="", token="", mounts={})
         client.refresh_base_url(base_url=base_url, kind=client_kind)
         assert client.base_url == URL(expected_base_url)
-
-    @pytest.mark.parametrize(
-        "datamodel, input_data, expected_cleaned_data",
-        [
-            (
-                VariableBody,
-                {"key": "example_key", "value": None, "description": None},
-                {"key": "example_key", "value": None},
-            ),
-            (
-                VariableBody,
-                {"key": "example_key", "value": None, "description": "A variable"},
-                {"key": "example_key", "value": None, "description": "A variable"},
-            ),
-            (
-                ConnectionBody,
-                {"connection_id": "example_conn", "conn_type": "mysql", "host": "", "port": None},
-                {"connection_id": "example_conn", "conn_type": "mysql", "host": ""},
-            ),
-            (
-                ConnectionBody,
-                {"connection_id": "example_conn", "conn_type": "mysql", "port": None},
-                {"connection_id": "example_conn", "conn_type": "mysql"},
-            ),
-            (
-                ConnectionBody,
-                {"connection_id": "example_conn", "conn_type": "postgres", "host": "localhost", "port": 5432},
-                {"connection_id": "example_conn", "conn_type": "postgres", "host": "localhost", "port": 5432},
-            ),
-        ],
-    )
-    def test_clean_json_content(self, datamodel, input_data, expected_cleaned_data):
-        client = Client(base_url="", token="", mounts={})
-        client.datamodel = [datamodel]
-
-        cleaned_data = client._clean_empty_values(data=input_data)
-        assert cleaned_data == expected_cleaned_data
 
 
 class TestCredentials:
