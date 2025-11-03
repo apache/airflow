@@ -5135,12 +5135,12 @@
                             "default": false
                         },
                         "minReplicaCount": {
-                            "description": "Minimum number of apiServer replicas created by HPA if HPA enabled.",
+                            "description": "Minimum number of API server replicas created by HPA if HPA is enabled.",
                             "type": "integer",
                             "default": 1
                         },
                         "maxReplicaCount": {
-                            "description": "Maximum number of apiServer replicas created by HPA if HPA enabled.",
+                            "description": "Maximum number of API server replicas created by HPA if HPA is enabled.",
                             "type": "integer",
                             "default": 5
                         },

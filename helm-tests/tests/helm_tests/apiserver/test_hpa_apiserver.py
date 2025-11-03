@@ -102,7 +102,7 @@ class TestAPIServerHPA:
                 None,
                 {
                     "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 50}},
                 },
             ),
             # custom metric
@@ -112,7 +112,7 @@ class TestAPIServerHPA:
                         "type": "Pods",
                         "pods": {
                             "metric": {"name": "custom"},
-                            "target": {"type": "Utilization", "averageUtilization": 80},
+                            "target": {"type": "Utilization", "averageUtilization": 50},
                         },
                     }
                 ],
@@ -120,7 +120,7 @@ class TestAPIServerHPA:
                     "type": "Pods",
                     "pods": {
                         "metric": {"name": "custom"},
-                        "target": {"type": "Utilization", "averageUtilization": 80},
+                        "target": {"type": "Utilization", "averageUtilization": 50},
                     },
                 },
             ),
