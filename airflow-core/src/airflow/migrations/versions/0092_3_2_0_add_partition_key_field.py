@@ -30,6 +30,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "665854ef0536"
@@ -47,28 +48,28 @@ def upgrade():
         sa.Column("asset_id", sa.Integer(), nullable=False),
         sa.Column("asset_event_id", sa.Integer(), nullable=False),
         sa.Column("asset_partition_dag_run_id", sa.Integer(), nullable=False),
-        sa.Column("source_partition_key", sa.String(length=250), nullable=False),
-        sa.Column("target_dag_id", sa.String(length=250), nullable=False),
-        sa.Column("target_partition_key", sa.String(length=250), nullable=False),
+        sa.Column("source_partition_key", StringID(), nullable=False),
+        sa.Column("target_dag_id", StringID(), nullable=False),
+        sa.Column("target_partition_key", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("partitioned_asset_key_log_pkey")),
     )
     op.create_table(
         "asset_partition_dag_run",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("target_dag_id", sa.String(length=250), nullable=False),
-        sa.Column("target_dag_run_id", sa.String(length=250), nullable=True),
-        sa.Column("partition_key", sa.String(length=250), nullable=False),
+        sa.Column("target_dag_id", StringID(), nullable=False),
+        sa.Column("target_dag_run_id", sa.Integer(), nullable=True),
+        sa.Column("partition_key", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("asset_partition_dag_run_pkey")),
     )
 
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("partition_key", sa.String(length=250), nullable=True))
+        batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("partition_key", sa.String(length=250), nullable=True))
+        batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
 
 
 def downgrade():

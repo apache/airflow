@@ -1189,14 +1189,14 @@ class TestDag:
         assert dr.creating_job_id == job_id
 
     @pytest.mark.parametrize(["partition_key"], [[None], ["my-key"], [123]])
-    def test_create_dagrun_partition_key(self, partition_key, testing_dag_bundle):
-        dag = DAG(dag_id="test_create_dagrun_partition_key", schedule=None)
-        scheduler_dag = sync_dag_to_db(dag)
+    def test_create_dagrun_partition_key(self, partition_key, dag_maker):
+        with dag_maker("test_create_dagrun_partition_key"):
+            ...
         cm = nullcontext()
         if isinstance(partition_key, int):
             cm = pytest.raises(ValueError, match="Expected partition_key to be str | None but got int")
         with cm:
-            dr = scheduler_dag.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id="test_create_dagrun_partition_key",
                 run_after=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,

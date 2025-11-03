@@ -881,7 +881,7 @@ class AssetPartitionDagRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_dag_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    target_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
