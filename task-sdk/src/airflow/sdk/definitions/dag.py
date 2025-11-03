@@ -1387,13 +1387,13 @@ def _run_task(
             # it is run.
             ti.set_state(TaskInstanceState.QUEUED)
             task_sdk_ti = TaskInstanceSDK(
-                id=ti.id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                try_number=ti.try_number,
-                map_index=ti.map_index,
-                dag_version_id=ti.dag_version_id,
+                    id=ti.id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    try_number=ti.try_number,
+                    map_index=ti.map_index,
+                    dag_version_id=ti.dag_version_id,
             )
 
             taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)

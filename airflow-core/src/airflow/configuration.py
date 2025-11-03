@@ -41,7 +41,6 @@ from urllib.parse import urlsplit
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-from airflow._shared.configuration.exceptions import AirflowConfigException as _AirflowConfigException
 from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
@@ -409,18 +408,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         my_own_options = self.options(section) if self.has_section(section) else []
         all_options_from_defaults = self.configuration_description.get(section, {}).get("options", {})
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
-
-    def optionxform(self, optionstr: str) -> str:
-        """
-        Transform option names on every read, get, or set operation.
-
-        This changes from the default behaviour of ConfigParser from lower-casing
-        to instead be case-preserving.
-
-        :param optionstr:
-        :return:
-        """
-        return optionstr
 
     @contextmanager
     def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
@@ -826,7 +813,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             try:
                 with self.suppress_future_warnings():
                     value = self.get(section, key, suppress_warnings=True)
-            except (_AirflowConfigException, AirflowConfigException):
+            except AirflowConfigException:
                 log.debug(
                     "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
                     section,
@@ -836,11 +823,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             mask_secret_core(value)
             mask_secret_sdk(value)
 
-    def _env_var_name(self, section: str, key: str, team_name: str | None = None) -> str:
-        team_component: str = f"{team_name.upper()}___" if team_name else ""
-        return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
-
-    # _get_env_var_option, _get_cmd_option, and _get_secret_option are now provided by the shared base class.
+    # _get_env_var_option, _get_cmd_option, _get_secret_option, and _env_var_name are now provided by the shared base class.
     # They call self._get_config_value_from_secret_backend() which Core overrides above.
 
     def _get_cmd_option_from_config_sources(
@@ -1699,7 +1682,7 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
             backend_kwargs = {}
         elif not isinstance(backend_kwargs, dict):
             raise ValueError("not a dict")
-    except (_AirflowConfigException, AirflowConfigException):
+    except AirflowConfigException:
         log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
     except ValueError:

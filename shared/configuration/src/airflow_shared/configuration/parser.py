@@ -136,9 +136,8 @@ class AirflowConfigParser(ConfigParser):
         """
         Raise an AirflowConfigException.
 
+        This is a stub called by the shared parser's methods when configuration errors occur.
         Subclasses can override this to raise their own exception type.
-        This allows core to raise airflow.exceptions.AirflowConfigException
-        instead of airflow._shared.configuration.exceptions.AirflowConfigException.
 
         :param message: Exception message
         """
@@ -203,8 +202,8 @@ class AirflowConfigParser(ConfigParser):
         """
         Retrieve default value from default config parser.
 
-        This will retrieve the default value from the default config parser. Optionally a raw, stored
-        value can be retrieved.
+        This is a stub called by the shared parser's get() method as part of the lookup chain.
+        Subclasses can override this to customize how default values are retrieved.
 
         :param section: section of the config
         :param key: key in the section
@@ -226,6 +225,7 @@ class AirflowConfigParser(ConfigParser):
         """
         Get provider config fallback default values.
 
+        This is a stub called by the shared parser's get() method as part of the lookup chain.
         Subclasses can override this to provide provider-specific fallback defaults.
         Default implementation returns None (no provider fallbacks).
 
@@ -240,7 +240,8 @@ class AirflowConfigParser(ConfigParser):
         """
         Get Config option values from Secret Backend.
 
-        Subclasses should override this method to provide secrets backend integration.
+        This is a stub called by the shared parser's _get_secret_option() method as part of the lookup chain.
+        Subclasses can override this to integrate with their secrets backend system.
         Default implementation returns None (no secrets backend).
 
         :param config_key: the config key to retrieve
@@ -269,7 +270,14 @@ class AirflowConfigParser(ConfigParser):
 
     @contextmanager
     def suppress_future_warnings(self):
-        """Context manager to temporarily suppress future warnings."""
+        """
+        Context manager to temporarily suppress future warnings.
+
+        This is a stub used by the shared parser's lookup methods when checking deprecated options.
+        Subclasses can override this to customize warning suppression behavior.
+
+        :return: context manager that suppresses future warnings
+        """
         suppress_future_warnings = self._suppress_future_warnings
         self._suppress_future_warnings = True
         yield self
