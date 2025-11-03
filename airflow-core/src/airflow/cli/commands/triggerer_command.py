@@ -71,7 +71,7 @@ def triggerer(args):
 
     if hasattr(args, "dev") and args.dev:
         log.info("Starting triggerer in development mode with hot-reload enabled")
-        from airflow.utils.hot_reload import run_with_reloader
+        from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate))
         return

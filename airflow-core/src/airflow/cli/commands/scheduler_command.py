@@ -53,7 +53,7 @@ def scheduler(args: Namespace):
 
     if hasattr(args, "dev") and args.dev:
         log.info("Starting scheduler in development mode with hot-reload enabled")
-        from airflow.utils.hot_reload import run_with_reloader
+        from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(lambda: _run_scheduler_job(args))
         return

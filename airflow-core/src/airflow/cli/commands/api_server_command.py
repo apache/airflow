@@ -141,19 +141,17 @@ def api_server(args: Namespace):
 
     if args.dev:
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
-        log.info("Running in dev mode with hot-reload enabled")
-        from airflow.utils.hot_reload import run_with_reloader
+        log.warning("Running in dev mode, ignoring uvicorn args")
+        from fastapi_cli.cli import _run
 
-        def _run_dev_server():
-            _run_api_server(
-                args=args,
-                apps=apps,
-                num_workers=1,  # Use single worker in dev mode
-                worker_timeout=worker_timeout,
-                proxy_headers=proxy_headers,
-            )
-
-        run_with_reloader(_run_dev_server)
+        _run(
+            entrypoint="airflow.api_fastapi.main:app",
+            port=args.port,
+            host=args.host,
+            reload=True,
+            proxy_headers=args.proxy_headers,
+            command="dev",
+        )
         return
 
     run_command_with_daemon_option(

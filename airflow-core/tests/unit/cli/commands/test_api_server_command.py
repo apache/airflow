@@ -62,15 +62,19 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
     )
     def test_dev_arg(self, args):
         with (
-            mock.patch("airflow.utils.hot_reload.run_with_reloader") as mock_reloader,
+            mock.patch("fastapi_cli.cli._run") as mock_run,
         ):
             args = self.parser.parse_args(args)
             api_server_command.api_server(args)
 
-            # Verify that run_with_reloader was called
-            mock_reloader.assert_called_once()
-            # The callback function should be callable
-            assert callable(mock_reloader.call_args[0][0])
+            mock_run.assert_called_with(
+                entrypoint="airflow.api_fastapi.main:app",
+                port=args.port,
+                host=args.host,
+                reload=True,
+                proxy_headers=args.proxy_headers,
+                command="dev",
+            )
 
     @pytest.mark.parametrize(
         "args",
@@ -107,7 +111,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         with (
             mock.patch("os.environ", autospec=True) as mock_environ,
             mock.patch("uvicorn.run"),
-            mock.patch("airflow.utils.hot_reload.run_with_reloader"),
+            mock.patch("fastapi_cli.cli._run"),
         ):
             # Mock the environment variable with initial value or None
             mock_environ.get.return_value = original_env

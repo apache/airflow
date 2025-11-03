@@ -64,7 +64,7 @@ class TestTriggererCommand:
             execute_callable=mock_trigger_job_runner.return_value._execute,
         )
 
-    @mock.patch("airflow.utils.hot_reload.run_with_reloader")
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_triggerer_with_dev_flag(self, mock_reloader):
         """Ensure that triggerer with --dev flag uses hot-reload"""
         args = self.parser.parse_args(["triggerer", "--dev"])

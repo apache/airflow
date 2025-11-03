@@ -164,7 +164,7 @@ class TestSchedulerCommand:
         mock_process.assert_called_once_with(target=serve_logs)
         mock_process().terminate.assert_called_once_with()
 
-    @mock.patch("airflow.utils.hot_reload.run_with_reloader")
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_scheduler_with_dev_flag(self, mock_reloader):
         args = self.parser.parse_args(["scheduler", "--dev"])
         scheduler_command.scheduler(args)

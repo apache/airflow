@@ -1963,6 +1963,7 @@ core_commands: list[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
     ),
     ActionCommand(

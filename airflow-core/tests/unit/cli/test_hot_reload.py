@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.utils import hot_reload
+from airflow.cli import hot_reload
 
 
 class TestHotReload:
@@ -35,16 +35,14 @@ class TestHotReload:
             with pytest.raises(SystemExit):
                 hot_reload.run_with_reloader(lambda: None)
 
-    @mock.patch("airflow.utils.hot_reload._run_reloader")
+    @mock.patch("airflow.cli.hot_reload._run_reloader")
     def test_run_with_reloader_main_process(self, mock_run_reloader):
         """Test run_with_reloader as the main process."""
         # Clear the reloader PID env var to simulate being the main process
         with mock.patch.dict(os.environ, {}, clear=True):
             callback = mock.Mock()
-            watch_paths = ["/tmp/test"]
-            exclude_patterns = ["*.pyc"]
 
-            hot_reload.run_with_reloader(callback, watch_paths, exclude_patterns)
+            hot_reload.run_with_reloader(callback)
 
             # Should set the env var and call _run_reloader
             assert "AIRFLOW_DEV_RELOADER_PID" in os.environ
@@ -61,7 +59,7 @@ class TestHotReload:
             callback.assert_called_once()
 
     @mock.patch("subprocess.Popen")
-    @mock.patch("airflow.utils.hot_reload.watch")
+    @mock.patch("airflow.cli.hot_reload.watch")
     def test_run_reloader_starts_process(self, mock_watch, mock_popen):
         """Test that _run_reloader starts a subprocess."""
         mock_process = mock.Mock()
@@ -82,7 +80,7 @@ class TestHotReload:
         assert mock_popen.call_args[0][0] == [sys.executable] + sys.argv
 
     @mock.patch("subprocess.Popen")
-    @mock.patch("airflow.utils.hot_reload.watch")
+    @mock.patch("airflow.cli.hot_reload.watch")
     def test_run_reloader_restarts_on_changes(self, mock_watch, mock_popen):
         """Test that _run_reloader restarts the process on file changes."""
         mock_process = mock.Mock()
