@@ -39,6 +39,9 @@ class GCSToS3Operator(BaseOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
+    .. note::
+        When flatten_structure=True, it takes precedence over keep_directory_structure.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToS3Operator`
@@ -81,7 +84,7 @@ class GCSToS3Operator(BaseOperator):
          on the bucket is recreated within path passed in dest_s3_key.
     :param flatten_structure: (Optional) When set to True, places all files directly
         in the dest_s3_key directory without preserving subdirectory structure.
-        Overrides keep_directory_structure when enabled.
+        Takes precedence over keep_directory_structure when enabled.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
         (e.g, ``'**/*/.json'``)
     :param gcp_user_project: (Optional) The identifier of the Google Cloud project to bill for this request.

@@ -417,45 +417,32 @@ class TestGCSToS3Operator:
             expected_warning = "flatten_structure=True overrides keep_directory_structure=True"
             mock_log.warning.assert_called_once_with(expected_warning)
 
-    def test_transform_file_path_with_flatten_structure(self):
-        """Test _transform_file_path method with flatten_structure=True."""
+    @pytest.mark.parametrize(
+        ("flatten_structure", "input_path", "expected_output"),
+        [
+            # Tests with flatten_structure=True
+            (True, "dir1/subdir1/file.csv", "file.csv"),
+            (True, "path/to/deep/nested/file.txt", "file.txt"),
+            (True, "simple.txt", "simple.txt"),
+            (True, "", ""),
+            # Tests with flatten_structure=False (preserves original paths)
+            (False, "dir1/subdir1/file.csv", "dir1/subdir1/file.csv"),
+            (False, "path/to/deep/nested/file.txt", "path/to/deep/nested/file.txt"),
+            (False, "simple.txt", "simple.txt"),
+            (False, "", ""),
+        ],
+    )
+    def test_transform_file_path(self, flatten_structure, input_path, expected_output):
+        """Test _transform_file_path method with various flatten_structure settings."""
         operator = GCSToS3Operator(
             task_id=TASK_ID,
             gcs_bucket=GCS_BUCKET,
             dest_s3_key=S3_BUCKET,
-            flatten_structure=True,
+            flatten_structure=flatten_structure,
         )
 
-        # Test various file paths
-        result1 = operator._transform_file_path("dir1/subdir1/file.csv")
-        assert result1 == "file.csv"
-
-        result2 = operator._transform_file_path("path/to/deep/nested/file.txt")
-        assert result2 == "file.txt"
-
-        result3 = operator._transform_file_path("simple.txt")
-        assert result3 == "simple.txt"
-
-        result4 = operator._transform_file_path("")
-        assert result4 == ""
-
-    def test_transform_file_path_without_flatten_structure(self):
-        """Test _transform_file_path method with flatten_structure=False (default)."""
-        operator = GCSToS3Operator(
-            task_id=TASK_ID,
-            gcs_bucket=GCS_BUCKET,
-            dest_s3_key=S3_BUCKET,
-            flatten_structure=False,
-        )
-
-        # Test that paths are preserved
-        test_path = "dir1/subdir1/file.csv"
-        result1 = operator._transform_file_path(test_path)
-        assert result1 == test_path
-
-        test_path2 = "path/to/deep/nested/file.txt"
-        result2 = operator._transform_file_path(test_path2)
-        assert result2 == test_path2
+        result = operator._transform_file_path(input_path)
+        assert result == expected_output
 
     @pytest.mark.parametrize(
         ("gcs_prefix", "dest_s3_key", "expected_input", "expected_output"),
