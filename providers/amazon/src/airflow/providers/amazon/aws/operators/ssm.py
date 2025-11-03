@@ -182,12 +182,77 @@ class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
     Retrieves the output and execution details of an SSM command invocation.
 
     This operator allows you to fetch the standard output, standard error,
-    execution status, and other details from SSM commands. It can be used to
+    execution status, and exit codes from SSM commands. It can be used to
     retrieve output from commands executed by SsmRunCommandOperator in previous
     tasks, or from commands executed outside of Airflow entirely.
 
     The operator returns structured data including stdout, stderr, execution
-    times, and status information for each instance that executed the command.
+    times, status information, and response codes (exit codes) for each instance
+    that executed the command.
+
+    **Exit Code Routing Use Case:**
+
+    This operator is particularly useful when combined with SsmRunCommandOperator
+    in enhanced mode (fail_on_nonzero_exit=False). In this pattern, the command
+    operator completes successfully regardless of exit code, and this operator
+    retrieves the actual exit codes for workflow routing decisions.
+
+    Example workflow pattern::
+
+        run_command = SsmRunCommandOperator(
+            task_id="run_script",
+            document_name="AWS-RunShellScript",
+            fail_on_nonzero_exit=False,  # Don't fail on non-zero exit
+            wait_for_completion=False,
+        )
+
+        wait_completion = SsmRunCommandCompletedSensor(
+            task_id="wait_completion",
+            command_id="{{ task_instance.xcom_pull('run_script') }}",
+            fail_on_nonzero_exit=False,  # Don't fail on non-zero exit
+        )
+
+        get_output = SsmGetCommandInvocationOperator(
+            task_id="get_output",
+            command_id="{{ task_instance.xcom_pull('run_script') }}",
+        )
+
+
+        @task.branch
+        def route_based_on_exit_code(**context):
+            result = context["ti"].xcom_pull(task_ids="get_output")
+            exit_code = result["invocations"][0]["response_code"]
+            if exit_code == 0:
+                return "success_task"
+            elif exit_code == 2:
+                return "partial_success_task"
+            else:
+                return "failure_task"
+
+
+        run_command >> wait_completion >> get_output >> route_based_on_exit_code()
+
+    **Return Value Structure:**
+
+    The operator returns a dictionary with the following structure::
+
+        {
+            "command_id": "command-id-string",
+            "invocations": [
+                {
+                    "instance_id": "i-1234567890abcdef0",
+                    "status": "Success" or "Failed",
+                    "response_code": 0,  # Exit code from the command
+                    "standard_output": "command stdout",
+                    "standard_error": "command stderr",
+                    "execution_start_time": "2023-01-01T12:00:00Z",
+                    "execution_end_time": "2023-01-01T12:00:05Z",
+                    "document_name": "AWS-RunShellScript",
+                    "comment": "optional comment",
+                },
+                # ... additional instances if command ran on multiple instances
+            ],
+        }
 
     .. seealso::
         For more information on how to use this operator, take a look at the

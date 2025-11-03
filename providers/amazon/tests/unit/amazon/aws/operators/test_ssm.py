@@ -256,3 +256,104 @@ class TestSsmGetCommandInvocationOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_exit_code_routing_use_case(self, mock_hook):
+        """
+        Test that demonstrates the exit code routing use case.
+
+        This test verifies that SsmGetCommandInvocationOperator correctly retrieves
+        exit codes and status information that can be used for workflow routing,
+        particularly when used with SsmRunCommandOperator in enhanced mode
+        (fail_on_nonzero_exit=False).
+        """
+        # Mock response with various exit codes that might be used for routing
+        mock_invocation_details = {
+            "Status": "Failed",  # Command failed but we want to route based on exit code
+            "ResponseCode": 42,  # Custom exit code for specific routing logic
+            "StandardOutputContent": "Partial success - some items processed",
+            "StandardErrorContent": "Warning: 3 items skipped",
+            "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+            "ExecutionEndDateTime": "2023-01-01T12:00:05Z",
+            "DocumentName": "AWS-RunShellScript",
+            "Comment": "Data processing script",
+        }
+        mock_hook.get_command_invocation.return_value = mock_invocation_details
+
+        result = self.operator.execute({})
+
+        # Verify that response_code is available for routing decisions
+        assert result["invocations"][0]["response_code"] == 42
+        assert result["invocations"][0]["status"] == "Failed"
+
+        # Verify that output is available for additional context
+        assert "Partial success" in result["invocations"][0]["standard_output"]
+        assert "Warning" in result["invocations"][0]["standard_error"]
+
+        # This demonstrates that the operator provides all necessary information
+        # for downstream tasks to make routing decisions based on exit codes,
+        # which is the key use case for the enhanced mode feature.
+
+    def test_multiple_exit_codes_for_routing(self, mock_hook):
+        """
+        Test retrieving multiple instances with different exit codes for routing.
+
+        This demonstrates a common pattern where a command runs on multiple instances
+        and downstream tasks need to route based on the exit codes from each instance.
+        """
+        operator = SsmGetCommandInvocationOperator(
+            task_id="test_multi_instance_routing",
+            command_id=self.command_id,
+        )
+
+        # Mock list_command_invocations response
+        mock_invocations = [
+            {"InstanceId": "i-success"},
+            {"InstanceId": "i-partial"},
+            {"InstanceId": "i-failed"},
+        ]
+        mock_hook.list_command_invocations.return_value = {"CommandInvocations": mock_invocations}
+
+        # Mock different exit codes for routing scenarios
+        mock_hook.get_command_invocation.side_effect = [
+            {
+                "Status": "Success",
+                "ResponseCode": 0,  # Complete success
+                "StandardOutputContent": "All items processed",
+                "StandardErrorContent": "",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:05Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+            {
+                "Status": "Failed",
+                "ResponseCode": 2,  # Partial success - custom exit code
+                "StandardOutputContent": "Some items processed",
+                "StandardErrorContent": "Warning: partial completion",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:10Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+            {
+                "Status": "Failed",
+                "ResponseCode": 1,  # Complete failure
+                "StandardOutputContent": "",
+                "StandardErrorContent": "Error: operation failed",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:08Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+        ]
+
+        result = operator.execute({})
+
+        # Verify all exit codes are captured for routing logic
+        assert len(result["invocations"]) == 3
+        assert result["invocations"][0]["response_code"] == 0
+        assert result["invocations"][1]["response_code"] == 2
+        assert result["invocations"][2]["response_code"] == 1
+
+        # This demonstrates that the operator can retrieve exit codes from multiple
+        # instances, enabling complex routing logic based on the results from each instance.
