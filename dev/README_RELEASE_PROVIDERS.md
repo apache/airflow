@@ -121,7 +121,7 @@ command involved in the release process. The value can also be passed as the `--
 Follow the steps below to set the environment variable:
 
 ```shell script
- export DISTRIBUTIONS_LIST=PACKAGE1,PACKAGE2
+ export DISTRIBUTIONS_LIST="PACKAGE1 PACKAGE2"
 ```
 
 ```shell script
@@ -476,7 +476,7 @@ breeze release-management prepare-provider-distributions
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze release-management prepare-provider-distributions --distributions-list PACKAGE1,PACKAGE2
+breeze release-management prepare-provider-distributions --distributions-list "PACKAGE1 PACKAGE2"
 ```
 
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
