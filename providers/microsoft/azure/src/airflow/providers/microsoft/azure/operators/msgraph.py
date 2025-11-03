@@ -77,17 +77,6 @@ def execute_callable(
         return func(context, value)  # type: ignore
 
 
-def default_pagination(
-    operator: MSGraphAsyncOperator, response: dict, **context
-) -> tuple[Any, dict[str, Any] | None]:
-    return KiotaRequestAdapterHook.default_pagination(
-        response=response,
-        url=operator.url,
-        query_parameters=operator.query_parameters,
-        responses=lambda: operator.pull_xcom(context),
-    )
-
-
 class MSGraphAsyncOperator(BaseOperator):
     """
     A Microsoft Graph API operator which allows you to execute REST call to the Microsoft Graph API.
@@ -170,7 +159,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.proxies = proxies
         self.scopes = scopes
         self.api_version = api_version
-        self.pagination_function = pagination_function or default_pagination
+        self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
@@ -319,6 +308,17 @@ class MSGraphAsyncOperator(BaseOperator):
                 value,
             )
             context["ti"].xcom_push(key=self.key, value=value)
+
+    @staticmethod
+    def paginate(
+        operator: MSGraphAsyncOperator, response: dict, **context
+    ) -> tuple[Any, dict[str, Any] | None]:
+        return KiotaRequestAdapterHook.default_pagination(
+            response=response,
+            url=operator.url,
+            query_parameters=operator.query_parameters,
+            responses=lambda: operator.pull_xcom(context),
+        )
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
