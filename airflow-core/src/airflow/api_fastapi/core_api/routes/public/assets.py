@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
@@ -611,8 +612,8 @@ def delete_asset_queued_events(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    result = session.execute(delete_stmt)
-    if cast("Any", result).rowcount == 0:
+    result = cast("CursorResult", session.execute(delete_stmt))
+    if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queue event with asset_id: `{asset_id}` was not found",
@@ -645,9 +646,9 @@ def delete_dag_asset_queued_events(
     )
 
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = session.execute(delete_statement)
+    result = cast("CursorResult", session.execute(delete_statement))
 
-    if cast("Any", result).rowcount == 0:
+    if result.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
 
@@ -680,8 +681,8 @@ def delete_dag_asset_queued_event(
     delete_statement = (
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
-    result = session.execute(delete_statement)
-    if cast("Any", result).rowcount == 0:
+    result = cast("CursorResult", session.execute(delete_statement))
+    if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
