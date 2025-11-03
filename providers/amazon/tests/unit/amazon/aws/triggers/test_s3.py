@@ -62,22 +62,6 @@ class TestS3KeyTrigger:
         Test if the task is run is in triggerr successfully.
         """
         mock_client.return_value.return_value.check_key.return_value = True
-        trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-
-        assert task.done() is True
-        result = await task
-        assert result == TriggerEvent({"status": "success"})
-        asyncio.get_event_loop().stop()
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
-    async def test_run_success2(self, mock_client):
-        """
-        Test if the task is run is in triggerr successfully.
-        """
-        mock_client.return_value.return_value.check_key.return_value = True
         trigger = S3KeyTrigger(bucket_key="test_bucket/file", bucket_name="test_bucket")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
