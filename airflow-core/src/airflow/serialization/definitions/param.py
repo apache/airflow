@@ -98,6 +98,9 @@ class SerializedParamsDict(collections.abc.Mapping[str, Any]):
             return self.dump() == other
         return NotImplemented
 
+    def __hash__(self):
+        return hash(self.dump())
+
     def __contains__(self, key: object) -> bool:
         return key in self.__dict
 
