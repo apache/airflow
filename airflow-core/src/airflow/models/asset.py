@@ -890,6 +890,14 @@ class AssetPartitionDagRun(Base):
     )
 
     __tablename__ = "asset_partition_dag_run"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            columns=(target_dag_run_id,),
+            refcolumns=["dag_run.id"],
+            name="apdr_target_dag_run_id_fkey",
+            ondelete="CASCADE",
+        ),
+    )
 
 
 class PartitionedAssetKeyLog(Base):

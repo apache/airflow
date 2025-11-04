@@ -63,6 +63,12 @@ def upgrade():
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("asset_partition_dag_run_pkey")),
+        sa.ForeignKeyConstraint(
+            columns=("target_dag_run_id",),
+            refcolumns=["dag_run.id"],
+            name="apdr_target_dag_run_id_fkey",
+            ondelete="CASCADE",
+        ),
     )
 
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
