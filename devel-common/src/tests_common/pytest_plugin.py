@@ -1674,6 +1674,8 @@ def get_test_dag():
         dag = dagbag.get_dag(dag_id)
 
         if dagbag.import_errors:
+            if settings.Session is None:
+                raise RuntimeError("Session not configured. Call configure_orm() first.")
             session = settings.Session()
             from airflow.models.errors import ParseImportError
 
@@ -1698,6 +1700,8 @@ def get_test_dag():
             from airflow.models.dagbundle import DagBundleModel
             from airflow.serialization.serialized_objects import SerializedDAG
 
+            if settings.Session is None:
+                raise RuntimeError("Session not configured. Call configure_orm() first.")
             session = settings.Session()
             if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))

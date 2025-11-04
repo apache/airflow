@@ -37,6 +37,7 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
+  - [Push the RC tags](#push-the-rc-tags)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
@@ -120,7 +121,7 @@ command involved in the release process. The value can also be passed as the `--
 Follow the steps below to set the environment variable:
 
 ```shell script
- export DISTRIBUTIONS_LIST=PACKAGE1,PACKAGE2
+ export DISTRIBUTIONS_LIST="PACKAGE1 PACKAGE2"
 ```
 
 ```shell script
@@ -475,7 +476,7 @@ breeze release-management prepare-provider-distributions
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze release-management prepare-provider-distributions --distributions-list PACKAGE1,PACKAGE2
+breeze release-management prepare-provider-distributions --distributions-list "PACKAGE1 PACKAGE2"
 ```
 
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
@@ -496,6 +497,14 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Confirm that the packages are available under the links printed and look good.
+
+## Push the RC tags
+
+Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
+
+```shell script
+breeze release-management tag-providers
+```
 
 ## Prepare documentation in Staging
 
