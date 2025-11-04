@@ -205,7 +205,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
     print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
-    print(f"Starting migration of {total_dags} Dags in {total_batches} batches.")
+    print(f"Starting migration of {total_dags} Dags in {total_batches} batches.\n")
 
     while True:
         batch_num += 1
@@ -329,8 +329,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag():
 
         print(f"Batch {batch_num} of {total_batches} complete.")
 
-    print("\nMigration complete!")
-    print(f"Processed {processed_dags_count} Dags, {dags_with_deadlines_count} had DeadlineAlerts.")
+    print(f"\nProcessed {processed_dags_count} Dags, {dags_with_deadlines_count} had DeadlineAlerts.")
     print(f"Migrated {migrated_alerts_count} DeadlineAlert configurations.")
     if dags_with_errors:
         print(f"{len(dags_with_errors)} Dags encountered errors: {dags_with_errors}")
@@ -399,7 +398,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
 
     print(f"Using migration_batch_size of {BATCH_SIZE} as set in Airflow configuration.")
-    print(f"Starting downgrade of {total_dags} Dags with DeadlineAlerts in {total_batches} batches.")
+    print(f"Starting downgrade of {total_dags} Dags with DeadlineAlerts in {total_batches} batches.\n")
 
     while True:
         batch_num += 1
@@ -527,8 +526,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag():
 
         print(f"Batch {batch_num} of {total_batches} complete.")
 
-    print("\nDowngrade complete!")
-    print(f"Processed {processed_dags_count} Dags, {dags_with_deadlines_count} had deadline UUIDs.")
+    print(f"\nProcessed {processed_dags_count} Dags, {dags_with_deadlines_count} had DeadlineAlerts.")
     print(f"Restored {restored_alerts_count} DeadlineAlert configurations to original format.")
     if dags_with_errors:
         print(f"{len(dags_with_errors)} Dags encountered errors: {dags_with_errors}")
