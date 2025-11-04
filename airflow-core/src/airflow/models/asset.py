@@ -771,6 +771,7 @@ class AssetEvent(Base):
     :param source_run_id: the run_id of the TI which updated the asset
     :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
+    :param partition_key: the key for the partition associated with event, if applicable
 
     We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
@@ -911,7 +912,5 @@ class PartitionedAssetKeyLog(Base):
     __tablename__ = "partitioned_asset_key_log"
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = (f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key)
         return f"{self.__class__.__name__}({', '.join(args)})"

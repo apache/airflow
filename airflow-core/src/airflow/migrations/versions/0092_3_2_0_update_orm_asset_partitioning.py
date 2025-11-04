@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add partition_key field.
+Update ORM for asset partitioning.
 
 Revision ID: 665854ef0536
 Revises: b87d2135fa50
@@ -41,7 +41,7 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Apply Add partition_key field."""
+    """Apply Update ORM for asset partitioning."""
     op.create_table(
         "partitioned_asset_key_log",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -73,7 +73,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add partition_key field."""
+    """Unapply Update ORM for asset partitioning."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("partition_key")
 

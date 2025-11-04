@@ -363,7 +363,7 @@ class DagRun(Base, LoggingMixin):
         self.context_carrier = {}
         if not isinstance(partition_key, str | None):
             raise ValueError(
-                f"Expected partition_key to be str | None but got {partition_key.__class__.__name__}"
+                f"Expected partition_key to be a `str` or `None` but got {partition_key.__class__.__name__}"
             )
         self.partition_key = partition_key
         super().__init__()
