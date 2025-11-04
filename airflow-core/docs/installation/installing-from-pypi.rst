@@ -89,6 +89,9 @@ Airflow installation.
     As of Airflow 3.1, constraint files do not contain developer dependencies such as pytest, moto and
     other development dependencies that are only used in tests.
 
+    Some providers can be not available for specific python version. If you are using constraints, make sure
+    that all providers version are there. Provider will be (silently) not installed if it is not present in constraints.
+
 Reproducible Airflow installation
 =================================
 
