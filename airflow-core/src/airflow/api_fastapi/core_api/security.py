@@ -27,7 +27,10 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import (
+    COOKIE_NAME_JWT_TOKEN,
+    BaseAuthManager,
+)
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
@@ -69,7 +72,20 @@ if TYPE_CHECKING:
     from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+
+def auth_manager_from_app(request: Request) -> BaseAuthManager:
+    """
+    FastAPI dependency resolver that returns the shared AuthManager instance from app.state.
+
+    This ensures that all API routes using AuthManager via dependency injection receive the same
+    singleton instance that was initialized at app startup.
+    """
+    return request.app.state.auth_manager
+
+
+AuthManagerDep = Annotated[BaseAuthManager, Depends(auth_manager_from_app)]
 
 auth_description = (
     "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
@@ -194,7 +210,7 @@ class PermittedTagFilter(PermittedDagFilter):
 
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
-) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
@@ -203,10 +219,9 @@ def permitted_dag_filter_factory(
     """
 
     def depends_permitted_dags_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
         return filter_class(authorized_dags)
 
