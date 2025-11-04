@@ -532,17 +532,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
-            # Create a subquery with row numbers partitioned by run_id.
-            #
-            # run_id    | task_id | priority_weight | row_num
-            # ----------|---------|-----------------|--------
-            # dag1_dr1  | task1   | 100             | 1
-            # dag1_dr1  | task22  | 90              | 2
-            # dag1_dr1  | task5   | 80              | 3
-            # dag1_dr1  | task13  | 70              | 4
-            # dag2_dr1  | task3   | 95              | 1
-            # dag2_dr1  | task1   | 85              | 2
-            # dag2_dr1  | task5   | 75              | 3
+            # Create a subquery with row numbers partitioned by dag_id and run_id.
+            # Different dags can have the same run_id but
+            # the dag_id combined with the run_id uniquely identify a run.
             ranked_query = (
                 query.add_columns(
                     func.row_number()
