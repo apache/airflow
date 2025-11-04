@@ -30,7 +30,7 @@ enabling event-driven DAGs based on API responses.
 How It Works
 ------------
 
-1. Sends requests to an API at a frequency determined by ``poll_interval``.
+1. Sends requests to an API every ``poll_interval`` seconds (default 60).
 2. Uses the callable at ``response_check_path`` to evaluate the API response.
 3. If the callable returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
 
