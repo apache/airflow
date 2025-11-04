@@ -50,7 +50,7 @@ class HITLUser(BaseModel):
 
 
 class BaseHITLDetail(BaseModel):
-    """The common part within HITLDetail and HITLDetailHisotry."""
+    """The common part within HITLDetail and HITLDetailHistory."""
 
     # User Request Detail
     options: list[str] = Field(min_length=1)
