@@ -1886,7 +1886,7 @@ class AirflowConfigParser(ConfigParser):
         """
         # We need those globals before we run "get_all_expansion_variables" because this is where
         # the variables are expanded from in the configuration
-        global FERNET_KEY, AIRFLOW_HOME, JWT_SECRET_KEY
+        global FERNET_KEY, JWT_SECRET_KEY
         from cryptography.fernet import Fernet
 
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
