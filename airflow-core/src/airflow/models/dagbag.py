@@ -62,6 +62,7 @@ class DBDagBag:
                 return None
             if not (serdag := dag_version.serialized_dag):
                 return None
+        self._read_dag(serdag)
         return serdag
 
     def get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:

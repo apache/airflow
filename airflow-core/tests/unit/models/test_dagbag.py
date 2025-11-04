@@ -85,6 +85,10 @@ class TestDBDagBag:
         result = self.db_dag_bag.get_dag_model("v2", session=self.session)
 
         assert result == mock_serdag
+
+        result = self.db_dag_bag.get_dag_model("v2", session=self.session)
+
+        assert result == mock_serdag
         self.session.get.assert_called_once()
 
     def test_get_dag_model_returns_none_when_not_found(self):
