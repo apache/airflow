@@ -122,7 +122,7 @@ def get_variables(
     variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
-        variables=variables,
+        variables=list(variables.all()),
         total_entries=total_entries,
     )
 
