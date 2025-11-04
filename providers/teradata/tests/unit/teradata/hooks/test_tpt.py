@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.teradata.hooks.tpt import TptHook
 
 
@@ -104,7 +103,7 @@ class TestTptHook:
         process.returncode = 1
         mock_popen.return_value = process
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             hook._execute_tbuild_locally("CREATE TABLE test (id INT);")
         mock_set_permissions.assert_called_once()
 
@@ -207,7 +206,7 @@ class TestTptHook:
         mock_gen_password.return_value = "test_password"
 
         # Execute the method and expect failure
-        with pytest.raises(AirflowException, match="tbuild command failed with exit code 1"):
+        with pytest.raises(RuntimeError, match="tbuild command failed with exit code 1"):
             hook._execute_tbuild_via_ssh("CREATE TABLE test (id INT);", "/tmp")
 
         # Verify cleanup was called even on failure
@@ -220,7 +219,7 @@ class TestTptHook:
         hook = TptHook(ssh_conn_id="ssh_default")
         hook.ssh_hook = None  # Simulate uninitialized SSH hook
 
-        with pytest.raises(AirflowException, match="SSH connection is not established"):
+        with pytest.raises(ConnectionError, match="SSH connection is not established"):
             hook._execute_tbuild_via_ssh("CREATE TABLE test (id INT);", "/tmp")
 
     def test_on_kill(self):

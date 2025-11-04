@@ -29,7 +29,6 @@ from contextlib import contextmanager
 
 from paramiko import SSHException
 
-from airflow.exceptions import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.ttu import TtuHook
 from airflow.providers.teradata.utils.encryption_utils import (
@@ -95,7 +94,10 @@ class TptHook(TtuHook):
 
         Raises:
             ValueError: If tpt_script is empty or invalid
-            AirflowException: If execution fails
+            RuntimeError: Non-zero tbuild exit status or unexpected execution failure
+            ConnectionError: SSH connection not established or fails
+            TimeoutError: SSH connection/network timeout
+            FileNotFoundError: tbuild binary not found in PATH
         """
         if not tpt_script:
             raise ValueError("TPT script must not be empty.")
@@ -130,9 +132,7 @@ class TptHook(TtuHook):
 
             try:
                 if not self.ssh_hook:
-                    raise AirflowException(
-                        "SSH connection is not established. `ssh_hook` is None or invalid."
-                    )
+                    raise ConnectionError("SSH connection is not established. `ssh_hook` is None or invalid.")
                 with self.ssh_hook.get_conn() as ssh_client:
                     verify_tpt_utility_on_remote_host(ssh_client, "tbuild", logging.getLogger(__name__))
                     password = generate_random_password()
@@ -169,20 +169,25 @@ class TptHook(TtuHook):
                     )
 
                     if exit_status != 0:
-                        raise AirflowException(f"tbuild command failed with exit code {exit_status}: {error}")
+                        raise RuntimeError(f"tbuild command failed with exit code {exit_status}: {error}")
 
                     return exit_status
+            except ConnectionError:
+                # Re-raise ConnectionError as-is (don't convert to TimeoutError)
+                raise
             except (OSError, socket.gaierror) as e:
                 self.log.error("SSH connection timed out: %s", str(e))
-                raise AirflowException(
+                raise TimeoutError(
                     "SSH connection timed out. Please check the network or server availability."
-                )
+                ) from e
             except SSHException as e:
-                raise AirflowException(f"An unexpected error occurred during SSH connection: {str(e)}")
+                raise ConnectionError(f"SSH error during connection: {str(e)}") from e
+            except RuntimeError:
+                raise
             except Exception as e:
-                raise AirflowException(
-                    f"An unexpected error occurred while executing tbuild script on remote machine: {str(e)}"
-                )
+                raise RuntimeError(
+                    f"Unexpected error while executing tbuild script on remote machine: {str(e)}"
+                ) from e
             finally:
                 # Clean up local files
                 secure_delete(encrypted_file_path, logging.getLogger(__name__))
@@ -203,7 +208,7 @@ class TptHook(TtuHook):
             tbuild_cmd = ["tbuild", "-f", local_script_file, job_name]
 
             if not shutil.which("tbuild"):
-                raise AirflowException("tbuild binary not found in PATH.")
+                raise FileNotFoundError("tbuild binary not found in PATH.")
 
             sp = None
             try:
@@ -224,13 +229,13 @@ class TptHook(TtuHook):
                 self.log.info("tbuild command exited with return code %s", sp.returncode)
                 if sp.returncode != 0:
                     error_msg = "\n".join(error_lines) if error_lines else "Unknown error"
-                    raise AirflowException(
-                        f"tbuild command failed with return code {sp.returncode}: {error_msg}"
-                    )
+                    raise RuntimeError(f"tbuild command failed with return code {sp.returncode}: {error_msg}")
                 return sp.returncode
+            except RuntimeError:
+                raise
             except Exception as e:
                 self.log.error("Error executing tbuild command: %s", str(e))
-                raise AirflowException(f"Error executing tbuild command: {str(e)}")
+                raise RuntimeError(f"Error executing tbuild command: {str(e)}") from e
             finally:
                 secure_delete(local_script_file, logging.getLogger(__name__))
                 terminate_subprocess(sp, logging.getLogger(__name__))

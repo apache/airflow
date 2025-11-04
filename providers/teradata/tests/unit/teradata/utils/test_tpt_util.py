@@ -23,7 +23,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.teradata.utils.tpt_util import (
     TPTConfig,
     decrypt_remote_file,
@@ -340,7 +339,7 @@ class TestTptUtil:
         mock_ssh = Mock()
         mock_get_remote_os.side_effect = Exception("SSH connection failed")
 
-        with pytest.raises(AirflowException, match="Failed to verify TPT utility 'tbuild'"):
+        with pytest.raises(RuntimeError, match="Failed to verify TPT utility 'tbuild'"):
             verify_tpt_utility_on_remote_host(mock_ssh, "tbuild")
 
     def test_prepare_tpt_ddl_script_basic(self):
@@ -453,7 +452,7 @@ class TestTptUtil:
         mock_get_remote_os.return_value = "unix"
         mock_execute_cmd.return_value = (1, "", "Bad decrypt")
 
-        with pytest.raises(AirflowException, match="Decryption failed with exit status 1"):
+        with pytest.raises(RuntimeError, match="Decryption failed with exit status 1"):
             decrypt_remote_file(mock_ssh, "/remote/encrypted.file", "/remote/decrypted.file", "password123")
 
     def test_tpt_config_constants(self):
@@ -541,7 +540,7 @@ class TestTptUtil:
         """Test set_local_file_permissions with non-existent file."""
         mock_logger = Mock()
 
-        with pytest.raises(AirflowException, match="File does not exist"):
+        with pytest.raises(FileNotFoundError, match="File does not exist"):
             set_local_file_permissions("/nonexistent/file", mock_logger)
 
     def test_set_local_file_permissions_empty_path(self):
@@ -590,7 +589,7 @@ class TestTptUtil:
         mock_get_remote_os.return_value = "unix"
         mock_execute_cmd.return_value = (1, "", "Permission denied")
 
-        with pytest.raises(AirflowException, match="Failed to set permissions"):
+        with pytest.raises(RuntimeError, match="Failed to set permissions"):
             set_remote_file_permissions(mock_ssh, "/remote/file", mock_logger)
 
     @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
@@ -653,7 +652,7 @@ class TestTptUtil:
         mock_ssh = Mock()
         mock_logger = Mock()
 
-        with pytest.raises(AirflowException, match="Local file does not exist"):
+        with pytest.raises(FileNotFoundError, match="Local file does not exist"):
             transfer_file_sftp(mock_ssh, "/nonexistent/local/file", "/remote/path/file.txt", mock_logger)
 
     def test_transfer_file_sftp_transfer_error(self):
@@ -665,7 +664,7 @@ class TestTptUtil:
         mock_logger = Mock()
 
         with tempfile.NamedTemporaryFile() as tmp_file:
-            with pytest.raises(AirflowException, match="Failed to transfer file"):
+            with pytest.raises(RuntimeError, match="Failed to transfer file"):
                 transfer_file_sftp(mock_ssh, tmp_file.name, "/remote/path/file.txt", mock_logger)
 
             mock_sftp.close.assert_called_once()

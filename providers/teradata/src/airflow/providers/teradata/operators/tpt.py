@@ -61,8 +61,11 @@ class DdlOperator(BaseOperator):
     :param ssh_conn_id: Optional SSH connection ID if the commands need to be executed through SSH.
     :param remote_working_dir: Directory on the remote server where temporary files will be stored.
     :param ddl_job_name: Optional name for the DDL job.
-    :raises ValueError: If the ddl parameter is not properly formatted or if error_list is invalid.
-    :raises AirflowException: If any DDL operation fails with an error code not in the error_list.
+    :raises ValueError: If the ddl parameter or error_list is invalid.
+    :raises RuntimeError: If underlying TPT execution (tbuild) fails with non-zero exit status.
+    :raises ConnectionError: If remote SSH connection cannot be established.
+    :raises TimeoutError: If SSH connection attempt times out.
+    :raises FileNotFoundError: If required TPT utility (tbuild) is missing locally or on remote host.
 
     Example usage::
 

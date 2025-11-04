@@ -27,7 +27,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.teradata.operators.tpt import DdlOperator
 
 
@@ -226,7 +225,7 @@ class TestDdlOperator:
 
     @patch(
         "airflow.providers.teradata.hooks.tpt.TptHook.get_conn",
-        side_effect=AirflowException("Connection not found"),
+        side_effect=RuntimeError("Connection not found"),
     )
     def test_ddl_execution_with_error_handling(self, mock_get_conn):
         # Configure operator with error list
@@ -240,13 +239,13 @@ class TestDdlOperator:
             teradata_conn_id="teradata_default",
         )
 
-        # Execute and verify AirflowException is raised
-        with pytest.raises(AirflowException, match="Connection not found"):
+        # Execute and verify RuntimeError is raised
+        with pytest.raises(RuntimeError, match="Connection not found"):
             operator.execute({})
 
     @patch(
         "airflow.providers.teradata.hooks.tpt.TptHook.get_conn",
-        side_effect=AirflowException("Connection not found"),
+        side_effect=RuntimeError("Connection not found"),
     )
     def test_ddl_execution_error(self, mock_get_conn):
         # This test verifies the normal case since we can't easily simulate real DDL errors
@@ -259,8 +258,8 @@ class TestDdlOperator:
             teradata_conn_id="teradata_default",
         )
 
-        # Execute and verify AirflowException is raised
-        with pytest.raises(AirflowException, match="Connection not found"):
+        # Execute and verify RuntimeError is raised
+        with pytest.raises(RuntimeError, match="Connection not found"):
             operator.execute({})
 
     # ----- Resource Cleanup Tests -----

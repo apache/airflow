@@ -26,8 +26,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from paramiko import SSHClient
 
-from airflow.exceptions import AirflowException
-
 
 class TPTConfig:
     """Configuration constants for TPT operations."""
@@ -209,7 +207,8 @@ def set_local_file_permissions(local_file_path: str, logger: logging.Logger | No
 
     :param local_file_path: Path to the local file
     :param logger: Optional logger instance
-    :raises AirflowException: If permission setting fails
+    :raises FileNotFoundError: If the file does not exist
+    :raises OSError: If setting permissions fails
     """
     logger = logger or logging.getLogger(__name__)
 
@@ -218,14 +217,14 @@ def set_local_file_permissions(local_file_path: str, logger: logging.Logger | No
         return
 
     if not os.path.exists(local_file_path):
-        raise AirflowException(f"File does not exist: {local_file_path}")
+        raise FileNotFoundError(f"File does not exist: {local_file_path}")
 
     try:
         # Set file permission to read-only for the owner (400)
         os.chmod(local_file_path, TPTConfig.FILE_PERMISSIONS_READ_ONLY)
         logger.info("Set read-only permissions for file %s", local_file_path)
     except (OSError, PermissionError) as e:
-        raise AirflowException(f"Error setting permissions for local file {local_file_path}: {str(e)}")
+        raise OSError(f"Error setting permissions for local file {local_file_path}: {e}") from e
 
 
 def _set_windows_file_permissions(
@@ -237,7 +236,7 @@ def _set_windows_file_permissions(
     exit_status, stdout_data, stderr_data = execute_remote_command(ssh_client, command)
 
     if exit_status != 0:
-        raise AirflowException(
+        raise RuntimeError(
             f"Failed to set restrictive permissions on Windows remote file {remote_file_path}. "
             f"Exit status: {exit_status}, Error: {stderr_data if stderr_data else 'N/A'}"
         )
@@ -251,7 +250,7 @@ def _set_unix_file_permissions(ssh_client: SSHClient, remote_file_path: str, log
     exit_status, stdout_data, stderr_data = execute_remote_command(ssh_client, command)
 
     if exit_status != 0:
-        raise AirflowException(
+        raise RuntimeError(
             f"Failed to set permissions (400) on remote file {remote_file_path}. "
             f"Exit status: {exit_status}, Error: {stderr_data if stderr_data else 'N/A'}"
         )
@@ -267,7 +266,7 @@ def set_remote_file_permissions(
     :param ssh_client: SSH client connection
     :param remote_file_path: Path to the remote file
     :param logger: Optional logger instance
-    :raises AirflowException: If permission setting fails
+    :raises RuntimeError: If permission setting fails
     """
     logger = logger or logging.getLogger(__name__)
 
@@ -286,11 +285,10 @@ def set_remote_file_permissions(
         else:
             _set_unix_file_permissions(ssh_client, remote_file_path, logger)
 
-    except AirflowException:
-        # Re-raise AirflowExceptions as-is
+    except RuntimeError:
         raise
     except Exception as e:
-        raise AirflowException(f"Error setting permissions for remote file {remote_file_path}: {str(e)}")
+        raise RuntimeError(f"Error setting permissions for remote file {remote_file_path}: {e}") from e
 
 
 def get_remote_temp_directory(ssh_client: SSHClient, logger: logging.Logger | None = None) -> str:
@@ -326,7 +324,7 @@ def get_remote_temp_directory(ssh_client: SSHClient, logger: logging.Logger | No
 def verify_tpt_utility_installed(utility: str) -> None:
     """Verify if a TPT utility (e.g., tbuild) is installed and available in the system's PATH."""
     if shutil.which(utility) is None:
-        raise AirflowException(
+        raise FileNotFoundError(
             f"TPT utility '{utility}' is not installed or not available in the system's PATH"
         )
 
@@ -340,7 +338,8 @@ def verify_tpt_utility_on_remote_host(
     :param ssh_client: SSH client connection
     :param utility: Name of the utility to verify
     :param logger: Optional logger instance
-    :raises AirflowException: If utility is not found or verification fails
+    :raises FileNotFoundError: If utility is not found on remote host
+    :raises RuntimeError: If verification fails unexpectedly
     """
     logger = logger or logging.getLogger(__name__)
 
@@ -356,7 +355,7 @@ def verify_tpt_utility_on_remote_host(
         exit_status, output, error = execute_remote_command(ssh_client, command)
 
         if exit_status != 0 or not output:
-            raise AirflowException(
+            raise FileNotFoundError(
                 f"TPT utility '{utility}' is not installed or not available in PATH on the remote host. "
                 f"Command: {command}, Exit status: {exit_status}, "
                 f"stderr: {error if error else 'N/A'}"
@@ -364,11 +363,10 @@ def verify_tpt_utility_on_remote_host(
 
         logger.info("TPT utility '%s' found at: %s", utility, output.split("\n")[0])
 
-    except AirflowException:
-        # Re-raise AirflowExceptions as-is
+    except (FileNotFoundError, RuntimeError):
         raise
     except Exception as e:
-        raise AirflowException(f"Failed to verify TPT utility '{utility}' on remote host: {str(e)}")
+        raise RuntimeError(f"Failed to verify TPT utility '{utility}' on remote host: {e}") from e
 
 
 def prepare_tpt_ddl_script(
@@ -458,7 +456,7 @@ def decrypt_remote_file(
     :param password: Decryption password
     :param logger: Optional logger instance
     :return: Exit status of the decryption command
-    :raises AirflowException: If decryption fails
+    :raises RuntimeError: If decryption fails
     """
     logger = logger or logging.getLogger(__name__)
 
@@ -484,7 +482,7 @@ def decrypt_remote_file(
     exit_status, stdout_data, stderr_data = execute_remote_command(ssh_client, decrypt_cmd)
 
     if exit_status != 0:
-        raise AirflowException(
+        raise RuntimeError(
             f"Decryption failed with exit status {exit_status}. Error: {stderr_data if stderr_data else 'N/A'}"
         )
 
@@ -502,12 +500,13 @@ def transfer_file_sftp(
     :param local_path: Local file path
     :param remote_path: Remote file path
     :param logger: Optional logger instance
-    :raises AirflowException: If file transfer fails
+    :raises FileNotFoundError: If local file does not exist
+    :raises RuntimeError: If file transfer fails
     """
     logger = logger or logging.getLogger(__name__)
 
     if not os.path.exists(local_path):
-        raise AirflowException(f"Local file does not exist: {local_path}")
+        raise FileNotFoundError(f"Local file does not exist: {local_path}")
 
     sftp = None
     try:
@@ -515,7 +514,7 @@ def transfer_file_sftp(
         sftp.put(local_path, remote_path)
         logger.info("Successfully transferred file from %s to %s", local_path, remote_path)
     except Exception as e:
-        raise AirflowException(f"Failed to transfer file from {local_path} to {remote_path}: {str(e)}")
+        raise RuntimeError(f"Failed to transfer file from {local_path} to {remote_path}: {e}") from e
     finally:
         if sftp:
             sftp.close()
