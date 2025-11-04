@@ -45,6 +45,7 @@ from airflow.configuration import (
 )
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -1113,12 +1114,12 @@ class TestDeprecatedConf:
             # Remove it so we are sure we use the right setting
             conf.remove_option("celery", "worker_concurrency")
 
-            with pytest.warns(DeprecationWarning, match="celeryd_concurrency"):
+            with pytest.warns(DeprecatedImportWarning, match="celeryd_concurrency"):
                 with mock.patch.dict("os.environ", AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                     assert conf.getint("celery", "worker_concurrency") == 99
 
             with (
-                pytest.warns(DeprecationWarning, match="celeryd_concurrency"),
+                pytest.warns(DeprecatedImportWarning, match="celeryd_concurrency"),
                 conf_vars({("celery", "celeryd_concurrency"): "99"}),
             ):
                 assert conf.getint("celery", "worker_concurrency") == 99
@@ -1188,7 +1189,7 @@ class TestDeprecatedConf:
                 tmp = None
                 if "AIRFLOW__CELERY__RESULT_BACKEND" in os.environ:
                     tmp = os.environ.pop("AIRFLOW__CELERY__RESULT_BACKEND")
-                with pytest.warns(DeprecationWarning, match="result_backend"):
+                with pytest.warns(DeprecatedImportWarning, match="result_backend"):
                     assert conf.getint("celery", "result_backend") == 99
                 if tmp:
                     os.environ["AIRFLOW__CELERY__RESULT_BACKEND"] = tmp
@@ -1339,7 +1340,7 @@ sql_alchemy_conn=sqlite://test
 
         test_conf = make_config()
         with pytest.warns(
-            DeprecationWarning,
+            DeprecatedImportWarning,
             match=r"\[old_section\] has been moved to the val option in \[new_section\].*update your config",
         ):
             # Test when you've _set_ the old value that we warn you need to update your config
@@ -1659,7 +1660,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category is DeprecationWarning
+        assert c.category is DeprecatedImportWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1683,7 +1684,7 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category is DeprecationWarning
+        assert w.category is DeprecatedImportWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()

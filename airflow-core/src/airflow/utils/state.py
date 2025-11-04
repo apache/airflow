@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 
 class TerminalTIState(str, Enum):
     """States that a Task Instance can be in that indicate it has reached a terminal state."""
@@ -226,7 +228,7 @@ def __getattr__(name: str):
         warnings.warn(
             "The `airflow.utils.state.JobState` attribute is deprecated and will be removed in a future version. "
             "Please use `airflow.jobs.job.JobState` instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return JobState

@@ -31,6 +31,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.utils.state import DagRunState
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 
 class AirflowException(Exception):
     """
@@ -529,7 +531,7 @@ def __getattr__(name: str):
         warnings.warn(
             "airflow.exceptions.AirflowDagCycleException is deprecated. "
             "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return AirflowDagCycleException
