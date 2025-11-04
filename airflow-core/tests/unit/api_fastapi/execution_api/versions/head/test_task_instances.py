@@ -2518,6 +2518,75 @@ class TestGetTaskStates:
         assert response.json() == {"task_states": {dr.run_id: expected}}
 
 
+class TestGetTaskInstanceBreadcrumbs:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def dag_run(self, dag_maker, session):
+        with dag_maker(session=session):
+            for name in TaskInstanceState._member_names_:
+                EmptyOperator(task_id=name)
+        return dag_maker.create_dagrun(state="running")
+
+    @pytest.fixture(autouse=True)
+    def task_instances(self, dag_run, session):
+        tis = {ti.task_id: ti for ti in dag_run.task_instances}
+        for name, value in TaskInstanceState._member_map_.items():
+            tis[name].state = value
+        session.commit()
+        return tis
+
+    def test_get_breadcrumbs(self, client, dag_run):
+        response = client.get(
+            "/execution/task-instances/breadcrumbs",
+            params={"dag_id": dag_run.dag_id, "run_id": dag_run.run_id},
+        )
+        assert response.status_code == 200
+        assert response.json() == {  # Should find tis with terminal states.
+            "breadcrumbs": [
+                {
+                    "duration": None,
+                    "map_index": -1,
+                    "operator": "EmptyOperator",
+                    "state": "failed",
+                    "task_id": "FAILED",
+                },
+                {
+                    "duration": None,
+                    "map_index": -1,
+                    "operator": "EmptyOperator",
+                    "state": "removed",
+                    "task_id": "REMOVED",
+                },
+                {
+                    "duration": None,
+                    "map_index": -1,
+                    "operator": "EmptyOperator",
+                    "state": "skipped",
+                    "task_id": "SKIPPED",
+                },
+                {
+                    "duration": None,
+                    "map_index": -1,
+                    "operator": "EmptyOperator",
+                    "state": "success",
+                    "task_id": "SUCCESS",
+                },
+                {
+                    "duration": None,
+                    "map_index": -1,
+                    "operator": "EmptyOperator",
+                    "state": "upstream_failed",
+                    "task_id": "UPSTREAM_FAILED",
+                },
+            ]
+        }
+
+
 class TestInvactiveInletsAndOutlets:
     @pytest.mark.parametrize(
         "logical_date",

@@ -178,16 +178,11 @@ dependencies = [
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
-]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]
