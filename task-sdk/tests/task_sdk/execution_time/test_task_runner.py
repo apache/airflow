@@ -2029,23 +2029,6 @@ class TestRuntimeTaskInstance:
 
             mock_delete.assert_not_called()
 
-    def to_task_instance(self, create_runtime_ti):
-        task = BaseOperator(task_id="test_task")
-        runtime_ti = create_runtime_ti(task=task)
-        ti = runtime_ti.to_task_instance()
-
-        assert not isinstance(ti, RuntimeTaskInstance)
-        assert isinstance(ti, TaskInstance)
-        assert ti.id == runtime_ti.id
-        assert ti.task_id == runtime_ti.task_id
-        assert ti.dag_id == runtime_ti.dag_id
-        assert ti.run_id == runtime_ti.run_id
-        assert ti.try_number == runtime_ti.try_number
-        assert ti.dag_version_id == runtime_ti.dag_version_id
-        assert ti.map_index == runtime_ti.map_index
-        assert ti.hostname == runtime_ti.hostname
-        assert ti.context_carrier == runtime_ti.context_carrier
-
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
