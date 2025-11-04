@@ -1152,11 +1152,6 @@ class TriggerRunner:
             if context:
                 trigger.render_template_fields(context=context)
 
-            # Set RuntimeTaskInstance needed to be able to render templated fields back to base datamodel
-            # until we get a proper split of the trigger
-            if isinstance(trigger.task_instance, RuntimeTaskInstance):
-                trigger.task_instance = trigger.task_instance.to_task_instance()
-
             async for event in trigger.run():
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
