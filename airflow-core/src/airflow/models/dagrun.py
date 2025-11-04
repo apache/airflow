@@ -250,6 +250,7 @@ class DagRun(Base, LoggingMixin):
             postgresql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         ),
+        Index("idx_dag_run_start_date", "start_date"),
     )
 
     task_instances = relationship(
