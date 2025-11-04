@@ -34,7 +34,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -574,7 +574,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
             kube_client: client.CoreV1Api = self.kube_client
             for scheduler_job_id in scheduler_job_ids:
-                scheduler_job_id = cast("int", self._make_safe_label_value(str(scheduler_job_id)))
+                scheduler_job_id_safe_label = self._make_safe_label_value(str(scheduler_job_id))
                 # We will look for any pods owned by the no-longer-running scheduler,
                 # but will exclude only successful pods, as those TIs will have a terminal state
                 # and not be up for adoption!
@@ -584,7 +584,7 @@ class KubernetesExecutor(BaseExecutor):
                     "field_selector": "status.phase!=Succeeded",
                     "label_selector": (
                         "kubernetes_executor=True,"
-                        f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True"
+                        f"airflow-worker={scheduler_job_id_safe_label},{POD_EXECUTOR_DONE_KEY}!=True"
                     ),
                 }
                 pod_list = self._list_pods(query_kwargs)
