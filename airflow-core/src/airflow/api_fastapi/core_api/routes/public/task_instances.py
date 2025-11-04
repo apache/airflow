@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -189,8 +190,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_TI_and_TIH_for_validation())
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -317,8 +317,7 @@ def get_task_instance_tries(
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
             )
-            .options(joinedload(orm_object.dag_version))
-            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
+            .options(*eager_load_TI_and_TIH_for_validation(orm_object))
         )
         return query
 
@@ -458,11 +457,7 @@ def get_task_instances(
     """
     dag_run = None
     query = (
-        select(TI)
-        .join(TI.dag_run)
-        .outerjoin(TI.dag_version)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
     )
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -587,7 +582,9 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = select(TI)
+    query = (
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+    )
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
