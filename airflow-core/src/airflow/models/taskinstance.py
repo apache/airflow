@@ -1257,7 +1257,6 @@ class TaskInstance(Base, LoggingMixin):
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         DualStatsManager.timing(
-            f"dag.{self.dag_id}.{self.task_id}.{metric_name}",
             f"task.{metric_name}",
             timing,
             tags={},
@@ -1528,7 +1527,6 @@ class TaskInstance(Base, LoggingMixin):
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         DualStatsManager.incr(
-            f"operator_failures_{ti.operator}",
             "operator_failures",
             tags=ti.stats_tags,
             extra_tags={"operator": ti.operator},

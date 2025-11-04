@@ -21,6 +21,7 @@ from contextlib import AbstractContextManager, ExitStack, nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.configuration import conf
+from airflow.metrics.metrics_registry import MetricsRegistry
 from airflow.stats import Stats
 
 if TYPE_CHECKING:
@@ -108,11 +109,45 @@ class DualStatsManager:
     """Helper class to abstract enabling/disabling the export of metrics with legacy names."""
 
     export_legacy_names = conf.getboolean("metrics", "legacy_names_on")
+    metrics_dict = MetricsRegistry()
+
+    @classmethod
+    def get_legacy_stat(cls, stat: str, variables: dict[str, Any]) -> str | None:
+        stat_from_registry = cls.metrics_dict.get(name=stat)
+
+        # Validation 1: The metric must exist in the registry.
+        if not stat_from_registry:
+            raise ValueError(
+                f"Metric '{stat}' not found in the registry. Add the metric to the YAML file before using it."
+            )
+
+        legacy_name = stat_from_registry.get("legacy_name", "-")
+
+        if legacy_name == "-":
+            return None
+
+        # Get the required variables for the legacy name.
+        required_vars = stat_from_registry.get("name_variables", [])
+
+        # Validation 2: There must be a value for all required variables.
+        missing_vars = set(required_vars) - set(variables.keys())
+        if missing_vars:
+            raise ValueError(
+                f"Missing required variables for metric '{stat}': {sorted(missing_vars)}. "
+                f"Required variables found in the registry: {required_vars}. "
+                f"Provided variables: {sorted(variables.keys())}. "
+                f"Provide all required variables."
+            )
+
+        # Extract only the variables needed for the legacy name.
+        legacy_vars = {k: variables[k] for k in required_vars if k in variables}
+
+        # Format and return the legacy name.
+        return legacy_name.format(**legacy_vars)
 
     @classmethod
     def incr(
         cls,
-        legacy_stat: str,
         stat: str,
         count: int | None = None,
         rate: int | float | None = None,
@@ -123,6 +158,9 @@ class DualStatsManager:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
         if cls.export_legacy_names:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+
+            # Emit legacy metric
             Stats.incr(legacy_stat, **kw)
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
@@ -131,7 +169,6 @@ class DualStatsManager:
     @classmethod
     def decr(
         cls,
-        legacy_stat: str,
         stat: str,
         count: int | None = None,
         rate: int | float | None = None,
@@ -142,6 +179,8 @@ class DualStatsManager:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
         if cls.export_legacy_names:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+
             Stats.decr(legacy_stat, **kw)
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
@@ -150,7 +189,6 @@ class DualStatsManager:
     @classmethod
     def gauge(
         cls,
-        legacy_stat: str,
         stat: str,
         value: float,
         rate: int | float | None = None,
@@ -162,6 +200,8 @@ class DualStatsManager:
         kw = _get_dict_with_defined_args(None, rate, delta, tags)
 
         if cls.export_legacy_names:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+
             Stats.gauge(legacy_stat, value, **kw)
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
@@ -170,7 +210,6 @@ class DualStatsManager:
     @classmethod
     def timing(
         cls,
-        legacy_stat: str,
         stat: str,
         dt: DeltaType,
         *,
@@ -178,6 +217,8 @@ class DualStatsManager:
         extra_tags: dict[str, Any] | None = None,
     ) -> None:
         if cls.export_legacy_names:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+
             if tags:
                 Stats.timing(legacy_stat, dt, tags=tags)
             else:
@@ -193,7 +234,6 @@ class DualStatsManager:
     @classmethod
     def timer(
         cls,
-        legacy_stat: str,
         stat: str,
         tags: dict[str, Any] | None = None,
         extra_tags: dict[str, Any] | None = None,
@@ -205,11 +245,15 @@ class DualStatsManager:
 
         # Used with a context manager.
         stack = ExitStack()
-        ctx_mg1: AbstractContextManager[Any] = (
-            cast("AbstractContextManager[Any]", Stats.timer(legacy_stat, **kw))
-            if cls.export_legacy_names
-            else nullcontext()
-        )
+
+        if cls.export_legacy_names:
+            legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
+
+            ctx_mg1: AbstractContextManager[Any] = cast(
+                "AbstractContextManager[Any]", Stats.timer(legacy_stat, **kw)
+            )
+        else:
+            ctx_mg1: AbstractContextManager[Any] = nullcontext()
 
         stack.enter_context(ctx_mg1)
 

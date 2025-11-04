@@ -175,7 +175,6 @@ def set_metrics(
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         DualStatsManager.gauge(
-            f"edge_worker.connected.{worker_name}",
             "edge_worker.connected",
             int(connected),
             tags={},
@@ -183,7 +182,6 @@ def set_metrics(
         )
 
         DualStatsManager.gauge(
-            f"edge_worker.maintenance.{worker_name}",
             "edge_worker.maintenance",
             int(maintenance),
             tags={},
@@ -191,7 +189,6 @@ def set_metrics(
         )
 
         DualStatsManager.gauge(
-            f"edge_worker.jobs_active.{worker_name}",
             "edge_worker.jobs_active",
             jobs_active,
             tags={},
@@ -199,7 +196,6 @@ def set_metrics(
         )
 
         DualStatsManager.gauge(
-            f"edge_worker.concurrency.{worker_name}",
             "edge_worker.concurrency",
             concurrency,
             tags={},
@@ -207,7 +203,6 @@ def set_metrics(
         )
 
         DualStatsManager.gauge(
-            f"edge_worker.free_concurrency.{worker_name}",
             "edge_worker.free_concurrency",
             free_concurrency,
             tags={},
@@ -215,7 +210,6 @@ def set_metrics(
         )
 
         DualStatsManager.gauge(
-            f"edge_worker.num_queues.{worker_name}",
             "edge_worker.num_queues",
             len(queues),
             tags={},
