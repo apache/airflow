@@ -127,7 +127,7 @@
   },
   "nav": {
     "admin": "Verwaltung",
-    "assets": "Datensets (Assets)",
+    "assets": "Datensets",
     "browse": "Browsen",
     "dags": "Dags",
     "docs": "Doku",
