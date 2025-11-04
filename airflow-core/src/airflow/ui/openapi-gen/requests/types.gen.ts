@@ -998,7 +998,7 @@ export type HITLDetailCollection = {
 /**
  * Schema for Human-in-the-loop detail history.
  */
-export type HITLDetailHisotry = {
+export type HITLDetailHistory = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -1375,7 +1375,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHisotry | null;
+    hitl_detail: HITLDetailHistory | null;
 };
 
 /**

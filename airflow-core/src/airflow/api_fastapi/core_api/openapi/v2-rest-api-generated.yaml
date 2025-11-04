@@ -11191,7 +11191,7 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailHisotry:
+    HITLDetailHistory:
       properties:
         options:
           items:
@@ -11261,7 +11261,7 @@ components:
       - options
       - subject
       - created_at
-      title: HITLDetailHisotry
+      title: HITLDetailHistory
       description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
@@ -12152,7 +12152,7 @@ components:
           - type: 'null'
         hitl_detail:
           anyOf:
-          - $ref: '#/components/schemas/HITLDetailHisotry'
+          - $ref: '#/components/schemas/HITLDetailHistory'
           - type: 'null'
       type: object
       required:
