@@ -66,7 +66,7 @@ def triggerer(args):
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
-    if hasattr(args, "dev") and args.dev:
+    if cli_utils.should_enable_hot_reload(args):
         from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(
