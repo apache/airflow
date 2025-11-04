@@ -1342,6 +1342,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
 
+    def __hash__(self):
+        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
+
     def __repr__(self) -> str:
         return f"<SerializedTask({self.task_type}): {self.task_id}>"
 

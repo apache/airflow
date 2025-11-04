@@ -124,11 +124,17 @@ if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    try:
+        from airflow.models.dagbag import DagBag
+    except (ImportError, AttributeError):
+        DagBag = None
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
-        dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
+        if DagBag is None:
+            return []
+        dagbag = DagBag(read_dags_from_db=True)
+        if hasattr(dagbag, "collect_dags_from_db"):
+            dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 
 
@@ -1643,7 +1649,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return perm
         resource = self.create_resource(resource_name)
         if resource is None:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, "Resource creation failed %s", resource_name)
             return None
         action = self.create_action(action_name)
         perm = self.permission_model()

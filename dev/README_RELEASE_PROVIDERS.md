@@ -37,7 +37,7 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
+  - [Push the RC tags](#push-the-rc-tags)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
@@ -47,7 +47,7 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
-  - [Add tags in git](#add-tags-in-git-1)
+  - [Add tags in git](#add-tags-in-git)
   - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
@@ -121,7 +121,7 @@ command involved in the release process. The value can also be passed as the `--
 Follow the steps below to set the environment variable:
 
 ```shell script
- export DISTRIBUTIONS_LIST=PACKAGE1,PACKAGE2
+ export DISTRIBUTIONS_LIST="PACKAGE1 PACKAGE2"
 ```
 
 ```shell script
@@ -366,9 +366,16 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Release candidate packages:
 
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the providers in the repo.
+
+
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
+echo "Tagging with providers/${PACKAGE_DATE}"
+git tag -s providers/${PACKAGE_DATE} -m "Tag providers for ${PACKAGE_DATE}" --force
+git push apache providers/${PACKAGE_DATE}
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -376,13 +383,15 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
-breeze release-management prepare-airflow-tarball --version ${PACKGE_DATE} --distribution-name apache_airflow_providers
+echo "Tagging with providers/${PACKAGE_DATE}"
+git tag -s providers/${PACKAGE_DATE} -m "Tag providers for ${PACKAGE_DATE}" --force
+git push apache providers/${PACKAGE_DATE}
+breeze release-management prepare-airflow-tarball --version ${PACKAGE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
 you want to release it before you switch their state to ``ready``), you need to pass
 ``--include-not-ready-providers`` flag to the command above.
-
 
 * Sign all your packages
 
@@ -467,7 +476,7 @@ breeze release-management prepare-provider-distributions
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze release-management prepare-provider-distributions --distributions-list PACKAGE1,PACKAGE2
+breeze release-management prepare-provider-distributions --distributions-list "PACKAGE1 PACKAGE2"
 ```
 
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
@@ -489,16 +498,9 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Confirm that the packages are available under the links printed and look good.
 
+## Push the RC tags
 
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
 ```shell script
 breeze release-management tag-providers
@@ -844,7 +846,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 ```shell
 git fetch apache --tags
-git checkout providers/2025-10-20
+git checkout providers/2025-10-31
 ```
 
 3) Remove all the packages you have in dist folder
@@ -1304,10 +1306,10 @@ By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
+git checkout providers/YYYY-MM-DD
 ```
 
-example `git checkout providers-amazon/7.0.0rc2`
+example `git checkout providers/2025-10-31`
 
 Note you probably will see message `You are in 'detached HEAD' state.`
 This is expected, the RC tag is most likely behind the main branch.
