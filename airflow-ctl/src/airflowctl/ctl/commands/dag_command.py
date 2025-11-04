@@ -24,8 +24,8 @@ import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import DAGPatchBody
-from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.api.operations import ServerResponseError
+from airflowctl.ctl.console_formatting import AirflowConsole
 
 
 def update_dag_state(
