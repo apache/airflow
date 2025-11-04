@@ -205,6 +205,6 @@ class RunTrigger(BaseModel):
 
 
 All = Annotated[
-    ExecuteTask | RunTrigger,
+    ExecuteTask | ExecuteCallback | RunTrigger,
     Field(discriminator="type"),
 ]

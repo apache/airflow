@@ -139,17 +139,31 @@ class CeleryExecutor(BaseExecutor):
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
-        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
         from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
-        tasks = [
-            (workload.ti.key, workload, workload.ti.queue, execute_workload)
-            for workload in workloads
-            if isinstance(workload, ExecuteTask)
-        ]
-        if len(tasks) != len(workloads):
-            invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
-            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+        tasks = []
+        for workload in workloads:
+            if isinstance(workload, ExecuteTask):
+                tasks.append((workload.ti.key, workload, workload.ti.queue, execute_workload))
+            elif isinstance(workload, ExecuteCallback):
+                # For callbacks, use a synthetic key based on callback ID
+                from airflow.models.taskinstancekey import TaskInstanceKey
+
+                callback_key = TaskInstanceKey(
+                    dag_id="callback",
+                    task_id=str(workload.callback.id),
+                    run_id="callback",
+                    try_number=1,
+                    map_index=-1,
+                )
+                # Use default queue for callbacks, or extract from callback data if available
+                queue = "default"
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
+                tasks.append((callback_key, workload, queue, execute_workload))
+            else:
+                raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
 
         self._send_tasks(tasks)
 
@@ -362,8 +376,20 @@ class CeleryExecutor(BaseExecutor):
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
+        from airflow.models.taskinstancekey import TaskInstanceKey
 
-        if not isinstance(workload, workloads.ExecuteTask):
+        if isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+        elif isinstance(workload, workloads.ExecuteCallback):
+            # For callbacks, use a synthetic key based on callback ID
+            callback_key = TaskInstanceKey(
+                dag_id="callback",
+                task_id=str(workload.callback.id),
+                run_id="callback",
+                try_number=1,
+                map_index=-1,
+            )
+            self.queued_tasks[callback_key] = workload
+        else:
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload

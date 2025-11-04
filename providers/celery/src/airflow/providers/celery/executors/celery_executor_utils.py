@@ -148,9 +148,6 @@ def execute_workload(input: str) -> None:
 
     celery_task_id = app.current_task.request.id
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
-
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
@@ -159,15 +156,53 @@ def execute_workload(input: str) -> None:
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    if isinstance(workload, workloads.ExecuteTask):
+        supervise(
+            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            dag_rel_path=workload.dag_rel_path,
+            bundle_info=workload.bundle_info,
+            token=workload.token,
+            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+            log_path=workload.log_path,
+        )
+    elif isinstance(workload, workloads.ExecuteCallback):
+        # Execute callback workload - import and execute the callback function
+        from airflow.models.callback import CallbackFetchMethod
+
+        callback = workload.callback
+        if callback.fetch_type != CallbackFetchMethod.IMPORT_PATH:
+            raise ValueError(
+                f"CeleryExecutor only supports callbacks with fetch_type={CallbackFetchMethod.IMPORT_PATH}, "
+                f"got {callback.fetch_type}"
+            )
+
+        # Extract callback path and kwargs from data
+        if not isinstance(callback.data, dict):
+            raise ValueError(f"Callback data must be a dict, got {type(callback.data)}")
+
+        callback_path = callback.data.get("path")
+        callback_kwargs = callback.data.get("kwargs") or {}
+
+        if not callback_path:
+            raise ValueError("Callback path not found in callback data")
+
+        # Import the callback function using Airflow's import_string utility
+        from airflow.utils.module_loading import import_string
+
+        callback_func = import_string(callback_path)
+
+        # Execute the callback
+        log.info("[%s] Executing callback: %s", celery_task_id, callback_path)
+        try:
+            result = callback_func(**callback_kwargs)
+            log.info("[%s] Callback executed successfully", celery_task_id)
+            return result
+        except Exception:
+            log.exception("[%s] Callback execution failed", celery_task_id)
+            raise
+    else:
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
 
 if not AIRFLOW_V_3_0_PLUS:

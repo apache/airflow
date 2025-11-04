@@ -71,7 +71,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.callback import Callback
+from airflow.models.callback import Callback, CallbackState, ExecutorCallback
 from airflow.models.dag import DagModel, get_next_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -883,6 +883,103 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return len(queued_tis)
 
+    def _enqueue_executor_callbacks(self, session: Session) -> None:
+        """
+        Enqueue ExecutorCallback workloads to executors.
+
+        Similar to _enqueue_task_instances, but for callbacks that need to run on executors.
+        Queries for QUEUED ExecutorCallback instances and routes them to the appropriate executor.
+
+        :param session: The database session
+        """
+        # Query for QUEUED ExecutorCallback instances
+        from airflow.models.callback import CallbackType
+
+        queued_callbacks = session.scalars(
+            select(ExecutorCallback)
+            .where(ExecutorCallback.type == CallbackType.EXECUTOR)
+            .where(ExecutorCallback.state == CallbackState.QUEUED)
+            .order_by(ExecutorCallback.priority_weight.desc())
+            .limit(conf.getint("scheduler", "max_callback_workloads_per_loop", fallback=100))
+        ).all()
+
+        if not queued_callbacks:
+            return
+
+        # Group callbacks by executor (based on callback executor attribute or default executor)
+        executor_to_callbacks: dict[BaseExecutor, list[ExecutorCallback]] = defaultdict(list)
+
+        for callback in queued_callbacks:
+            # Get the executor name from callback data if specified
+            executor_name = None
+            if isinstance(callback.data, dict):
+                executor_name = callback.data.get("executor")
+
+            # Find the appropriate executor
+            executor = None
+            if executor_name:
+                # Find executor by name - try multiple matching strategies
+                for exec in self.job.executors:
+                    # Match by class name (e.g., "CeleryExecutor")
+                    if exec.__class__.__name__ == executor_name:
+                        executor = exec
+                        break
+                    # Match by executor name attribute if available
+                    if hasattr(exec, "name") and exec.name and str(exec.name) == executor_name:
+                        executor = exec
+                        break
+                    # Match by executor name attribute if available
+                    if hasattr(exec, "executor_name") and exec.executor_name == executor_name:
+                        executor = exec
+                        break
+
+            # Default to first executor if no specific executor found
+            if executor is None:
+                executor = self.job.executors[0] if self.job.executors else None
+
+            if executor is None:
+                self.log.warning("No executor available for callback %s", callback.id)
+                continue
+
+            executor_to_callbacks[executor].append(callback)
+
+        # Enqueue callbacks for each executor
+        for executor, callbacks in executor_to_callbacks.items():
+            for callback in callbacks:
+                # Get the associated DagRun for the callback
+                # For deadline callbacks, we stored dag_run_id in the callback data
+                dag_run = None
+                if isinstance(callback.data, dict) and "dag_run_id" in callback.data:
+                    dag_run_id = callback.data["dag_run_id"]
+                    dag_run = session.get(DagRun, dag_run_id)
+                elif isinstance(callback.data, dict) and "dag_id" in callback.data:
+                    # Fallback: try to find the latest dag_run for the dag_id
+                    dag_id = callback.data["dag_id"]
+                    dag_run = session.scalars(
+                        select(DagRun)
+                        .where(DagRun.dag_id == dag_id)
+                        .order_by(DagRun.execution_date.desc())
+                        .limit(1)
+                    ).first()
+
+                if dag_run is None:
+                    self.log.warning("Could not find DagRun for callback %s", callback.id)
+                    continue
+
+                # Create ExecuteCallback workload
+                workload = workloads.ExecuteCallback.make(
+                    callback=callback,
+                    dag_run=dag_run,
+                    generator=executor.jwt_generator,
+                )
+
+                # Queue the workload
+                executor.queue_workload(workload, session=session)
+
+                # Update callback state to RUNNING
+                callback.state = CallbackState.RUNNING
+                session.add(callback)
+
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
         objects = (log_records.popleft() for _ in range(len(log_records)))
@@ -1559,6 +1656,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     ):
                         deadline.handle_miss(session)
+
+                    # Route ExecutorCallback workloads to executors (similar to task routing)
+                    self._enqueue_executor_callbacks(session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
