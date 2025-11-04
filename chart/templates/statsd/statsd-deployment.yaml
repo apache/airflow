@@ -61,8 +61,8 @@ spec:
         tier: airflow
         component: statsd
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or .Values.labels .Values.statsd.labels }}
+          {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:

@@ -57,8 +57,8 @@ spec:
         tier: airflow
         component: redis
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or .Values.labels .Values.redis.labels }}
+          {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
