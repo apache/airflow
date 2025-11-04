@@ -90,7 +90,8 @@ Airflow installation.
     other development dependencies that are only used in tests.
 
     Some providers may not be available for a specific Python version. If you are using constraints, make sure
-    that all providers version are there. Provider will be (silently) not installed if it is not present in constraints.
+    that all providers, that you want to install, are present in constraints file.
+    Provider will be (silently) not installed if it is not present in constraints.
 
 Reproducible Airflow installation
 =================================
