@@ -213,8 +213,8 @@ metrics:
     description: "Number of tasks instances created for a given Operator.
     Metric with dag_id and run_type tagging."
     type: "counter"
-    legacy_name: "task_instance_created_{operator_name}"
-    name_variables: ["operator_name"]
+    legacy_name: "task_instance_created_{task_type}"
+    name_variables: ["task_type"]
 
   - name: "triggerer_heartbeat"
     description: "Triggerer heartbeats"

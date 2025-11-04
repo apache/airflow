@@ -606,7 +606,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         DualStatsManager.gauge(
-            f"triggers.running.{self.job.hostname}",
             "triggers.running",
             len(self.running_triggers),
             tags={},
@@ -615,7 +614,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         capacity_left = self.capacity - len(self.running_triggers)
         DualStatsManager.gauge(
-            f"triggerer.capacity_left.{self.job.hostname}",
             "triggerer.capacity_left",
             capacity_left,
             tags={},

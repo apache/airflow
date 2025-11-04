@@ -234,3 +234,54 @@ class TestDualStatsManager:
     ):
         tags_full = dual_stats_manager._get_tags_with_extra(tags, extra_tags)
         assert sorted(tags_full) == sorted(expected_tags_dict)
+
+    @pytest.mark.parametrize(
+        "stat, variables, expected_legacy_stat, raises_value_error, expected_error_msg",
+        [
+            pytest.param(
+                "operator_failures",
+                {"operator_name": "exec1"},
+                "operator_failures_exec1",
+                False,
+                "",
+                id="no_errors",
+            ),
+            pytest.param(
+                "operator_failures",
+                {},
+                "operator_failures_exec1",
+                True,
+                "Missing required variables for metric",
+                id="missing_params",
+            ),
+            pytest.param(
+                "missing_metric",
+                {},
+                "",
+                True,
+                "Add the metric to the YAML file before using it.",
+                id="missing_metric",
+            ),
+        ],
+    )
+    def test_get_legacy_stat_from_registry(
+        self,
+        stat: str,
+        variables: dict[str, Any],
+        expected_legacy_stat: str,
+        raises_value_error: bool,
+        expected_error_msg: str,
+    ):
+        from airflow.metrics.dual_stats_manager import DualStatsManager
+
+        manager = DualStatsManager()
+
+        if raises_value_error:
+            with pytest.raises(
+                ValueError,
+                match=expected_error_msg,
+            ):
+                manager.get_legacy_stat(stat, variables)
+        else:
+            legacy_stat = manager.get_legacy_stat(stat, variables)
+            assert legacy_stat == expected_legacy_stat
