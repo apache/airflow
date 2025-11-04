@@ -75,6 +75,7 @@ dependencies = [
     # End of shared logging dependencies
     # Start of shared configuration dependencies
     "packaging>=24.0",
+    "typing-extensions>=4.14.1",
     # End of shared configuration dependencies
 ]
 

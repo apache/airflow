@@ -150,6 +150,9 @@ dependencies = [
     "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     # End of shared logging dependencies
+    # Start of shared configuration dependencies
+    "pyyaml>=6.0.2",
+    # End of shared configuration dependencies
 ]
 
 

@@ -24,7 +24,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "packaging>=24.0",
+    "packaging>=25.0",
+    "typing-extensions>=4.14.1",
+    "pendulum>=3.1.0",
 ]
 
 [dependency-groups]
