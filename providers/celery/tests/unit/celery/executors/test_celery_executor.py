@@ -461,3 +461,176 @@ def test_celery_extra_celery_config_loaded_from_string():
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["worker_max_tasks_per_child"] == 10
+
+
+class TestCeleryExecutorPendingTimeout:
+    """Unit tests for CeleryExecutor pending timeout functionality via update_task_state."""
+
+    def test_update_task_state_pending_timeout_disabled_no_timeout(self):
+        """
+        Test update_task_state with pending_task_timeout DISABLED (0).
+        Tasks in celery PENDING state should NOT timeout regardless of duration.
+        """
+        import time
+
+        from celery import states as celery_states
+
+        with _prepare_app(), mock.patch("airflow.configuration.conf.getint") as mock_getint:
+            def getint_side_effect(section, key, fallback=None):
+                if key == "task_pending_timeout":
+                    return 0  # DISABLED
+                return fallback
+
+            mock_getint.side_effect = getint_side_effect
+
+            executor = celery_executor.CeleryExecutor()
+
+            key = TaskInstanceKey(
+                dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1, map_index=-1
+            )
+
+            executor.tasks[key] = mock.MagicMock()
+
+            # First update_task_state call - PENDING state, records timestamp
+            executor.update_task_state(key, celery_states.PENDING, None)
+
+            # Verify timeout disabled, so no timestamp tracking
+            assert key not in executor.task_pending_since
+
+            # Simulate time passing (10 seconds) - manually add timestamp to test
+            executor.task_pending_since[key] = time.monotonic() - 10
+
+            # Second update_task_state call - still PENDING, but timeout DISABLED
+            executor.update_task_state(key, celery_states.PENDING, None)
+
+            # Task should NOT be in event_buffer (not failed)
+            assert key not in executor.event_buffer
+
+    def test_update_task_state_pending_timeout_exceeded_fails_task(self):
+        """
+        Test update_task_state with pending_task_timeout ENABLED.
+        When timeout is exceeded, task should be failed.
+        """
+        import time
+
+        from celery import states as celery_states
+
+        with _prepare_app(), mock.patch("airflow.configuration.conf.getint") as mock_getint:
+            def getint_side_effect(section, key, fallback=None):
+                if key == "task_pending_timeout":
+                    return 5  # ENABLED - 5 second timeout
+                return fallback
+
+            mock_getint.side_effect = getint_side_effect
+
+            executor = celery_executor.CeleryExecutor()
+
+            key = TaskInstanceKey(
+                dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1, map_index=-1
+            )
+
+            # Add task to executor
+            executor.tasks[key] = mock.MagicMock()
+
+            # First update_task_state call - PENDING state, records timestamp
+            executor.update_task_state(key, celery_states.PENDING, None)
+            assert key in executor.task_pending_since
+            assert key in executor.running
+            assert key in executor.tasks
+
+            # Simulate time passing (3 seconds - WITHIN 5 second timeout)
+            executor.task_pending_since[key] = time.monotonic() - 3
+
+            # Second update_task_state call - still PENDING, but within threshold
+            executor.update_task_state(key, celery_states.PENDING, None)
+
+            # Task should NOT be evicted
+            assert key in executor.task_pending_since
+            assert key in executor.running
+            assert key in executor.tasks
+            assert key not in executor.event_buffer
+
+            # Simulate time passing (10 seconds - exceeds 5 second timeout)
+            executor.task_pending_since[key] = time.monotonic() - 10
+
+            # Third update_task_state call - still PENDING, timeout exceeded
+            executor.update_task_state(key, celery_states.PENDING, None)
+
+            # Task should be failed
+            assert key in executor.event_buffer
+            assert executor.event_buffer[key][0] == State.FAILED
+
+            # Timestamp should be cleaned up
+            assert key not in executor.task_pending_since
+            assert key not in executor.running
+            assert key not in executor.tasks
+
+    def test_update_task_state_pending_to_started_cleans_timestamp(self):
+        """
+        Test update_task_state when task transitions from PENDING to STARTED.
+        Timestamp tracking should be cleaned up.
+        """
+        from celery import states as celery_states
+
+        with _prepare_app(), mock.patch("airflow.configuration.conf.getint") as mock_getint:
+            def getint_side_effect(section, key, fallback=None):
+                if key == "task_pending_timeout":
+                    return 5  # ENABLED - 5 second timeout
+                return fallback
+
+            mock_getint.side_effect = getint_side_effect
+
+            executor = celery_executor.CeleryExecutor()
+
+            key = TaskInstanceKey(
+                dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1, map_index=-1
+            )
+
+            # Add task to executor
+            executor.tasks[key] = mock.MagicMock()
+
+            # First update_task_state call - PENDING state
+            executor.update_task_state(key, celery_states.PENDING, None)
+            assert key in executor.task_pending_since
+
+            # Second update_task_state call - task transitions to STARTED
+            executor.update_task_state(key, celery_states.STARTED, None)
+
+            # Timestamp should be cleaned up
+            assert key not in executor.task_pending_since
+
+    def test_update_task_state_non_pending_states_no_timestamp(self):
+        """
+        Test update_task_state with non-PENDING states (SUCCESS, FAILURE, STARTED).
+        These states should NOT record timestamps.
+        """
+        from celery import states as celery_states
+
+        with _prepare_app(), mock.patch("airflow.configuration.conf.getint") as mock_getint:
+            def getint_side_effect(section, key, fallback=None):
+                if key == "task_pending_timeout":
+                    return 5  # ENABLED - 5 second timeout
+                return fallback
+
+            mock_getint.side_effect = getint_side_effect
+
+            executor = celery_executor.CeleryExecutor()
+
+            # Test different non-PENDING states
+            for state in [celery_states.SUCCESS, celery_states.FAILURE, celery_states.STARTED]:
+                key = TaskInstanceKey(
+                    dag_id="test_dag",
+                    task_id=f"task_{state}",
+                    run_id="test_run",
+                    try_number=1,
+                    map_index=-1,
+                )
+
+                # Add task to executor
+                executor.tasks[key] = mock.MagicMock()
+
+                # update_task_state with non-PENDING state
+                executor.update_task_state(key, state, None)
+
+                # Should NOT record timestamp
+                assert key not in executor.task_pending_since

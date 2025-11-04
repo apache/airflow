@@ -321,6 +321,18 @@ config:
         type: integer
         example: ~
         default: "3"
+      task_pending_timeout:
+        description: |
+          Timeout in seconds for tasks in Celery's PENDING state (queued to Celery broker
+          but not yet picked up by a worker). When exceeded, tasks are marked as failed and
+          removed from the executor. This prevents executor slot leaks when tasks are sent
+          to queues for which no worker are available.
+
+          Set to 0 to disable (default)
+        version_added: ~
+        type: integer
+        example: "300"
+        default: "0"
       extra_celery_config:
         description: |
           Extra celery configs to include in the celery worker.

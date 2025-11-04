@@ -312,6 +312,9 @@ class CeleryExecutor(BaseExecutor):
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
 
+        self.task_pending_since: dict[TaskInstanceKey, float] = {}
+        self.pending_task_timeout: int = conf.getint("celery", "task_pending_timeout", fallback=0)
+
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
 
@@ -435,6 +438,32 @@ class CeleryExecutor(BaseExecutor):
     ) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.tasks.pop(key, None)
+        self.task_pending_since.pop(key, None)
+
+    def _pending_task_timed_out(self, key: TaskInstanceKey) -> bool:
+        """
+        Check if a task has been stuck in celery_states.PENDING state beyond the timeout threshold.
+
+        This to guard against task leak scenario:
+         1. Celery executor sends task to a specific celery queue
+         2. Celery worker is unavailable for the given queue. Celery task is in PENDING state.
+         3. DagRun timeout kicks in, setting DagRun and associated TaskInstance(s) to failed but not deleting
+            the task from self.running
+         4. The executor's self.running continuously fills up until hitting self.parallelism
+            where it can no longer schedule tasks for any other queue
+        """
+        if self.pending_task_timeout <= 0:
+            return False
+
+        if key not in self.task_pending_since:
+            # Task just entered PENDING, record timestamp
+            self.task_pending_since[key] = time.monotonic()
+            self.log.debug("Task %s entered PENDING state", key)
+            return False
+
+        # Check if task has been PENDING for too long
+        pending_duration = time.monotonic() - self.task_pending_since[key]
+        return pending_duration > self.pending_task_timeout
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Update state of a single task."""
@@ -443,8 +472,26 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 self.fail(key, info)
-            elif state in (celery_states.STARTED, celery_states.PENDING, celery_states.RETRY):
-                pass
+            elif state == celery_states.PENDING:
+                if self._pending_task_timed_out(key):
+                    pending_duration = time.monotonic() - self.task_pending_since[key]
+                    self.log.warning(
+                        "Task %s has been PENDING in Celery for %.1f seconds (timeout: %d seconds). "
+                        "Failing task. This typically indicates the task was sent to a non-existent "
+                        "queue or no workers are available to pick it up.",
+                        key,
+                        pending_duration,
+                        self.pending_task_timeout,
+                    )
+                    # Fail the task and clean up tracking
+                    self.fail(
+                        key,
+                        f"Task stuck in PENDING state for {pending_duration:.1f}s (timeout: {self.pending_task_timeout}s). "
+                        f"Check queue configuration and worker availability.",
+                    )
+            elif state in (celery_states.STARTED, celery_states.RETRY):
+                # Task has progressed beyond PENDING, clean up tracking
+                self.task_pending_since.pop(key, None)
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
         except Exception:
