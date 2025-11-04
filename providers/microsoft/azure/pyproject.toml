@@ -74,7 +74,6 @@ dependencies = [
     "azure-servicebus>=7.12.1",
     "azure-synapse-spark>=0.2.0",
     "azure-synapse-artifacts>=0.17.0",
-    "adal>=1.2.7",
     "azure-storage-file-datalake>=12.9.1",
     # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
     # azure-kusto-data 5.0.0 pins requests to a specific version which makes resolving dependencies harder
