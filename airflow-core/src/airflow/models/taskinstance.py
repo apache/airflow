@@ -1179,37 +1179,6 @@ class TaskInstance(Base, LoggingMixin):
                 cls.logger().info("Executing %s on %s", ti.task, ti.logical_date)
         return True
 
-    @provide_session
-    def check_and_change_state_before_execution(
-        self,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        pool: str | None = None,
-        external_executor_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> bool:
-        return TaskInstance._check_and_change_state_before_execution(
-            task_instance=self,
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            hostname=get_hostname(),
-            pool=pool,
-            external_executor_id=external_executor_id,
-            session=session,
-        )
-
     def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
         Send a time metric representing how much time a given state transition took.
@@ -1476,21 +1445,7 @@ class TaskInstance(Base, LoggingMixin):
             serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
             self.task = serialized_dag.get_task(original_task.task_id)
 
-        res = self.check_and_change_state_before_execution(
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            pool=pool,
-            session=session,
-        )
         self.task = original_task
-        if not res:
-            return
 
         self._run_raw_task(mark_success=mark_success)
 

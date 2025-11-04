@@ -74,9 +74,6 @@ def test_listener_gets_calls(create_task_instance, session):
     lm.add_listener(full_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
-    # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
-    # that only happens on `check_and_change_state_before_execution()` that is called before
-    # `run()` calls `_run_raw_task()`
     ti.run()
 
     assert len(full_listener.state) == 2
@@ -110,9 +107,6 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session):
     lm.add_listener(partial_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
-    # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
-    # that only happens on `check_and_change_state_before_execution()` that is called before
-    # `run()` calls `_run_raw_task()`
     ti.run()
 
     assert len(partial_listener.state) == 1
