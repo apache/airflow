@@ -414,7 +414,7 @@ class TestGCSToS3Operator:
             )
 
             # Verify warning was logged during initialization
-            expected_warning = "flatten_structure=True overrides keep_directory_structure=True"
+            expected_warning = "flatten_structure=True takes precedence over keep_directory_structure=True"
             mock_log.warning.assert_called_once_with(expected_warning)
 
     @pytest.mark.parametrize(

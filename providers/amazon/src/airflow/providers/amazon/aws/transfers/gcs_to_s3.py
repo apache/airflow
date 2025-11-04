@@ -41,6 +41,8 @@ class GCSToS3Operator(BaseOperator):
 
     .. note::
         When flatten_structure=True, it takes precedence over keep_directory_structure.
+        For example, with flatten_structure=True, "folder/subfolder/file.txt" becomes "file.txt"
+        regardless of the keep_directory_structure setting.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -134,7 +136,7 @@ class GCSToS3Operator(BaseOperator):
         self.flatten_structure = flatten_structure
 
         if self.flatten_structure and self.keep_directory_structure:
-            self.log.warning("flatten_structure=True overrides keep_directory_structure=True")
+            self.log.warning("flatten_structure=True takes precedence over keep_directory_structure=True")
         try:
             from airflow.providers.google import __version__ as _GOOGLE_PROVIDER_VERSION
 
