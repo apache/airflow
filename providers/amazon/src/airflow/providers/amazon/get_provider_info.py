@@ -250,10 +250,7 @@ def get_provider_info():
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
-                "how-to-guide": [
-                    "/docs/apache-airflow-providers-amazon/operators/ssm.rst",
-                    "/docs/apache-airflow-providers-amazon/operators/ssm_exit_codes.rst",
-                ],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ssm.rst"],
                 "tags": ["aws"],
             },
             {
