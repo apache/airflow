@@ -3313,6 +3313,7 @@ class SerializedDAG(BaseSerialization):
                                 deadline_time=deadline_time,
                                 callback=deadline.callback,
                                 dagrun_id=orm_dagrun.id,
+                                dag_id=orm_dagrun.dag_id,
                             )
                         )
                         Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
