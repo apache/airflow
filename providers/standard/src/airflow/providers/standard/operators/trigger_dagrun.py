@@ -88,12 +88,7 @@ class TriggerDagRunLink(BaseOperatorLink):
             assert isinstance(operator, TriggerDagRunOperator)
 
         # Try to get the resolved dag_id from XCom first (for dynamic dag_ids)
-        trigger_dag_id = None
-        try:
-            trigger_dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
-        except (ImportError, AttributeError):
-            # Fallback for test environments or when supervisor comms is not available
-            pass
+        trigger_dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
         
         # Fallback to operator attribute and rendered fields if not in XCom
         if not trigger_dag_id:
@@ -106,12 +101,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
-        triggered_dag_run_id = None
-        try:
-            triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
-        except (ImportError, AttributeError):
-            # Fallback for test environments or when supervisor comms is not available
-            pass
+        triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
