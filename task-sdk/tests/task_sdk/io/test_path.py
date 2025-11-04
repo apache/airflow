@@ -135,7 +135,7 @@ class TestAttach:
         assert p.stat() == {**fsspec_info, "conn_id": "fake", "protocol": "fake"}
 
     @pytest.mark.parametrize(
-        "fn, args, fn2, path, expected_args, expected_kwargs",
+        ("fn", "args", "fn2", "path", "expected_args", "expected_kwargs"),
         [
             ("checksum", {}, "checksum", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
