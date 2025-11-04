@@ -121,12 +121,11 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each dag run.
+        This is also configurable per-dag with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new dag run with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
