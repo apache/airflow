@@ -232,7 +232,33 @@ class Deadline(Base):
             self.trigger = trigger_orm
 
         elif isinstance(self.callback, SyncCallback):
-            raise NotImplementedError("SyncCallback is currently not supported")
+            from airflow.models.callback import CallbackFetchMethod, ExecutorCallback
+
+            # Create an ExecutorCallback for processing through the executor pipeline
+            # Store deadline and dag_run info in the callback data for later retrieval
+            callback_data = self.callback.serialize()
+            callback_data["deadline_id"] = str(self.id)
+            callback_data["dag_run_id"] = str(self.dagrun.id)
+            callback_data["dag_id"] = self.dagrun.dag_id
+
+            # Add context to callback kwargs (similar to AsyncCallback)
+            if "kwargs" not in callback_data:
+                callback_data["kwargs"] = {}
+            callback_data["kwargs"] = (callback_data.get("kwargs") or {}) | {"context": get_simple_context()}
+
+            # Create a modified callback_def with the additional data
+            class ModifiedCallback:
+                def serialize(self):
+                    return callback_data
+
+            executor_callback = ExecutorCallback(
+                callback_def=ModifiedCallback(),
+                fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                priority_weight=1,
+            )
+            executor_callback.queue()
+            session.add(executor_callback)
+            session.flush()
 
         else:
             raise TypeError("Unknown Callback type")
