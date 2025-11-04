@@ -70,7 +70,7 @@ export const getHITLParamsDict = (
   searchParams: URLSearchParams,
 ): ParamsSpec => {
   const paramsDict: ParamsSpec = {};
-  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams, hitlDetail);
+  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
   const isApprovalTask =
     hitlDetail.options.includes("Approve") &&
     hitlDetail.options.includes("Reject") &&
@@ -108,11 +108,11 @@ export const getHITLParamsDict = (
     const sourceParams = hitlDetail.response_received ? hitlDetail.params_input : hitlDetail.params;
 
     Object.entries(sourceParams ?? {}).forEach(([key, value]) => {
-      const valueType = typeof value === "number" ? "number" : "string";
+      const paramData = hitlDetail.params?.[key] ?? {};
 
       paramsDict[key] = {
-        description: "",
-        schema: {
+        description: paramData?.description ?? "",
+        schema: paramData?.schema ?? {
           const: undefined,
           description_md: "",
           enum: undefined,
@@ -125,10 +125,10 @@ export const getHITLParamsDict = (
           minLength: undefined,
           section: undefined,
           title: key,
-          type: valueType,
+          type: typeof value === "number" ? "number" : "string",
           values_display: undefined,
         },
-        value: preloadedHITLParams[key] ?? value,
+        value: paramData?.value ?? paramData ?? value,
       };
     });
   }
