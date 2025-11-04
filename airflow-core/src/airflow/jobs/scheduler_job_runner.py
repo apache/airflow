@@ -751,7 +751,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # If enabled on the config, publish metrics twice,
             # once with backward compatible name, and then with tags.
             DualStatsManager.gauge(
-                f"pool.starving_tasks.{pool_name}",
                 "pool.starving_tasks",
                 num_starving_tasks,
                 tags={},
@@ -2042,7 +2041,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.timing(
-                    f"dagrun.schedule_delay.{dag.dag_id}",
                     "dagrun.schedule_delay",
                     schedule_delay,
                     tags={},
@@ -2203,7 +2201,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # If enabled on the config, publish metrics twice,
                     # once with backward compatible name, and then with tags.
                     DualStatsManager.timing(
-                        f"dagrun.duration.failed.{dag_run.dag_id}",
                         "dagrun.duration.failed",
                         duration,
                         tags={},
@@ -2479,7 +2476,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # If enabled on the config, publish metrics twice,
             # once with backward compatible name, and then with tags.
             DualStatsManager.gauge(
-                f"ti.running.{queue}.{dag_id}.{task_id}",
                 "ti.running",
                 count,
                 tags={},
@@ -2491,7 +2487,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if prev_key not in ti_running_metrics:
                 dag_id, task_id, queue = prev_key
                 DualStatsManager.gauge(
-                    f"ti.running.{queue}.{dag_id}.{task_id}",
                     "ti.running",
                     0,
                     tags={},
@@ -2516,35 +2511,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.gauge(
-                    f"pool.open_slots.{pool_name}",
                     "pool.open_slots",
                     slot_stats["open"],
                     tags={},
                     extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.queued_slots.{pool_name}",
                     "pool.queued_slots",
                     slot_stats["queued"],
                     tags={},
                     extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.running_slots.{pool_name}",
                     "pool.running_slots",
                     slot_stats["running"],
                     tags={},
                     extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.deferred_slots.{pool_name}",
                     "pool.deferred_slots",
                     slot_stats["deferred"],
                     tags={},
                     extra_tags={"pool_name": pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.scheduled_slots.{pool_name}",
                     "pool.scheduled_slots",
                     slot_stats["scheduled"],
                     tags={},
