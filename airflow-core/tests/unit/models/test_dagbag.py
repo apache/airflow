@@ -63,30 +63,16 @@ class TestDBDagBag:
         assert result is None
         assert "v1" not in self.db_dag_bag._dags
 
-    def test_get_dag_model_from_cache(self):
+    def test_get_dag_model(self):
         """It should return the cached SerializedDagModel if already loaded."""
         mock_serdag = MagicMock(spec=SerializedDagModel)
-        self.db_dag_bag._dags["v1"] = mock_serdag
-
-        result = self.db_dag_bag.get_dag_model("v1", session=self.session)
-
-        assert result == mock_serdag
-        # session.get should not be called when cached
-        self.session.get.assert_not_called()
-
-    def test_get_dag_model_from_db(self):
-        """It should fetch from the DB if not cached."""
-        self.db_dag_bag._dags["v1"] = MagicMock(spec=SerializedDagModel)
-        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "v1"
         mock_dag_version = MagicMock()
         mock_dag_version.serialized_dag = mock_serdag
         self.session.get.return_value = mock_dag_version
 
-        result = self.db_dag_bag.get_dag_model("v2", session=self.session)
-
-        assert result == mock_serdag
-
-        result = self.db_dag_bag.get_dag_model("v2", session=self.session)
+        self.db_dag_bag.get_dag_model("v1", session=self.session)
+        result = self.db_dag_bag.get_dag_model("v1", session=self.session)
 
         assert result == mock_serdag
         self.session.get.assert_called_once()
