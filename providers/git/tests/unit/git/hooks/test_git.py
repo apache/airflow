@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 
 import pytest
 from git import Repo
@@ -189,3 +190,44 @@ class TestGitHook:
             assert os.path.exists(temp_key_path)
 
         assert not os.path.exists(temp_key_path)
+
+    def test_test_connection(self, create_connection_without_db, git_repo):
+        test_conn_id = "my_git_test_conn_test_conn"
+
+        def create_connection_with_host(host):
+            create_connection_without_db(
+                Connection(
+                    conn_id=test_conn_id,
+                    host=host,
+                    conn_type="git",
+                    extra={
+                        "strict_host_key_checking": "no",
+                    },
+                )
+            )
+
+        create_connection_with_host(AIRFLOW_HTTPS_URL)
+        hook = GitHook(git_conn_id=test_conn_id)
+        result, msg = hook.test_connection()
+        assert result, msg
+
+        #  Commented these lines because the private key verification will always fail
+        # create_connection_with_host(AIRFLOW_GIT)
+        # hook = GitHook(git_conn_id=test_conn_id)
+        # result, msg = hook.test_connection()
+        # assert result, msg
+
+        create_connection_with_host(str(git_repo[0]))
+        hook = GitHook(git_conn_id=test_conn_id)
+        result, msg = hook.test_connection()
+        assert result, msg
+
+        create_connection_with_host("https://airflow.apache.org/")
+        hook = GitHook(git_conn_id=test_conn_id)
+        result, msg = hook.test_connection()
+        assert not result, msg
+
+        with tempfile.TemporaryDirectory() as d:
+            hook = GitHook(host=d)
+            result, msg = hook.test_connection()
+            assert not result, msg

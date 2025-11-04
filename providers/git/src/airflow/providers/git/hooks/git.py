@@ -21,8 +21,12 @@ import contextlib
 import json
 import logging
 import os
+import re
+import shutil
 import tempfile
 from typing import Any
+
+from git import Repo
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.sdk import BaseHook
@@ -109,3 +113,26 @@ class GitHook(BaseHook):
         else:
             self.set_git_env(self.key_file)
             yield
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test git Cloud connection."""
+        temp_repo_dir = tempfile.mkdtemp()
+        valid_protocols = ["ssh", "git", r"https?", "ftps?"]
+        pattern = "|".join(f"({pro}://)" for pro in valid_protocols)
+        if self.repo_url is None:
+            return False, "Repository url is unset"
+        if re.match(pattern, self.repo_url) or re.match(".*@.*", self.repo_url):
+            try:
+                cm = self.configure_hook_env()
+                with cm:
+                    Repo.clone_from(url=self.repo_url, to_path=temp_repo_dir, depth=1, env=self.env)
+                shutil.rmtree(temp_repo_dir, ignore_errors=True)
+                return True, "Successfully cloned the remote repository."
+            except Exception as e:
+                return False, f"Error cloning the remote repository: {e}"
+        else:
+            try:
+                Repo(self.repo_url)
+                return True, "Successfully opened the local git repository."
+            except Exception as e:
+                return False, f"Error opening the remote repository: {e}"
