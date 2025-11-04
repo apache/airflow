@@ -64,7 +64,7 @@ export type AssetEventResponse = {
     name?: string | null;
     group?: string | null;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     source_task_id?: string | null;
     source_dag_id?: string | null;
@@ -83,7 +83,7 @@ export type AssetResponse = {
     uri: string;
     group: string;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     created_at: string;
     updated_at: string;
@@ -858,7 +858,7 @@ export type DagVersionResponse = {
     bundle_version: string | null;
     created_at: string;
     dag_display_name: string;
-    readonly bundle_url: string | null;
+    bundle_url: string | null;
 };
 
 /**
@@ -998,7 +998,7 @@ export type HITLDetailCollection = {
 /**
  * Schema for Human-in-the-loop detail history.
  */
-export type HITLDetailHisotry = {
+export type HITLDetailHistory = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -1375,7 +1375,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHisotry | null;
+    hitl_detail: HITLDetailHistory | null;
 };
 
 /**
@@ -1798,6 +1798,7 @@ export type DAGRunLightResponse = {
     start_date: string | null;
     end_date: string | null;
     state: DagRunState;
+    readonly duration: number | null;
 };
 
 /**
@@ -1860,7 +1861,7 @@ export type DAGWithLatestDagRunsResponse = {
     asset_expression: {
     [key: string]: unknown;
 } | null;
-    latest_dag_runs: Array<DAGRunResponse>;
+    latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**
@@ -2017,6 +2018,22 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+};
+
+/**
+ * Team collection serializer for responses.
+ */
+export type TeamCollectionResponse = {
+    teams: Array<TeamResponse>;
+    total_entries: number;
+};
+
+/**
+ * Base serializer for Team.
+ */
+export type TeamResponse = {
+    id: string;
+    name: string;
 };
 
 /**
@@ -3372,6 +3389,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type ListTeamsData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListTeamsResponse = TeamCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -6514,6 +6542,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/teams': {
+        get: {
+            req: ListTeamsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TeamCollectionResponse;
                 /**
                  * Validation Error
                  */

@@ -160,7 +160,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
     """
     Abstract base class for Beam Pipeline Operators.
 
-    :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
+    :param runner: Runner on which pipeline will be run. By default, "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/

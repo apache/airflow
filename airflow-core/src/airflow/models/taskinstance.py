@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import itertools
+import json
 import logging
 import math
 import uuid
@@ -1169,7 +1170,8 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        settings.engine.dispose()
+        if settings.engine is not None:
+            settings.engine.dispose()
         if verbose:
             if mark_success:
                 cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
@@ -1389,7 +1391,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, frozenset], set[str]]:
+        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, str], set[str]]:
             d = defaultdict(set)
             for event in outlet_events:
                 try:
@@ -1399,19 +1401,20 @@ class TaskInstance(Base, LoggingMixin):
                 if alias_name not in outlet_alias_names:
                     continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
-                extra_key = frozenset(event["extra"].items())
-                d[asset_key, extra_key].add(alias_name)
+                extra_json = json.dumps(event["extra"], sort_keys=True)
+                d[asset_key, extra_json].add(alias_name)
             return d
 
         outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
         if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
-            for (asset_key, extra_key), event_aliase_names in event_extras_from_aliases.items():
+            for (asset_key, extra_json), event_aliase_names in event_extras_from_aliases.items():
+                extra = json.loads(extra_json)
                 ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
                 event = asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=asset_key,
                     source_alias_names=event_aliase_names,
-                    extra=dict(extra_key),
+                    extra=extra,
                     session=session,
                 )
                 if event is None:
@@ -1422,7 +1425,7 @@ class TaskInstance(Base, LoggingMixin):
                         task_instance=ti,
                         asset=asset_key,
                         source_alias_names=event_aliase_names,
-                        extra=dict(extra_key),
+                        extra=extra,
                         session=session,
                     )
 
@@ -1636,7 +1639,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
-            session = settings.Session()
+            session = settings.get_session()()
 
         from airflow.exceptions import NotMapped
         from airflow.models.mappedoperator import get_mapped_ti_count
@@ -2181,6 +2184,41 @@ class TaskInstance(Base, LoggingMixin):
                     / 1_000_000
                 ),
             }
+        )
+
+    @property
+    def is_schedulable(self):
+        """Determine if the task_instance should be scheduled or short-circuited to ``success``."""
+        return self.is_task_schedulable(self.task)
+
+    @staticmethod
+    def is_task_schedulable(task: Operator) -> bool:
+        """
+        Determine if the task should be scheduled instead of being short-circuited to ``success``.
+
+        A task requires scheduling if it is not a trivial EmptyOperator, i.e. one of the
+        following conditions holds:
+
+        * it does **not** inherit from ``EmptyOperator``
+        * it defines an ``on_execute_callback``
+        * it defines an ``on_success_callback``
+        * it declares any ``outlets``
+        * it declares any ``inlets``
+
+        If none of these are true, the task is considered empty and is immediately marked
+        successful without being scheduled.
+
+        Note: keeping this check as a separate public method is important so it can also be used
+        by listeners (when a task is not scheduled, listeners are never called). For example,
+        the OpenLineage listener checks all tasks at DAG start, and using this method lets
+        it consistently determine whether the listener will run for each task.
+        """
+        return bool(
+            not task.inherits_from_empty_operator
+            or task.has_on_execute_callback
+            or task.has_on_success_callback
+            or task.outlets
+            or task.inlets
         )
 
 

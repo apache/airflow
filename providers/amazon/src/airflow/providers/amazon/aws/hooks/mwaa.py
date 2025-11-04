@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+import warnings
+from typing import Literal
+
 import requests
 from botocore.exceptions import ClientError
 
@@ -55,6 +58,7 @@ class MwaaHook(AwsBaseHook):
         body: dict | None = None,
         query_params: dict | None = None,
         generate_local_token: bool = False,
+        airflow_version: Literal[2, 3] | None = None,
     ) -> dict:
         """
         Invoke the REST API on the Airflow webserver with the specified inputs.
@@ -70,6 +74,8 @@ class MwaaHook(AwsBaseHook):
         :param generate_local_token: If True, only the local web token method is used without trying boto's
             `invoke_rest_api` first. If False, the local web token method is used as a fallback after trying
             boto's `invoke_rest_api`
+        :param airflow_version: The Airflow major version the MWAA environment runs.
+            This parameter is only used if the local web token method is used to call Airflow API.
         """
         # Filter out keys with None values because Airflow REST API doesn't accept requests otherwise
         body = {k: v for k, v in body.items() if v is not None} if body else {}
@@ -83,7 +89,7 @@ class MwaaHook(AwsBaseHook):
         }
 
         if generate_local_token:
-            return self._invoke_rest_api_using_local_session_token(**api_kwargs)
+            return self._invoke_rest_api_using_local_session_token(airflow_version, **api_kwargs)
 
         try:
             response = self.conn.invoke_rest_api(**api_kwargs)
@@ -100,7 +106,7 @@ class MwaaHook(AwsBaseHook):
                 self.log.info(
                     "Access Denied due to missing airflow:InvokeRestApi in IAM policy. Trying again by generating local token..."
                 )
-                return self._invoke_rest_api_using_local_session_token(**api_kwargs)
+                return self._invoke_rest_api_using_local_session_token(airflow_version, **api_kwargs)
             to_log = e.response
             # ResponseMetadata is removed because it contains data that is either very unlikely to be
             # useful in XComs and logs, or redundant given the data already included in the response
@@ -110,14 +116,35 @@ class MwaaHook(AwsBaseHook):
 
     def _invoke_rest_api_using_local_session_token(
         self,
+        airflow_version: Literal[2, 3] | None = None,
         **api_kwargs,
     ) -> dict:
-        try:
-            session, hostname = self._get_session_conn(api_kwargs["Name"])
+        if not airflow_version:
+            warnings.warn(
+                "The parameter ``airflow_version`` in ``MwaaHook.invoke_rest_api`` is not "
+                "specified and the local web token method is being used. "
+                "The default Airflow version being used is 2 but this value will change in the future. "
+                "To avoid any unexpected behavior, please explicitly specify the Airflow version.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            airflow_version = 2
 
+        try:
+            session, hostname, login_response = self._get_session_conn(api_kwargs["Name"], airflow_version)
+
+            headers = {}
+            if airflow_version == 3:
+                headers = {
+                    "Authorization": f"Bearer {login_response.cookies['_token']}",
+                    "Content-Type": "application/json",
+                }
+
+            api_version = "v1" if airflow_version == 2 else "v2"
             response = session.request(
                 method=api_kwargs["Method"],
-                url=f"https://{hostname}/api/v1{api_kwargs['Path']}",
+                url=f"https://{hostname}/api/{api_version}{api_kwargs['Path']}",
+                headers=headers,
                 params=api_kwargs["QueryParameters"],
                 json=api_kwargs["Body"],
                 timeout=10,
@@ -134,15 +161,19 @@ class MwaaHook(AwsBaseHook):
         }
 
     # Based on: https://docs.aws.amazon.com/mwaa/latest/userguide/access-mwaa-apache-airflow-rest-api.html#create-web-server-session-token
-    def _get_session_conn(self, env_name: str) -> tuple:
+    def _get_session_conn(self, env_name: str, airflow_version: Literal[2, 3]) -> tuple:
         create_token_response = self.conn.create_web_login_token(Name=env_name)
         web_server_hostname = create_token_response["WebServerHostname"]
         web_token = create_token_response["WebToken"]
 
-        login_url = f"https://{web_server_hostname}/aws_mwaa/login"
+        login_url = (
+            f"https://{web_server_hostname}/aws_mwaa/login"
+            if airflow_version == 2
+            else f"https://{web_server_hostname}/pluginsv2/aws_mwaa/login"
+        )
         login_payload = {"token": web_token}
         session = requests.Session()
         login_response = session.post(login_url, data=login_payload, timeout=10)
         login_response.raise_for_status()
 
-        return session, web_server_hostname
+        return session, web_server_hostname, login_response

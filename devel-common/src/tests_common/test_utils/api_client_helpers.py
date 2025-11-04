@@ -117,6 +117,8 @@ def create_airflow_connection(connection_id: str, connection_conf: dict[str, Any
         from airflow.models import Connection
         from airflow.settings import Session
 
+        if Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
         query = session.query(Connection).filter(Connection.conn_id == connection_id)
         query.delete()
@@ -136,6 +138,8 @@ def delete_airflow_connection(connection_id: str) -> None:
         from airflow.models import Connection
         from airflow.settings import Session
 
+        if Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
         query = session.query(Connection).filter(Connection.conn_id == connection_id)
         query.delete()

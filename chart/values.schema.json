@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.1",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.1",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -4192,6 +4192,14 @@
                         }
                     }
                 },
+                "labels": {
+                    "description": "Labels specific to dag processor objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to dag processor.",
                     "type": "array",
@@ -7317,6 +7325,14 @@
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
                 },
+                "labels": {
+                    "description": "Labels specific to statsd objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to statsd container.",
                     "type": "array",
@@ -8304,6 +8320,14 @@
                                 }
                             ]
                         }
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the redis objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
                     }
                 },
                 "uid": {
