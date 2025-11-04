@@ -92,9 +92,7 @@ def fetch(
 
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
-        DualStatsManager.incr(
-            f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", "edge_worker.ti.start", tags=tags
-        )
+        DualStatsManager.incr("edge_worker.ti.start", tags=tags)
     except ImportError:
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
         Stats.incr("edge_worker.ti.start", tags=tags)
@@ -156,7 +154,6 @@ def state(
                 # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
                     "edge_worker.ti.finish",
                     tags=tags,
                 )

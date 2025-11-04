@@ -752,7 +752,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # If enabled on the config, publish metrics twice,
             # once with backward compatible name, and then with tags.
             DualStatsManager.gauge(
-                f"pool.starving_tasks.{pool_name}",
                 "pool.starving_tasks",
                 num_starving_tasks,
                 tags={},
@@ -2018,7 +2017,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.timing(
-                    f"dagrun.schedule_delay.{dag.dag_id}",
                     "dagrun.schedule_delay",
                     schedule_delay,
                     tags={},
@@ -2191,7 +2189,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # If enabled on the config, publish metrics twice,
                     # once with backward compatible name, and then with tags.
                     DualStatsManager.timing(
-                        f"dagrun.duration.failed.{dag_run.dag_id}",
                         "dagrun.duration.failed",
                         duration,
                         tags={},
@@ -2480,7 +2477,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
                 DualStatsManager.gauge(
-                    f"ti.{state}.{queue}.{dag_id}.{task_id}",
                     f"ti.{state}",
                     float(count),
                     tags={},
@@ -2491,7 +2487,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
                     DualStatsManager.gauge(
-                        f"ti.{state}.{queue}.{dag_id}.{task_id}",
                         f"ti.{state}",
                         0,
                         tags={},
@@ -2517,39 +2512,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.gauge(
-                    f"pool.open_slots.{normalized_pool_name}",
                     "pool.open_slots",
                     slot_stats["open"],
                     tags={},
-                    extra_tags={"pool_name": pool_name},
+                    extra_tags={"pool_name": normalized_pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.queued_slots.{normalized_pool_name}",
                     "pool.queued_slots",
                     slot_stats["queued"],
                     tags={},
-                    extra_tags={"pool_name": pool_name},
+                    extra_tags={"pool_name": normalized_pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.running_slots.{normalized_pool_name}",
                     "pool.running_slots",
                     slot_stats["running"],
                     tags={},
-                    extra_tags={"pool_name": pool_name},
+                    extra_tags={"pool_name": normalized_pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.deferred_slots.{normalized_pool_name}",
                     "pool.deferred_slots",
                     slot_stats["deferred"],
                     tags={},
-                    extra_tags={"pool_name": pool_name},
+                    extra_tags={"pool_name": normalized_pool_name},
                 )
                 DualStatsManager.gauge(
-                    f"pool.scheduled_slots.{normalized_pool_name}",
                     "pool.scheduled_slots",
                     slot_stats["scheduled"],
                     tags={},
-                    extra_tags={"pool_name": pool_name},
+                    extra_tags={"pool_name": normalized_pool_name},
                 )
 
                 span.set_attributes(

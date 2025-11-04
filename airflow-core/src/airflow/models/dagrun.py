@@ -1184,7 +1184,6 @@ class DagRun(Base, LoggingMixin):
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         with DualStatsManager.timer(
-            f"dagrun.dependency-check.{self.dag_id}",
             "dagrun.dependency-check",
             tags={},
             extra_tags=self.stats_tags,
@@ -1681,11 +1680,13 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        timer_params = {"dt": duration, "tags": self.stats_tags}
         # If enabled on the config, publish metrics twice,
         # once with backward compatible name, and then with tags.
         DualStatsManager.timing(
-            f"dagrun.duration.{self.state}.{self.dag_id}", f"dagrun.duration.{self.state}", **timer_params
+            f"dagrun.duration.{self.state}",
+            dt=duration,
+            tags=self.stats_tags,
+            extra_tags={"dag_id": self.dag_id},
         )
 
     @provide_session
@@ -1765,7 +1766,6 @@ class DagRun(Base, LoggingMixin):
                     # If enabled on the config, publish metrics twice,
                     # once with backward compatible name, and then with tags.
                     DualStatsManager.incr(
-                        f"task_restored_to_dag.{dag.dag_id}",
                         "task_restored_to_dag",
                         tags=self.stats_tags,
                         extra_tags={"dag_id": dag.dag_id},
@@ -1779,7 +1779,6 @@ class DagRun(Base, LoggingMixin):
                     # If enabled on the config, publish metrics twice,
                     # once with backward compatible name, and then with tags.
                     DualStatsManager.incr(
-                        f"task_removed_from_dag.{dag.dag_id}",
                         "task_removed_from_dag",
                         tags=self.stats_tags,
                         extra_tags={"dag_id": dag.dag_id},
@@ -1949,7 +1948,6 @@ class DagRun(Base, LoggingMixin):
                 # If enabled on the config, publish metrics twice,
                 # once with backward compatible name, and then with tags.
                 DualStatsManager.incr(
-                    f"task_instance_created_{task_type}",
                     "task_instance_created",
                     count,
                     tags=self.stats_tags,
