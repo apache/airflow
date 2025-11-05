@@ -533,6 +533,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.task is ti.get_template_context()["task"], "task in context should be updated too"
     assert ti.state == TaskInstanceState.SUCCESS
 
     mock_supervisor_comms.send.assert_any_call(

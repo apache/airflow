@@ -804,6 +804,9 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
+    # Since context is now cached, and calling `ti.get_template_context` will return the same dict, we want to
+    # update the value of the task that is sent from there
+    context["task"] = ti.task
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
