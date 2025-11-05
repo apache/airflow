@@ -25,7 +25,7 @@ class TestPodLauncher:
     """Tests RBAC Pod Launcher."""
 
     @pytest.mark.parametrize(
-        "rbac_create, allow_pod_launching, multi_ns, expected_kind, expected_name",
+        ("rbac_create", "allow_pod_launching", "multi_ns", "expected_kind", "expected_name"),
         [
             (True, True, False, "Role", "release-name-pod-launcher-role"),
             (True, True, True, "ClusterRole", "default-release-name-pod-launcher-role"),
@@ -51,7 +51,15 @@ class TestPodLauncher:
             assert docs[0]["metadata"]["name"] == expected_name
 
     @pytest.mark.parametrize(
-        "rbac_create, allow_pod_launching, executor, dedicated_sa, triggerer_enabled, multi_ns, expected_subjects",
+        (
+            "rbac_create",
+            "allow_pod_launching",
+            "executor",
+            "dedicated_sa",
+            "triggerer_enabled",
+            "multi_ns",
+            "expected_subjects",
+        ),
         [
             # Only scheduler and worker SAs for KubernetesExecutor, CeleryExecutor
             (
