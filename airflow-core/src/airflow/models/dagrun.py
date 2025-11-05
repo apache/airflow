@@ -2037,10 +2037,10 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
-            if ti.is_schedulable:
-                schedulable_ti_ids.append(ti.id)
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.
