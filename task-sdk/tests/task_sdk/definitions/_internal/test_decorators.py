@@ -49,27 +49,3 @@ class TestExternalPythonDecorator:
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
         assert res == expected_source
-
-    def test_remove_task_decorator_regex_fallback_k8s(self):
-        decorators = [
-            "@task.kubernetes(",
-            '    namespace="airflow",',
-            '    image="python:3.12",',
-            ")",
-        ]
-        py_source = "\n".join(decorators) + dedent(
-            """
-            def f():
-##################
-                return funcsigs
-            """
-        )
-
-        cleaned = remove_task_decorator(python_source=py_source, task_decorator_name="@task.kubernetes")
-
-        # 1) The decorator must be completely removed
-        assert "@task.kubernetes" not in cleaned
-        # 2) The resulting source must be valid Python
-        import ast
-
-        ast.parse(cleaned)

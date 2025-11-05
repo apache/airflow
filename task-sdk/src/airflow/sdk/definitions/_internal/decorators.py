@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import re
 import sys
 
 import libcst as cst
@@ -81,25 +80,6 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
     """
-    try:
-        source_tree = cst.parse_module(python_source)
-        modified_tree = source_tree.visit(_TaskDecoratorRemover(task_decorator_name))
-        return modified_tree.code
-    except cst.ParserSyntaxError:
-        # Fallback: use regex preprocessing for malformed source
-        return _remove_task_decorator_with_regex_fallback(python_source, task_decorator_name)
-
-
-def _remove_task_decorator_with_regex_fallback(python_source: str, task_decorator_name: str) -> str:
-    """
-    Fallback method using regex preprocessing when CST parsing fails.
-
-    This handles cases where unusual indentation or leading comments prevent CST parsing.
-    """
-    # Remove @task.kubernetes(...) decorators that may cause parsing issues
-    pattern = re.compile(r"^[ \t]*@task\.kubernetes\s*\([\s\S]*?\)\s*", re.MULTILINE)
-    cleaned = pattern.sub("", python_source)
-
-    source_tree = cst.parse_module(cleaned)
+    source_tree = cst.parse_module(python_source)
     modified_tree = source_tree.visit(_TaskDecoratorRemover(task_decorator_name))
     return modified_tree.code
