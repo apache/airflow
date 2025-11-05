@@ -90,8 +90,6 @@ def fetch(
     try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
-        # If enabled on the config, publish metrics twice,
-        # once with backward compatible name, and then with tags.
         DualStatsManager.incr("edge_worker.ti.start", tags=tags)
     except ImportError:
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
@@ -151,8 +149,6 @@ def state(
             try:
                 from airflow.metrics.dual_stats_manager import DualStatsManager
 
-                # If enabled on the config, publish metrics twice,
-                # once with backward compatible name, and then with tags.
                 DualStatsManager.incr(
                     "edge_worker.ti.finish",
                     tags=tags,
