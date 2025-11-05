@@ -18,6 +18,7 @@
  */
 export enum SearchParamsKeys {
   AFTER = "after",
+  ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
   BEFORE = "before",
   BODY_SEARCH = "body_search",
   CONF_CONTAINS = "conf_contains",
@@ -31,6 +32,7 @@ export enum SearchParamsKeys {
   DURATION_GTE = "duration_gte",
   DURATION_LTE = "duration_lte",
   END_DATE = "end_date",
+  EVENT_DATE_RANGE = "event_date_range",
   EVENT_TYPE = "event_type",
   EXCLUDED_EVENTS = "excluded_events",
   FAVORITE = "favorite",
@@ -74,9 +76,6 @@ export enum SearchParamsKeys {
   TRY_NUMBER = "try_number",
   USER = "user",
   VERSION_NUMBER = "version_number",
-  // Date range filters for specific use cases
-  EVENT_DATE_RANGE = "event_date_range",
-  ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
 }
 
 export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;

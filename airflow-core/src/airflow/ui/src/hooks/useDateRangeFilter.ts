@@ -33,6 +33,11 @@ export const DATETIME_INPUT_FORMAT = `${DATE_INPUT_FORMAT} ${TIME_INPUT_FORMAT}`
 
 export type DateSelection = "end" | "start" | undefined;
 
+export type ValidationError = {
+  field: "end" | "endTime" | "range" | "start" | "startTime";
+  message: string;
+};
+
 export type DateRangeEditingState = {
   currentMonth: dayjs.Dayjs;
   inputs: {
@@ -42,12 +47,56 @@ export type DateRangeEditingState = {
     startTime: string;
   };
   selectionTarget: DateSelection;
+  validationErrors: Array<ValidationError>;
 };
 
 type UseDateRangeFilterArgs = {
   onChange: (next: DateRangeValue) => void;
   translate: TFunction;
   value: DateRangeValue;
+};
+
+const validateDateInput = (dateStr: string): boolean => {
+  if (!dateStr.trim()) {
+    return true; // Empty is valid
+  }
+
+  const parsed = dayjs(dateStr, DATE_INPUT_FORMAT, true);
+
+  if (!parsed.isValid()) {
+    return false;
+  }
+
+  // Check if the parsed date exactly matches the input format
+  // This prevents dayjs from auto-correcting invalid dates
+  return parsed.format(DATE_INPUT_FORMAT) === dateStr;
+};
+
+const validateTimeInput = (timeStr: string): boolean => {
+  if (!timeStr.trim()) {
+    return true; // Empty is valid
+  }
+
+  const parsed = dayjs(`2000-01-01 ${timeStr}`, `YYYY-MM-DD ${TIME_INPUT_FORMAT}`, true);
+
+  if (!parsed.isValid()) {
+    return false;
+  }
+
+  // Check if the parsed time exactly matches the input format
+  // This prevents dayjs from auto-correcting invalid times
+  return parsed.format(TIME_INPUT_FORMAT) === timeStr;
+};
+
+const validateDateRange = (startDate?: string, endDate?: string): boolean => {
+  if (!Boolean(startDate) || !Boolean(endDate)) {
+    return true; // Incomplete ranges are valid
+  }
+
+  const start = dayjs(startDate);
+  const end = dayjs(endDate);
+
+  return start.isBefore(end) || start.isSame(end);
 };
 
 const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): string => {
@@ -73,7 +122,7 @@ const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): strin
   return combined.tz(tz, true).toISOString();
 };
 
-export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFilterArgs) => {
+export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeFilterArgs) => {
   const { selectedTimezone } = useTimezone();
   const startDateValue = useMemo(
     () => (isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined),
@@ -93,7 +142,59 @@ export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFi
       startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
     },
     selectionTarget: undefined,
+    validationErrors: [],
   }));
+
+  const validateInputs = (inputs: DateRangeEditingState['inputs']): Array<ValidationError> => {
+    const errors: Array<ValidationError> = [];
+
+    if (inputs.start && !validateDateInput(inputs.start)) {
+      errors.push({
+        field: "start",
+        message: translate("components:dateRangeFilter.validation.invalidDateFormat"),
+      });
+    }
+
+    if (inputs.end && !validateDateInput(inputs.end)) {
+      errors.push({
+        field: "end",
+        message: translate("components:dateRangeFilter.validation.invalidDateFormat"),
+      });
+    }
+
+    if (inputs.startTime && !validateTimeInput(inputs.startTime)) {
+      errors.push({
+        field: "startTime",
+        message: translate("components:dateRangeFilter.validation.invalidTimeFormat"),
+      });
+    }
+
+    if (inputs.endTime && !validateTimeInput(inputs.endTime)) {
+      errors.push({
+        field: "endTime",
+        message: translate("components:dateRangeFilter.validation.invalidTimeFormat"),
+      });
+    }
+
+    if (
+      Boolean(inputs.start) &&
+      Boolean(inputs.end) &&
+      validateDateInput(inputs.start) &&
+      validateDateInput(inputs.end)
+    ) {
+      const startDateTime = combineDateAndTime(inputs.start, inputs.startTime, selectedTimezone);
+      const endDateTime = combineDateAndTime(inputs.end, inputs.endTime, selectedTimezone);
+
+      if (Boolean(startDateTime) && Boolean(endDateTime) && !validateDateRange(startDateTime, endDateTime)) {
+        errors.push({
+          field: "range",
+          message: translate("components:dateRangeFilter.validation.startBeforeEnd"),
+        });
+      }
+    }
+
+    return errors;
+  };
 
   useEffect(() => {
     setEditingState((prev) => ({
@@ -110,8 +211,8 @@ export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFi
   const handleDateClick = (clickedDate: dayjs.Dayjs) => {
     const currentTarget = editingState.selectionTarget;
     let nextTarget: DateSelection = "end";
-    let newStartDate = value.startDate;
-    let newEndDate = value.endDate;
+    let newStartDate: string | undefined = value.startDate;
+    let newEndDate: string | undefined = value.endDate;
 
     if (currentTarget === "start" || (!startDateValue && !endDateValue)) {
       // Set start date with start of day time
@@ -144,25 +245,30 @@ export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFi
       const inputValue = event.target.value;
       const inputKey = inputType === "date" ? field : (`${field}Time` as const);
 
-      setEditingState((prev) => ({
-        ...prev,
-        inputs: { ...prev.inputs, [inputKey]: inputValue },
-      }));
+      setEditingState((prev) => {
+        const newInputs = { ...prev.inputs, [inputKey]: inputValue };
+        const validationErrors = validateInputs(newInputs);
 
-      const currentInputs = { ...editingState.inputs, [inputKey]: inputValue };
-      const dateStr = field === "start" ? currentInputs.start : currentInputs.end;
-      const timeStr = field === "start" ? currentInputs.startTime : currentInputs.endTime;
+        const dateStr = field === "start" ? newInputs.start : newInputs.end;
+        const timeStr = field === "start" ? newInputs.startTime : newInputs.endTime;
 
-      if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
-        const combinedDateTime = combineDateAndTime(dateStr, timeStr, selectedTimezone);
+        if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
+          const combinedDateTime = combineDateAndTime(dateStr, timeStr, selectedTimezone);
 
-        if (combinedDateTime) {
-          onChange({
-            ...value,
-            [field === "start" ? "startDate" : "endDate"]: combinedDateTime,
-          });
+          if (Boolean(combinedDateTime)) {
+            onChange({
+              ...value,
+              [field === "start" ? "startDate" : "endDate"]: combinedDateTime,
+            });
+          }
         }
-      }
+
+        return {
+          ...prev,
+          inputs: newInputs,
+          validationErrors,
+        };
+      });
     };
 
   const formatDateTime = (date: dayjs.Dayjs) => {
@@ -196,12 +302,19 @@ export const useDateRangeFilter = ({ onChange, translate,value }: UseDateRangeFi
     return endDateValue ? `${translate("common:filters.to")} ${formatDateTime(endDateValue)}` : "";
   };
 
+  const getFieldError = (field: ValidationError['field']) =>
+    editingState.validationErrors.find(error => error.field === field);
+
+  const hasValidationErrors = editingState.validationErrors.length > 0;
+
   return {
     editingState,
     endDateValue,
     formatDisplayValue,
+    getFieldError,
     handleDateClick,
     handleInputChange,
+    hasValidationErrors,
     setEditingState,
     startDateValue,
   };
