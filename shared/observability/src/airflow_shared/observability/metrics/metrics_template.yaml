@@ -17,7 +17,9 @@
 
 ---
 metrics:
+  # ==========
   # Counters
+  # ==========
   - name: "{job_name}_start"
     description: "Number of started ``{job_name}`` job, ex. ``SchedulerJob``, ``LocalTaskJob``"
     type: "counter"
@@ -260,7 +262,9 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  # ==========
   # Gauges
+  # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
     type: "gauge"
@@ -392,7 +396,45 @@ metrics:
     legacy_name: "ti.running.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
+  - name: "edge_worker.connected"
+    description: "Edge worker in state connected."
+    type: "gauge"
+    legacy_name: "edge_worker.connected.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.maintenance"
+    description: "Edge worker in state maintenance."
+    type: "gauge"
+    legacy_name: "edge_worker.maintenance.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.jobs_active"
+    description: "Number of active jobs in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.jobs_active.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.concurrency"
+    description: "Concurrency capacity in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.concurrency.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.free_concurrency"
+    description: "Available concurrency in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.free_concurrency.{worker_name}"
+    name_variables: ["worker_name"]
+
+  - name: "edge_worker.num_queues"
+    description: "Number of queues in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.num_queues.{worker_name}"
+    name_variables: ["worker_name"]
+
+  # ==========
   # Timers
+  # ==========
   - name: "dagrun.dependency-check"
     description: "Milliseconds taken to check Dag dependencies"
     type: "timer"
