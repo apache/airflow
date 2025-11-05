@@ -1138,6 +1138,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool_name_pattern": "test_pool"},
                 3,
+                3,
                 id="test pool_name_pattern filter",
             ),
             pytest.param(
@@ -1177,6 +1178,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue_name_pattern": "test"},
+                3,
                 3,
                 id="test queue_name_pattern filter",
             ),
@@ -1302,6 +1304,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"operator_name_pattern": "Custom"},
                 2,
+                3,
                 id="test operator_name_pattern filter",
             ),
             pytest.param(

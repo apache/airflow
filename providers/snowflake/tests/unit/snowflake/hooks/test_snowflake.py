@@ -1110,22 +1110,22 @@ class TestPytestSnowflakeHook:
         mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
         assert token == mock_azure_token
 
-    def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
-        """Test get_azure_oauth_token method gets token from provided connection id"""
+    def test_get_azure_oauth_token_expect_failure_on_older_azure_provider_package(self, mocker):
+        class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
 
-        class MockAzureBaseHookWithoutGetToken:
-            def __init__(self):
+            def __init__(self, sdk_client, conn_id="azure_default"):
                 pass
 
         azure_conn_id = "azure_test_conn"
         mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
-        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+        mock_connection_class.get.return_value.get_hook = MockAzureBaseHookOldVersion
 
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         with pytest.raises(
-            AttributeError,
+            AirflowOptionalProviderFeatureException,
             match=(
-                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Getting azure token is not supported.*"
                 "Please upgrade apache-airflow-providers-microsoft-azure>="
             ),
         ):
