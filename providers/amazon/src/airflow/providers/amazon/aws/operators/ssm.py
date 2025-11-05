@@ -180,7 +180,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
 class SsmGetCommandInvocationOperator(AwsBaseOperator[SsmHook]):
     """
     Retrieves the output and execution details of an SSM command invocation.
-    
+
     .. seealso::
         For more information on how to use this operator, take a look at the
         guide:
