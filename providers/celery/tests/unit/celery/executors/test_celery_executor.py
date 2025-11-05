@@ -466,6 +466,7 @@ def test_celery_extra_celery_config_loaded_from_string():
 class TestCeleryExecutorPendingTimeout:
     """Unit tests for CeleryExecutor pending timeout functionality via update_task_state."""
 
+    @pytest.mark.backend("mysql", "postgres")
     def test_update_task_state_pending_timeout_disabled_no_timeout(self):
         """
         Test update_task_state with pending_task_timeout DISABLED (0).
@@ -506,6 +507,7 @@ class TestCeleryExecutorPendingTimeout:
             # Task should NOT be in event_buffer (not failed)
             assert key not in executor.event_buffer
 
+    @pytest.mark.backend("mysql", "postgres")
     def test_update_task_state_pending_timeout_exceeded_fails_task(self):
         """
         Test update_task_state with pending_task_timeout ENABLED.
@@ -565,6 +567,7 @@ class TestCeleryExecutorPendingTimeout:
             assert key not in executor.running
             assert key not in executor.tasks
 
+    @pytest.mark.backend("mysql", "postgres")
     def test_update_task_state_pending_to_started_cleans_timestamp(self):
         """
         Test update_task_state when task transitions from PENDING to STARTED.
@@ -599,6 +602,7 @@ class TestCeleryExecutorPendingTimeout:
             # Timestamp should be cleaned up
             assert key not in executor.task_pending_since
 
+    @pytest.mark.backend("mysql", "postgres")
     def test_update_task_state_non_pending_states_no_timestamp(self):
         """
         Test update_task_state with non-PENDING states (SUCCESS, FAILURE, STARTED).
