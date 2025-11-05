@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-04T09:48:42.172260
+# This constraints file was automatically generated on 2025-11-04T21:49:46.880571
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -445,7 +445,7 @@ polars==1.35.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.3.0
-prek==0.2.12
+prek==0.2.13
 presto-python-client==0.8.4
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
