@@ -45,6 +45,9 @@ AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_PYPROJECT_TOML_FILE = AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
 
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE = AIRFLOW_TASK_SDK_ROOT_PATH / "pyproject.toml"
+
 PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
 
 START_OPTIONAL_DEPENDENCIES = (
@@ -178,6 +181,14 @@ if __name__ == "__main__":
             all_optional_dependencies.append('"all-core" = [\n    "apache-airflow-core[all]"\n]\n')
         else:
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
+    optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
+    for optional in sorted(optional_airflow_task_sdk_dependencies):
+        if optional == "all":
+            all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
+        else:
+            all_optional_dependencies.append(
+                f'"{optional}" = [\n    "apache-airflow-task-sdk[{optional}]"\n]\n'
+            )
     all_providers = sorted(get_all_provider_ids())
     all_provider_lines = []
     for provider_id in all_providers:

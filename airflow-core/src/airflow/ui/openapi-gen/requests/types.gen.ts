@@ -998,7 +998,7 @@ export type HITLDetailCollection = {
 /**
  * Schema for Human-in-the-loop detail history.
  */
-export type HITLDetailHisotry = {
+export type HITLDetailHistory = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -1375,7 +1375,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHisotry | null;
+    hitl_detail: HITLDetailHistory | null;
 };
 
 /**
@@ -2738,11 +2738,23 @@ export type GetMappedTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    operatorNamePattern?: string | null;
+    /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    poolNamePattern?: string | null;
     queue?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    queueNamePattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -2844,11 +2856,23 @@ export type GetTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    operatorNamePattern?: string | null;
+    /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    poolNamePattern?: string | null;
     queue?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    queueNamePattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
