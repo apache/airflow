@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-YAML_REGISTRY_PATH = "airflow-core/src/airflow/metrics/metrics_template.yaml"
+from pathlib import Path
+
+YAML_REGISTRY_PATH = Path(__file__).parent / "metrics_template.yaml"
 RST_TABLE_OUTPUT_PATH = "airflow-core/docs/administration-and-deployment/logging-monitoring/metric_tables.rst"
 
 

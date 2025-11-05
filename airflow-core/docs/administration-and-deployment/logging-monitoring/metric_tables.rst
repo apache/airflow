@@ -55,7 +55,7 @@ Name                                             Legacy Name                    
 ``celery.execute_command.failure``               ``-``                                                                   Number of non-zero exit code from Celery task.
 ``task_removed_from_dag``                        ``task_removed_from_dag.{dag_id}``                                      Number of tasks removed for a given Dag (i.e. task no longer exists in Dag). Metric with dag_id and run_type tagging.
 ``task_restored_to_dag``                         ``task_restored_to_dag.{dag_id}``                                       Number of tasks restored for a given Dag (i.e. task instance which was previously in REMOVED state in the DB is added to Dag file). Metric with dag_id and run_type tagging.
-``task_instance_created``                        ``task_instance_created_{operator_name}``                               Number of tasks instances created for a given Operator. Metric with dag_id and run_type tagging.
+``task_instance_created``                        ``task_instance_created_{task_type}``                                   Number of tasks instances created for a given Operator. Metric with dag_id and run_type tagging.
 ``triggerer_heartbeat``                          ``-``                                                                   Triggerer heartbeats
 ``triggers.blocked_main_thread``                 ``-``                                                                   Number of triggers that blocked the main thread (likely due to not being fully asynchronous)
 ``triggers.failed``                              ``-``                                                                   Number of triggers that errored before they could fire an event

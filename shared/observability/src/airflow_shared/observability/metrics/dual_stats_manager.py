@@ -157,11 +157,14 @@ class DualStatsManager:
     ) -> None:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        if cls.export_legacy_names:
+        if cls.export_legacy_names and extra_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
 
-            # Emit legacy metric
-            Stats.incr(legacy_stat, **kw)
+            if legacy_stat is not None:
+                # Emit legacy metric
+                Stats.incr(legacy_stat, **kw)
+            else:
+                raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
         Stats.incr(stat, **kw_with_extra_tags_if_set)
@@ -178,10 +181,14 @@ class DualStatsManager:
     ) -> None:
         kw = _get_dict_with_defined_args(count, rate, None, tags)
 
-        if cls.export_legacy_names:
+        if cls.export_legacy_names and extra_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
 
-            Stats.decr(legacy_stat, **kw)
+            if legacy_stat is not None:
+                # Emit legacy metric
+                Stats.decr(legacy_stat, **kw)
+            else:
+                raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
         Stats.decr(stat, **kw_with_extra_tags_if_set)
@@ -199,10 +206,14 @@ class DualStatsManager:
     ) -> None:
         kw = _get_dict_with_defined_args(None, rate, delta, tags)
 
-        if cls.export_legacy_names:
+        if cls.export_legacy_names and extra_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
 
-            Stats.gauge(legacy_stat, value, **kw)
+            if legacy_stat is not None:
+                # Emit legacy metric
+                Stats.gauge(legacy_stat, value, **kw)
+            else:
+                raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
         kw_with_extra_tags_if_set = _get_args_dict_with_extra_tags_if_set(kw, tags, extra_tags)
         Stats.gauge(stat, value, **kw_with_extra_tags_if_set)
@@ -216,13 +227,16 @@ class DualStatsManager:
         tags: dict[str, Any] | None = None,
         extra_tags: dict[str, Any] | None = None,
     ) -> None:
-        if cls.export_legacy_names:
+        if cls.export_legacy_names and extra_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
 
-            if tags:
-                Stats.timing(legacy_stat, dt, tags=tags)
+            if legacy_stat is not None:
+                if tags:
+                    Stats.timing(legacy_stat, dt, tags=tags)
+                else:
+                    Stats.timing(legacy_stat, dt)
             else:
-                Stats.timing(legacy_stat, dt)
+                raise ValueError(f"Stat '{stat}' doesn't have a legacy name registered in the YAML file.")
 
         tags_with_extra = _get_tags_with_extra(tags, extra_tags)
 
@@ -246,14 +260,14 @@ class DualStatsManager:
         # Used with a context manager.
         stack = ExitStack()
 
-        if cls.export_legacy_names:
+        if cls.export_legacy_names and extra_tags is not None:
             legacy_stat = cls.get_legacy_stat(stat=stat, variables=extra_tags)
 
             ctx_mg1: AbstractContextManager[Any] = cast(
                 "AbstractContextManager[Any]", Stats.timer(legacy_stat, **kw)
             )
         else:
-            ctx_mg1: AbstractContextManager[Any] = nullcontext()
+            ctx_mg1 = nullcontext()
 
         stack.enter_context(ctx_mg1)
 
