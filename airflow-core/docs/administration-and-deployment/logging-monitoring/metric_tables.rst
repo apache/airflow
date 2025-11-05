@@ -103,22 +103,23 @@ Name                                                  Legacy Name               
 Timers
 ------
 
-================================================================  ===============================================  ==============================================================================================
-Name                                                              Legacy Name                                      Description
-================================================================  ===============================================  ==============================================================================================
-``dagrun.dependency-check``                                       ``dagrun.dependency-check.{dag_id}``             Milliseconds taken to check Dag dependencies
-``task.duration``                                                 ``dag.{dag_id}.{task_id}.duration``              Milliseconds taken to run a task
-``task.scheduled_duration``                                       ``dag.{dag_id}.{task_id}.scheduled_duration``    Milliseconds a task spends in the Scheduled state, before being Queued
-``task.queued_duration``                                          ``dag.{dag_id}.{task_id}.queued_duration``       Milliseconds a task spends in the Queued state, before being Running
-``dag_processing.last_duration``                                  ``dag_processing.last_duration.{dag_file}``      Milliseconds taken to load the given Dag file
-``dagrun.duration.success``                                       ``dagrun.duration.success.{dag_id}``             Milliseconds taken for a DagRun to reach success state
-``dagrun.duration.failed``                                        ``dagrun.duration.failed.{dag_id}``              Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay``                                         ``dagrun.schedule_delay.{dag_id}``               Milliseconds of delay between the scheduled DagRun start date and the actual DagRun start date
-``scheduler.critical_section_duration``                           ``-``                                            Milliseconds spent in the critical section of scheduler loop
-``scheduler.critical_section_query_duration``                     ``-``                                            Milliseconds spent running the critical section task instance query
-``scheduler.scheduler_loop_duration``                             ``-``                                            Milliseconds spent running one scheduler loop
-``dagrun.first_task_scheduling_delay``                            ``dagrun.{dag_id}.first_task_scheduling_delay``  Milliseconds elapsed between first task start_date and dagrun expected start
-``collect_db_dags``                                               ``-``                                            Milliseconds taken for fetching all Serialized Dags from DB
-``kubernetes_executor.clear_not_launched_queued_tasks.duration``  ``-``                                            Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor
-``kubernetes_executor.adopt_task_instances.duration``             ``-``                                            Milliseconds taken to adopt the task instances in Kubernetes Executor
-================================================================  ===============================================  ==============================================================================================
+================================================================  ==================================================  ==============================================================================================
+Name                                                              Legacy Name                                         Description
+================================================================  ==================================================  ==============================================================================================
+``dagrun.dependency-check``                                       ``dagrun.dependency-check.{dag_id}``                Milliseconds taken to check Dag dependencies
+``task.duration``                                                 ``dag.{dag_id}.{task_id}.duration``                 Milliseconds taken to run a task
+``task.scheduled_duration``                                       ``dag.{dag_id}.{task_id}.scheduled_duration``       Milliseconds a task spends in the Scheduled state, before being Queued
+``task.queued_duration``                                          ``dag.{dag_id}.{task_id}.queued_duration``          Milliseconds a task spends in the Queued state, before being Running
+``dag_processing.last_duration``                                  ``dag_processing.last_duration.{dag_file}``         Milliseconds taken to load the given Dag file
+``dagrun.duration.success``                                       ``dagrun.duration.success.{dag_id}``                Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.failed``                                        ``dagrun.duration.failed.{dag_id}``                 Milliseconds taken for a DagRun to reach failed state
+``dagrun.schedule_delay``                                         ``dagrun.schedule_delay.{dag_id}``                  Milliseconds of delay between the scheduled DagRun start date and the actual DagRun start date
+``scheduler.critical_section_duration``                           ``-``                                               Milliseconds spent in the critical section of scheduler loop
+``scheduler.critical_section_query_duration``                     ``-``                                               Milliseconds spent running the critical section task instance query
+``scheduler.scheduler_loop_duration``                             ``-``                                               Milliseconds spent running one scheduler loop
+``dagrun.first_task_scheduling_delay``                            ``dagrun.{dag_id}.first_task_scheduling_delay``     Milliseconds elapsed between first task start_date and dagrun expected start
+``collect_db_dags``                                               ``-``                                               Milliseconds taken for fetching all Serialized Dags from DB
+``kubernetes_executor.clear_not_launched_queued_tasks.duration``  ``-``                                               Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor
+``kubernetes_executor.adopt_task_instances.duration``             ``-``                                               Milliseconds taken to adopt the task instances in Kubernetes Executor
+``ol.emit.attempts``                                              ``ol.emit.attempts.{event_type}.{transport_type}``  Milliseconds taken by an attempt to emit an OpenLineage event.
+================================================================  ==================================================  ==============================================================================================
