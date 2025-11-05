@@ -748,8 +748,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            # If enabled on the config, publish metrics twice,
-            # once with backward compatible name, and then with tags.
             DualStatsManager.gauge(
                 "pool.starving_tasks",
                 num_starving_tasks,
@@ -2042,8 +2040,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 #  when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
                 expected_start_date = get_run_data_interval(dag.timetable, dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
-                # If enabled on the config, publish metrics twice,
-                # once with backward compatible name, and then with tags.
                 DualStatsManager.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
@@ -2202,8 +2198,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.notify_dagrun_state_changed(msg="timed_out")
                 if dag_run.end_date and dag_run.start_date:
                     duration = dag_run.end_date - dag_run.start_date
-                    # If enabled on the config, publish metrics twice,
-                    # once with backward compatible name, and then with tags.
                     DualStatsManager.timing(
                         "dagrun.duration.failed",
                         duration,
@@ -2519,8 +2513,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
-                # If enabled on the config, publish metrics twice,
-                # once with backward compatible name, and then with tags.
                 DualStatsManager.gauge(
                     "pool.open_slots",
                     slot_stats["open"],

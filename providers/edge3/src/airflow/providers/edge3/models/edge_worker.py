@@ -177,8 +177,6 @@ def set_metrics(
     try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
-        # If enabled on the config, publish metrics twice,
-        # once with backward compatible name, and then with tags.
         DualStatsManager.gauge(
             "edge_worker.connected",
             int(connected),
