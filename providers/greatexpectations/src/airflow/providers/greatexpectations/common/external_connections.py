@@ -23,10 +23,16 @@ import logging
 from pathlib import Path
 from typing import Literal, Optional, Union
 
-from airflow.hooks.base import BaseHook
-from airflow.models import Connection
-from pydantic import BaseModel, Field
+try:  # airflow 3
+    from airflow.sdk import BaseHook
+    from airflow.sdk.definitions.connection import Connection
+except ImportError:  # airflow 2
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+    from airflow.models import (  # type: ignore[attr-defined,no-redef,assignment]
+        Connection,
+    )
 
+from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
@@ -456,4 +462,4 @@ def build_aws_connection_string(
     else:
         return (
             f"awsathena+rest://@athena.{region}.amazonaws.com/?s3_staging_dir={s3_path}"
-        ) 
+        )

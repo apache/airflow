@@ -21,16 +21,41 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from airflow.hooks.base import BaseHook
+from airflow.exceptions import AirflowException
+
+try:  # airflow 3
+    from airflow.sdk import BaseHook
+except ImportError:  # airflow 2
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
+
 
 from airflow.providers.greatexpectations.common.gx_context_actions import load_data_context
 
 
+class IncompleteGXCloudConfigError(AirflowException):
+    """Great Expectations connection configuration is not complete.
+
+    Attributes:
+        missing_keys: Required configuration keys which were not provided.
+    """
+
+    def __init__(
+        self,
+        missing_keys: list[str] | None = None,
+    ):
+        self.missing_keys = missing_keys or []
+        message = (
+            f"The following GX Cloud variables are required but were not provided: {', '.join(self.missing_keys)}. "
+            "Please use the Airflow Connection UI to update your configuration and try again."
+        )
+        super().__init__(message)
+
+
 @dataclass(frozen=True)
 class GXCloudConfig:
-    """Configuration for GX Cloud connections."""
     cloud_access_token: str
     cloud_organization_id: str
+    cloud_workspace_id: str
 
 
 class GXCloudHook(BaseHook):
@@ -50,29 +75,40 @@ class GXCloudHook(BaseHook):
         self.gx_cloud_conn_id = gx_cloud_conn_id
 
     def get_conn(self) -> GXCloudConfig:  # type: ignore[override]
-        """Get GX Cloud connection configuration."""
         config = self.get_connection(self.gx_cloud_conn_id)
+        missing_keys = []
+        if not config.password:
+            missing_keys.append("GX Cloud Access Token")
+        if not config.login:
+            missing_keys.append("GX Cloud Organization ID")
+        if not config.schema:
+            missing_keys.append("GX Cloud Workspace ID")
+
+        if missing_keys:
+            raise IncompleteGXCloudConfigError(missing_keys)
+
         return GXCloudConfig(
-            cloud_access_token=config.password, cloud_organization_id=config.login
+            cloud_access_token=config.password,  # type: ignore[arg-type]
+            cloud_organization_id=config.login,  # type: ignore[arg-type]
+            cloud_workspace_id=config.schema,  # type: ignore[arg-type]
         )
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "port", "extra", "host"],
+            "hidden_fields": ["port", "host", "extra"],
             "relabeling": {
                 "login": "GX Cloud Organization ID",
+                "schema": "GX Cloud Workspace ID",
                 "password": "GX Cloud Access Token",
             },
-            "placeholders": {},
         }
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test GX Cloud connection."""
         try:
             config = self.get_conn()
             load_data_context(context_type="cloud", gx_cloud_config=config)
             return True, "Connection successful."
         except Exception as error:
-            return False, str(error) 
+            return False, str(error)

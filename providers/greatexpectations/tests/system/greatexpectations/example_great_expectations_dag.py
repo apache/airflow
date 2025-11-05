@@ -21,7 +21,13 @@ from typing import TYPE_CHECKING
 
 import great_expectations.expectations as gxe
 from airflow import DAG
-from airflow.models.baseoperator import chain
+try:
+    from airflow.sdk.bases.operator import chain
+except ImportError:
+    from airflow.models.baseoperator import (  # type: ignore[import-not-found,no-redef]
+        chain,
+    )
+
 from great_expectations import Checkpoint, ExpectationSuite, ValidationDefinition
 
 from airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
@@ -162,4 +168,4 @@ with DAG(
         validate_extract,
         validate_transform,
         validate_load,
-    ) 
+    )

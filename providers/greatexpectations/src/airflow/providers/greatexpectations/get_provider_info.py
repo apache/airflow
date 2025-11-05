@@ -20,32 +20,30 @@ from airflow.providers.greatexpectations.common.constants import VERSION
 
 
 def get_provider_info():
-    """Return provider information for Great Expectations."""
     return {
-        "package-name": "apache-airflow-providers-greatexpectations",
-        "name": "Great Expectations",
+        "package-name": "airflow-provider-great-expectations",
+        "name": "Great Expectations Provider",
         "description": "An Apache Airflow provider for Great Expectations.",
         "versions": [VERSION],
         "hooks": [
             {
-                "integration-name": "Great Expectations Cloud",
-                "python-modules": ["airflow.providers.greatexpectations.hooks.gx_cloud"],
-            }
-        ],
-        "operators": [
-            {
-                "integration-name": "Great Expectations",
-                "python-modules": [
-                    "airflow.providers.greatexpectations.operators.validate_checkpoint",
-                    "airflow.providers.greatexpectations.operators.validate_dataframe",
-                    "airflow.providers.greatexpectations.operators.validate_batch",
-                ],
+                "integration-name": "GX Cloud",
+                "python-modules": ["great_expectations_provider.hooks.gx_cloud"],
             }
         ],
         "connection-types": [
             {
                 "connection-type": "gx_cloud",
-                "hook-class-name": "airflow.providers.greatexpectations.hooks.gx_cloud.GXCloudHook",
+                "hook-class-name": "great_expectations_provider.hooks.gx_cloud.GXCloudHook",
+                "hook-name": "Great Expectations Cloud",
+                "ui_field_behaviour": {
+                    "hidden_fields": ["port", "host", "extra"],
+                    "relabeling": {
+                        "login": "GX Cloud Organization ID",
+                        "password": "GX Cloud Access Token",
+                        "schema": "GX Cloud Workspace ID",
+                    },
+                },
             }
         ],
-    } 
+    }
