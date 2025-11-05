@@ -1890,11 +1890,31 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
-                # exclude only if it also matches client defaults
+                # If it also matches client_defaults, exclude (optimization)
                 client_defaults = cls.generate_client_defaults()
                 if attrname in client_defaults and client_defaults[attrname] == var:
                     return True
-                return False
+
+                # If client_defaults differs, preserve explicit user settings (bug fix)
+                # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                if attrname in client_defaults and client_defaults[attrname] != var:
+                    if (
+                        op.has_dag()
+                        and attrname in op.dag.default_args
+                        and op.dag.default_args[attrname] == var
+                    ):
+                        return False
+                    if (
+                        hasattr(op, "_BaseOperator__init_kwargs")
+                        and attrname in op._BaseOperator__init_kwargs
+                        and op._BaseOperator__init_kwargs[attrname] == var
+                    ):
+                        return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
+                return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
             return True
