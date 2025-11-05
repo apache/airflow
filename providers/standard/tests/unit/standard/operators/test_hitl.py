@@ -234,7 +234,13 @@ class TestHITLOperator:
         assert hitl_detail_model.body == "This is body"
         assert hitl_detail_model.defaults == ["1"]
         assert hitl_detail_model.multiple is False
-        assert hitl_detail_model.params == {"input_1": 1}
+        assert hitl_detail_model.params == {
+            "input_1": {
+                "value": 1,
+                "description": None,
+                "schema": {},
+            }
+        }
         assert hitl_detail_model.assignees == [{"id": "test", "name": "test"}]
         assert hitl_detail_model.responded_at is None
         assert hitl_detail_model.responded_by is None
@@ -251,7 +257,13 @@ class TestHITLOperator:
             "ti_id": ti.id,
             "options": ["1", "2", "3", "4", "5"],
             "defaults": ["1"],
-            "params": {"input_1": 1},
+            "params": {
+                "input_1": {
+                    "value": 1,
+                    "description": None,
+                    "schema": {},
+                }
+            },
             "multiple": False,
             "timeout_datetime": None,
             "poke_interval": 5.0,
@@ -260,8 +272,39 @@ class TestHITLOperator:
     @pytest.mark.parametrize(
         ("input_params", "expected_params"),
         [
-            (ParamsDict({"input": 1}), {"input": 1}),
-            ({"input": Param(5, type="integer", minimum=3)}, {"input": 5}),
+            (
+                ParamsDict({"input": 1}),
+                {
+                    "input": {
+                        "description": None,
+                        "schema": {},
+                        "value": 1,
+                    },
+                },
+            ),
+            (
+                {"input": Param(5, type="integer", minimum=3, description="test")},
+                {
+                    "input": {
+                        "value": 5,
+                        "schema": {
+                            "minimum": 3,
+                            "type": "integer",
+                        },
+                        "description": "test",
+                    }
+                },
+            ),
+            (
+                {"input": 1},
+                {
+                    "input": {
+                        "value": 1,
+                        "schema": {},
+                        "description": None,
+                    }
+                },
+            ),
             (None, {}),
         ],
     )

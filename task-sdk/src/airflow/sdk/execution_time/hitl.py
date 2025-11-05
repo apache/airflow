@@ -48,6 +48,20 @@ def upsert_hitl_detail(
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+    # for backward compatibility
+    if params is not None:
+        params = {
+            key: value
+            if isinstance(value, dict)
+            and all(value_key in value for value_key in ("description", "schema", "value"))
+            else {
+                "value": value,
+                "description": None,
+                "schema": {},
+            }
+            for key, value in params.items()
+        }
+
     SUPERVISOR_COMMS.send(
         msg=CreateHITLDetailPayload(
             ti_id=ti_id,

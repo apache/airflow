@@ -167,7 +167,7 @@ class HITLOperator(BaseOperator):
         )
 
     @property
-    def serialized_params(self) -> dict[str, Any]:
+    def serialized_params(self) -> dict[str, dict[str, Any]]:
         return {k: self.params.get_param(k).serialize() for k in self.params}
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:

@@ -30,6 +30,8 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
+from airflow.exceptions import ParamValidationError
+from airflow.sdk import Param
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import (
     HITLUser,
@@ -44,7 +46,7 @@ class HITLTriggerEventSuccessPayload(TypedDict, total=False):
     """Minimum required keys for a success Human-in-the-loop TriggerEvent."""
 
     chosen_options: list[str]
-    params_input: dict[str, Any]
+    params_input: dict[str, dict[str, Any]]
     responded_by_user: HITLUser | None
     responded_at: datetime
     timedout: bool
@@ -54,7 +56,7 @@ class HITLTriggerEventFailurePayload(TypedDict):
     """Minimum required keys for a failed Human-in-the-loop TriggerEvent."""
 
     error: str
-    error_type: Literal["timeout", "unknown"]
+    error_type: Literal["timeout", "unknown", "validation"]
 
 
 class HITLTrigger(BaseTrigger):
@@ -65,7 +67,7 @@ class HITLTrigger(BaseTrigger):
         *,
         ti_id: UUID,
         options: list[str],
-        params: dict[str, Any],
+        params: dict[str, dict[str, Any]],
         defaults: list[str] | None = None,
         multiple: bool = False,
         timeout_datetime: datetime | None,
@@ -81,7 +83,21 @@ class HITLTrigger(BaseTrigger):
         self.defaults = defaults
         self.timeout_datetime = timeout_datetime
 
-        self.params = ParamsDict(params)
+        self.params = ParamsDict(
+            {
+                k: Param(
+                    v.pop("value"),
+                    **v,
+                )
+                if HITLTrigger._is_param(v)
+                else Param(v)
+                for k, v in params.items()
+            },
+        )
+
+    @staticmethod
+    def _is_param(value: Any) -> bool:
+        return isinstance(value, dict) and all(key in value for key in ("description", "schema", "value"))
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HITLTrigger arguments and classpath."""
@@ -91,7 +107,7 @@ class HITLTrigger(BaseTrigger):
                 "ti_id": self.ti_id,
                 "options": self.options,
                 "defaults": self.defaults,
-                "params": self.params.dump(),
+                "params": {k: self.params.get_param(k).serialize() for k in self.params},
                 "multiple": self.multiple,
                 "timeout_datetime": self.timeout_datetime,
                 "poke_interval": self.poke_interval,
@@ -171,10 +187,18 @@ class HITLTrigger(BaseTrigger):
         if not (resp.response_received and resp.chosen_options):
             return None
 
-        # validation
+        # validate input
         if params_input := resp.params_input:
-            for key, value in params_input.items():
-                self.params[key] = value
+            try:
+                for key, value in params_input.items():
+                    self.params[key] = value
+            except ParamValidationError as err:
+                return TriggerEvent(
+                    HITLTriggerEventFailurePayload(
+                        error=str(err),
+                        error_type="validation",
+                    )
+                )
 
         chosen_options_list = list(resp.chosen_options or [])
         self.log.info(
