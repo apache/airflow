@@ -734,6 +734,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return current_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
+    def auth_remote_user_env_var(self) -> str:
+        return current_app.config["AUTH_REMOTE_USER_ENV_VAR"]
+
+    @property
     def auth_username_ci(self):
         """Get the auth username for CI."""
         return current_app.config.get("AUTH_USERNAME_CI", True)
@@ -2209,6 +2213,36 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         raw_value = ldap_dict.get(field_name, [b""])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
+
+    def auth_user_remote_user(self, username):
+        """
+        REMOTE_USER user Authentication.
+
+        :param username: user's username for remote auth
+        """
+        user = self.find_user(username=username)
+
+        # User does not exist, create one if auto user registration.
+        if user is None and self.auth_user_registration:
+            user = self.add_user(
+                # All we have is REMOTE_USER, so we set
+                # the other fields to blank.
+                username=username,
+                first_name=username,
+                last_name="-",
+                email=username + "@email.notfound",
+                role=self.find_role(self.auth_user_registration_role),
+            )
+
+        # If user does not exist on the DB and not auto user registration,
+        # or user is inactive, go away.
+        elif user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+        self._rotate_session_id()
+        self.update_user_auth_stat(user)
+        return user
 
     """
     ---------------
