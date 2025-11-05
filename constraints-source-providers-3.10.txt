@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-04T21:49:59.475694
+# This constraints file was automatically generated on 2025-11-05T03:59:18.265037
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -98,7 +98,7 @@ aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.0
+azure-cosmos==4.14.1
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -230,7 +230,7 @@ google-api-python-client==2.186.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.124.0
+google-cloud-aiplatform==1.125.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -671,7 +671,7 @@ types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
 types-docutils==0.22.2.20251006
 types-paramiko==3.5.0.20250801
-types-protobuf==6.32.1.20250918
+types-protobuf==6.32.1.20251105
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20251008
 types-python-slugify==8.0.2.20240310

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-04T21:53:11.865235
+# This constraints file was automatically generated on 2025-11-05T04:01:59.678796
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -207,7 +207,7 @@ attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.0
+azure-cosmos==4.14.1
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -325,7 +325,7 @@ google-api-python-client==2.186.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.2
 google-auth==2.42.1
-google-cloud-aiplatform==1.124.0
+google-cloud-aiplatform==1.125.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -663,7 +663,7 @@ traitlets==5.14.3
 trino==0.336.0
 typer-slim==0.20.0
 typer==0.20.0
-types-protobuf==6.32.1.20250918
+types-protobuf==6.32.1.20251105
 types-pytz==2025.2.0.20250809
 types-requests==2.32.4.20250913
 typing-inspect==0.9.0
