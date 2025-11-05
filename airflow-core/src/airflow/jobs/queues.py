@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from asyncio import Lock as AsyncLock, Queue
-from collections import OrderedDict, deque, defaultdict
+from collections import OrderedDict, defaultdict, deque
 from collections.abc import Iterable
 from threading import Lock
 from typing import Any
@@ -182,17 +182,3 @@ class PartitionedQueue(defaultdict):
                     self._total_size -= 1
                     return item
         raise StopIteration
-
-
-# def test_serialized_dag():
-#     import ast
-#     import os
-#
-#     dir_path = os.path.dirname(__file__)  # directory of the current test file
-#     file_path = os.path.join(dir_path, "serialized_dag.json")
-#     with open(file_path) as file:
-#         from airflow.serialization.serialized_objects import SerializedDAG
-#         data = SerializedDAG.from_dict(ast.literal_eval(file.read())).__dict__
-#         #data = deserialize_objects(ast.literal_eval(file.read()))
-#         print(data)
-#         assert data  # or whatever you want to test
