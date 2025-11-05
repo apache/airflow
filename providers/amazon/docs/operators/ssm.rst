@@ -87,6 +87,7 @@ When ``fail_on_nonzero_exit=False``, you can retrieve the exit code using
 :class:`~airflow.providers.amazon.aws.operators.ssm.SsmGetCommandInvocationOperator` and use it
 for workflow routing decisions. Note that AWS-level failures (TimedOut, Cancelled) will still raise
 exceptions regardless of this setting.
+
 .. _howto/operator:SsmGetCommandInvocationOperator:
 
 Retrieve output from an SSM command invocation
