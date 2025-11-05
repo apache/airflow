@@ -1329,6 +1329,11 @@ export const $ClearTaskInstancesBody = {
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
             default: false
+        },
+        prevent_running_task: {
+            type: 'boolean',
+            title: 'Prevent Running Task',
+            default: false
         }
     },
     additionalProperties: false,
