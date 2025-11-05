@@ -350,6 +350,14 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if status == RunJobStatus.FAIL.value:
             error_code = event.get("operation_error_code")
             error_message = event.get("operation_error_message")
+            
+            # Provide meaningful defaults if error details are missing
+            if not error_code and not error_message:
+                raise AirflowException("Operation failed with unknown error")
+            
+            error_code = error_code if error_code is not None else "Unknown"
+            error_message = error_message if error_message else "Unknown error"
+            
             raise AirflowException(
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )

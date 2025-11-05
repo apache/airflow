@@ -220,6 +220,63 @@ class TestCloudRunExecuteJobOperator:
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail_with_missing_error_details(self, hook_mock):
+        """Test that operation failure without error details shows meaningful defaults."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Operation failed with unknown error" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail_with_none_error_code(self, hook_mock):
+        """Test that operation failure with None error code shows 'Unknown'."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "operation_error_code": None,
+            "operation_error_message": "Some error occurred",
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Operation failed with error code [Unknown]" in str(e.value)
+        assert "error message [Some error occurred]" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail_with_empty_error_message(self, hook_mock):
+        """Test that operation failure with empty error message shows 'Unknown error'."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "operation_error_code": 500,
+            "operation_error_message": "",
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Operation failed with error code [500]" in str(e.value)
+        assert "error message [Unknown error]" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
         hook_mock.return_value.get_job.return_value = JOB
 
