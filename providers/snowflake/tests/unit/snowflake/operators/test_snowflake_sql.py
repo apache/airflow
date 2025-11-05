@@ -42,6 +42,9 @@ class MockRow:
     def __eq__(self, other):
         return isinstance(other, MockRow) and self.__dict__ == other.__dict__
 
+    def __hash__(self):
+        return hash(self.__dict__)
+
     def __repr__(self):
         return f"MockRow({self.__dict__})"
 

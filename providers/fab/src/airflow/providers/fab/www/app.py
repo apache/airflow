@@ -85,6 +85,8 @@ def create_app(enable_plugins: bool):
     csrf.init_app(flask_app)
 
     db = SQLAlchemy(flask_app)
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     db.session = settings.Session
 
     configure_logging()

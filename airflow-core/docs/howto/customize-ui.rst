@@ -32,11 +32,11 @@ distinguish between various installations of Airflow or simply amend the page te
 
 To make this change, simply:
 
-1.  Add the configuration option of ``instance_name`` under the ``[webserver]`` section inside ``airflow.cfg``:
+1.  Add the configuration option of ``instance_name`` under the ``[api]`` section inside ``airflow.cfg``:
 
 .. code-block::
 
-  [webserver]
+  [api]
 
   instance_name = "DevEnv"
 
@@ -45,7 +45,7 @@ To make this change, simply:
 
 .. code-block::
 
-  AIRFLOW__WEBSERVER__INSTANCE_NAME = "DevEnv"
+  AIRFLOW__API__INSTANCE_NAME = "DevEnv"
 
 
 Screenshots

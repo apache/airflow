@@ -76,7 +76,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
@@ -294,7 +294,7 @@ UPGRADE_RUFF: bool = os.environ.get("UPGRADE_RUFF", UPGRADE_ALL_BY_DEFAULT_STR).
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 UPGRADE_MYPY: bool = os.environ.get("UPGRADE_MYPY", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
 
 

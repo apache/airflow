@@ -37,7 +37,7 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
-  - [Add tags in git](#add-tags-in-git)
+  - [Push the RC tags](#push-the-rc-tags)
   - [Prepare documentation in Staging](#prepare-documentation-in-staging)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
@@ -47,7 +47,7 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
-  - [Add tags in git](#add-tags-in-git-1)
+  - [Add tags in git](#add-tags-in-git)
   - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
@@ -90,6 +90,11 @@ Please review and ensure that all security issues marked for the release have be
 addressed and resolved. Ping security team (comment in the issues) if anything missing or
 the issue does not seem to be addressed.
 
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
+
 # Bump min Airflow version for providers
 
 1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove
@@ -116,7 +121,7 @@ command involved in the release process. The value can also be passed as the `--
 Follow the steps below to set the environment variable:
 
 ```shell script
- export DISTRIBUTIONS_LIST=PACKAGE1,PACKAGE2
+ export DISTRIBUTIONS_LIST="PACKAGE1 PACKAGE2"
 ```
 
 ```shell script
@@ -354,14 +359,23 @@ brew install gnupg
 * Cleanup dist folder:
 
 ```shell script
+export RELEASE_DATE=$(date "+%Y-%m-%d%n")
 export AIRFLOW_REPO_ROOT=$(pwd -P)
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Release candidate packages:
 
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the providers in the repo.
+
+
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+echo "Tagging with providers/${RELEASE_DATE}"
+git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
+git push apache providers/${RELEASE_DATE}
+breeze release-management prepare-airflow-tarball --version ${RELEASE_DATE} --distribution-name apache_airflow_providers
 ```
 
 if you only build few packages, run:
@@ -369,12 +383,15 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-distributions  --include-removed-providers \
 --distribution-format both PACKAGE PACKAGE ....
+echo "Tagging with providers/${RELEASE_DATE}"
+git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
+git push apache providers/${RELEASE_DATE}
+breeze release-management prepare-airflow-tarball --version ${RELEASE_DATE} --distribution-name apache_airflow_providers
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
 you want to release it before you switch their state to ``ready``), you need to pass
 ``--include-not-ready-providers`` flag to the command above.
-
 
 * Sign all your packages
 
@@ -408,7 +425,7 @@ mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
 # Add and commit
 svn add *
-svn commit -m "Add artifacts for Airflow Providers $(date "+%Y-%m-%d%n")"
+svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
 ```
@@ -459,7 +476,7 @@ breeze release-management prepare-provider-distributions
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze release-management prepare-provider-distributions --distributions-list PACKAGE1,PACKAGE2
+breeze release-management prepare-provider-distributions --distributions-list "PACKAGE1 PACKAGE2"
 ```
 
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
@@ -481,16 +498,9 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Confirm that the packages are available under the links printed and look good.
 
+## Push the RC tags
 
-## Add tags in git
-
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
-
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
-
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
 ```shell script
 breeze release-management tag-providers
@@ -585,10 +595,10 @@ There are few special considerations when the list of provider is updated.
 
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
+branch="add-documentation-${RELEASE_DATE}"
 git checkout -b "${branch}"
 git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
+git commit -m "Add documentation for packages - ${RELEASE_DATE}"
 git push --set-upstream origin "${branch}"
 ```
 
@@ -686,7 +696,7 @@ subject:
 
 ```shell script
 cat <<EOF
-$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "[VOTE]" || echo "[ACCELERATED VOTE]") Airflow Providers prepared on $(LANG=en_US.UTF-8 TZ=UTC date "+%B %d, %Y")
+$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "[VOTE]" || echo "[ACCELERATED VOTE]") Airflow Providers, release preparation date ${RELEASE_DATE}")
 EOF
 ```
 
@@ -694,7 +704,7 @@ EOF
 cat <<EOF
 Hey all,
 
-I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
+I have just cut the new wave Airflow Providers packages with release preparation date ${RELEASE_DATE}. This email is calling a vote on the release,
 which will last for $VOTE_DURATION_IN_HOURS hours - which means that it will end on $VOTE_END_TIME UTC and until 3 binding +1 votes have been received.
 $([ "$IS_SHORTEN_VOTE" = "true" ] && echo "${SHORTEN_VOTE_TEXT}" || echo "")
 
@@ -705,11 +715,11 @@ Consider this my (binding) +1.
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
 
-*apache-airflow-providers-<PROVIDER>-*.tar.gz* are the binary
- Python "sdist" release - they are also official "sources" for the Provider distributions.
+*apache-airflow-providers-YYYY-MM-DD-source.tar.gz* is the full source tarball of airflow repo - snapshot taken at the moment of provider's release.
 
-*apache_airflow_providers_<PROVIDER>-*.whl are the binary
- Python "wheel" release.
+*apache-airflow-providers-<PROVIDER>-*.tar.gz* are the convenience python "sdist" distributions that we publish in PyPI
+
+*apache_airflow_providers_<PROVIDER>-*.whl are the convenience Python "wheel" distributions that we publish in PyPI.
 
 The test procedure for PMC members is described in
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDERS.md#verify-the-release-candidate-by-pmc-members
@@ -762,6 +772,12 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 ## Verify the release candidate by PMC members
 
+Set expected release tag (the same as announced in the vote email):
+
+```shell script
+export RELEASE_DATE=2025-11-03
+````
+
 ### SVN check
 
 The files should be present in
@@ -791,7 +807,7 @@ Set an environment variable: PATH_TO_SVN to the root of folder where you have pr
 
 ``` shell
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=${pwd -P)
+export PATH_TO_SVN=$(pwd -P)
 ```
 
 Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
@@ -832,13 +848,11 @@ How to verify it:
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
-   commands are:
+2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
 git fetch apache --tags
-git checkout providers-amazon/9.1.0rc1
+git checkout providers/2025-10-31
 ```
 
 3) Remove all the packages you have in dist folder
@@ -925,7 +939,7 @@ This can be done with the Apache RAT tool.
 # Get rat if you do not have it
 if command -v wget >/dev/null 2>&1; then
     echo "Using wget to download Apache RAT..."
-    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.16.1/apache-rat-0.16.1-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
 else
     echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
     exit 1
@@ -941,15 +955,24 @@ done
 # Generate list of unpacked providers
 find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
 # Check licences
-for d in $(cat /tmp/files.txt)
+for d in $(cat /tmp/files.txt | sort)
 do
-  pushd $d
-  java -jar /tmp/apache-rat-0.16.1/apache-rat-0.16.1.jar -E ${AIRFLOW_REPO_ROOT}/.rat-excludes -d .  2>/dev/null | grep Unknown
-  popd >/dev/null
+  pushd $d 2>&1 >/dev/null
+  echo "Checking licences for $d"
+  java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes .  2>/dev/null | grep '! '
+  popd 2>&1 >/dev/null
 done
 ```
 
-You should see only '0 Unknown licences"
+You should see output similar to:
+
+```
+Checking licences for ./apache_airflow_providers-2025-11-03
+Checking licences for ./apache_airflow_providers_edge3-1.4.1
+...
+```
+
+You will see there files that are considered problematic by RAT tool (RAT prints such files preceding them with "! ").
 
 Cleanup:
 
@@ -1006,32 +1029,38 @@ this is a valid key already.  To suppress the warning you may edit the key's tru
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-2.0.2rc4.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking apache_airflow_providers-2025-11-03-source.tar.gz.asc
 
-Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
-gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
+gpg: assuming signed data in 'apache_airflow_providers-2025-11-03-source.tar.gz'
+gpg: Signature made Mon 03 Nov 2025 09:30:25 CET
+gpg:                using EDDSA key 0B63993D3B84EE3E2EBB984B2A454DAA1E6A437B
+gpg:                issuer "eladkal@apache.org"
+gpg: Good signature from "Elad Kalif <eladkal@apache.org>" [unknown]
+gpg: WARNING: The key's User ID is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Primary key fingerprint: 0B63 993D 3B84 EE3E 2EBB  984B 2A45 4DAA 1E6A 437B
+Checking apache_airflow_providers_edge3-1.4.1-py3-none-any.whl.asc
 
-Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
+gpg: assuming signed data in 'apache_airflow_providers_edge3-1.4.1-py3-none-any.whl'
+gpg: Signature made Mon 03 Nov 2025 09:30:24 CET
+gpg:                using EDDSA key 0B63993D3B84EE3E2EBB984B2A454DAA1E6A437B
+gpg:                issuer "eladkal@apache.org"
+gpg: Good signature from "Elad Kalif <eladkal@apache.org>" [unknown]
+gpg: WARNING: The key's User ID is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Primary key fingerprint: 0B63 993D 3B84 EE3E 2EBB  984B 2A45 4DAA 1E6A 437B
+Checking apache_airflow_providers_edge3-1.4.1.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_providers_edge3-1.4.1.tar.gz'
+gpg: Signature made Mon 03 Nov 2025 09:30:24 CET
+gpg:                using EDDSA key 0B63993D3B84EE3E2EBB984B2A454DAA1E6A437B
+gpg:                issuer "eladkal@apache.org"
+gpg: Good signature from "Elad Kalif <eladkal@apache.org>" [unknown]
+gpg: WARNING: The key's User ID is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 0B63 993D 3B84 EE3E 2EBB  984B 2A45 4DAA 1E6A 437B
+⌁0% [jarek:~/code/asf-dist/dev/airflow/providers] dist ‡ for i in *.sha512
+
 ```
 
 ### SHA512 check
@@ -1048,8 +1077,10 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
-Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
+Checking apache_airflow_providers-2025-11-03-source.tar.gz.sha512
+Checking apache_airflow_providers_edge3-1.4.1-py3-none-any.whl.sha512
+Checking apache_airflow_providers_edge3-1.4.1.tar.gz.sha512
+...
 ```
 
 ## Verify the release candidate by Contributors
@@ -1126,12 +1157,8 @@ that the Airflow works as you expected.
 
 # Publish release
 
-Replace the DAYS_BACK with how many days ago you prepared the release.
-Normally it's 3 but in case it's longer change it. The output should match the prepare date.
-
 ```
-export DAYS_BACK=3
-export RELEASE_DATE=$(LANG=en_US.UTF-8 date -u -v-${DAYS_BACK}d "+%B %d, %Y")
+export RELEASE_DATE=2025-11-03
 export RELEASE_MANAGER_NAME="Elad Kalif"
 echo "prepare release date is ${RELEASE_DATE}"
 ```
@@ -1157,7 +1184,7 @@ Email subject:
 
 ```
 cat <<EOF
-[RESULT][VOTE] Airflow Providers - release of ${RELEASE_DATE}
+[RESULT][VOTE] Airflow Providers - release preparation date ${RELEASE_DATE}
 EOF
 ```
 
@@ -1285,10 +1312,10 @@ By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
+git checkout providers/YYYY-MM-DD
 ```
 
-example `git checkout providers-amazon/7.0.0rc2`
+example `git checkout providers/2025-10-31`
 
 Note you probably will see message `You are in 'detached HEAD' state.`
 This is expected, the RC tag is most likely behind the main branch.
@@ -1324,6 +1351,13 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 breeze release-management tag-providers
+```
+
+The command should output all the tags it created. At the end it should also print the general tag
+applied for this provider's release wave - with current date in the format of:
+
+```
+providers/YYYY-MM-DD
 ```
 
 ## Publish documentation

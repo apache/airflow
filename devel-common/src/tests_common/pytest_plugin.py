@@ -1487,6 +1487,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_execute_callback=None,
         on_failure_callback=None,
         on_retry_callback=None,
+        on_skipped_callback=None,
+        inlets=None,
+        outlets=None,
         email=None,
         map_index=-1,
         hostname=None,
@@ -1512,6 +1515,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 on_execute_callback=on_execute_callback,
                 on_failure_callback=on_failure_callback,
                 on_retry_callback=on_retry_callback,
+                on_skipped_callback=on_skipped_callback,
+                inlets=inlets,
+                outlets=outlets,
                 email=email,
                 pool=pool,
                 trigger_rule=trigger_rule,
@@ -1657,6 +1663,8 @@ def get_test_dag():
         dag = dagbag.get_dag(dag_id)
 
         if dagbag.import_errors:
+            if settings.Session is None:
+                raise RuntimeError("Session not configured. Call configure_orm() first.")
             session = settings.Session()
             from airflow.models.errors import ParseImportError
 
@@ -1681,6 +1689,8 @@ def get_test_dag():
             from airflow.models.dagbundle import DagBundleModel
             from airflow.serialization.serialized_objects import SerializedDAG
 
+            if settings.Session is None:
+                raise RuntimeError("Session not configured. Call configure_orm() first.")
             session = settings.Session()
             if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))

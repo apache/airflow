@@ -281,10 +281,10 @@ This command can be utilized to manage git tags for providers within the Airflow
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
-The flag ``--clean-local-tags`` can be used to delete the local tags.
+The flag ``--clean-tags`` can be used to delete the local tags.
 
 However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-local-tags`` flag.
+``--no-clean-tags`` flag.
 
 .. code-block:: bash
 
@@ -428,7 +428,7 @@ Installing providers
 """"""""""""""""""""
 
 In some cases we want to just see if the providers generated can be installed with Airflow without
-verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+verifying them. This happens automatically on CI for sdist packages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash

@@ -215,6 +215,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
                 poke_interval=self.poke_interval,
                 should_check_fn=bool(self.check_fn),
                 use_regex=self.use_regex,
+                metadata_keys=self.metadata_keys,
             ),
             method_name="execute_complete",
         )
@@ -226,7 +227,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "running":
-            found_keys = self.check_fn(event["files"])  # type: ignore[misc]
+            found_keys = self.check_fn(event["files"], **context)  # type: ignore[misc]
             if not found_keys:
                 self._defer()
         elif event["status"] == "error":
