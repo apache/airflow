@@ -64,6 +64,7 @@ dependencies = [
     'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
     "pyarrow>=18.0.0; python_version >= '3.13'",
+    # TODO(potiuk): We should bump the snowflake-connector-python to >=4.0.0 when sqlalchemy>=2.0 is required
     "snowflake-connector-python>=3.16.0",
     "snowflake-sqlalchemy>=1.7.0",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
@@ -77,7 +78,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure"
+    "apache-airflow-providers-microsoft-azure>=12.8.0"
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"

@@ -80,31 +80,6 @@ with DAG(
     )
     # [END howto_operator_start_python_job]
 
-    start_python_job_direct = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_direct",
-        py_file="apache_beam.examples.wordcount",
-        py_options=["-m"],
-        pipeline_options={
-            "output": GCS_OUTPUT,
-        },
-        py_requirements=["apache-beam[gcp]==2.67.0"],
-        py_interpreter="python3",
-        py_system_site_packages=False,
-    )
-
-    start_python_job_direct_deferrable = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_direct_deferrable",
-        py_file="apache_beam.examples.wordcount",
-        py_options=["-m"],
-        pipeline_options={
-            "output": GCS_OUTPUT,
-        },
-        py_requirements=["apache-beam[gcp]==2.67.0"],
-        py_interpreter="python3",
-        py_system_site_packages=False,
-        deferrable=True,
-    )
-
     start_python_job_dataflow_deferrable = BeamRunPythonPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
         task_id="start_python_job_dataflow_deferrable",
@@ -138,8 +113,6 @@ with DAG(
         # TEST BODY
         >> [
             start_python_job_dataflow,
-            start_python_job_direct,
-            start_python_job_direct_deferrable,
             start_python_job_dataflow_deferrable,
         ]
         >> stop_dataflow_job

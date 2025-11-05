@@ -79,10 +79,12 @@ dependencies = [
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
+    "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -177,16 +179,11 @@ dependencies = [
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
-]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]

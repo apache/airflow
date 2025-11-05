@@ -136,6 +136,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--sign-email",
+                "--version-suffix",
             ],
         }
     ],
@@ -244,6 +245,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Add tags to providers",
             "options": [
                 "--clean-tags",
+                "--release-date",
             ],
         },
     ],
@@ -424,6 +426,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--task-sdk-version",
                 "--github-token",
                 "--remote-name",
+                "--sync-branch",
             ],
         }
     ],
@@ -436,7 +439,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management start-release": [
-        {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+        {
+            "name": "Start release flags",
+            "options": ["--release-candidate", "--previous-release", "--task-sdk-release-candidate"],
+        }
     ],
     "breeze release-management update-constraints": [
         {
