@@ -24,7 +24,7 @@ from airflow_breeze.global_constants import GITHUB_REPO_BRANCH_PATTERN, PR_NUMBE
 
 
 @pytest.mark.parametrize(
-    "value, should_match_pr, should_match_repo",
+    ("value", "should_match_pr", "should_match_repo"),
     [
         pytest.param("57219", True, False, id="pr_number"),
         pytest.param("12345", True, False, id="another_pr_number"),

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import ForeignKey, Index, Integer, String, and_, func, select, text
+from sqlalchemy import ForeignKey, Index, Integer, String, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
@@ -44,6 +44,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_colum
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ColumnElement
 
     from airflow.sdk.definitions.deadline import Callback
     from airflow.triggers.base import TriggerEvent
@@ -107,7 +108,7 @@ class Deadline(Base):
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     # The (serialized) callback to be called when the Deadline has passed.
-    _callback: Mapped[dict] = mapped_column(
+    _callback: Mapped[dict[str, Any]] = mapped_column(
         "callback", sqlalchemy_jsonfield.JSONField(json=json), nullable=False
     )
     # The state of the deadline callback
@@ -129,7 +130,10 @@ class Deadline(Base):
     ):
         super().__init__()
         self.deadline_time = deadline_time
-        self._callback = serialize(callback)
+        result = serialize(callback)
+        if not isinstance(result, dict):
+            raise TypeError("Expected callback to serialize into a dict")
+        self._callback: dict[str, Any] = result
         self.dagrun_id = dagrun_id
 
     def __repr__(self):
@@ -414,6 +418,7 @@ class ReferenceModels:
             dialect = get_dialect_name(session)
 
             # Create database-specific expression for calculating duration in seconds
+            duration_expr: ColumnElement[Any]
             if dialect == "postgresql":
                 duration_expr = func.extract("epoch", DagRun.end_date - DagRun.start_date)
             elif dialect == "mysql":
@@ -507,7 +512,9 @@ def _fetch_from_db(model_reference: Mapped, session=None, **conditions) -> datet
     query = select(model_reference)
 
     for key, value in conditions.items():
-        query = query.where(getattr(model_reference.class_, key) == value)
+        inspected = inspect(model_reference)
+        if inspected is not None:
+            query = query.where(getattr(inspected.class_, key) == value)
 
     compiled_query = query.compile(compile_kwargs={"literal_binds": True})
     pretty_query = "\n    ".join(str(compiled_query).splitlines())
