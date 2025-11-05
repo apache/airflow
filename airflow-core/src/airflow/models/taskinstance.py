@@ -1639,7 +1639,6 @@ class TaskInstance(Base, LoggingMixin):
                 ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY
-            log.info("Will retry %s on %s", ti.task_id, ti.next_retry_datetime())
 
         try:
             get_listener_manager().hook.on_task_instance_failed(

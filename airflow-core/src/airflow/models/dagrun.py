@@ -68,8 +68,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.definitions import enable_lazy_task_expansion
-from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.stats import Stats
@@ -1148,11 +1146,11 @@ class DagRun(Base, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         class _UnfinishedStates(NamedTuple):
-            tis: tuple[TI, ...]
+            tis: Sequence[TI]
 
             @classmethod
             def calculate(cls, unfinished_tis: Sequence[TI]) -> _UnfinishedStates:
-                return cls(tis=tuple(unfinished_tis))
+                return cls(tis=unfinished_tis)
 
             @property
             def should_schedule(self) -> bool:
@@ -1169,7 +1167,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
             def recalculate(self) -> _UnfinishedStates:
-                return self._replace(tis=tuple([t for t in self.tis if t.state in State.unfinished]))
+                return self._replace(tis=[t for t in self.tis if t.state in State.unfinished])
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
@@ -1579,13 +1577,9 @@ class DagRun(Base, LoggingMixin):
             new_tis = None
             if schedulable.map_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
-
-                self.log.info("new_tis: %d", len(new_tis or []))
-
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
-
             if not new_tis and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
@@ -1596,6 +1590,10 @@ class DagRun(Base, LoggingMixin):
                         )
                     )
                     revised_map_index_task_ids.add(schedulable.task.task_id)
+
+                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
+                # after calculating mapped task length, so we need to re-check
+                # the task state to ensure it's still schedulable
                 if not is_unmapped_task(schedulable):
                     ready_tis.append(schedulable)
 
@@ -2059,10 +2057,10 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
-            if ti.is_schedulable:
-                schedulable_ti_ids.append(ti.id)
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.

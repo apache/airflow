@@ -33,11 +33,11 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
-from airflow._shared.timezones import timezone
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -559,9 +559,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @add_debug_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
-
         if self.events:
-            log.info("handle %d events", len(self.events))
             with create_session() as session:
                 while self.events:
                     trigger_id, event = self.events.popleft()
@@ -1089,10 +1087,8 @@ class TriggerRunner:
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((id, trigger, tb))
 
-        msg = messages.TriggerStateChanges.model_construct(
-            events=events_to_send,
-            finished=finished_ids,
-            failures=failures_to_send
+        msg = messages.TriggerStateChanges(
+            events=events_to_send, finished=finished_ids, failures=failures_to_send
         )
 
         if not events_to_send:
