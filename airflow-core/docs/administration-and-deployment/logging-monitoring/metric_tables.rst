@@ -97,6 +97,7 @@ Name                                                  Legacy Name               
 ``edge_worker.concurrency``                           ``edge_worker.concurrency.{worker_name}``         Concurrency capacity in an edge worker.
 ``edge_worker.free_concurrency``                      ``edge_worker.free_concurrency.{worker_name}``    Available concurrency in an edge worker.
 ``edge_worker.num_queues``                            ``edge_worker.num_queues.{worker_name}``          Number of queues in an edge worker.
+``edge_worker.heartbeat_count``                       ``edge_worker.heartbeat_count.{worker_name}``     Number heartbeats in an edge worker.
 ====================================================  ================================================  ========================================================================================================================================
 
 Timers
