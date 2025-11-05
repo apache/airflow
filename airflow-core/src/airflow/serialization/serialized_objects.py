@@ -1895,15 +1895,13 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
                 if attrname in client_defaults and client_defaults[attrname] == var:
                     return True
 
-                # If client_defaults differs, preserve explicit user settings (bug fix)
+                # If client_defaults differs, preserve explicit override from user
                 # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
                 if attrname in client_defaults and client_defaults[attrname] != var:
-                    if (
-                        op.has_dag()
-                        and attrname in op.dag.default_args
-                        and op.dag.default_args[attrname] == var
-                    ):
-                        return False
+                    if op.has_dag():
+                        dag = op.dag
+                        if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                            return False
                     if (
                         hasattr(op, "_BaseOperator__init_kwargs")
                         and attrname in op._BaseOperator__init_kwargs
