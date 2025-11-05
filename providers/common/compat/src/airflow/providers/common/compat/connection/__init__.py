@@ -17,32 +17,34 @@
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseHook
+
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.dag import DAG
-
-warnings.warn(
-    "`airflow.utils.dag_cycle_tester` module is deprecated and will be removed in a future release."
-    "Please use `dag.check_cycle()` method instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+    from airflow.providers.common.compat.sdk import Connection
 
 
-def check_cycle(dag: DAG) -> None:
+log = logging.getLogger(__name__)
+
+
+async def get_async_connection(conn_id: str) -> Connection:
     """
-    Check to see if there are any cycles in the DAG.
+    Get an asynchronous Airflow connection that is backwards compatible.
 
-    .. deprecated:: 3.1.0
-        This function is deprecated. Use `dag.check_cycle()` method instead.
-
-    :param dag: The DAG to check for cycles
-    :raises AirflowDagCycleException: If cycle is found in the DAG.
+    :param conn_id: The provided connection ID.
+    :returns: Connection
     """
-    # No warning here since we already warned on import
-    dag.check_cycle()
+    from asgiref.sync import sync_to_async
+
+    if hasattr(BaseHook, "aget_connection"):
+        log.debug("Get connection using `BaseHook.aget_connection().")
+        return await BaseHook.aget_connection(conn_id=conn_id)
+    log.debug("Get connection using `BaseHook.get_connection().")
+    return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
 
 
-__all__ = ["check_cycle"]
+__all__ = [
+    "get_async_connection",
+]

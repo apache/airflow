@@ -245,6 +245,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Add tags to providers",
             "options": [
                 "--clean-tags",
+                "--release-date",
             ],
         },
     ],
@@ -425,6 +426,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--task-sdk-version",
                 "--github-token",
                 "--remote-name",
+                "--sync-branch",
             ],
         }
     ],
