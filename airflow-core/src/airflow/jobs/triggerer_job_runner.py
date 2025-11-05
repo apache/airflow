@@ -407,15 +407,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.events.extend(msg.events)
             if msg.failures:
                 self.failed_triggers.extend(msg.failures)
-            if msg.finished:
-                for id in msg.finished:
-                    self.running_triggers.discard(id)
-                    self.cancelling_triggers.discard(id)
-                    self.finished_triggers.add(id)
-                    # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
-                    # only need to remove the last reference to it to close the open FH
-                    if factory := self.logger_cache.pop(id, None):
-                        factory.upload_to_remote()
+            for id in msg.finished or ():
+                self.running_triggers.discard(id)
+                self.cancelling_triggers.discard(id)
+                self.finished_triggers.add(id)
+                # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
+                # only need to remove the last reference to it to close the open FH
+                if factory := self.logger_cache.pop(id, None):
+                    factory.upload_to_remote()
 
             response = messages.TriggerStateSync(
                 to_create=[],
