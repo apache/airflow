@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -94,6 +95,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
@@ -103,10 +105,12 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskState,
     TaskStatesResult,
     ToSupervisor,
@@ -924,6 +928,9 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
+    _should_retry: bool = attrs.field(default=False, init=False)
+    """Whether the task should retry or not as decided by the API server."""
+
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
@@ -963,6 +970,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1129,7 +1137,7 @@ class ActivitySubprocess(WatchedSubprocess):
         except Exception as e:
             self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self, exc: Exception | None):
+    def _handle_heartbeat_failures(self, exc: Exception):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1137,7 +1145,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exception=exc,
+            exc_info=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -1161,6 +1169,13 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
+
+        # Any negative exit code indicates a signal kill
+        # We consider all signal kills as potentially retryable
+        # since they're often transient issues that could succeed on retry
+        if self._exit_code < 0 and self._should_retry:
+            return TaskInstanceState.UP_FOR_RETRY
+
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
@@ -1263,6 +1278,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, SetRenderedMapIndex):
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
@@ -1343,6 +1360,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetTaskBreadcrumbs):
+            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -1369,7 +1389,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
         elif isinstance(msg, CreateHITLDetailPayload):
-            resp = self.client.hitl.add_response(
+            hitl_detail_request = self.client.hitl.add_response(
                 ti_id=msg.ti_id,
                 options=msg.options,
                 subject=msg.subject,
@@ -1379,7 +1399,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 multiple=msg.multiple,
                 assigned_users=msg.assigned_users,
             )
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
         else:
@@ -1927,6 +1948,7 @@ def supervise(
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
         client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
         close_client = True
+        log.debug("Connecting to execution API server", server=server)
 
     start = time.monotonic()
 

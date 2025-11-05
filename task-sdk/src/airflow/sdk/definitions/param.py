@@ -159,6 +159,9 @@ class ParamsDict(MutableMapping[str, Any]):
             return self.dump() == other
         return NotImplemented
 
+    def __hash__(self):
+        return hash(self.dump())
+
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
 

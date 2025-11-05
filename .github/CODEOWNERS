@@ -13,7 +13,7 @@
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
-/chart/ @dstandish @jedcunningham @hussein-awala
+/chart/ @dstandish @jedcunningham @hussein-awala @jscheffl
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
@@ -30,7 +30,7 @@
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
 # UI
-/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
+/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @shubhamraj-git @guan404ming
 
 # Translation Owners (i18n)
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
@@ -38,7 +38,7 @@
 airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
 airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina
 airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
-airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol
+airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol @xBis7
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
 airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL

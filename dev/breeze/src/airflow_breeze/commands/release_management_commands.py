@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import ast
-import contextlib
 import glob
 import operator
 import os
@@ -32,7 +31,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -259,12 +258,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.2"
-AIRFLOW_UV_VERSION = "0.9.4"
+AIRFLOW_PIP_VERSION = "25.3"
+AIRFLOW_UV_VERSION = "0.9.7"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.10"
+PREK_VERSION = "0.2.12"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -272,7 +271,7 @@ PYYAML_VERSION = "6.0.3"
 AIRFLOW_BUILD_DOCKERFILE = f"""
 # syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
-RUN apt-get update && apt-get install -y --no-install-recommends git curl
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 git curl
 RUN pip install uv=={UV_VERSION}
 RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
   uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
@@ -547,7 +546,9 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 
 def create_tarball_from_tag(
     version_suffix: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     if tag is not None:
@@ -610,7 +611,7 @@ def prepare_airflow_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflow",
+        distribution_name="apache_airflow",
         tag=tag,
     )
 
@@ -764,7 +765,7 @@ def prepare_task_sdk_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="task-sdk",
+        distribution_name="apache_airflow_task_sdk",
         tag=tag,
     )
 
@@ -802,7 +803,7 @@ def prepare_airflow_ctl_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflowctl",
+        distribution_name="apache_airflow_ctl",
         tag=tag,
     )
 
@@ -1090,7 +1091,7 @@ def _build_provider_distributions(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1124,7 +1125,7 @@ def prepare_provider_distributions(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override provider_distributions with values from DISTRIBUTIONS_LIST
-        distributions_list_as_tuple = tuple(distributions_list.split(","))
+        distributions_list_as_tuple = tuple(distributions_list.split(" "))
     if provider_distributions and distributions_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -1202,7 +1203,7 @@ def prepare_provider_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="providers",
+        distribution_name="apache_airflow_providers",
         tag=tag,
     )
 
@@ -1286,18 +1287,26 @@ def run_generate_constraints_in_parallel(
     help="Generates tags for airflow provider releases.",
 )
 @click.option(
-    "--clean-local-tags/--no-clean-local-tags",
+    "--clean-tags/--no-clean-tags",
     default=True,
     is_flag=True,
-    envvar="CLEAN_LOCAL_TAGS",
-    help="Delete local tags that are created due to github connectivity issues to avoid errors. "
-    "The default behaviour would be to clean such local tags.",
+    envvar="CLEAN_TAGS",
+    help="Delete tags (both local and remote) that are created due to github connectivity "
+    "issues to avoid errors. The default behaviour would be to clean both local and remote tags.",
     show_default=True,
+)
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
 )
 @option_dry_run
 @option_verbose
 def tag_providers(
-    clean_local_tags: bool,
+    clean_tags: bool,
+    release_date: str,
 ):
     found_remote = None
     remotes = ["origin", "apache"]
@@ -1316,43 +1325,31 @@ def tag_providers(
             pass
 
     if found_remote is None:
-        raise ValueError("Could not find remote configured to push to apache/airflow")
+        raise ValueError("Could not find the remote configured to push to apache/airflow")
 
+    extra_flags = []
     tags = []
+    if clean_tags:
+        extra_flags.append("--force")
     for file in os.listdir(os.path.join(SOURCE_DIR_PATH, "dist")):
         if file.endswith(".whl"):
             match = re.match(r".*airflow_providers_(.*)-(.*)-py3.*", file)
             if match:
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
-                try:
-                    run_command(
-                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
-                        check=True,
-                    )
-                    tags.append(tag)
-                except subprocess.CalledProcessError:
-                    pass
-
-    if tags:
-        try:
-            push_result = run_command(
-                ["git", "push", found_remote, *tags],
-                check=False,
-            )
-            if push_result.returncode == 0:
-                get_console().print("\n[success]Tags pushed successfully.[/]")
-        except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to GitHub.[/]")
-            if clean_local_tags:
-                for tag in tags:
-                    with contextlib.suppress(subprocess.CalledProcessError):
-                        run_command(["git", "tag", "-d", tag], check=True)
-                get_console().print("\n[success]Cleaning up local tags...[/]")
-            else:
-                get_console().print(
-                    "\n[success]Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true.[/]"
+                get_console().print(f"[info]Creating tag: {tag}")
+                run_command(
+                    ["git", "tag", tag, *extra_flags, "-m", f"Release {release_date} of providers"],
+                    check=True,
                 )
+                tags.append(tag)
+    if tags:
+        push_result = run_command(
+            ["git", "push", found_remote, *extra_flags, *tags],
+            check=True,
+        )
+        if push_result.returncode == 0:
+            get_console().print("\n[success]Tags pushed successfully.[/]")
 
 
 @release_management.command(
@@ -1775,9 +1772,7 @@ def run_publish_docs_in_parallel(
     distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
-    include_success_outputs: bool,
     parallelism: int,
-    skip_cleanup: bool,
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
@@ -1841,7 +1836,6 @@ def run_publish_docs_in_parallel(
 @option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
@@ -1855,19 +1849,17 @@ def run_publish_docs_in_parallel(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
 @option_parallelism
 @option_run_in_parallel
-@option_skip_cleanup
 @option_verbose
 def publish_docs(
     airflow_site_directory: str,
     debug_resources: bool,
     doc_packages: tuple[str, ...],
-    include_success_outputs: bool,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
@@ -1875,7 +1867,6 @@ def publish_docs(
     distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
-    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -1889,7 +1880,7 @@ def publish_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        packages_list_as_tuple = tuple(distributions_list.split(","))
+        packages_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -1913,9 +1904,7 @@ def publish_docs(
         run_publish_docs_in_parallel(
             distributions_list=current_packages,
             parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
@@ -3458,6 +3447,21 @@ def prepare_python_client(
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
         """
+        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            get_console().print(
+                f"[error]Python version mismatch: current version is {current_python_version}, "
+                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
+                f"reproducibility problems with prepared package.[/]"
+            )
+            get_console().print(
+                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
+            )
+            get_console().print(
+                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+            )
+            sys.exit(1)
+
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )
@@ -3634,6 +3638,18 @@ def prepare_helm_chart_tarball(
     values_content = yaml.safe_load(VALUES_YAML_FILE.read_text())
     airflow_version_in_values = values_content["airflowVersion"]
     default_airflow_tag_in_values = values_content["defaultAirflowTag"]
+
+    # Check if this is an RC version and replace documentation links with staging URLs
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
+    if is_rc_version:
+        get_console().print(
+            f"[info]RC version detected ({version_suffix}). Replacing documentation links with staging URLs.[/]"
+        )
+        # Replace production URLs with staging URLs for RC versions
+        chart_yaml_file_content = chart_yaml_file_content.replace(
+            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
+        )
+        get_console().print("[success]Documentation links updated to staging environment for RC version.[/]")
     if ignore_version_check:
         if not version:
             version = version_in_chart
@@ -3765,9 +3781,15 @@ def prepare_helm_chart_tarball(
     envvar="SIGN_EMAIL",
     default="",
 )
+@click.option(
+    "--version-suffix",
+    help="Version suffix used to determine if RC version. For RC versions, documentation links will be replaced with staging URLs.",
+    default="",
+    envvar="VERSION_SUFFIX",
+)
 @option_dry_run
 @option_verbose
-def prepare_helm_chart_package(sign_email: str):
+def prepare_helm_chart_package(sign_email: str, version_suffix: str):
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (
@@ -3776,71 +3798,96 @@ def prepare_helm_chart_package(sign_email: str):
         sync_virtualenv,
     )
 
-    chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
-    version = chart_yaml_dict["version"]
-    result = sync_virtualenv(force_venv_setup=False)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
-    make_sure_helm_installed()
-    get_console().print(f"[info]Packaging the chart for Helm Chart {version}[/]")
-    k8s_env = os.environ.copy()
-    k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
-    # Tar on modern unix options requires --wildcards parameter to work with globs
-    # See https://github.com/technosophos/helm-gpg/issues/1
-    k8s_env["TAR_OPTIONS"] = "--wildcards"
-    archive_name = f"airflow-{version}.tgz"
-    OUT_PATH.mkdir(parents=True, exist_ok=True)
-    result = run_command(
-        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
-        env=k8s_env,
-        check=False,
-    )
-    if result.returncode != 0:
-        get_console().print("[error]Error packaging the chart[/]")
-        sys.exit(result.returncode)
-    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
-    final_archive = AIRFLOW_DIST_PATH / archive_name
-    final_archive.unlink(missing_ok=True)
-    source_archive = OUT_PATH / archive_name
-    result = repack_deterministically(
-        source_archive=source_archive,
-        dest_archive=final_archive,
-        prepend_path=None,
-        timestamp=get_source_date_epoch(CHART_DIR),
-    )
-    if result.returncode != 0:
+    # Check if this is an RC version and temporarily replace documentation links
+    chart_yaml_backup = None
+    is_rc_version = version_suffix and "rc" in version_suffix.lower()
+
+    if is_rc_version:
         get_console().print(
-            f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
+            f"[info]RC version detected ({version_suffix}). Temporarily replacing documentation links with staging URLs for packaging.[/]"
         )
-        sys.exit(result.returncode)
-    else:
-        get_console().print(f"[success]Package created in {final_archive}[/]")
-    if sign_email:
-        get_console().print(f"[info]Signing the package with {sign_email}[/]")
-        prov_file = final_archive.with_suffix(".tgz.prov")
-        if prov_file.exists():
-            get_console().print(f"[warning]Removing existing {prov_file}[/]")
-            prov_file.unlink()
-        result = run_command(
-            cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
-            cwd=AIRFLOW_DIST_PATH.as_posix(),
-            env=k8s_env,
-            check=False,
+        # Backup original content
+        chart_yaml_backup = CHART_YAML_FILE.read_text()
+        # Replace production URLs with staging URLs for RC versions
+        chart_yaml_content = chart_yaml_backup.replace(
+            "https://airflow.apache.org/", "https://airflow.staged.apache.org/"
         )
+        CHART_YAML_FILE.write_text(chart_yaml_content)
+        get_console().print(
+            "[success]Documentation links temporarily updated to staging environment for RC version packaging.[/]"
+        )
+
+    try:
+        chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
+        version = chart_yaml_dict["version"]
+        result = sync_virtualenv(force_venv_setup=False)
         if result.returncode != 0:
-            get_console().print("[error]Error signing the chart[/]")
             sys.exit(result.returncode)
+        make_sure_helm_installed()
+        get_console().print(f"[info]Packaging the chart for Helm Chart {version}[/]")
+        k8s_env = os.environ.copy()
+        k8s_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + k8s_env["PATH"]
+        # Tar on modern unix options requires --wildcards parameter to work with globs
+        # See https://github.com/technosophos/helm-gpg/issues/1
+        k8s_env["TAR_OPTIONS"] = "--wildcards"
+        archive_name = f"airflow-{version}.tgz"
+        OUT_PATH.mkdir(parents=True, exist_ok=True)
         result = run_command(
-            cmd=["helm", "gpg", "verify", archive_name],
-            cwd=AIRFLOW_DIST_PATH.as_posix(),
+            cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
             env=k8s_env,
             check=False,
         )
         if result.returncode != 0:
-            get_console().print("[error]Error signing the chart[/]")
+            get_console().print("[error]Error packaging the chart[/]")
+            sys.exit(result.returncode)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+        final_archive = AIRFLOW_DIST_PATH / archive_name
+        final_archive.unlink(missing_ok=True)
+        source_archive = OUT_PATH / archive_name
+        result = repack_deterministically(
+            source_archive=source_archive,
+            dest_archive=final_archive,
+            prepend_path=None,
+            timestamp=get_source_date_epoch(CHART_DIR),
+        )
+        if result.returncode != 0:
+            get_console().print(
+                f"[error]Error repackaging package for Helm Chart from {source_archive} to {final_archive}[/]"
+            )
             sys.exit(result.returncode)
         else:
-            get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+            get_console().print(f"[success]Package created in {final_archive}[/]")
+        if sign_email:
+            get_console().print(f"[info]Signing the package with {sign_email}[/]")
+            prov_file = final_archive.with_suffix(".tgz.prov")
+            if prov_file.exists():
+                get_console().print(f"[warning]Removing existing {prov_file}[/]")
+                prov_file.unlink()
+            result = run_command(
+                cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
+                cwd=AIRFLOW_DIST_PATH.as_posix(),
+                env=k8s_env,
+                check=False,
+            )
+            if result.returncode != 0:
+                get_console().print("[error]Error signing the chart[/]")
+                sys.exit(result.returncode)
+            result = run_command(
+                cmd=["helm", "gpg", "verify", archive_name],
+                cwd=AIRFLOW_DIST_PATH.as_posix(),
+                env=k8s_env,
+                check=False,
+            )
+            if result.returncode != 0:
+                get_console().print("[error]Error signing the chart[/]")
+                sys.exit(result.returncode)
+            else:
+                get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+    finally:
+        # Restore original Chart.yaml content if it was modified for RC version
+        if is_rc_version and chart_yaml_backup:
+            CHART_YAML_FILE.write_text(chart_yaml_backup)
+            get_console().print("[info]Restored original Chart.yaml content after packaging.[/]")
 
 
 def generate_issue_content(

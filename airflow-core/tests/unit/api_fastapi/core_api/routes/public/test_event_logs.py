@@ -23,6 +23,7 @@ import pytest
 from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
@@ -315,7 +316,8 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        response = test_client.get("/eventLogs", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

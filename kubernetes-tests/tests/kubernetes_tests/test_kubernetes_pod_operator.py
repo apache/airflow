@@ -1434,7 +1434,7 @@ class TestKubernetesPodOperatorSystem:
         )
 
     @pytest.mark.parametrize(
-        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        ("log_prefix_enabled", "log_formatter", "expected_log_message_check"),
         [
             pytest.param(
                 True,
@@ -1536,7 +1536,7 @@ class TestKubernetesPodOperator(BaseK8STest):
         create_connection_without_db(connection)
 
     @pytest.mark.parametrize(
-        "active_deadline_seconds,should_fail",
+        ("active_deadline_seconds", "should_fail"),
         [(3, True), (60, False)],
         ids=["should_fail", "should_not_fail"],
     )

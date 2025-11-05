@@ -88,9 +88,9 @@ class LatestOnlyOperator(BaseBranchOperator):
     def _get_compare_dates(self, dag_run: DagRun) -> tuple[DateTime, DateTime] | None:
         dagrun_date: DateTime
         if AIRFLOW_V_3_0_PLUS:
-            dagrun_date = dag_run.logical_date or dag_run.run_after
+            dagrun_date = dag_run.logical_date or dag_run.run_after  # type: ignore[assignment]
         else:
-            dagrun_date = dag_run.logical_date
+            dagrun_date = dag_run.logical_date  # type: ignore[assignment]
 
         from airflow.timetables.base import DataInterval, TimeRestriction
 

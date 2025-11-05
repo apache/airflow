@@ -135,7 +135,7 @@ class TestAttach:
         assert p.stat() == {**fsspec_info, "conn_id": "fake", "protocol": "fake"}
 
     @pytest.mark.parametrize(
-        "fn, args, fn2, path, expected_args, expected_kwargs",
+        ("fn", "args", "fn2", "path", "expected_args", "expected_kwargs"),
         [
             ("checksum", {}, "checksum", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
@@ -213,6 +213,15 @@ class TestLocalPath:
         with o.open("wb") as f:
             f.write(b"foo")
         assert o.open("rb").read() == b"foo"
+        o.unlink()
+
+    def test_read_line_by_line(self, target):
+        o = ObjectStoragePath(f"file://{target}")
+        with o.open("wb") as f:
+            f.write(b"foo\nbar\n")
+        with o.open("rb") as f:
+            lines = list(f)
+        assert lines == [b"foo\n", b"bar\n"]
         o.unlink()
 
     def test_stat(self, target):

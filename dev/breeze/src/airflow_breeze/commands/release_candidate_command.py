@@ -34,6 +34,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -207,7 +208,7 @@ def validate_on_correct_branch_for_tagging(version_branch):
     console_print(f"[success]On correct branch '{expected_branch}' for tagging")
 
 
-def merge_pr(version_branch, remote_name):
+def merge_pr(version_branch, remote_name, sync_branch):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -222,7 +223,7 @@ def merge_pr(version_branch, remote_name):
             check=True,
         )
         run_command(
-            ["git", "merge", "--ff-only", f"v{version_branch}-test"],
+            ["git", "merge", "--ff-only", f"{sync_branch}"],
             check=True,
         )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
@@ -255,11 +256,11 @@ def tarball_release(
     distribution_name: DistributionType,
     tag: str | None = None,
 ):
-    console_print(f"[info]Creating tarball for Apache {distribution_name.value} {version}")
+    console_print(f"[info]Creating tarball for {distribution_name.value} {version}")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    archive_name = f"apache-{distribution_name.value}-{version_without_rc}-source.tar.gz"
+    archive_name = f"{distribution_name.value}-{version_without_rc}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
@@ -269,7 +270,7 @@ def tarball_release(
             "archive",
             "--format=tar.gz",
             f"{version if tag is None else tag}",
-            f"--prefix=apache-{distribution_name.value}-{version_without_rc}/",
+            f"--prefix={distribution_name.value}-{version_without_rc}/",
             "-o",
             temporary_archive.as_posix(),
         ],
@@ -295,7 +296,9 @@ def tarball_release(
 
 def create_tarball_release(
     version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     from packaging.version import Version
@@ -305,19 +308,25 @@ def create_tarball_release(
         if distribution_name == DistributionType.AIRFLOW_CORE:
             version = get_airflow_version()
         elif distribution_name == DistributionType.TASK_SDK:
-            version = get_task_sdk_version()
+            version = f"task-sdk/{get_task_sdk_version()}"
         elif distribution_name == DistributionType.AIRFLOW_CTL:
-            version = get_airflowctl_version()
+            version = f"airflow-ctl/{get_airflowctl_version()}"
         elif distribution_name == DistributionType.PROVIDERS:
-            version = get_airflow_version()
-    distribution_version = Version(version)
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    version_without_rc = (
-        distribution_version.base_version
-        if distribution_name != DistributionType.PROVIDERS
-        else f"{datetime.now().strftime('%Y-%m-%d')}"
-    )
+            version = f"providers/{datetime.now().strftime('%Y-%m-%d')}"
+    else:
+        if distribution_name == DistributionType.TASK_SDK:
+            version = f"task-sdk/{version}"
+        elif distribution_name == DistributionType.AIRFLOW_CTL:
+            version = f"airflow-ctl/{version}"
+        elif distribution_name == DistributionType.PROVIDERS:
+            version = f"providers/{version}"
+    if distribution_name != DistributionType.PROVIDERS:
+        distribution_version = Version(version.split("/")[-1])
+        version_without_rc = distribution_version.base_version
+    else:
+        version_without_rc = version.split("/")[-1]
 
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     # Create the tarball
     tarball_release(
         version=version,
@@ -367,6 +376,8 @@ def create_artifacts_with_docker():
             "prepare-airflow-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -377,6 +388,8 @@ def create_artifacts_with_docker():
             "prepare-task-sdk-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -578,13 +591,16 @@ def remove_old_releases(version, repo_root):
 
 @release_management.command(
     name="prepare-airflow-tarball",
-    help="Prepare airflow's or airflow distribution source tarball.",
+    help="Prepare Airflow distribution source tarball.",
 )
 @click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
 @click.option(
     "--distribution-name",
-    default="airflow",
-    help="The distribution name, airflow, task-sdk, providers, airflowctl",
+    default="apache_airflow",
+    type=BetterChoice(sorted([e.value for e in DistributionType])),
+    show_default=True,
+    envvar="DISTRIBUTION_NAME",
+    help="The distribution name",
 )
 @click.option(
     "--tag",
@@ -595,7 +611,9 @@ def remove_old_releases(version, repo_root):
 @option_verbose
 def prepare_airflow_tarball(
     version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     create_tarball_release(
@@ -614,13 +632,18 @@ def prepare_airflow_tarball(
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
 @click.option("--task-sdk-version", required=True, help="The task SDK version e.g. 1.0.6rc1.")
 @click.option(
+    "--sync-branch", required=True, help="The branch of the sync PR. Can be the test branch. Please specify"
+)
+@click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
 @click.option("--remote-name", default="origin", help="Git remote name to push to (default: origin)")
 @option_answer
 @option_dry_run
 @option_verbose
-def publish_release_candidate(version, previous_version, task_sdk_version, github_token, remote_name):
+def publish_release_candidate(
+    version, previous_version, task_sdk_version, sync_branch, github_token, remote_name
+):
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -663,13 +686,14 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     console_print(f"task_sdk_version_without_rc: {task_sdk_version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
     console_print(f"remote_name: {remote_name}")
+    console_print(f"sync_branch: {sync_branch}")
     console_print()
     console_print(f"Below are your git remotes. We will push to {remote_name}:")
     run_command(["git", "remote", "-v"])
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch, remote_name)
+    merge_pr(version_branch, remote_name, sync_branch)
     #
     # # Tag & clean the repo
     # Validate we're on the correct branch before tagging

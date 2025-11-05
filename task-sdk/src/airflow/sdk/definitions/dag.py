@@ -1189,6 +1189,8 @@ class DAG:
             secrets_backend_list.insert(0, local_secrets)
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
 
         with exit_stack:
