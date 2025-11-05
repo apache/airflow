@@ -116,13 +116,24 @@ def upgrade():
     if dialect == "postgresql":
         # Replace standalone NaN tokens only (not NaN inside string values)
         # Use regex with word boundaries to match only standalone NaN tokens
-        conn.execute(
-            text("""
-                UPDATE xcom
-                SET value = convert_to(regexp_replace(convert_from(value, 'UTF8'), '\\bNaN\\b', '"nan"'), 'UTF8')
-                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
-            """)
-        )
+        if dialect == "postgresql":
+            # Replace NaN in JSON value positions (after :, , or [)
+            # This explicitly matches JSON structure, not relying on word boundaries
+            conn.execute(
+                text("""
+                    UPDATE xcom
+                    SET value = convert_to(
+                        regexp_replace(
+                            convert_from(value, 'UTF8'),
+                            '([:,\\[])\\s*NaN\\s*([,}\\]])',
+                            '\\1"nan"\\2',
+                            'g'
+                        ),
+                        'UTF8'
+                    )
+                    WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+                """)
+            )
 
         op.execute(
             """
