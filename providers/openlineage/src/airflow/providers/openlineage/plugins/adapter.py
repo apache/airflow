@@ -162,8 +162,6 @@ class OpenLineageAdapter(LoggingMixin):
                 try:
                     from airflow.metrics.dual_stats_manager import DualStatsManager
 
-                    # If enabled on the config, publish metrics twice,
-                    # once with backward compatible name, and then with tags.
                     stack.enter_context(DualStatsManager.timer("ol.emit.attempts"))
                 except ImportError:
                     stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))

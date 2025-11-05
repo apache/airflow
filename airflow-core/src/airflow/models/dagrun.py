@@ -1181,8 +1181,6 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        # If enabled on the config, publish metrics twice,
-        # once with backward compatible name, and then with tags.
         with DualStatsManager.timer(
             "dagrun.dependency-check",
             tags={},
@@ -1680,8 +1678,6 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        # If enabled on the config, publish metrics twice,
-        # once with backward compatible name, and then with tags.
         DualStatsManager.timing(
             f"dagrun.duration.{self.state}",
             dt=duration,
@@ -1763,8 +1759,6 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    # If enabled on the config, publish metrics twice,
-                    # once with backward compatible name, and then with tags.
                     DualStatsManager.incr(
                         "task_restored_to_dag",
                         tags=self.stats_tags,
@@ -1776,8 +1770,6 @@ class DagRun(Base, LoggingMixin):
                     pass  # ti has already been removed, just ignore it
                 elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    # If enabled on the config, publish metrics twice,
-                    # once with backward compatible name, and then with tags.
                     DualStatsManager.incr(
                         "task_removed_from_dag",
                         tags=self.stats_tags,
@@ -1945,8 +1937,6 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                # If enabled on the config, publish metrics twice,
-                # once with backward compatible name, and then with tags.
                 DualStatsManager.incr(
                     "task_instance_created",
                     count,

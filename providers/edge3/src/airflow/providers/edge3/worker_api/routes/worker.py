@@ -216,8 +216,6 @@ def set_state(
     try:
         from airflow.metrics.dual_stats_manager import DualStatsManager
 
-        # If enabled on the config, publish metrics twice,
-        # once with backward compatible name, and then with tags.
         DualStatsManager.incr(
             "edge_worker.heartbeat_count",
             1,
