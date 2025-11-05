@@ -212,7 +212,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1181,7 +1181,7 @@ def test_expected_output_pull_request_main(
     reason="This test should not run if .git folder is missing (for example by default in breeze container)",
 )
 @pytest.mark.parametrize(
-    "files, commit_ref, expected_outputs",
+    ("files", "commit_ref", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1246,7 +1246,7 @@ def test_excluded_providers():
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1297,7 +1297,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1592,7 +1592,7 @@ def test_expected_output_full_tests_needed(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1710,7 +1710,7 @@ def test_expected_output_pull_request_v2_7(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1797,7 +1797,7 @@ def test_expected_output_push(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -2066,7 +2066,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels, commit_ref",
+    ("files", "expected_outputs", "pr_labels", "commit_ref"),
     [
         pytest.param(
             ("airflow-core/src/airflow/models/dag.py",),
@@ -2114,7 +2114,7 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/google/docs/some_file.rst",),
@@ -2227,7 +2227,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("helm-tests/tests/helm_tests/random_helm_test.py",),
@@ -2252,7 +2252,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/amazon/provider.yaml",),
@@ -2306,7 +2306,7 @@ def test_provider_yaml_or_pyproject_toml_changes_trigger_ci_build(
 
 
 @pytest.mark.parametrize(
-    "files, has_migrations",
+    ("files", "has_migrations"),
     [
         pytest.param(
             ("airflow-core/src/airflow/test.py",),
@@ -2333,7 +2333,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
-    "labels, expected_outputs,",
+    ("labels", "expected_outputs"),
     [
         pytest.param(
             (),
@@ -2367,7 +2367,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, default_branch, pr_labels",
+    ("files", "expected_outputs", "default_branch", "pr_labels"),
     [
         pytest.param(
             ("README.md",),
@@ -2578,7 +2578,7 @@ def test_runner_type_schedule(mock_get):
 
 
 @pytest.mark.parametrize(
-    "integration, runner_type, expected_result",
+    ("integration", "runner_type", "expected_result"),
     [
         # Test integrations disabled for all CI environments
         pytest.param(
