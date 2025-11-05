@@ -34,6 +34,7 @@ x-airflow-common:
     AIRFLOW__API_AUTH__JWT_SECRET: 'test-secret-key-for-testing'
     AIRFLOW_VAR_TEST_VARIABLE_KEY: 'test_variable_value'
     AIRFLOW_CONN_TEST_CONNECTION: 'postgresql://testuser:testpass@testhost:5432/testdb'
+  user: "${AIRFLOW_UID:-50000}:0"
   volumes:
     - ${PWD}/dags:/opt/airflow/dags
     - ${PWD}/logs:/opt/airflow/logs
