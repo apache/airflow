@@ -162,7 +162,12 @@ class OpenLineageAdapter(LoggingMixin):
                 try:
                     from airflow.metrics.dual_stats_manager import DualStatsManager
 
-                    stack.enter_context(DualStatsManager.timer("ol.emit.attempts"))
+                    stack.enter_context(
+                        DualStatsManager.timer(
+                            "ol.emit.attempts",
+                            extra_tags={"event_type": event_type, "transport_type": transport_type},
+                        )
+                    )
                 except ImportError:
                     stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                     stack.enter_context(Stats.timer("ol.emit.attempts"))
