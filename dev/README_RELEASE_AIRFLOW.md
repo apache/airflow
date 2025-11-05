@@ -667,7 +667,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
 breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-task-sdk-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name airflow
 ```
 
 The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
