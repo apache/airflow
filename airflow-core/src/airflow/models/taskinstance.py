@@ -1463,7 +1463,7 @@ class TaskInstance(Base, LoggingMixin):
         DualStatsManager.incr(
             "operator_failures",
             tags=ti.stats_tags,
-            extra_tags={"operator": ti.operator},
+            extra_tags={"operator_name": ti.operator},
         )
         Stats.incr("ti_failures", tags=ti.stats_tags)
 

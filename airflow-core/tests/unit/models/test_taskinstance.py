@@ -2279,7 +2279,7 @@ class TestTaskInstance:
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
         Stats_incr.assert_any_call(
-            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+            "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
