@@ -113,14 +113,23 @@ def operator_defaults(overrides):
         with operator_defaults({"retries": 2, "retry_delay": 200.0}):
             # Test code with modified operator defaults
     """
+    import airflow.sdk.definitions._internal.abstractoperator as abstract_op_module
     from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
 
     original_values = {}
+    original_module_constants = {}
     try:
         # Store original values and apply overrides
         for key, value in overrides.items():
             original_values[key] = OPERATOR_DEFAULTS.get(key)
             OPERATOR_DEFAULTS[key] = value
+
+            # Also patch module-level constants like DEFAULT_RETRIES
+            # These are frozen at import time and used as default parameter values
+            const_name = f"DEFAULT_{key.upper()}"
+            if hasattr(abstract_op_module, const_name):
+                original_module_constants[const_name] = getattr(abstract_op_module, const_name)
+                setattr(abstract_op_module, const_name, value)
 
         # Clear the cache to ensure fresh generation
         SerializedBaseOperator.generate_client_defaults.cache_clear()
@@ -135,6 +144,10 @@ def operator_defaults(overrides):
             else:
                 # Restore original value
                 OPERATOR_DEFAULTS[key] = original_value
+
+        # Restore module constants
+        for const_name, original_value in original_module_constants.items():
+            setattr(abstract_op_module, const_name, original_value)
 
         # Clear cache again to restore normal behavior
         SerializedBaseOperator.generate_client_defaults.cache_clear()
@@ -4140,10 +4153,11 @@ class TestDeserializationDefaultsResolution:
                 assert value1 == value2, f"Tasks have different values for {field}: {value1} vs {value2}"
 
     @operator_defaults({"retries": 3})
-    def test_explicit_schema_default_preserved_when_client_defaults_differ(self):
+    def test_default_args_when_equal_to_schema_defaults(self):
         """Test that explicitly set values matching schema defaults are preserved when client_defaults differ."""
         with DAG(dag_id="test_explicit_schema_default", default_args={"retries": 0}) as dag:
             BashOperator(task_id="task1", bash_command="echo 1")
+            BashOperator(task_id="task2", bash_command="echo 1", retries=2)
 
         serialized = SerializedDAG.to_dict(dag)
 
@@ -4153,12 +4167,17 @@ class TestDeserializationDefaultsResolution:
         client_defaults = serialized["client_defaults"]["tasks"]
         assert client_defaults["retries"] == 3
 
-        task_data = serialized["dag"]["tasks"][0]["__var"]
-        assert task_data.get("retries", -1) == 0
+        task1_data = serialized["dag"]["tasks"][0]["__var"]
+        assert task1_data.get("retries", -1) == 0
 
-        # verify that deser preserves the explicit value
-        deserialized_task = SerializedDAG.from_dict(serialized).get_task("task1")
-        assert deserialized_task.retries == 0
+        task2_data = serialized["dag"]["tasks"][1]["__var"]
+        assert task2_data.get("retries", -1) == 2
+
+        deserialized_task1 = SerializedDAG.from_dict(serialized).get_task("task1")
+        assert deserialized_task1.retries == 0
+
+        deserialized_task2 = SerializedDAG.from_dict(serialized).get_task("task2")
+        assert deserialized_task2.retries == 2
 
 
 class TestMappedOperatorSerializationAndClientDefaults:
