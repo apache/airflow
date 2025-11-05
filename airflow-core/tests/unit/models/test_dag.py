@@ -1194,7 +1194,7 @@ class TestDag:
             ...
         cm = nullcontext()
         if isinstance(partition_key, int):
-            cm = pytest.raises(ValueError, match="Expected partition_key to be str | None but got int")
+            cm = pytest.raises(ValueError, match="Expected partition_key to be `str` | `None` but got `int`")
         with cm:
             dr = dag_maker.create_dagrun(
                 run_id="test_create_dagrun_partition_key",

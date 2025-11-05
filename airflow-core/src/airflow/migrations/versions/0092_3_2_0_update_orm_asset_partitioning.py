@@ -58,15 +58,15 @@ def upgrade():
         "asset_partition_dag_run",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("target_dag_id", StringID(), nullable=False),
-        sa.Column("target_dag_run_id", sa.Integer(), nullable=True),
+        sa.Column("created_dag_run_id", sa.Integer(), nullable=True),
         sa.Column("partition_key", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("asset_partition_dag_run_pkey")),
         sa.ForeignKeyConstraint(
-            columns=("target_dag_run_id",),
+            columns=("created_dag_run_id",),
             refcolumns=["dag_run.id"],
-            name="apdr_target_dag_run_id_fkey",
+            name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
     )

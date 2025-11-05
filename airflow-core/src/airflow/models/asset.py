@@ -882,7 +882,7 @@ class AssetPartitionDagRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -892,9 +892,9 @@ class AssetPartitionDagRun(Base):
     __tablename__ = "asset_partition_dag_run"
     __table_args__ = (
         ForeignKeyConstraint(
-            columns=(target_dag_run_id,),
+            columns=(created_dag_run_id,),
             refcolumns=["dag_run.id"],
-            name="apdr_target_dag_run_id_fkey",
+            name="apdr_created_dag_run_id_fkey",
             ondelete="CASCADE",
         ),
     )
