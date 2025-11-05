@@ -432,6 +432,12 @@ metrics:
     legacy_name: "edge_worker.num_queues.{worker_name}"
     name_variables: ["worker_name"]
 
+  - name: "edge_worker.heartbeat_count"
+    description: "Number heartbeats in an edge worker."
+    type: "gauge"
+    legacy_name: "edge_worker.heartbeat_count.{worker_name}"
+    name_variables: ["worker_name"]
+
   # ==========
   # Timers
   # ==========
