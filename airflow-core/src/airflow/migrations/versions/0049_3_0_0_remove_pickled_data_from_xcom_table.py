@@ -114,26 +114,23 @@ def upgrade():
 
     # Update the values from nan to nan string
     if dialect == "postgresql":
-        # Replace standalone NaN tokens only (not NaN inside string values)
-        # Use regex with word boundaries to match only standalone NaN tokens
-        if dialect == "postgresql":
-            # Replace NaN in JSON value positions (after :, , or [)
-            # This explicitly matches JSON structure, not relying on word boundaries
-            conn.execute(
-                text("""
-                    UPDATE xcom
-                    SET value = convert_to(
-                        regexp_replace(
-                            convert_from(value, 'UTF8'),
-                            '([:,\\[])\\s*NaN\\s*([,}\\]])',
-                            '\\1"nan"\\2',
-                            'g'
-                        ),
-                        'UTF8'
-                    )
-                    WHERE value IS NOT NULL AND get_byte(value, 0) != 128
-                """)
-            )
+        # Replace NaN in JSON value positions (after :, , or [)
+        # This explicitly matches JSON structure, not relying on word boundaries
+        conn.execute(
+            text("""
+                UPDATE xcom
+                SET value = convert_to(
+                    regexp_replace(
+                        convert_from(value, 'UTF8'),
+                        '([:,\\[])\\s*NaN\\s*([,}\\]])',
+                        '\\1"nan"\\2',
+                        'g'
+                    ),
+                    'UTF8'
+                )
+                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+            """)
+        )
 
         op.execute(
             """
@@ -146,12 +143,18 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        # Replace standalone NaN tokens only (not NaN inside string values)
-        # MySQL 8.0 supports REGEXP_REPLACE with word boundaries, use that here
+        # Replace NaN in JSON value positions (after :, , or [)
+        # This explicitly matches JSON structure, not relying on word boundaries
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CONVERT(REGEXP_REPLACE(CONVERT(value USING utf8mb4), '[[:<:]]NaN[[:>:]]', '"nan"') USING BINARY)
+                SET value = CONVERT(
+                    REGEXP_REPLACE(
+                        CONVERT(value USING utf8mb4),
+                        '([:,\\[])[[:space:]]*NaN[[:space:]]*([,}\\]])',
+                        '\\1"nan"\\2'
+                    ) USING BINARY
+                )
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """)
         )
