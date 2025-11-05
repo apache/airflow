@@ -173,7 +173,7 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
             UserWarning,
             stacklevel=3,
         )
-        normalized_netloc = parsed.netloc.split("@", 1)[1]
+        _, _, normalized_netloc = parsed.netloc.rpartition("@")
     else:
         normalized_netloc = parsed.netloc
     if parsed.query:
