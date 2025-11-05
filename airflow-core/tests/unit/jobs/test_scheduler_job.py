@@ -7052,7 +7052,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=mock_executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
 
-        self.job_runner._start_dag_runs([dag_run.dag_model], session)
+        self.job_runner._start_queued_dagruns(session)
 
         # Verify that the listener hook was called with msg="started"
         mock_listener_manager.hook.on_dag_run_running.assert_called_once()
