@@ -535,8 +535,8 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
 
     @pytest.mark.parametrize(
-        argnames=("dag_doc_md", "expected_doc_md"),
-        argvalues=[
+        ("dag_doc_md", "expected_doc_md"),
+        [
             pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
             pytest.param(None, "Regular Dag documentation", id="use_dag_docstring"),
         ],
