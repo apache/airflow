@@ -208,7 +208,7 @@ def validate_on_correct_branch_for_tagging(version_branch):
     console_print(f"[success]On correct branch '{expected_branch}' for tagging")
 
 
-def merge_pr(version_branch, remote_name):
+def merge_pr(version_branch, remote_name, sync_branch):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -223,7 +223,7 @@ def merge_pr(version_branch, remote_name):
             check=True,
         )
         run_command(
-            ["git", "merge", "--ff-only", f"v{version_branch}-test"],
+            ["git", "merge", "--ff-only", f"{sync_branch}"],
             check=True,
         )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
@@ -376,6 +376,8 @@ def create_artifacts_with_docker():
             "prepare-airflow-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -386,6 +388,8 @@ def create_artifacts_with_docker():
             "prepare-task-sdk-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -628,13 +632,18 @@ def prepare_airflow_tarball(
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
 @click.option("--task-sdk-version", required=True, help="The task SDK version e.g. 1.0.6rc1.")
 @click.option(
+    "--sync-branch", required=True, help="The branch of the sync PR. Can be the test branch. Please specify"
+)
+@click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
 @click.option("--remote-name", default="origin", help="Git remote name to push to (default: origin)")
 @option_answer
 @option_dry_run
 @option_verbose
-def publish_release_candidate(version, previous_version, task_sdk_version, github_token, remote_name):
+def publish_release_candidate(
+    version, previous_version, task_sdk_version, sync_branch, github_token, remote_name
+):
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -677,13 +686,14 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     console_print(f"task_sdk_version_without_rc: {task_sdk_version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
     console_print(f"remote_name: {remote_name}")
+    console_print(f"sync_branch: {sync_branch}")
     console_print()
     console_print(f"Below are your git remotes. We will push to {remote_name}:")
     run_command(["git", "remote", "-v"])
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch, remote_name)
+    merge_pr(version_branch, remote_name, sync_branch)
     #
     # # Tag & clean the repo
     # Validate we're on the correct branch before tagging
