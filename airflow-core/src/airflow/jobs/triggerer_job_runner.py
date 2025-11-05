@@ -33,16 +33,18 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
+from airflow._shared.timezones import timezone
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
-from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.jobs.queues import KeyedHeadQueue, PartitionedQueue
 from airflow.models.trigger import Trigger
+from airflow.sdk import Context
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -78,7 +80,7 @@ from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -193,7 +195,7 @@ class messages:
 
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
-    class TriggerStateChanges(messages.TriggerStateChanges):
+    class TriggerStateChanges(BaseModel):
         """
         Report state change about triggers back to the TriggerRunnerSupervisor.
 
@@ -389,8 +391,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger,
-                        req_id: int) -> None:  # type: ignore[override]
+    def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
             TaskStatesResponse,
@@ -442,6 +443,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                # TODO: call for help to figure out why this is needed
+                if var.value:
+                    from airflow.sdk.log import mask_secret
+
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -499,8 +505,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        elif isinstance(msg, UpdateHITLDetail):
+            api_resp = self.client.hitl.update_response(
+                ti_id=msg.ti_id,
+                chosen_options=msg.chosen_options,
+                params_input=msg.params_input,
+            )
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+        elif isinstance(msg, GetHITLDetailResponse):
+            api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
+            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
         else:
@@ -549,16 +565,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             with create_session() as session:
                 while self.events:
                     trigger_id, event = self.events.popleft()
+                    is_last_event = trigger_id not in self.events
                     remaining_events = len(self.events.get(trigger_id, []))
                     log.info("Trigger %s has %s remaining events and %s running triggers: %s", trigger_id, remaining_events, len(self.running_triggers), len(self.running_triggers))
 
                     # Tell the model to wake up its tasks
-                    if Trigger.submit_event(trigger_id=trigger_id, event=event, session=session):
+                    if Trigger.submit_event(trigger_id=trigger_id, event=event, is_last_event=is_last_event, session=session):
                         # This is temporary logging to ease debugging, will be omitted in Airflow code base
-                        if isinstance(event.payload, dict) and event.payload.get("response"):
-                            log.info("Event %s handled for trigger %s", json.loads(event.payload["response"]).get("@odata.nextLink", "finished"), trigger_id)
-                        else:
-                            log.info("Event %s handled for trigger %s", event.payload, trigger_id)
+                        log.info("Event %s handled for trigger %s", event.payload, trigger_id)
                         # Emit stat event
                         Stats.incr("triggers.succeeded")
                     else:
@@ -1133,6 +1147,11 @@ class TriggerRunner:
 
     async def run_trigger(self, trigger_id, trigger: BaseTrigger, context: Context | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
+        if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
+            import greenback
+
+            await greenback.ensure_portal()
+
         bind_log_contextvars(trigger_id=trigger_id)
 
         name = self.triggers[trigger_id]["name"]
@@ -1145,8 +1164,7 @@ class TriggerRunner:
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                 )
-                await self.log.ainfo("%s size: %d / %d", trigger_id, self.events[trigger_id].qsize(),
-                                     self.events[trigger_id].maxsize)
+                await self.log.ainfo("%s size: %d / %d", trigger_id, self.events[trigger_id].qsize(), self.events[trigger_id].maxsize)
                 self.triggers[trigger_id]["events"] += 1
                 await self.events.put((trigger_id, event))
         except asyncio.CancelledError:

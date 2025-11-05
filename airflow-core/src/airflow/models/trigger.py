@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import Integer, String, Text, delete, func, or_, select, update, exists
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -268,14 +268,14 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: events.TriggerEvent, is_last_event: bool = True,
-                     session: Session = NEW_SESSION) -> bool:
+    def submit_event(cls, trigger_id, event: TriggerEvent, is_last_event: bool = True, session: Session = NEW_SESSION) -> bool:
         """
         Fire an event.
 
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
         """
+        # Resume deferred tasks
         task_instances = session.scalars(
             select(TaskInstance).where(
                 or_(
@@ -288,15 +288,12 @@ class Trigger(Base):
             )
         ).all()
 
-        log.info("task_instances: %d", len(task_instances))
-
         if task_instances:
             log.info("Handle event for trigger %s", trigger_id)
 
             # Resume deferred tasks
             for task_instance in task_instances:
-                handle_event_submit(event, trigger_id=trigger_id, task_instance=task_instance,
-                                    session=session)
+                handle_event_submit(event, trigger_id=trigger_id, task_instance=task_instance, is_last_event=is_last_event, session=session)
 
             # Send an event to assets
             trigger = session.scalars(
@@ -319,8 +316,7 @@ class Trigger(Base):
                     trigger.deadline.handle_callback_event(event, session)
             return True
 
-        log.debug("No more task instances found for trigger %s! Stop processing events for trigger %s",
-                  trigger_id, trigger_id)
+        log.debug("No more task instances found for trigger %s! Stop processing events for trigger %s", trigger_id, trigger_id)
         return False
 
     @classmethod
@@ -337,8 +333,6 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        log.error("submit_failure %s (%s): %s", trigger_id, trigger, exc)
-
         if trigger:
             unfinished_tis = session.scalar(
                 select(func.count())
@@ -388,7 +382,6 @@ class Trigger(Base):
             }
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
-
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
@@ -486,7 +479,7 @@ class Trigger(Base):
 
 
 @singledispatch
-def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
+def handle_event_submit(event: TriggerEvent, *, trigger_id: int, task_instance: TaskInstance, is_last_event: bool = True, session: Session) -> None:
     """
     Handle the submit event for a given task instance.
 
@@ -515,9 +508,12 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     task_instance.state = TaskInstanceState.SCHEDULED
     task_instance.scheduled_dttm = timezone.utcnow()
 
-    log.info(f"trigger {trigger_id} is not last event to be processed...")
-    task_instance.try_number = 0
-    task_instance.next_trigger_id = trigger_id
+    if is_last_event:
+        task_instance.next_trigger_id = None
+    else:
+        log.info("trigger %s is not last event to be processed...", trigger_id)
+        task_instance.try_number = 0
+        task_instance.next_trigger_id = trigger_id
 
     session.flush()
 
