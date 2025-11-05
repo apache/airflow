@@ -540,7 +540,9 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
 
 def create_tarball_from_tag(
     version_suffix: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
+    distribution_name: Literal[
+        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
+    ],
     tag: str | None,
 ):
     if tag is not None:
@@ -603,7 +605,7 @@ def prepare_airflow_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflow",
+        distribution_name="apache_airflow",
         tag=tag,
     )
 
@@ -757,7 +759,7 @@ def prepare_task_sdk_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="task-sdk",
+        distribution_name="apache_airflow_task_sdk",
         tag=tag,
     )
 
@@ -795,7 +797,7 @@ def prepare_airflow_ctl_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="airflowctl",
+        distribution_name="apache_airflow_ctl",
         tag=tag,
     )
 
@@ -1195,7 +1197,7 @@ def prepare_provider_distributions(
     # Create the tarball if tag is provided
     create_tarball_from_tag(
         version_suffix=version_suffix,
-        distribution_name="providers",
+        distribution_name="apache_airflow_providers",
         tag=tag,
     )
 
