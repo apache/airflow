@@ -15,8 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+from airflow.configuration import conf
 
-__version__ = "0.1.0"
+__all__ = ["Sentry"]
+
+Sentry: NoopSentry
+
+if conf.getboolean("sentry", "sentry_on", fallback=False):
+    from airflow.sdk.execution_time.sentry.configured import ConfiguredSentry
+
+    Sentry = ConfiguredSentry()
+else:
+    from airflow.sdk.execution_time.sentry.noop import NoopSentry
+
+    Sentry = NoopSentry()

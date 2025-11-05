@@ -1295,10 +1295,18 @@ def run_generate_constraints_in_parallel(
     "issues to avoid errors. The default behaviour would be to clean both local and remote tags.",
     show_default=True,
 )
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @option_dry_run
 @option_verbose
 def tag_providers(
     clean_tags: bool,
+    release_date: str,
 ):
     found_remote = None
     remotes = ["origin", "apache"]
@@ -1315,8 +1323,6 @@ def tag_providers(
                 break
         except subprocess.CalledProcessError:
             pass
-
-    release_date = os.environ.get("PACKAGE_DATE", datetime.now().strftime("%Y-%m-%d"))
 
     if found_remote is None:
         raise ValueError("Could not find the remote configured to push to apache/airflow")
