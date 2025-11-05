@@ -46,6 +46,8 @@ from airflow.sdk.log import mask_secret
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from pydantic.types import JsonValue
+
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
@@ -480,10 +482,10 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
+    extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset | AssetRef, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
         if not isinstance(self.key, AssetAliasUniqueKey):
             return

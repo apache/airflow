@@ -484,3 +484,40 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+
+class TestAuthManagerDependency:
+    """Test the auth_manager_from_app dependency function."""
+
+    def test_auth_manager_from_app_returns_instance_from_state(self):
+        """Test that auth_manager_from_app correctly retrieves auth_manager from app.state."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock auth manager
+        mock_auth_manager = Mock()
+
+        # Create a mock request with app.state.auth_manager
+        mock_request = Mock()
+        mock_request.app.state.auth_manager = mock_auth_manager
+
+        # Call the dependency function
+        result = auth_manager_from_app(mock_request)
+
+        # Assert it returns the correct auth manager
+        assert result is mock_auth_manager
+
+    def test_auth_manager_from_app_integration_with_test_client(self, test_client):
+        """Test that auth_manager_from_app works with the test client setup."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock request using the test client's app
+        mock_request = Mock()
+        mock_request.app = test_client.app
+
+        # Get the auth manager
+        auth_manager = auth_manager_from_app(mock_request)
+
+        # Verify it's not None (should be SimpleAuthManager from test fixture)
+        assert auth_manager is not None
+        assert hasattr(auth_manager, "get_url_login")
+        assert hasattr(auth_manager, "get_url_logout")

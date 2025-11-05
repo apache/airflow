@@ -209,7 +209,9 @@ export const $AssetEventResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -295,7 +297,9 @@ export const $AssetResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -3816,7 +3820,7 @@ export const $HITLDetailCollection = {
     description: 'Schema for a collection of Human-in-the-loop details.'
 } as const;
 
-export const $HITLDetailHisotry = {
+export const $HITLDetailHistory = {
     properties: {
         options: {
             items: {
@@ -3926,7 +3930,7 @@ export const $HITLDetailHisotry = {
     },
     type: 'object',
     required: ['options', 'subject', 'created_at'],
-    title: 'HITLDetailHisotry',
+    title: 'HITLDetailHistory',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 
@@ -5203,7 +5207,7 @@ export const $TaskInstanceHistoryResponse = {
         hitl_detail: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/HITLDetailHisotry'
+                    '$ref': '#/components/schemas/HITLDetailHistory'
                 },
                 {
                     type: 'null'
