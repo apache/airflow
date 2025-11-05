@@ -117,13 +117,13 @@ def upgrade():
         # Replace NaN in JSON value positions (after :, , or [)
         # This explicitly matches JSON structure, not relying on word boundaries
         conn.execute(
-            text("""
+            text(r"""
                 UPDATE xcom
                 SET value = convert_to(
                     regexp_replace(
                         convert_from(value, 'UTF8'),
-                        '([:,\\[])\\s*NaN\\s*([,}\\]])',
-                        '\\1"nan"\\2',
+                        '([:,\[]\s*)NaN(\s*[,}\]])',
+                        '\1"nan"\2',
                         'g'
                     ),
                     'UTF8'
@@ -143,15 +143,19 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        # Replace NaN in JSON-like positions (: , [)
+        # Replace NaN in JSON value positions (after :, , or [)
+        # Use alternation with proper grouping for MySQL compatibility
         conn.execute(
             text("""
                 UPDATE xcom
                 SET value = CONVERT(
                     REGEXP_REPLACE(
                         CONVERT(value USING utf8mb4),
-                        '([:\\[,])\\s*NaN\\s*([}\\],])',
-                        '\\1"nan"\\2'
+                        '(:|,|\\\\[)[ ]*NaN[ ]*([,}\\]])',
+                        '\\\\1"nan"\\\\2',
+                        1,
+                        0,
+                        'c'
                     ) USING BINARY
                 )
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
@@ -159,13 +163,10 @@ def upgrade():
         )
 
         op.add_column("xcom", sa.Column("value_json", sa.JSON(), nullable=True))
-        op.execute("""
-            UPDATE xcom
-            SET value_json = CAST(CONVERT(value USING utf8mb4) AS JSON)
-            WHERE JSON_VALID(CONVERT(value USING utf8mb4))
-        """)
+        op.execute("UPDATE xcom SET value_json = CAST(value AS CHAR CHARACTER SET utf8mb4)")
         op.drop_column("xcom", "value")
         op.alter_column("xcom", "value_json", existing_type=sa.JSON(), new_column_name="value")
+
     elif dialect == "sqlite":
         conn.execute(
             text("""
