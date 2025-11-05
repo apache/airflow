@@ -197,7 +197,7 @@ class TestPythonPackages:
     }
 
     @pytest.mark.parametrize(
-        "package_name,import_names",
+        ("package_name", "import_names"),
         SLIM_PACKAGE_IMPORTS.items() if testing_slim_image else REGULAR_PACKAGE_IMPORTS.items(),
     )
     def test_check_dependencies_imports(
