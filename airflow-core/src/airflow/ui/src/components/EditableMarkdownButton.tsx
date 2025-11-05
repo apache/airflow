@@ -22,12 +22,11 @@ import { useTranslation } from "react-i18next";
 import { PiNoteBlankLight, PiNoteLight } from "react-icons/pi";
 
 import { Button, Dialog } from "src/components/ui";
-import { ResizableWrapper } from "src/components/ui/ResizableWrapper";
+import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import EditableMarkdownArea from "./EditableMarkdownArea";
 import ActionButton from "./ui/ActionButton";
 
-const STORAGE_KEY = "airflow-markdown-dialog-size";
 
 const EditableMarkdownButton = ({
   header,
@@ -92,7 +91,7 @@ const EditableMarkdownButton = ({
         unmountOnExit={true}
       >
         <Dialog.Content backdrop maxHeight="90vh" maxWidth="90vw" padding={0} width="auto">
-          <ResizableWrapper storageKey={STORAGE_KEY}>
+          <ResizableWrapper storageKey={MARKDOWN_DIALOG_STORAGE_KEY}>
             <Dialog.Header bg="brand.muted" flexShrink={0}>
               <Heading size="xl">{header}</Heading>
               <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
