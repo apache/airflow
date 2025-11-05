@@ -667,19 +667,19 @@ git fetch apache --tags
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-distributions --distribution-format both
+breeze release-management prepare-airflow-distributions --distribution-format both --tag ${VERSION}
 breeze release-management prepare-task-sdk-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
+breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION}
 ```
 
-The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
+The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --tag ${VERSION}
 breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
+breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION}
 ```
 
 This is generally faster and requires less resources/network bandwidth. Note that you have to
@@ -689,7 +689,7 @@ apache-airflow artifacts as it uses hatch's `-c` build flag.
 The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
 
-The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
+The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
 
 Change to the directory where you have the packages from svn:
 
@@ -748,8 +748,9 @@ svn update .
 
 Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
 
-``` shell
-export PATH_TO_SVN=<set your path to svn here>
+```shell scrupt
+cd dist/dev/airflow
+export PATH_TO_SVN=$(pwd -P)
 ```
 
 Optionally you can use `check_files.py` script to verify that all expected files are
@@ -781,18 +782,48 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache-airflow-*-source.tar.gz -C /tmp/apache-airflow-src
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src | grep "! "
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
-where `.rat-excludes` is the file in the root of Airflow source code.
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
-You should see no files reported as Unknown or with wrong licence.
+```
+INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
+```
+
 
 ## Signature check
 
