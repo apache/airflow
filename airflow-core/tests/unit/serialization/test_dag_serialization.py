@@ -4139,6 +4139,27 @@ class TestDeserializationDefaultsResolution:
                 value2 = getattr(deserialized_task2, field)
                 assert value1 == value2, f"Tasks have different values for {field}: {value1} vs {value2}"
 
+    @operator_defaults({"retries": 3})
+    def test_explicit_schema_default_preserved_when_client_defaults_differ(self):
+        """Test that explicitly set values matching schema defaults are preserved when client_defaults differ."""
+        with DAG(dag_id="test_explicit_schema_default", default_args={"retries": 0}) as dag:
+            BashOperator(task_id="task1", bash_command="echo 1")
+
+        serialized = SerializedDAG.to_dict(dag)
+
+        # verify client_defaults has retries=3
+        assert "client_defaults" in serialized
+        assert "tasks" in serialized["client_defaults"]
+        client_defaults = serialized["client_defaults"]["tasks"]
+        assert client_defaults["retries"] == 3
+
+        task_data = serialized["dag"]["tasks"][0]["__var"]
+        assert task_data.get("retries", -1) == 0
+
+        # verify that deser preserves the explicit value
+        deserialized_task = SerializedDAG.from_dict(serialized).get_task("task1")
+        assert deserialized_task.retries == 0
+
 
 class TestMappedOperatorSerializationAndClientDefaults:
     """Test MappedOperator serialization with client defaults and callback properties."""

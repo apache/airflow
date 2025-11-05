@@ -1709,6 +1709,25 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
+    def get_operator_const_fields(cls) -> set[str]:
+        schema_loader = cls._json_schema
+
+        if schema_loader is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        const_fields = set()
+        for field_name, field_def in properties.items():
+            if isinstance(field_def, dict) and field_def.get("const") is True:
+                const_fields.add(field_name)
+
+        return const_fields
+
+    @classmethod
+    @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_optional_fields_from_schema(cls) -> set[str]:
         schema_loader = cls._json_schema
 
@@ -1862,11 +1881,20 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        const_fields = cls.get_operator_const_fields()
+        if attrname in const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
-                return True
+                # exclude only if it also matches client defaults
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults and client_defaults[attrname] == var:
+                    return True
+                return False
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
             return True
