@@ -46,6 +46,8 @@ class TestBaseDecorator:
         module_path.write_text(textwrap.dedent(RAW_CODE))
 
         spec = importlib.util.spec_from_file_location("tmp_mod", module_path)
+        assert spec is not None
+        assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
