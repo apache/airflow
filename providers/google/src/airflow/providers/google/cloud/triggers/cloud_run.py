@@ -116,10 +116,25 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                         }
                     )
                 else:
+                    # Parse the Execution object from operation.response to get execution details
+                    from google.cloud.run_v2.types import Execution
+
+                    execution = Execution()
+                    if not operation.response.Unpack(execution):
+                        error_msg = (
+                            f"Failed to unpack Execution from operation response. "
+                            f"Operation: {self.operation_name}, Job: {self.job_name}"
+                        )
+                        self.log.error(error_msg)
+                        raise AirflowException(error_msg)
+
                     yield TriggerEvent(
                         {
                             "status": RunJobStatus.SUCCESS.value,
                             "job_name": self.job_name,
+                            "task_count": execution.task_count,
+                            "succeeded_count": execution.succeeded_count,
+                            "failed_count": execution.failed_count,
                         }
                     )
                 return

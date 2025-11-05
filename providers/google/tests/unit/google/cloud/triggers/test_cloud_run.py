@@ -75,6 +75,7 @@ class TestCloudBatchJobFinishedTrigger:
         """
         Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
         """
+        from google.cloud.run_v2.types import Execution
 
         async def _mock_operation(name):
             operation = mock.MagicMock()
@@ -82,6 +83,16 @@ class TestCloudBatchJobFinishedTrigger:
             operation.name = "name"
             operation.error = Any()
             operation.error.ParseFromString(b"")
+            
+            # Mock the response.Unpack to populate execution with valid data
+            def mock_unpack(execution):
+                execution.task_count = 5
+                execution.succeeded_count = 5
+                execution.failed_count = 0
+                return True
+            
+            operation.response = mock.MagicMock()
+            operation.response.Unpack = mock_unpack
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
@@ -92,6 +103,9 @@ class TestCloudBatchJobFinishedTrigger:
                 {
                     "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
+                    "task_count": 5,
+                    "succeeded_count": 5,
+                    "failed_count": 0,
                 }
             )
             == actual
@@ -158,3 +172,35 @@ class TestCloudBatchJobFinishedTrigger:
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
+    async def test_trigger_on_operation_unpack_failure(
+        self, mock_hook, trigger: CloudRunJobFinishedTrigger
+    ):
+        """
+        Tests the CloudRunJobFinishedTrigger raises an exception when Unpack fails.
+        """
+        from airflow.exceptions import AirflowException
+
+        async def _mock_operation(name):
+            operation = mock.MagicMock()
+            operation.done = True
+            operation.name = "name"
+            operation.error = Any()
+            operation.error.ParseFromString(b"")
+            
+            # Mock Unpack to return False (failure)
+            operation.response = mock.MagicMock()
+            operation.response.Unpack = mock.MagicMock(return_value=False)
+            return operation
+
+        mock_hook.return_value.get_operation = _mock_operation
+        generator = trigger.run()
+        
+        with pytest.raises(AirflowException) as exc_info:
+            await generator.asend(None)  # type:ignore[attr-defined]
+        
+        assert "Failed to unpack Execution from operation response" in str(exc_info.value)
+        assert OPERATION_NAME in str(exc_info.value)
+        assert JOB_NAME in str(exc_info.value)

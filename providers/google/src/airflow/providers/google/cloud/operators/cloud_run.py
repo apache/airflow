@@ -339,17 +339,38 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict):
-        status = event["status"]
+        status = event.get("status")
+        
+        if not status:
+            raise AirflowException(f"Malformed trigger event: missing 'status' field. Event: {event}")
 
         if status == RunJobStatus.TIMEOUT.value:
             raise AirflowException("Operation timed out")
 
         if status == RunJobStatus.FAIL.value:
-            error_code = event["operation_error_code"]
-            error_message = event["operation_error_message"]
+            error_code = event.get("operation_error_code")
+            error_message = event.get("operation_error_message")
             raise AirflowException(
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
+
+        # Validate execution result - check if all tasks completed successfully
+        required_keys = ("task_count", "succeeded_count", "failed_count")
+        if not all(k in event for k in required_keys):
+            missing = [k for k in required_keys if k not in event]
+            raise AirflowException(
+                f"Malformed trigger event: missing required execution fields {missing}. Event: {event}"
+            )
+
+        task_count = event["task_count"]
+        succeeded_count = event["succeeded_count"]
+        failed_count = event["failed_count"]
+
+        if succeeded_count + failed_count != task_count:
+            raise AirflowException("Not all tasks finished execution")
+
+        if failed_count > 0:
+            raise AirflowException("Some tasks failed execution")
 
         hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
 

@@ -227,7 +227,13 @@ class TestCloudRunExecuteJobOperator:
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
 
-        event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 1,
+            "succeeded_count": 1,
+            "failed_count": 0,
+        }
 
         result = operator.execute_complete(mock.MagicMock(), event)
 
@@ -235,6 +241,85 @@ class TestCloudRunExecuteJobOperator:
             job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
         )
         assert result["name"] == JOB_NAME
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_canceled_job(self, hook_mock):
+        """Test that canceled jobs (not all tasks finished) raise an exception in deferrable mode."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        # When a job is canceled, succeeded_count + failed_count != task_count
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 10,
+            "succeeded_count": 3,
+            "failed_count": 0,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Not all tasks finished execution" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_failed_tasks(self, hook_mock):
+        """Test that jobs with failed tasks raise an exception in deferrable mode."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        # Job with some failed tasks
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "task_count": 10,
+            "succeeded_count": 7,
+            "failed_count": 3,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Some tasks failed execution" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_missing_status(self, hook_mock):
+        """Test that malformed events without status field raise a clear exception."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {"job_name": JOB_NAME}
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Malformed trigger event" in str(e.value)
+        assert "missing 'status' field" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_missing_execution_fields(self, hook_mock):
+        """Test that events missing execution fields raise a clear exception."""
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        # Missing task_count and failed_count
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "succeeded_count": 5,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Malformed trigger event" in str(e.value)
+        assert "missing required execution fields" in str(e.value)
+        assert "task_count" in str(e.value)
+        assert "failed_count" in str(e.value)
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides(self, hook_mock):
