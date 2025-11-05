@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 from collections import abc
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -127,7 +128,7 @@ class DAGPatchBody(StrictBaseModel):
 class DAGCollectionResponse(BaseModel):
     """DAG Collection serializer for responses."""
 
-    dags: list[DAGResponse]
+    dags: Iterable[DAGResponse]
     total_entries: int
 
 
