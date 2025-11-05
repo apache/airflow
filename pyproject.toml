@@ -60,7 +60,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
-    "Topic :: System :: Monitoring",
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
@@ -93,11 +92,14 @@ packages = []
 "otel" = [
     "apache-airflow-core[otel]"
 ]
-"sentry" = [
-    "apache-airflow-core[sentry]"
-]
 "statsd" = [
     "apache-airflow-core[statsd]"
+]
+"all-task-sdk" = [
+    "apache-airflow-task-sdk[all]"
+]
+"sentry" = [
+    "apache-airflow-task-sdk[sentry]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -537,7 +539,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.5",
+    "uv>=0.9.7",
 ]
 
 
@@ -591,8 +593,25 @@ extend-select = [
     "E", # pycodestyle rules
     "W", # pycodestyle rules
     # Warning (PLW) re-implemented in ruff from Pylint
-    "PLW0127", # Self-assignment of variable
     "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
+    "PLW0127", # Self-assignment of variable
+    "PLW0128", # Redeclared variable {name} in assignment
+    "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0131", # Named expression used without context
+    "PLW0133", # Missing raise statement on exception
+    "PLW0177", # Comparing against a NaN value; use math.isnan instead
+    "PLW0211", # First argument of a static method should not be named {argument_name}
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0604", # global at module level is redundant
+    "PLW0642", # Reassigned {} variable in {method_type} method
+    "PLW0711", # Exception to catch is the result of a binary and operation
+    "PLW1501", # {mode} is not a valid mode for open
+    "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
+    "PLW1508", # Invalid type for environment variable default; expected str or None
+    "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -625,7 +644,6 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
-    "PLW0133", # Missing raise statement on exception
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -1269,7 +1287,7 @@ dev = [
     "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",

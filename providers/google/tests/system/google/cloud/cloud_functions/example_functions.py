@@ -47,7 +47,7 @@ SHORT_FUNCTION_NAME = "hello_world"
 FUNCTION_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}"
 SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-functions/main_function.zip"
 ENTRYPOINT = "hello_world"
-RUNTIME = "python38"
+RUNTIME = "python312"
 
 SOURCE_UPLOAD_URL = ""
 ZIP_PATH = ""
