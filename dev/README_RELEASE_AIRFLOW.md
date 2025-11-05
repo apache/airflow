@@ -319,6 +319,7 @@ export VERSION_WITHOUT_RC=${VERSION/rc?/}
 export TASK_SDK_VERSION=1.0.5rc1
 export TASK_SDK_VERSION_WITHOUT_RC=${TASK_SDK_VERSION/rc?/}
 export PREVIOUS_VERSION=3.0.4
+export SYNC_BRANCH=changes-3.1.2rc1 # sync branch, if different from the test branch
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
@@ -405,7 +406,8 @@ uv tool install -e ./dev/breeze
     breeze release-management start-rc-process \
         --version ${VERSION} \
         --previous-version ${PREVIOUS_VERSION} \
-        --task-sdk-version ${TASK_SDK_VERSION}
+        --task-sdk-version ${TASK_SDK_VERSION} \
+        --sync-branch ${SYNC_BRANCH}
    ```
 
    **Testing the start-rc-process command:**
