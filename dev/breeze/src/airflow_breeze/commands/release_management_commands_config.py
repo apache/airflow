@@ -424,6 +424,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--task-sdk-version",
                 "--github-token",
                 "--remote-name",
+                "--sync-branch",
             ],
         }
     ],
