@@ -531,3 +531,9 @@ metrics:
     type: "timer"
     legacy_name: "-"
     name_variables: []
+
+  - name: "ol.emit.attempts"
+    description: "Milliseconds taken by an attempt to emit an OpenLineage event."
+    type: "timer"
+    legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
+    name_variables: ["event_type", "transport_type"]
