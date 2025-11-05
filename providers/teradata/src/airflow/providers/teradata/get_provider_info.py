@@ -50,6 +50,13 @@ def get_provider_info():
                 "logo": "/docs/integration-logos/Teradata.png",
                 "tags": ["software"],
             },
+            {
+                "integration-name": "Tpt",
+                "external-doc-url": "https://www.teradata.com/",
+                "how-to-guide": ["/docs/apache-airflow-providers-teradata/operators/tpt.rst"],
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
         ],
         "operators": [
             {
