@@ -677,7 +677,7 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 ```bash
 breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name apache_airflow
+breeze release-management prepare-airflow-tarball --version ${VERSION} --distribution-name airflow
 ```
 
 This is generally faster and requires less resources/network bandwidth. Note that you have to
