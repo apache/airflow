@@ -23,7 +23,7 @@ import datetime
 import logging
 from collections.abc import Generator
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeVar, cast
 
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
+
+    SelectT = TypeVar("SelectT", bound=Select)
 
 
 log = logging.getLogger(__name__)
@@ -330,14 +332,14 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Query[Any] | Select[Any],
+    query: SelectT,
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
     **kwargs,
-) -> Query[Any] | Select[Any]:
+) -> SelectT:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
@@ -390,7 +392,9 @@ def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
 
     :meta private:
     """
-    locked_rows = with_row_locks(query, session)
+    select_stmt = cast("Select", query.statement)
+    locked_statement = with_row_locks(select_stmt, session)
+    locked_rows = session.execute(locked_statement).all()
     yield
     del locked_rows
 

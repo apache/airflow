@@ -202,6 +202,8 @@ class TaskMap(TaskInstanceDependencies):
                     TaskInstance.map_index == 0,
                     session=session,
                 )
+                state = TaskInstanceState(unmapped_ti.state) if unmapped_ti.state is not None else None
+                dag_version_id = unmapped_ti.dag_version_id
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create
                     # TaskInstance for other indexes.
@@ -214,8 +216,6 @@ class TaskMap(TaskInstanceDependencies):
                 else:
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
-                state = unmapped_ti.state
-            dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.
@@ -229,7 +229,10 @@ class TaskMap(TaskInstanceDependencies):
                     TaskInstance.run_id == run_id,
                 )
             )
-            indexes_to_map = range(current_max_mapping + 1, total_length)
+            if current_max_mapping is None:
+                indexes_to_map = range(0, total_length)
+            else:
+                indexes_to_map = range(current_max_mapping + 1, total_length)
 
         if unmapped_ti:
             dag_version_id = unmapped_ti.dag_version_id
@@ -238,13 +241,16 @@ class TaskMap(TaskInstanceDependencies):
         else:
             dag_version_id = None
 
+        if not unmapped_ti:
+            state = None
+
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
                 run_id=run_id,
                 map_index=index,
-                state=state,
+                state=state.value if state is not None else None,
                 dag_version_id=dag_version_id,
             )
             task.log.debug("Expanding TIs upserted %s", ti)
