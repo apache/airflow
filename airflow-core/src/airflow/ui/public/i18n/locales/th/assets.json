@@ -26,5 +26,6 @@
   "name": "ชื่อ",
   "producingTasks": "งานที่ถูกสร้าง",
   "scheduledDags": "Dags ที่ถูกตั้งเวลา",
-  "searchPlaceholder": "ค้นหา Assets"
+  "searchPlaceholder": "ค้นหา Assets",
+  "static_asset_metadata": "Static Asset Metadata"
 }

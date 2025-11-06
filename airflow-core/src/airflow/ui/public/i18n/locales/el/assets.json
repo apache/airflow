@@ -26,5 +26,6 @@
   "name": "Όνομα",
   "producingTasks": "Παραγωγή Εργασιών",
   "scheduledDags": "Προγραμματισμένα Dags",
-  "searchPlaceholder": "Αναζήτηση Οντοτήτων"
+  "searchPlaceholder": "Αναζήτηση Οντοτήτων",
+  "static_asset_metadata": "Static Asset Metadata"
 }

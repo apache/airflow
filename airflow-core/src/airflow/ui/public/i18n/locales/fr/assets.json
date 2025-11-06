@@ -26,5 +26,6 @@
   "name": "Nom",
   "producingTasks": "Tasks productrices",
   "scheduledDags": "Dags planifiés",
-  "searchPlaceholder": "Rechercher des Assets"
+  "searchPlaceholder": "Rechercher des Assets",
+  "static_asset_metadata": "Static Asset Metadata"
 }

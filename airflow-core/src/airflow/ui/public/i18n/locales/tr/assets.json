@@ -26,5 +26,6 @@
   "name": "Ad",
   "producingTasks": "Üreten görevler",
   "scheduledDags": "Planlanan Dag'ler",
-  "searchPlaceholder": "Kaynakları ara"
+  "searchPlaceholder": "Kaynakları ara",
+  "static_asset_metadata": "Static Asset Metadata"
 }

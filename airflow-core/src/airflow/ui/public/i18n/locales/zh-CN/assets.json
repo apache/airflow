@@ -26,5 +26,6 @@
   "name": "名称",
   "producingTasks": "生产任务",
   "scheduledDags": "已调度的 Dags",
-  "searchPlaceholder": "搜索资源"
+  "searchPlaceholder": "搜索资源",
+  "static_asset_metadata": "Static Asset Metadata"
 }

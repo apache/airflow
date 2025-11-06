@@ -26,5 +26,6 @@
   "name": "Naam",
   "producingTasks": "Producerende taken",
   "scheduledDags": "Geplande Dags",
-  "searchPlaceholder": "Assets zoeken"
+  "searchPlaceholder": "Assets zoeken",
+  "static_asset_metadata": "Static Asset Metadata"
 }

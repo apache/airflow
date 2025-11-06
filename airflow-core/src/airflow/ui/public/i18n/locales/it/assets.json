@@ -26,5 +26,6 @@
   "name": "Nome",
   "producingTasks": "Task Produttori",
   "scheduledDags": "Dag Programmati",
-  "searchPlaceholder": "Cercare Assets"
+  "searchPlaceholder": "Cercare Assets",
+  "static_asset_metadata": "Static Asset Metadata"
 }

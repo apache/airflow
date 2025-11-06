@@ -26,5 +26,6 @@
   "name": "Név",
   "producingTasks": "Előállító feladatok",
   "scheduledDags": "Ütemezett Dag-ek",
-  "searchPlaceholder": "Adatkészlet (asset) keresése"
+  "searchPlaceholder": "Adatkészlet (asset) keresése",
+  "static_asset_metadata": "Static Asset Metadata"
 }
