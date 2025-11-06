@@ -205,8 +205,8 @@ class messages:
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
             list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
-                # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
-                # union :shrug:
+            # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
+            # union :shrug:
             Field(default=None),
         ]
         # Format of list[str] is the exc traceback format
@@ -564,10 +564,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     trigger_id, event = self.events.popleft()
                     is_last_event = trigger_id not in self.events
                     remaining_events = len(self.events.get(trigger_id, []))
-                    log.info("Trigger %s has %s remaining events and %s running triggers: %s", trigger_id, remaining_events, len(self.running_triggers), len(self.running_triggers))
+                    log.info(
+                        "Trigger %s has %s remaining events and %s running triggers: %s",
+                        trigger_id,
+                        remaining_events,
+                        len(self.running_triggers),
+                        len(self.running_triggers),
+                    )
 
                     # Tell the model to wake up its tasks
-                    if Trigger.submit_event(trigger_id=trigger_id, event=event, is_last_event=is_last_event, session=session):
+                    if Trigger.submit_event(
+                        trigger_id=trigger_id, event=event, is_last_event=is_last_event, session=session
+                    ):
                         # This is temporary logging to ease debugging, will be omitted in Airflow code base
                         log.info("Event %s handled for trigger %s", event.payload, trigger_id)
                         # Emit stat event
@@ -595,17 +603,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     trigger_id, trigger, saved_exc = self.failed_triggers.popleft()
 
                     # Tell the model to fail this trigger's deps
-                    if trigger_id not in self.events and Trigger.submit_failure(trigger_id=trigger_id,
-                                                                                trigger=trigger,
-                                                                                exc=saved_exc,
-                                                                                session=session):
+                    if trigger_id not in self.events and Trigger.submit_failure(
+                        trigger_id=trigger_id, trigger=trigger, exc=saved_exc, session=session
+                    ):
                         log.warning("Trigger %s has failed: %s", trigger_id, saved_exc)
                         # Emit stat event
                         Stats.incr("triggers.failed")
                     else:
                         log.warning(
                             "Trigger %s has failed but is still processing %d remaining events, so we waiting a bit...",
-                            trigger_id, len(self.events.get(trigger_id)))
+                            trigger_id,
+                            len(self.events.get(trigger_id)),
+                        )
                         self.failed_triggers.append((trigger_id, trigger, saved_exc))
                 session.flush()
 
@@ -1026,8 +1035,9 @@ class TriggerRunner:
         """
         finished_ids: list[int] = []
         for trigger_id, details in list(self.triggers.items()):
-            await self.log.ainfo("trigger_id %s is %s.", trigger_id,
-                                 "done" if details["task"].done() else "not done")
+            await self.log.ainfo(
+                "trigger_id %s is %s.", trigger_id, "done" if details["task"].done() else "not done"
+            )
             if details["task"].done() and trigger_id not in self.events:
                 finished_ids.append(trigger_id)
                 # Check to see if it exited for good reasons
@@ -1156,7 +1166,12 @@ class TriggerRunner:
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                 )
-                await self.log.ainfo("%s size: %d / %d", trigger_id, self.events[trigger_id].qsize(), self.events[trigger_id].maxsize)
+                await self.log.ainfo(
+                    "%s size: %d / %d",
+                    trigger_id,
+                    self.events[trigger_id].qsize(),
+                    self.events[trigger_id].maxsize,
+                )
                 self.triggers[trigger_id]["events"] += 1
                 await self.events.put((trigger_id, event))
         except asyncio.CancelledError:
