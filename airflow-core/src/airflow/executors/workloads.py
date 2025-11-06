@@ -180,6 +180,13 @@ class RunTrigger(BaseModel):
 
     id: int
 
+    ti: TaskInstance | None = None
+    """
+    The task instance associated with this trigger.
+
+    Could be none for asset-based triggers.
+    """
+
     classpath: str
     """
     Dot-separated name of the module+fn to import and run this workload.
@@ -188,13 +195,6 @@ class RunTrigger(BaseModel):
     """
 
     encrypted_kwargs: str
-
-    ti: TaskInstance | None = None
-    """
-    The task instance associated with this trigger.
-
-    Could be none for asset-based triggers.
-    """
 
     timeout_after: datetime | None = None
 
