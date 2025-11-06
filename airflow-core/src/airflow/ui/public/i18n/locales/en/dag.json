@@ -116,7 +116,7 @@
       "label": "Graph Direction"
     },
     "showVersionIndicator": {
-      "label": "Version Display",
+      "label": "Show Version Indicator",
       "options": {
         "hideAll": "Hide All",
         "showAll": "Show All",
