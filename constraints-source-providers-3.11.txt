@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-06T10:08:25.202543
+# This constraints file was automatically generated on 2025-11-06T21:46:30.232322
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -244,7 +244,7 @@ google-cloud-core==2.5.0
 google-cloud-datacatalog==3.28.0
 google-cloud-dataflow-client==0.10.0
 google-cloud-dataform==0.7.0
-google-cloud-dataplex==2.14.0
+google-cloud-dataplex==2.15.0
 google-cloud-dataproc-metastore==1.20.0
 google-cloud-dataproc==5.23.0
 google-cloud-dlp==3.33.0
@@ -267,14 +267,14 @@ google-cloud-storage-transfer==1.18.0
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.20.0
 google-cloud-texttospeech==2.33.0
-google-cloud-translate==3.22.0
+google-cloud-translate==3.23.0
 google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
 google-genai==1.49.0
 google-resumable-media==2.7.2
-googleapis-common-protos==1.71.0
+googleapis-common-protos==1.72.0
 graphql-core==3.2.7
 graphviz==0.20.3
 greenback==1.2.1
@@ -299,7 +299,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.1
+huggingface_hub==1.1.2
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -407,7 +407,7 @@ natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==6.0.2
+neo4j==6.0.3
 nest-asyncio==1.6.0
 networkx==3.5
 nh3==0.3.2

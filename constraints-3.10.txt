@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-06T10:10:43.555314
+# This constraints file was automatically generated on 2025-11-06T21:50:09.327784
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -130,6 +130,7 @@ apache-airflow-providers-dbt-cloud==4.4.4
 apache-airflow-providers-dingding==3.8.2
 apache-airflow-providers-discord==3.10.2
 apache-airflow-providers-docker==4.4.4
+apache-airflow-providers-edge3==1.4.0
 apache-airflow-providers-elasticsearch==6.3.4
 apache-airflow-providers-exasol==4.8.3
 apache-airflow-providers-fab==3.0.1
@@ -344,7 +345,7 @@ google-cloud-core==2.5.0
 google-cloud-datacatalog==3.28.0
 google-cloud-dataflow-client==0.10.0
 google-cloud-dataform==0.7.0
-google-cloud-dataplex==2.14.0
+google-cloud-dataplex==2.15.0
 google-cloud-dataproc-metastore==1.20.0
 google-cloud-dataproc==5.23.0
 google-cloud-dlp==3.33.0
@@ -367,14 +368,14 @@ google-cloud-storage-transfer==1.18.0
 google-cloud-storage==3.5.0
 google-cloud-tasks==2.20.0
 google-cloud-texttospeech==2.33.0
-google-cloud-translate==3.22.0
+google-cloud-translate==3.23.0
 google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
 google-genai==1.49.0
 google-resumable-media==2.7.2
-googleapis-common-protos==1.71.0
+googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.2.1
 greenlet==3.2.4
@@ -479,7 +480,7 @@ natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==6.0.2
+neo4j==6.0.3
 nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
