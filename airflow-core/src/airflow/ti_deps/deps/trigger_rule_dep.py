@@ -74,7 +74,6 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             if TYPE_CHECKING:
                 assert ti.task
-            if TYPE_CHECKING:
                 assert ti.state
             curr_state = {ti.state: 1}
             counter.update(curr_state)
