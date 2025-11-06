@@ -62,7 +62,7 @@ class TestVaultHook:
             VaultHook(**kwargs)
 
     @pytest.mark.parametrize(
-        "version, expected_version",
+        ("version", "expected_version"),
         [
             ("2", 2),
             (1, 1),
@@ -161,7 +161,7 @@ class TestVaultHook:
         assert test_hook.vault_client.kv_engine_version == 1
 
     @pytest.mark.parametrize(
-        "protocol, expected_url",
+        ("protocol", "expected_url"),
         [
             ("vaults", "https://localhost:8180"),
             ("http", "http://localhost:8180"),
@@ -195,7 +195,7 @@ class TestVaultHook:
         assert test_hook.vault_client.kv_engine_version == 2
 
     @pytest.mark.parametrize(
-        "use_tls, expected_url",
+        ("use_tls", "expected_url"),
         [
             (True, "https://localhost:8180"),
             (False, "http://localhost:8180"),
@@ -1282,7 +1282,7 @@ class TestVaultHook:
         )
 
     @pytest.mark.parametrize(
-        "method, expected_method",
+        ("method", "expected_method"),
         [
             (None, None),
             ("post", "post"),
