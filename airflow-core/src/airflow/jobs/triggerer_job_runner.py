@@ -838,7 +838,7 @@ class TriggerRunner:
     """
 
     # Maps trigger IDs to their running tasks and other info
-    triggers: dict[int, TriggerDetails]
+    triggers: dict[int, dict[str, TriggerDetails]]
 
     # Cache for looking up triggers by classpath
     trigger_cache: dict[str, type[BaseTrigger]]
