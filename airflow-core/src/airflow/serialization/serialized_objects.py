@@ -1719,12 +1719,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         operator_def = schema_data.get("definitions", {}).get("operator", {})
         properties = operator_def.get("properties", {})
 
-        const_fields = set()
-        for field_name, field_def in properties.items():
-            if isinstance(field_def, dict) and field_def.get("const") is True:
-                const_fields.add(field_name)
-
-        return const_fields
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const") is True
+        }
 
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
