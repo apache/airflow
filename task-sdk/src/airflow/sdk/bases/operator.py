@@ -1419,7 +1419,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self.start_from_trigger and self.start_trigger_args and self.start_trigger_args.trigger_kwargs:
             for name, val in self.start_trigger_args.trigger_kwargs.items():
                 if callable(val):
-                    raise AirflowException(
+                    raise ValueError(
                         f"{self.__class__.__name__} with task_id '{self.task_id}' has a callable in trigger kwargs named "
                         f"'{name}', which is not allowed when start_from_trigger is enabled."
                     )
