@@ -1688,7 +1688,8 @@ class TestBigQueryAsyncHookMethods:
         assert resp == response
 
     @pytest.mark.parametrize(
-        ("records", "pass_value", "tolerance"), [(["str"], "str", None), ([2], 2, None), ([0], 2, 1), ([4], 2, 1)]
+        ("records", "pass_value", "tolerance"),
+        [(["str"], "str", None), ([2], 2, None), ([0], 2, 1), ([4], 2, 1)],
     )
     def test_value_check_success(self, records, pass_value, tolerance):
         """
