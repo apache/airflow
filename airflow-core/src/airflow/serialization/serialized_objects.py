@@ -1722,7 +1722,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return {
             field_name
             for field_name, field_def in properties.items()
-            if isinstance(field_def, dict) and field_def.get("const") is True
+            if isinstance(field_def, dict) and field_def.get("const")
         }
 
     @classmethod
