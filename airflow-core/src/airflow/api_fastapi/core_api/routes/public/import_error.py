@@ -147,7 +147,7 @@ def get_import_errors(
         # Early return if the user has access to all DAGs
         import_errors = session.scalars(import_errors_select).all()
         return ImportErrorCollectionResponse(
-            import_errors=list(import_errors),
+            import_errors=import_errors,
             total_entries=total_entries,
         )
 
@@ -205,6 +205,6 @@ def get_import_errors(
         import_errors.append(import_error)
 
     return ImportErrorCollectionResponse(
-        import_errors=list(import_errors),
+        import_errors=import_errors,
         total_entries=total_entries,
     )

@@ -276,7 +276,7 @@ class MockLazySelectSequence(LazySelectSequence):
 
 
 @pytest.mark.parametrize(
-    "input, encoded_type, cmp_func",
+    ("input", "encoded_type", "cmp_func"),
     [
         ("test_str", None, equals),
         (1, None, equals),
@@ -614,7 +614,7 @@ def test_hash_property():
 
 
 @pytest.mark.parametrize(
-    "payload, expected_cls",
+    ("payload", "expected_cls"),
     [
         pytest.param(
             {
