@@ -104,7 +104,14 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        ("use_dns_endpoint", "use_internal_ip", "endpoint", "private_endpoint", "dns_endpoint", "expected_cluster_url"),
+        (
+            "use_dns_endpoint",
+            "use_internal_ip",
+            "endpoint",
+            "private_endpoint",
+            "dns_endpoint",
+            "expected_cluster_url",
+        ),
         [
             (
                 False,
