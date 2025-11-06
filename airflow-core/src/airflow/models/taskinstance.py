@@ -1497,13 +1497,17 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     def get_current_max_mapping(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int:
-        return max(session.scalar(
-            select(func.max(TaskInstance.map_index)).where(
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.task_id == task_id,
-                TaskInstance.run_id == run_id,
+        return max(
+            session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.run_id == run_id,
+                )
             )
-        ) or 0, 0)
+            or 0,
+            0,
+        )
 
     @provide_session
     def defer_task(self, session: Session = NEW_SESSION) -> bool:
@@ -1521,8 +1525,9 @@ class TaskInstance(Base, LoggingMixin):
         if self.context_carrier and "trigger" in self.context_carrier:
             trigger_classpath, trigger_kwargs = self.context_carrier.pop("trigger", (None, None))
 
-            self.log.info("Creating trigger from context_carrier for task_id %s: %s", self.task_id,
-                          trigger_kwargs)
+            self.log.info(
+                "Creating trigger from context_carrier for task_id %s: %s", self.task_id, trigger_kwargs
+            )
             trigger_row = Trigger(
                 classpath=trigger_classpath,
                 kwargs=trigger_kwargs or {},
@@ -1542,8 +1547,9 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.trigger_timeout = None
 
-            self.log.info("Creating trigger from start_trigger_args for task_id %s:  %s", self.task_id,
-                          trigger_kwargs)
+            self.log.info(
+                "Creating trigger from start_trigger_args for task_id %s:  %s", self.task_id, trigger_kwargs
+            )
             trigger_row = Trigger(
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
@@ -1612,7 +1618,9 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(TaskInstanceState.FAILED.value, ti))
 
         # Only clear next method args if first invocation on triggerer failed
-        if not ti.next_trigger_id:  # TODO: this check is very important, otherwise failed triggers will clear the XCom's
+        if (
+            not ti.next_trigger_id
+        ):  # TODO: this check is very important, otherwise failed triggers will clear the XCom's
             ti.clear_next_method_args()
 
         # Set state correctly and figure out how to log it and decide whether
