@@ -59,7 +59,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.deadline import Deadline, DeadlineCallbackState
+from airflow.models.deadline import Deadline
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -69,7 +69,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -86,6 +86,7 @@ from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sy
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
@@ -193,6 +194,7 @@ class TestSchedulerJob:
         clear_db_jobs()
         clear_db_assets()
         clear_db_deadline()
+        clear_db_callbacks()
         clear_db_triggers()
 
     @pytest.fixture(autouse=True)
@@ -608,6 +610,67 @@ class TestSchedulerJob:
         scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_not_called()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_with_asset_events(self, mock_stats_incr, session, dag_maker):
+        """
+        Test that _process_executor_events handles asset events without DetachedInstanceError.
+
+        Regression test for scheduler crashes when task callbacks are built with
+        consumed_asset_events that weren't eager-loaded.
+        """
+        asset1 = Asset(uri="test://asset1", name="test_asset_executor", group="test_group")
+        asset_model = AssetModel(name=asset1.name, uri=asset1.uri, group=asset1.group)
+        session.add(asset_model)
+        session.flush()
+
+        with dag_maker(dag_id="test_executor_events_with_assets", schedule=[asset1], fileloc="/test_path1/"):
+            EmptyOperator(task_id="dummy_task", on_failure_callback=lambda ctx: None)
+
+        dag = dag_maker.dag
+        sync_dag_to_db(dag)
+        DagVersion.get_latest_version(dag.dag_id)
+
+        dr = dag_maker.create_dagrun()
+
+        # Create asset event and attach to dag run
+        asset_event = AssetEvent(
+            asset_id=asset_model.id,
+            source_task_id="upstream_task",
+            source_dag_id="upstream_dag",
+            source_run_id="upstream_run",
+            source_map_index=-1,
+        )
+        session.add(asset_event)
+        session.flush()
+        dr.consumed_asset_events.append(asset_event)
+        session.add(dr)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti1 = dr.get_task_instance("dummy_task")
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.FAILED, None
+
+        # This should not raise DetachedInstanceError
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.FAILED
+
+        # Verify callback was created with asset event data
+        scheduler_job.executor.callback_sink.send.assert_called_once()
+        callback_request = scheduler_job.executor.callback_sink.send.call_args.args[0]
+        assert callback_request.context_from_server is not None
+        assert len(callback_request.context_from_server.dag_run.consumed_asset_events) == 1
+        assert callback_request.context_from_server.dag_run.consumed_asset_events[0].asset.uri == asset1.uri
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"
@@ -627,6 +690,97 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SCHEDULED
         session.rollback()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_find_and_purge_task_instances_without_heartbeats_with_asset_events(
+        self, session, dag_maker, create_dagrun
+    ):
+        """
+        Test that heartbeat purge succeeds when DagRun has consumed_asset_events.
+
+        Regression test for DetachedInstanceError when building TaskCallbackRequest
+        with asset event data after session expunge.
+        """
+        asset1 = Asset(uri="test://asset1", name="test_asset", group="test_group")
+        asset_model = AssetModel(name=asset1.name, uri=asset1.uri, group=asset1.group)
+        session.add(asset_model)
+        session.flush()
+
+        with dag_maker(dag_id="test_heartbeat_with_assets", schedule=[asset1]):
+            EmptyOperator(task_id="dummy_task")
+
+        dag = dag_maker.dag
+        scheduler_dag = sync_dag_to_db(dag)
+        dag_v = DagVersion.get_latest_version(dag.dag_id)
+
+        data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
+        dag_run = create_dagrun(
+            scheduler_dag,
+            logical_date=DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            data_interval=data_interval,
+        )
+
+        # Create asset alias and event with full relationships
+        asset_alias = AssetAliasModel(name="test_alias", group="test_group")
+        session.add(asset_alias)
+        session.flush()
+
+        asset_event = AssetEvent(
+            asset_id=asset_model.id,
+            source_task_id="upstream_task",
+            source_dag_id="upstream_dag",
+            source_run_id="upstream_run",
+            source_map_index=-1,
+        )
+        session.add(asset_event)
+        session.flush()
+
+        # Attach alias to event and event to dag run
+        asset_event.source_aliases.append(asset_alias)
+        dag_run.consumed_asset_events.append(asset_event)
+        session.add_all([asset_event, dag_run])
+        session.flush()
+
+        executor = MockExecutor()
+        scheduler_job = Job(executor=executor)
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.return_value = executor
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+            ti = dag_run.get_task_instance("dummy_task")
+            assert ti is not None  # sanity check: dag_maker.create_dagrun created the TI
+
+            ti.state = State.RUNNING
+            ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+            ti.start_date = timezone.utcnow() - timedelta(minutes=10)
+            ti.queued_by_job_id = scheduler_job.id
+            ti.dag_version = dag_v
+            session.merge(ti)
+            session.flush()
+
+            executor.running.add(ti.key)
+
+            tis_without_heartbeats = self.job_runner._find_task_instances_without_heartbeats(session=session)
+            assert len(tis_without_heartbeats) == 1
+            ti_from_query = tis_without_heartbeats[0]
+            ti_key = ti_from_query.key
+
+            # Detach all ORM objects to mirror scheduler behaviour after session closes
+            session.expunge_all()
+
+            # This should not raise DetachedInstanceError now that eager loads are in place
+            self.job_runner._purge_task_instances_without_heartbeats(tis_without_heartbeats, session=session)
+            assert ti_key not in executor.running
+
+        executor.callback_sink.send.assert_called_once()
+        callback_request = executor.callback_sink.send.call_args.args[0]
+        assert callback_request.context_from_server is not None
+        assert len(callback_request.context_from_server.dag_run.consumed_asset_events) == 1
+        consumed_event = callback_request.context_from_server.dag_run.consumed_asset_events[0]
+        assert consumed_event.asset.uri == asset1.uri
+        assert len(consumed_event.source_aliases) == 1
+        assert consumed_event.source_aliases[0].name == "test_alias"
 
     # @pytest.mark.usefixtures("mock_executor")
     def test_execute_task_instances_backfill_tasks_will_execute(self, dag_maker):
@@ -6894,28 +7048,49 @@ class TestSchedulerJob:
         callback_path = "classpath.notify"
 
         # Create a test Dag run for Deadline
-        with dag_maker(dag_id="test_deadline_dag"):
+        dag_id = "test_deadline_dag"
+        with dag_maker(dag_id=dag_id):
             EmptyOperator(task_id="empty")
         dagrun_id = dag_maker.create_dagrun().id
 
-        handled_deadlines = []
-        for state in DeadlineCallbackState:
-            deadline = Deadline(
-                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
-            )
-            deadline.callback_state = state
-            handled_deadlines.append(deadline)
+        handled_deadline_async = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_async.missed = True
+
+        handled_deadline_sync = Deadline(
+            deadline_time=past_date,
+            callback=SyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_sync.missed = True
+
         expired_deadline1 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         expired_deadline2 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=SyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         future_deadline = Deadline(
-            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=future_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
         )
 
-        session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
+        session.add_all(
+            [
+                expired_deadline1,
+                expired_deadline2,
+                future_deadline,
+                handled_deadline_async,
+                handled_deadline_sync,
+            ]
+        )
         session.flush()
 
         self.job_runner._execute()

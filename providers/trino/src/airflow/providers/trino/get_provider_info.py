@@ -46,7 +46,7 @@ def get_provider_info():
             {
                 "source-integration-name": "Google Cloud Storage (GCS)",
                 "target-integration-name": "Trino",
-                "how-to-guide": "/docs/apache-airflow-providers-trino/gcs_to_trino.rst",
+                "how-to-guide": "/docs/apache-airflow-providers-trino/transfer/gcs_to_trino.rst",
                 "python-module": "airflow.providers.trino.transfers.gcs_to_trino",
             }
         ],

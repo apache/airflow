@@ -69,18 +69,20 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
+from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_succeeded,
+    get_container_termination_message,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
     PodNotFoundException,
-    PodOperatorHookProtocol,
     PodPhase,
-    container_is_succeeded,
-    get_container_termination_message,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
@@ -95,6 +97,7 @@ if TYPE_CHECKING:
     import jinja2
     from pendulum import DateTime
 
+    from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
 
     try:
@@ -865,6 +868,7 @@ class KubernetesPodOperator(BaseOperator):
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
                 startup_check_interval=self.startup_check_interval_seconds,
+                schedule_timeout=self.schedule_timeout_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
                 last_log_time=last_log_time,
@@ -965,6 +969,10 @@ class KubernetesPodOperator(BaseOperator):
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if event["status"] == "running":
             return
+
+        if self.pod is None:
+            return
+
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete

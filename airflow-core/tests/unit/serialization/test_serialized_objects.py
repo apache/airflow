@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
@@ -74,6 +76,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     LazyDeserializedDAG,
     SerializedDAG,
+    _has_kubernetes,
     create_scheduler_operator,
 )
 from airflow.triggers.base import BaseTrigger
@@ -82,6 +85,9 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from pydantic.types import JsonValue
 
 DAG_ID = "dag_id_1"
 
@@ -205,7 +211,7 @@ TI_WITH_START_DAY = TaskInstance(
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
-TI_WITH_START_DAY.start_date = timezone.utcnow()
+TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
@@ -225,7 +231,7 @@ EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
 
 
 def create_outlet_event_accessors(
-    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+    key: Asset | AssetAlias, extra: dict[str, JsonValue], asset_alias_events: list[AssetAliasEvent]
 ) -> OutletEventAccessors:
     o = OutletEventAccessors()
     o[key].extra = extra
@@ -692,7 +698,7 @@ def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 
     assert encode_timezone(FixedTimezone(0)) == "UTC"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
 
 
@@ -718,3 +724,29 @@ class TestSerializedBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+
+class TestKubernetesImportAvoidance:
+    """Test that serialization doesn't import kubernetes unnecessarily."""
+
+    def test_has_kubernetes_no_import_when_not_needed(self):
+        """Ensure _has_kubernetes() doesn't import k8s when not already loaded."""
+        # Remove kubernetes from sys.modules if present
+        k8s_modules = [m for m in list(sys.modules.keys()) if m.startswith("kubernetes")]
+        if k8s_modules:
+            pytest.skip("Kubernetes already imported, cannot test import avoidance")
+
+        # Call _has_kubernetes() - should check sys.modules and return False without importing
+        result = _has_kubernetes()
+
+        assert result is False
+        assert "kubernetes.client" not in sys.modules
+
+    def test_has_kubernetes_uses_existing_import(self):
+        """Ensure _has_kubernetes() uses k8s when it's already imported."""
+        pytest.importorskip("kubernetes")
+
+        # Now k8s is imported, should return True
+        result = _has_kubernetes()
+
+        assert result is True

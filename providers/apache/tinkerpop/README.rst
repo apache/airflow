@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-tinkerpop``
 
-Release: ``1.0.3``
+Release: ``1.0.4``
 
 
 `Apache TinkerPop <https://tinkerpop.apache.org/>`__.
@@ -38,7 +38,7 @@ This is a provider package for ``apache.tinkerpop`` provider. All classes for th
 are in ``airflow.providers.apache.tinkerpop`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.4/>`_.
 
 Installation
 ------------
@@ -59,5 +59,14 @@ PIP package         Version required
 ``gremlinpython``   ``>=3.7.3``
 ==================  ==================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-tinkerpop/1.0.4/changelog.html>`_.

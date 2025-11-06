@@ -153,7 +153,13 @@ class ClearTaskInstancesBody(BaseModel):
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = True
     only_running: Annotated[bool | None, Field(title="Only Running")] = False
     reset_dag_runs: Annotated[bool | None, Field(title="Reset Dag Runs")] = True
-    task_ids: Annotated[list[str | TaskIds] | None, Field(title="Task Ids")] = None
+    task_ids: Annotated[
+        list[str | TaskIds] | None,
+        Field(
+            description="A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+            title="Task Ids",
+        ),
+    ] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -1032,7 +1038,7 @@ class AssetEventResponse(BaseModel):
     uri: Annotated[str | None, Field(title="Uri")] = None
     name: Annotated[str | None, Field(title="Name")] = None
     group: Annotated[str | None, Field(title="Group")] = None
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
@@ -1050,7 +1056,7 @@ class AssetResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
@@ -1477,7 +1483,7 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHisotry(BaseModel):
+class HITLDetailHistory(BaseModel):
     """
     Schema for Human-in-the-loop detail history.
     """
@@ -1661,7 +1667,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
-    hitl_detail: HITLDetailHisotry | None = None
+    hitl_detail: HITLDetailHistory | None = None
 
 
 class TaskInstanceResponse(BaseModel):

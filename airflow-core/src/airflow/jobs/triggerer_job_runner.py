@@ -627,7 +627,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
@@ -649,7 +649,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-
+                if not new_trigger_orm.task_instance.dag_version_id:
+                    # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
+                    log.warning(
+                        "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
+                        ti_id=new_trigger_orm.task_instance.id,
+                    )
+                    continue
                 ser_ti = workloads.TaskInstance.model_validate(
                     new_trigger_orm.task_instance, from_attributes=True
                 )

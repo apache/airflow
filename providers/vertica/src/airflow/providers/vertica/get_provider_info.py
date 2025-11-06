@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Vertica",
                 "external-doc-url": "https://www.vertica.com/",
+                "how-to-guide": ["/docs/apache-airflow-providers-vertica/operators.rst"],
                 "logo": "/docs/integration-logos/Vertica.png",
                 "tags": ["software"],
             }

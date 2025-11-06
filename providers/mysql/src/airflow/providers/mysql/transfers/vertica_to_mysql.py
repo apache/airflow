@@ -33,16 +33,12 @@ except ImportError:
         "installed in case you see compilation error during installation."
     )
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.mysql.version_compat import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class VerticaToMySqlOperator(BaseOperator):

@@ -5759,6 +5759,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5767,6 +5779,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5799,6 +5823,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -6589,6 +6625,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -6597,6 +6645,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -6629,6 +6689,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -8306,7 +8378,7 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
             responded_at, created_at, responded_by_user_id, responded_by_user_name,
-            dag_id, run_id, run_after, rendered_map_index, task_instance_operator,
+            dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator,
             task_instance_state`'
           default:
           - ti_id
@@ -8314,7 +8386,8 @@ paths:
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
           created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id,
-          run_after, rendered_map_index, task_instance_operator, task_instance_state`'
+          task_display_name, run_after, rendered_map_index, task_instance_operator,
+          task_instance_state`'
       - name: dag_id_pattern
         in: query
         required: false
@@ -8567,40 +8640,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/auth/refresh:
-    get:
-      tags:
-      - Login
-      summary: Refresh
-      description: Refresh the authentication token.
-      operationId: refresh
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '307':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -8740,7 +8779,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8796,7 +8836,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -9534,6 +9575,9 @@ components:
             type: array
           - type: 'null'
           title: Task Ids
+          description: A list of `task_id` or [`task_id`, `map_index`]. If only the
+            `task_id` is provided for a mapped task, all of its map indices will be
+            targeted.
         dag_run_id:
           anyOf:
           - type: string
@@ -10876,7 +10920,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -11220,7 +11263,7 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailHisotry:
+    HITLDetailHistory:
       properties:
         options:
           items:
@@ -11290,7 +11333,7 @@ components:
       - options
       - subject
       - created_at
-      title: HITLDetailHisotry
+      title: HITLDetailHistory
       description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
@@ -12181,7 +12224,7 @@ components:
           - type: 'null'
         hitl_detail:
           anyOf:
-          - $ref: '#/components/schemas/HITLDetailHisotry'
+          - $ref: '#/components/schemas/HITLDetailHistory'
           - type: 'null'
       type: object
       required:

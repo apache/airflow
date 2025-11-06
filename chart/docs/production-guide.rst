@@ -157,7 +157,7 @@ Two additional Kubernetes Secret required to PgBouncer able to properly work in 
 
 .. code-block:: text
 
-  "{ external_database_host }" "{ external_database_pass }"
+  "{ external_database_username }" "{ external_database_pass }"
 
 The ``values.yaml`` should looks like this
 

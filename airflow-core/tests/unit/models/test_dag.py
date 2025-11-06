@@ -21,6 +21,7 @@ import datetime
 import logging
 import os
 import pickle
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -38,7 +39,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import AirflowException, ParamValidationError
+from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -53,6 +54,7 @@ from airflow.models.dag import (
     get_asset_triggered_next_run_info,
     get_next_data_interval,
 )
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
@@ -80,6 +82,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -178,6 +181,29 @@ class TestDag:
         clear_db_runs()
         clear_db_dags()
         clear_db_assets()
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_auto_parses_when_not_serialized(self, test_dags_bundle, session):
+        """
+        DAG.test() should auto-parse and sync the DAG if it's not serialized yet.
+        """
+
+        dag_id = "test_example_bash_operator"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dag = dagbag.dags.get(dag_id)
+
+        # Ensure not serialized yet
+        assert DBDagBag().get_latest_version_of_dag(dag_id, session=session) is None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is None
+
+        dr = dag.test()
+        assert dr is not None
+
+        # Serialized DAG should now exist and DagRun would be created
+        ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
+        assert ser is not None
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
     def teardown_method(self) -> None:
         clear_db_runs()
@@ -1404,7 +1430,7 @@ my_postgres_conn:
         ) as dag:
             EmptyOperator(task_id=task_id)
 
-        session = settings.Session()
+        session = settings.get_session()()
         dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
@@ -1708,7 +1734,7 @@ my_postgres_conn:
 
     def test_validate_params_on_trigger_dag(self, testing_dag_bundle):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(ValueError, match="No value passed"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
@@ -1720,9 +1746,7 @@ my_postgres_conn:
             )
 
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
-        with pytest.raises(
-            ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
-        ):
+        with pytest.raises(ValueError, match="None is not of type 'string'"):
             sync_dag_to_db(dag).create_dagrun(
                 run_id="test_dagrun_missing_param",
                 run_type=DagRunType.MANUAL,
@@ -2847,7 +2871,12 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
     run_id = DagRun.generate_run_id(run_type=run_id_type, run_after=DEFAULT_DATE, logical_date=DEFAULT_DATE)
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+        ),
+    ):
         SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag)).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
@@ -2857,9 +2886,6 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             state=DagRunState.QUEUED,
             triggered_by=DagRunTriggeredByType.TEST,
         )
-    assert str(ctx.value) == (
-        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
-    )
 
 
 class TestTaskClearingSetupTeardownBehavior:

@@ -24,10 +24,10 @@ import json
 import math
 import time
 from collections.abc import Callable, Generator, Iterable
-from contextlib import closing, suppress
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 import tenacity
@@ -40,6 +40,13 @@ from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_completed,
+    container_is_running,
+    container_is_terminated,
+    container_is_wait,
+    get_container_status,
+)
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -48,11 +55,12 @@ if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_state import V1ContainerState
     from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
-    from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_object_reference import V1ObjectReference
     from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
     from urllib3.response import HTTPResponse
+
+    from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
@@ -89,133 +97,111 @@ class PodPhase:
     terminal_states = {FAILED, SUCCEEDED}
 
 
-class PodOperatorHookProtocol(Protocol):
-    """
-    Protocol to define methods relied upon by KubernetesPodOperator.
-
-    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
-    hooks that don't extend KubernetesHook.  We use this protocol to document the
-    methods used by KPO and ensure that these methods exist on such other hooks.
-    """
-
-    @property
-    def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated client object."""
-
-    @property
-    def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
-
-    def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """Read pod object from kubernetes API."""
-
-    def get_namespace(self) -> str | None:
-        """Return the namespace that defined in the connection."""
-
-    def get_xcom_sidecar_container_image(self) -> str | None:
-        """Return the xcom sidecar image that defined in the connection."""
-
-    def get_xcom_sidecar_container_resources(self) -> str | None:
-        """Return the xcom sidecar resources that defined in the connection."""
-
-
-def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
-    """Retrieve container status."""
-    if pod and pod.status:
-        container_statuses = []
-        if pod.status.container_statuses:
-            container_statuses.extend(pod.status.container_statuses)
-        if pod.status.init_container_statuses:
-            container_statuses.extend(pod.status.init_container_statuses)
-
-    else:
-        container_statuses = None
-
-    if container_statuses:
-        # In general the variable container_statuses can store multiple items matching different containers.
-        # The following generator expression yields all items that have name equal to the container_name.
-        # The function next() here calls the generator to get only the first value. If there's nothing found
-        # then None is returned.
-        return next((x for x in container_statuses if x.name == container_name), None)
-    return None
-
-
-def container_is_running(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is running.
-
-    If that container is present and running, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.running is not None
-
-
-def container_is_completed(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is completed.
-
-    If that container is present and completed, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.terminated is not None
-
-
-def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
-
-    If that container is present and completed and succeeded, returns True.  Returns False otherwise.
-    """
-    if not container_is_completed(pod, container_name):
-        return False
-
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-    return container_status.state.terminated.exit_code == 0
-
-
-def container_is_wait(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is waiting.
-
-    If that container is present and waiting, returns True.  Returns False otherwise.
-    """
-    container_status = get_container_status(pod, container_name)
-    if not container_status:
-        return False
-
-    return container_status.state.waiting is not None
-
-
-def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
-    """
-    Examine V1Pod ``pod`` to determine whether ``container_name`` is terminated.
-
-    If that container is present and terminated, returns True.  Returns False otherwise.
-    """
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
-        return False
-    container_status = next((x for x in container_statuses if x.name == container_name), None)
-    if not container_status:
-        return False
-    return container_status.state.terminated is not None
-
-
-def get_container_termination_message(pod: V1Pod, container_name: str):
-    with suppress(AttributeError, TypeError):
-        container_statuses = pod.status.container_statuses
-        container_status = next((x for x in container_statuses if x.name == container_name), None)
-        return container_status.state.terminated.message if container_status else None
-
-
 def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
+
+
+async def watch_pod_events(
+    pod_manager: PodManager | AsyncPodManager,
+    pod: V1Pod,
+    check_interval: float = 1,
+) -> None:
+    """
+    Read pod events and write them to the log.
+
+    This function supports both asynchronous and synchronous pod managers.
+
+    :param pod_manager: The pod manager instance (PodManager or AsyncPodManager).
+    :param pod: The pod object to monitor.
+    :param check_interval: Interval (in seconds) between checks.
+    """
+    num_events = 0
+    is_async = isinstance(pod_manager, AsyncPodManager)
+    while not pod_manager.stop_watching_events:
+        if is_async:
+            events = await pod_manager.read_pod_events(pod)
+        else:
+            events = pod_manager.read_pod_events(pod)
+        for new_event in events.items[num_events:]:
+            involved_object: V1ObjectReference = new_event.involved_object
+            pod_manager.log.info(
+                "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
+            )
+        num_events = len(events.items)
+        await asyncio.sleep(check_interval)
+
+
+async def await_pod_start(
+    pod_manager: PodManager | AsyncPodManager,
+    pod: V1Pod,
+    schedule_timeout: int = 120,
+    startup_timeout: int = 120,
+    check_interval: float = 1,
+):
+    """
+    Monitor the startup phase of a Kubernetes pod, waiting for it to leave the ``Pending`` state.
+
+    This function is shared by both PodManager and AsyncPodManager to provide consistent pod startup tracking.
+
+    :param pod_manager: The pod manager instance (PodManager or AsyncPodManager).
+    :param pod: The pod object to monitor.
+    :param schedule_timeout: Maximum time (in seconds) to wait for the pod to be scheduled.
+    :param startup_timeout: Maximum time (in seconds) to wait for the pod to start running after being scheduled.
+    :param check_interval: Interval (in seconds) between status checks.
+    :param is_async: Set to True if called in an async context; otherwise, False.
+    """
+    pod_manager.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+    pod_was_scheduled = False
+    start_check_time = time.time()
+    is_async = isinstance(pod_manager, AsyncPodManager)
+    while True:
+        if is_async:
+            remote_pod = await pod_manager.read_pod(pod)
+        else:
+            remote_pod = pod_manager.read_pod(pod)
+        pod_status = remote_pod.status
+        if pod_status.phase != PodPhase.PENDING:
+            pod_manager.stop_watching_events = True
+            pod_manager.log.info("::endgroup::")
+            break
+
+        # Check for timeout
+        pod_conditions: list[V1PodCondition] = pod_status.conditions
+        if pod_conditions and any(
+            (condition.type == "PodScheduled" and condition.status == "True") for condition in pod_conditions
+        ):
+            if not pod_was_scheduled:
+                # POD was initially scheduled update timeout for getting POD launched
+                pod_was_scheduled = True
+                start_check_time = time.time()
+                pod_manager.log.info("Waiting %ss to get the POD running...", startup_timeout)
+
+            if time.time() - start_check_time >= startup_timeout:
+                pod_manager.log.info("::endgroup::")
+                raise PodLaunchTimeoutException(
+                    f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
+                )
+        else:
+            if time.time() - start_check_time >= schedule_timeout:
+                pod_manager.log.info("::endgroup::")
+                raise PodLaunchTimeoutException(
+                    f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
+                )
+
+        # Check for general problems to terminate early - ErrImagePull
+        if pod_status.container_statuses:
+            for container_status in pod_status.container_statuses:
+                container_state: V1ContainerState = container_status.state
+                container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+                if container_waiting:
+                    if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
+                        pod_manager.log.info("::endgroup::")
+                        raise PodLaunchFailedException(
+                            f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                            f"\n{container_waiting.message}"
+                        )
+
+        await asyncio.sleep(check_interval)
 
 
 class PodLaunchTimeoutException(AirflowException):
@@ -381,16 +367,7 @@ class PodManager(LoggingMixin):
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
         """Read pod events and writes into log."""
-        num_events = 0
-        while not self.stop_watching_events:
-            events = self.read_pod_events(pod)
-            for new_event in events.items[num_events:]:
-                involved_object: V1ObjectReference = new_event.involved_object
-                self.log.info(
-                    "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
-                )
-            num_events = len(events.items)
-            await asyncio.sleep(check_interval)
+        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
@@ -406,55 +383,13 @@ class PodManager(LoggingMixin):
         :param check_interval: Interval (in seconds) between checks
         :return:
         """
-        self.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
-        pod_was_scheduled = False
-        start_check_time = time.time()
-        while True:
-            remote_pod = self.read_pod(pod)
-            pod_status = remote_pod.status
-            if pod_status.phase != PodPhase.PENDING:
-                self.stop_watching_events = True
-                self.log.info("::endgroup::")
-                break
-
-            # Check for timeout
-            pod_conditions: list[V1PodCondition] = pod_status.conditions
-            if pod_conditions and any(
-                (condition.type == "PodScheduled" and condition.status == "True")
-                for condition in pod_conditions
-            ):
-                if not pod_was_scheduled:
-                    # POD was initially scheduled update timeout for getting POD launched
-                    pod_was_scheduled = True
-                    start_check_time = time.time()
-                    self.log.info("Waiting %ss to get the POD running...", startup_timeout)
-
-                if time.time() - start_check_time >= startup_timeout:
-                    self.log.info("::endgroup::")
-                    raise PodLaunchFailedException(
-                        f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
-                    )
-            else:
-                if time.time() - start_check_time >= schedule_timeout:
-                    self.log.info("::endgroup::")
-                    raise PodLaunchFailedException(
-                        f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
-                    )
-
-            # Check for general problems to terminate early - ErrImagePull
-            if pod_status.container_statuses:
-                for container_status in pod_status.container_statuses:
-                    container_state: V1ContainerState = container_status.state
-                    container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-                    if container_waiting:
-                        if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
-                            self.log.info("::endgroup::")
-                            raise PodLaunchFailedException(
-                                f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                                f"\n{container_waiting.message}"
-                            )
-
-            await asyncio.sleep(check_interval)
+        await await_pod_start(
+            pod_manager=self,
+            pod=pod,
+            schedule_timeout=schedule_timeout,
+            startup_timeout=startup_timeout,
+            check_interval=check_interval,
+        )
 
     def _log_message(
         self,
@@ -1034,3 +969,66 @@ class OnFinishAction(str, enum.Enum):
 def is_log_group_marker(line: str) -> bool:
     """Check if the line is a log group marker like `::group::` or `::endgroup::`."""
     return line.startswith("::group::") or line.startswith("::endgroup::")
+
+
+class AsyncPodManager(LoggingMixin):
+    """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodTriggerer."""
+
+    def __init__(
+        self,
+        async_hook: AsyncKubernetesHook,
+        callbacks: list[type[KubernetesPodOperatorCallback]] | None = None,
+    ):
+        """
+        Create the launcher.
+
+        :param kube_client: kubernetes client
+        :param callbacks:
+        """
+        super().__init__()
+        self._hook = async_hook
+        self._watch = watch.Watch()
+        self._callbacks = callbacks or []
+        self.stop_watching_events = False
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(5), wait=tenacity.wait_exponential(), reraise=True)
+    async def read_pod(self, pod: V1Pod) -> V1Pod:
+        """Read POD information."""
+        return await self._hook.get_pod(
+            pod.metadata.name,
+            pod.metadata.namespace,
+        )
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(5), wait=tenacity.wait_exponential(), reraise=True)
+    async def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
+        """Get pod's events."""
+        return await self._hook.get_pod_events(
+            pod.metadata.name,
+            pod.metadata.namespace,
+        )
+
+    async def watch_pod_events(self, pod: V1Pod, check_interval: float = 1) -> None:
+        """Read pod events and writes into log."""
+        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
+
+    async def await_pod_start(
+        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1
+    ) -> None:
+        """
+        Wait for the pod to reach phase other than ``Pending``.
+
+        :param pod:
+        :param schedule_timeout: Timeout (in seconds) for pod stay in schedule state
+            (if pod is taking to long in schedule state, fails task)
+        :param startup_timeout: Timeout (in seconds) for startup of the pod
+            (if pod is pending for too long after being scheduled, fails task)
+        :param check_interval: Interval (in seconds) between checks
+        :return:
+        """
+        await await_pod_start(
+            pod_manager=self,
+            pod=pod,
+            schedule_timeout=schedule_timeout,
+            startup_timeout=startup_timeout,
+            check_interval=check_interval,
+        )

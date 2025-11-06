@@ -60,7 +60,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
-    "Topic :: System :: Monitoring",
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
@@ -87,14 +86,20 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
+"memray" = [
+    "apache-airflow-core[memray]"
+]
 "otel" = [
     "apache-airflow-core[otel]"
 ]
-"sentry" = [
-    "apache-airflow-core[sentry]"
-]
 "statsd" = [
     "apache-airflow-core[statsd]"
+]
+"all-task-sdk" = [
+    "apache-airflow-task-sdk[all]"
+]
+"sentry" = [
+    "apache-airflow-task-sdk[sentry]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -388,7 +393,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -534,7 +539,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.2",
+    "uv>=0.9.7",
 ]
 
 
@@ -587,6 +592,26 @@ extend-select = [
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
+    # Warning (PLW) re-implemented in ruff from Pylint
+    "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
+    "PLW0127", # Self-assignment of variable
+    "PLW0128", # Redeclared variable {name} in assignment
+    "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0131", # Named expression used without context
+    "PLW0133", # Missing raise statement on exception
+    "PLW0177", # Comparing against a NaN value; use math.isnan instead
+    "PLW0211", # First argument of a static method should not be named {argument_name}
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0604", # global at module level is redundant
+    "PLW0642", # Reassigned {} variable in {method_type} method
+    "PLW0711", # Exception to catch is the result of a binary and operation
+    "PLW1501", # {mode} is not a valid mode for open
+    "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
+    "PLW1508", # Invalid type for environment variable default; expected str or None
+    "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -634,7 +659,6 @@ ignore = [
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
-    "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
     # Rules below explicitly set off which could overlap with Ruff's formatter
     # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
@@ -871,7 +895,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions"]
+exempt-modules = ["typing", "typing_extensions", "sqlalchemy.orm.Mapped"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
@@ -1007,6 +1031,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/task-sdk/tests",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
@@ -1261,8 +1286,9 @@ dev = [
     "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
+    "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1304,6 +1330,7 @@ apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
+apache-airflow-ctl-tests = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
@@ -1423,6 +1450,7 @@ members = [
     "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
+    "airflow-ctl-tests",
     "dev",
     "devel-common",
     "docker-tests",

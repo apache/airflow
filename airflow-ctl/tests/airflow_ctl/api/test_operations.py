@@ -128,7 +128,7 @@ class TestBaseOperations:
             client.connections.get("1")
 
     @pytest.mark.parametrize(
-        "total_entries, limit, expected_response",
+        ("total_entries", "limit", "expected_response"),
         [
             (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (
@@ -200,7 +200,7 @@ class TestAssetsOperations:
         id=asset_id,
         name="asset",
         uri="asset_uri",
-        extra={"extra": "extra"},
+        extra={"extra": "extra"},  # type: ignore[dict-item]
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         scheduled_dags=[],
@@ -776,6 +776,44 @@ class TestDagOperations:
         is_paused=True,
     )
 
+    # DagRun related
+    trigger_dag_run = TriggerDAGRunPostBody(
+        conf=None,
+        note=None,
+    )
+
+    dag_id = "dag_id"
+    dag_run_id = "dag_run_id"
+    dag_run_response = DAGRunResponse(
+        dag_display_name=dag_run_id,
+        dag_run_id=dag_run_id,
+        dag_id=dag_id,
+        logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        queued_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+        triggered_by=DagRunTriggeredByType.UI,
+        conf={},
+        note=None,
+        dag_versions=[
+            DagVersionResponse(
+                id=uuid.uuid4(),
+                version_number=1,
+                dag_id=dag_id,
+                bundle_name="bundle_name",
+                bundle_version="1",
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                dag_display_name=dag_id,
+            )
+        ],
+    )
+
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
@@ -890,6 +928,15 @@ class TestDagOperations:
         response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
+    def test_trigger(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        assert response == self.dag_run_response
+
 
 class TestDagRunOperations:
     dag_id = "dag_id"
@@ -929,11 +976,6 @@ class TestDagRunOperations:
         total_entries=1,
     )
 
-    trigger_dag_run = TriggerDAGRunPostBody(
-        conf=None,
-        note=None,
-    )
-
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
@@ -957,15 +999,6 @@ class TestDagRunOperations:
             limit=1,
         )
         assert response == self.dag_run_collection_response
-
-    def test_trigger(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
-            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
-        assert response == self.dag_run_response
 
 
 class TestJobsOperations:
@@ -1034,7 +1067,7 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
-    pool_bulk_aresponse = BulkResponse(
+    pool_bulk_response = BulkResponse(
         create=BulkActionResponse(success=[pool_name], errors=[]),
         update=None,
         delete=None,
@@ -1070,11 +1103,11 @@ class TestPoolsOperations:
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/pools"
-            return httpx.Response(200, json=json.loads(self.pool_bulk_aresponse.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.pool_bulk_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
-        assert response == self.pool_bulk_aresponse
+        assert response == self.pool_bulk_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
