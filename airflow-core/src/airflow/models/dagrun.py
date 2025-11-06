@@ -1363,7 +1363,9 @@ class DagRun(Base, LoggingMixin):
         tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
 
         finished_tis = [t for t in tis if t.state in State.finished]
-        uncompleted_tis = [t for t in finished_tis if t.next_trigger_id]  # TODO: this was added to make AIP-88 work
+        uncompleted_tis = [
+            t for t in finished_tis if t.next_trigger_id
+        ]  # TODO: this was added to make AIP-88 work
         unfinished_tis = [t for t in tis if t.state in State.unfinished]
         unfinished_tis.extend(uncompleted_tis)
 
@@ -1380,7 +1382,9 @@ class DagRun(Base, LoggingMixin):
             # states, so we need to re-compute.
             if expansion_happened:
                 changed_tis = True
-                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished and not t.next_trigger_id]
+                new_unfinished_tis = [
+                    t for t in unfinished_tis if t.state in State.unfinished and not t.next_trigger_id
+                ]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
         else:
