@@ -41,7 +41,9 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_dag_documentation,
+    get_dag_parent_run_facet,
     get_job_name,
+    get_root_information_from_dagrun_conf,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
@@ -224,7 +226,11 @@ class OpenLineageListener:
                 task=task_metadata,
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
+                    **get_task_parent_run_facet(
+                        parent_run_id=parent_run_id,
+                        parent_job_name=dag.dag_id,
+                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                    ),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **debug_facet,
@@ -351,7 +357,11 @@ class OpenLineageListener:
                 nominal_end_time=data_interval_end,
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
+                    **get_task_parent_run_facet(
+                        parent_run_id=parent_run_id,
+                        parent_job_name=dag.dag_id,
+                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                    ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },
@@ -489,7 +499,11 @@ class OpenLineageListener:
                 job_description_type=doc_type,
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=dag.dag_id),
+                    **get_task_parent_run_facet(
+                        parent_run_id=parent_run_id,
+                        parent_job_name=dag.dag_id,
+                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                    ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },
@@ -540,7 +554,11 @@ class OpenLineageListener:
                 "job_description": None,
                 "job_description_type": None,
                 "run_facets": {
-                    **get_task_parent_run_facet(parent_run_id=parent_run_id, parent_job_name=ti.dag_id),
+                    **get_task_parent_run_facet(
+                        parent_run_id=parent_run_id,
+                        parent_job_name=ti.dag_id,
+                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                    ),
                     **get_airflow_debug_facet(),
                 },
             }
@@ -645,8 +663,6 @@ class OpenLineageListener:
             )
             data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
 
-            run_facets = {**get_airflow_dag_run_facet(dag_run)}
-
             date = dag_run.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
                 date = dag_run.run_after
@@ -660,7 +676,6 @@ class OpenLineageListener:
                 start_date=dag_run.start_date,
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
-                run_facets=run_facets,
                 clear_number=dag_run.clear_number,
                 owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
                 job_description=doc,
@@ -669,6 +684,10 @@ class OpenLineageListener:
                 # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
                 # as it causes lack of some TaskGroup attributes and crashes event emission.
                 job_facets=get_airflow_job_facet(dag_run=dag_run),
+                run_facets={
+                    **get_airflow_dag_run_facet(dag_run),
+                    **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
+                },
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_running", exc_info=e)
@@ -716,7 +735,10 @@ class OpenLineageListener:
                 job_description_type=doc_type,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
-                run_facets={**get_airflow_dag_run_facet(dag_run)},
+                run_facets={
+                    **get_airflow_dag_run_facet(dag_run),
+                    **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
+                },
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
@@ -765,7 +787,10 @@ class OpenLineageListener:
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,
-                run_facets={**get_airflow_dag_run_facet(dag_run)},
+                run_facets={
+                    **get_airflow_dag_run_facet(dag_run),
+                    **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
+                },
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
