@@ -7037,6 +7037,62 @@ class TestSchedulerJob:
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
 
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_start_notifies_with_started_msg(self, mock_get_listener_manager, dag_maker, session):
+        """Test that notify_dagrun_state_changed is called with msg='started' when DAG starts."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_start_notify", session=session):
+            EmptyOperator(task_id="test_task")
+
+        # Create a QUEUED dag run that will be started
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        self.job_runner._start_queued_dagruns(session)
+
+        # Verify that the listener hook was called with msg="started"
+        mock_listener_manager.hook.on_dag_run_running.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_running.call_args
+        assert call_args.kwargs["msg"] == "started"
+        assert call_args.kwargs["dag_run"].dag_id == dag_run.dag_id
+
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_with_timed_out_msg(self, mock_get_listener_manager, dag_maker, session):
+        """Test that notify_dagrun_state_changed is called with msg='timed_out' when DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_notify",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # Set the start time to make it appear timed out
+        dag_run.start_date = timezone.utcnow() - timedelta(seconds=120)  # 2 minutes ago
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        # Verify that the listener hook was called with msg="timed_out"
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"] == dag_run
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
@@ -7147,6 +7203,105 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     assert tis[dummy2.task_id].state == State.SUCCESS
     # dummy3 should be skipped because dummy1 is skipped.
     assert tis[dummy3.task_id].state == State.SKIPPED
+
+    def test_start_queued_dagruns_uses_latest_max_active_runs_from_dag_model(self, dag_maker, session):
+        """
+        Test that _start_queued_dagruns uses max_active_runs from DagModel (via dag_run)
+        instead of stale SerializedDAG max_active_runs.
+
+        This test verifies the fix where SerializedDAG may have stale max_active_runs,
+        but DagModel has the latest value updated by version changes(versioned bundles). The scheduler should
+        use the latest value from DagModel to respect user updates.
+        """
+        # Create a DAG with max_active_runs=1 initially
+        with dag_maker(
+            dag_id="test_max_active_runs_stale_serialized",
+            max_active_runs=1,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="dummy_task")
+
+        dag_model = dag_maker.dag_model
+        assert dag_model.max_active_runs == 1
+
+        # Create a SerializedDAG (which will have max_active_runs=1)
+        # This simulates the SerializedDAG being created/updated from the DAG file
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._create_dag_runs([dag_model], session)
+
+        # Verify SerializedDAG has max_active_runs=1
+        dag_run_1 = (
+            session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).first()
+        )
+        assert dag_run_1 is not None
+        serialized_dag = self.job_runner.scheduler_dag_bag.get_dag_for_run(dag_run_1, session=session)
+        assert serialized_dag is not None
+        assert serialized_dag.max_active_runs == 1
+
+        # Now update DagModel.max_active_runs to 2 (simulating a versioned bundle update)
+        # This is the latest value, but SerializedDAG still has the old value
+        dag_model.max_active_runs = 2
+        session.commit()
+        session.refresh(dag_model)
+
+        # Create 1 running dag run
+        dag_run_1.state = DagRunState.RUNNING
+        session.commit()
+
+        # Create 1 queued dag run
+        dag_run_2 = dag_maker.create_dagrun(
+            run_id="test_run_2",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+
+        # Ensure dag_run_2 has the updated DagModel relationship loaded
+        # The association proxy dag_run.max_active_runs accesses dag_model.max_active_runs
+        # so we need to ensure the relationship is loaded
+        session.refresh(dag_run_2)
+
+        # Verify we have 1 running and 1 queued
+        running_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
+            .count()
+        )
+        queued_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
+            .count()
+        )
+        assert running_count == 1
+        assert queued_count == 1
+
+        # The SerializedDAG still has max_active_runs=1 (stale)
+        # But DagModel has max_active_runs=2 (latest)
+        assert serialized_dag.max_active_runs == 1
+        assert dag_model.max_active_runs == 2
+
+        # Call _start_queued_dagruns
+        # With the fix: Should start the queued run (using DagModel max_active_runs=2, active_runs=1 < 2)
+        # Without the fix: Would block the queued run (using SerializedDAG max_active_runs=1, active_runs=1 >= 1)
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        # Verify that the queued dag run started (proves it used DagModel.max_active_runs=2)
+        dag_run_2 = session.get(DagRun, dag_run_2.id)
+        assert dag_run_2.state == DagRunState.RUNNING, (
+            "The queued dag run should have started because DagModel.max_active_runs=2 "
+            "allows it (active_runs=1 < 2), even though SerializedDAG.max_active_runs=1 for that dagrun serdag version "
+            "would have blocked it."
+        )
+
+        # Verify we now have 2 running dag runs
+        running_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
+            .count()
+        )
+        assert running_count == 2
 
 
 class TestSchedulerJobQueriesCount:
