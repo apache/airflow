@@ -170,6 +170,23 @@ class TestConf:
             assert conf.get("celery", "result_backend") == "FOO"
             assert conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
 
+    def test_team_config_file(self):
+        """Test team_name parameter with config file sections, following test_env_team pattern."""
+        test_config = """[celery]
+result_backend = FOO
+
+[unit_test_team=celery]
+result_backend = BAR
+"""
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        # To prevent the real environment variables from overriding the config
+        with patch("os.environ", {}):
+            assert test_conf.get("celery", "result_backend") == "FOO"
+            assert test_conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
