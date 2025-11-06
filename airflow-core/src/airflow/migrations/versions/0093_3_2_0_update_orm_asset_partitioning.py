@@ -20,7 +20,7 @@
 Update ORM for asset partitioning.
 
 Revision ID: 665854ef0536
-Revises: b87d2135fa50
+Revises: e812941398f4
 Create Date: 2025-10-14 10:27:04.345130
 
 """
@@ -34,7 +34,7 @@ from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "665854ef0536"
-down_revision = "b87d2135fa50"
+down_revision = "e812941398f4"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
