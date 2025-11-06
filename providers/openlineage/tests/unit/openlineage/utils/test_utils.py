@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
 import pytest
+from openlineage.client.facet_v2 import parent_run
 from uuid6 import uuid7
 
 from airflow import DAG
@@ -31,6 +32,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, timezone
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _MAX_DOC_BYTES,
@@ -40,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInfo,
     TaskInfoComplete,
     TaskInstanceInfo,
+    _get_openlineage_data_from_dagrun_conf,
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
@@ -47,11 +50,14 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_job_facet,
     get_airflow_state_run_facet,
     get_dag_documentation,
+    get_dag_parent_run_facet,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
     get_operator_provider_version,
+    get_root_information_from_dagrun_conf,
     get_task_documentation,
+    get_task_parent_run_facet,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -463,6 +469,233 @@ def test_get_operator_class_mapped_operator():
     mapped = MockOperator.partial(task_id="task").expand(arg2=["a", "b", "c"])
     op_class = get_operator_class(mapped)
     assert op_class == MockOperator
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_openlineage_data_from_dagrun_conf_none_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_no_openlineage_key():
+    dr_conf = {"something_else": {"a": 1}}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"something_else": {"a": 1}}  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_invalid_type():
+    dr_conf = {"openlineage": "not_a_dict"}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": "not_a_dict"}  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_valid_dict():
+    dr_conf = {"openlineage": {"key": "value"}}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {"key": "value"}
+    assert dr_conf == {"openlineage": {"key": "value"}}  # Assert conf is not changed
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_root_information_from_dagrun_conf_no_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_no_openlineage():
+    dr_conf = {"something": "else"}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"something": "else"}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_openlineage_not_dict():
+    dr_conf = {"openlineage": "my_value"}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": "my_value"}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_missing_keys():
+    dr_conf = {"openlineage": {"rootParentRunId": "id_only"}}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": {"rootParentRunId": "id_only"}}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_invalid_run_id():
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "not_uuid",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "rootParentRunId": "not_uuid",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+
+
+def test_get_root_information_from_dagrun_conf_valid_data():
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+    expected = {
+        "root_parent_run_id": "11111111-1111-1111-1111-111111111111",
+        "root_parent_job_namespace": "ns",
+        "root_parent_job_name": "jobX",
+    }
+    assert get_root_information_from_dagrun_conf(dr_conf) == expected
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_dag_parent_run_facet_no_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert get_dag_parent_run_facet(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_dag_parent_run_facet_missing_keys():
+    dr_conf = {"openlineage": {"parentRunId": "11111111-1111-1111-1111-111111111111"}}
+    assert get_dag_parent_run_facet(dr_conf) == {}
+    # Assert conf is not changed
+    assert dr_conf == {"openlineage": {"parentRunId": "11111111-1111-1111-1111-111111111111"}}
+
+
+def test_get_dag_parent_run_facet_valid_no_root():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root is not None  # parent is used as root, since root is missing
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+
+def test_get_dag_parent_run_facet_invalid_uuid():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    assert result == {}
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+
+def test_get_dag_parent_run_facet_valid_with_root():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root is not None
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "rootns"
+    assert parent_facet.root.job.name == "rootjob"
+
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+
+def test_get_task_parent_run_facet_defaults():
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+    )
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == namespace()
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == namespace()
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_custom_root_values():
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        root_parent_run_id="22222222-2222-2222-2222-222222222222",
+        root_parent_job_name="rjob",
+        root_parent_job_namespace="rns",
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "rns"
+    assert parent_facet.root.job.name == "rjob"
 
 
 def test_get_tasks_details():
