@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-06T01:06:00.095026
+# This constraints file was automatically generated on 2025-11-06T15:02:26.851785
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -297,7 +297,7 @@ gitdb==4.0.12
 google-ads==28.4.0
 google-analytics-admin==0.26.0
 google-api-core==2.28.1
-google-api-python-client==2.186.0
+google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
@@ -369,7 +369,7 @@ httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.1
+huggingface_hub==1.1.2
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -591,7 +591,7 @@ snowflake-sqlalchemy==1.7.7
 sortedcontainers==2.4.0
 soupsieve==2.8
 spython==0.3.14
-sqlalchemy-bigquery==1.15.0
+sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.1
 sqlalchemy_drill==1.1.9
 sqlparse==0.5.3
