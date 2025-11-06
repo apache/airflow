@@ -59,8 +59,8 @@ export const useClearTaskInstances = ({
       description = typeof apiError.message === "string" ? apiError.message : "";
       const apiErrorWithDetail = apiError as unknown as { detail?: unknown };
       detail =
-        typeof apiErrorWithDetail.detail === "string"
-          ? apiErrorWithDetail.detail
+        typeof apiErrorWithDetail.body.detail === "string"
+          ? apiErrorWithDetail.body.detail
           : "";
 
       if ( detail.includes("AirflowClearRunningTaskException") === true ) {
