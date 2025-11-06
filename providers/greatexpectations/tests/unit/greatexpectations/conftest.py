@@ -23,6 +23,8 @@ from unittest.mock import Mock
 import pytest
 from great_expectations.expectations import Expectation
 
+pytest_plugins = "tests_common.pytest_plugin"
+
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 

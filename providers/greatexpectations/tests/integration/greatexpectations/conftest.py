@@ -27,6 +27,8 @@ import great_expectations as gx
 import pytest
 from sqlalchemy import create_engine, text
 
+pytest_plugins = "tests_common.pytest_plugin"
+
 if TYPE_CHECKING:
     from pathlib import Path
 
