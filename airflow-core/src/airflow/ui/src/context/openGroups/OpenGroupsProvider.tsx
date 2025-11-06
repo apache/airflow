@@ -36,7 +36,7 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
   const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
 
-  // Use a ref to track the current allGroupIds without causing re-renders
+  // use a ref to track the current allGroupIds without causing re-renders
   const allGroupIdsRef = useRef(allGroupIds);
 
   useEffect(() => {

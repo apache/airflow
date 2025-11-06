@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -41,7 +39,6 @@ import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
-import { useTaskStreamFilter } from "src/hooks/useTaskStreamFilter";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -78,16 +75,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
-
-  const {
-    includeDownstream,
-    includeUpstream,
-    setIncludeDownstream,
-    setIncludeUpstream,
-    setTaskStreamFilterRoot,
-    taskStreamFilterRoot,
-  } = useTaskStreamFilter({ dagId });
-
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -150,12 +137,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 <PanelButtons
                   dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
-                  includeDownstream={includeDownstream}
-                  includeUpstream={includeUpstream}
                   limit={limit}
-                  onIncludeDownstreamChange={setIncludeDownstream}
-                  onIncludeUpstreamChange={setIncludeUpstream}
-                  onFilterRootChange={setTaskStreamFilterRoot}
                   panelGroupRef={panelGroupRef}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
@@ -165,20 +147,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setShowGantt={setShowGantt}
                   setTriggeringUserFilter={setTriggeringUserFilter}
                   showGantt={showGantt}
-                  taskStreamFilterRoot={taskStreamFilterRoot}
                   triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
-                  <Graph
-                    includeDownstream={includeDownstream}
-                    includeUpstream={includeUpstream}
-                  />
+                  <Graph />
                 ) : (
                   <HStack alignItems="flex-end" gap={0}>
                     <Grid
                       dagRunState={dagRunStateFilter}
-                      includeDownstream={includeDownstream}
-                      includeUpstream={includeUpstream}
                       limit={limit}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}

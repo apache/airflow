@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -31,7 +31,6 @@ import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLay
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import { useTaskStreamFilter } from "src/hooks/useTaskStreamFilter";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
@@ -59,32 +58,18 @@ const nodeColor = (
   return "";
 };
 
-type GraphProps = {
-  readonly includeDownstream: boolean;
-  readonly includeUpstream: boolean;
-};
-
-export const Graph = ({ includeDownstream, includeUpstream }: GraphProps) => {
+export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", groupId, runId = "", taskId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
 
-  // Use the task stream filter hook to get and set the filter root
-  const { taskStreamFilterRoot: root, setTaskStreamFilterRoot } = useTaskStreamFilter({ dagId });
+  const filterRoot = searchParams.get("root") || undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
 
   const hasActiveFilter = includeUpstream || includeDownstream;
-
-  const handleNodeClick = (_event: React.MouseEvent, node: ReactFlowNode<CustomNodeProps>) => {
-    if (hasActiveFilter) {
-      return;
-    }
-    // Only set filter root for actual tasks, not DAGs or other node types
-    // This just stores which task was clicked - it doesn't activate the filter
-    if (!node.id.startsWith("dag:") && !node.id.startsWith("asset")) {
-      setTaskStreamFilterRoot(node.id);
-    }
-  };
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -108,7 +93,7 @@ export const Graph = ({ includeDownstream, includeUpstream }: GraphProps) => {
       externalDependencies: dependencies === "immediate",
       includeDownstream,
       includeUpstream,
-      root: hasActiveFilter && root !== undefined ? root : undefined,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
@@ -192,7 +177,6 @@ export const Graph = ({ includeDownstream, includeUpstream }: GraphProps) => {
       nodesDraggable={false}
       nodeTypes={nodeTypes}
       onlyRenderVisibleElements
-      onNodeClick={handleNodeClick}
       style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
