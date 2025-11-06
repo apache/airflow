@@ -990,12 +990,6 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
-
     def _get_option_from_defaults(
         self,
         deprecated_key: str | None,
@@ -1102,7 +1096,13 @@ class AirflowConfigParser(ConfigParser):
 
         return section, key, deprecated_section, deprecated_key, warning_emitted
 
-    def get(  # type: ignore[misc]
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
+
+    @overload  # type: ignore[override]
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
+
+    def get(  # type: ignore[misc, override]
         self,
         section: str,
         key: str,
