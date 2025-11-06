@@ -136,7 +136,9 @@ class TableauOperator(BaseOperator):
                 check_interval=self.check_interval,
                 target_state=TableauJobFinishCode.SUCCESS,
             ):
-                raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
+                raise TableauJobFailedException(
+                    f"The Tableau {self.resource} {self.method} Job failed! Job ID: {job_id}"
+                )
 
         return job_id
 
