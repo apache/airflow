@@ -24,7 +24,7 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, or_, select
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -151,7 +151,6 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.definitions._internal.abstractoperator import NotMapped
         from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
@@ -161,8 +160,9 @@ class TaskMap(TaskInstanceDependencies):
             )
 
         try:
-            total_length: int | None = TaskMap.get_task_map_length(dag_id=task.dag_id, task_id=task.task_id,
-                                                                   run_id=run_id, session=session)
+            total_length: int | None = TaskMap.get_task_map_length(
+                dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
+            )
             if not total_length:
                 total_length = get_mapped_ti_count(task, run_id, session=session)
             else:
@@ -178,15 +178,19 @@ class TaskMap(TaskInstanceDependencies):
             total_length = None
 
         state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == task.dag_id,
-                TaskInstance.task_id == task.task_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.map_index == -1,
-                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
-            )
-        ).one_or_none() if task and task.is_mapped else None
+        unmapped_ti: TaskInstance | None = (
+            session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == -1,
+                    or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+                )
+            ).one_or_none()
+            if task and task.is_mapped
+            else None
+        )
 
         all_expanded_tis: list[TaskInstance] = []
 
