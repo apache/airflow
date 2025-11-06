@@ -343,11 +343,6 @@ class Connection(Base, LoggingMixin):
         """Return encrypted password."""
         if self._password and self.is_encrypted:
             fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt encrypted password for login={self.login}  "
-                    f"FERNET_KEY configuration is missing"
-                )
             return fernet.decrypt(bytes(self._password, "utf-8")).decode()
         return self._password
 
@@ -356,7 +351,7 @@ class Connection(Base, LoggingMixin):
         if value:
             fernet = get_fernet()
             self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_encrypted = fernet.is_encrypted
+            self.is_encrypted = True
 
     @declared_attr
     def password(cls):
@@ -367,11 +362,6 @@ class Connection(Base, LoggingMixin):
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt `extra` params for login={self.login}, "
-                    f"FERNET_KEY configuration is missing"
-                )
             extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
         else:
             extra_val = self._extra
@@ -385,7 +375,7 @@ class Connection(Base, LoggingMixin):
             self._validate_extra(value, self.conn_id)
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_extra_encrypted = fernet.is_encrypted
+            self.is_extra_encrypted = True
         else:
             self._extra = value
             self.is_extra_encrypted = False

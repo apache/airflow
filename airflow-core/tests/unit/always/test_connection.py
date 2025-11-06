@@ -109,18 +109,6 @@ class TestConnection:
     def teardown_method(self):
         self.patcher.stop()
 
-    @conf_vars({("core", "fernet_key"): ""})
-    def test_connection_extra_no_encryption(self):
-        """
-        Tests extras on a new connection without encryption. The fernet key
-        is set to a non-base64-encoded string and the extra is stored without
-        encryption.
-        """
-        crypto.get_fernet.cache_clear()
-        test_connection = Connection(extra='{"apache": "airflow"}')
-        assert not test_connection.is_extra_encrypted
-        assert test_connection.extra == '{"apache": "airflow"}'
-
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_connection_extra_with_encryption(self):
         """
