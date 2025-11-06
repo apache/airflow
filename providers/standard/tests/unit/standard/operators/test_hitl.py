@@ -42,6 +42,7 @@ from airflow.providers.standard.operators.hitl import (
     HITLEntryOperator,
     HITLOperator,
 )
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import HITLUser
@@ -234,18 +235,21 @@ class TestHITLOperator:
         assert hitl_detail_model.body == "This is body"
         assert hitl_detail_model.defaults == ["1"]
         assert hitl_detail_model.multiple is False
-        assert hitl_detail_model.params == {
-            "input_1": {
-                "value": 1,
-                "description": None,
-                "schema": {},
-            }
-        }
         assert hitl_detail_model.assignees == [{"id": "test", "name": "test"}]
         assert hitl_detail_model.responded_at is None
         assert hitl_detail_model.responded_by is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
+        if AIRFLOW_V_3_1_3_PLUS:
+            assert hitl_detail_model.params == {
+                "input_1": {
+                    "value": 1,
+                    "description": None,
+                    "schema": {},
+                }
+            }
+        else:
+            assert hitl_detail_model.params == {"input_1": 1}
 
         assert notifier.called is True
 
@@ -269,6 +273,7 @@ class TestHITLOperator:
             "poke_interval": 5.0,
         }
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS)
     @pytest.mark.parametrize(
         ("input_params", "expected_params"),
         [
@@ -319,6 +324,17 @@ class TestHITLOperator:
             params=input_params,
         )
         assert hitl_op.serialized_params == expected_params
+
+    @pytest.mark.skipif(AIRFLOW_V_3_1_3_PLUS)
+    def test_serialzed_params_legacy(self) -> None:
+        hitl_op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            body="This is body",
+            options=["1", "2", "3", "4", "5"],
+            params={"input": Param(1)},
+        )
+        assert hitl_op.serialized_params == {"input": 1}
 
     def test_execute_complete(self) -> None:
         hitl_op = HITLOperator(

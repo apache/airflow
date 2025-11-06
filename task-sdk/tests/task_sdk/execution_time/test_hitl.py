@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
@@ -33,21 +32,14 @@ from airflow.sdk.execution_time.hitl import (
 TI_ID = uuid7()
 
 
-@pytest.mark.parametrize(
-    "params",
-    (
-        {"input_1": 1},
-        {"input_1": {"value": 1, "description": None, "schema": {}}},
-    ),
-)
-def test_upsert_hitl_detail(mock_supervisor_comms, params) -> None:
+def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
     upsert_hitl_detail(
         ti_id=TI_ID,
         options=["Approve", "Reject"],
         subject="Subject",
         body="Optional body",
         defaults=["Approve", "Reject"],
-        params=params,
+        params={"input_1": {"value": 1, "description": None, "schema": {}}},
         assigned_users=[HITLUser(id="test", name="test")],
         multiple=False,
     )
