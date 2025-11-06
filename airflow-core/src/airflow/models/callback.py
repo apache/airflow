@@ -27,9 +27,9 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.observability.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.stats import Stats
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
