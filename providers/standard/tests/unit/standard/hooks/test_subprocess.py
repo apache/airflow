@@ -97,7 +97,8 @@ class TestSubprocessHook:
             ["bash", "-c", 'echo "stdout"'],
             cwd="/tmp/airflowtmpcatcat",
             env={},
-            preexec_fn=mock.ANY,
+            restore_signals=True,
+            start_new_session=True,
             stderr=STDOUT,
             stdout=PIPE,
         )
