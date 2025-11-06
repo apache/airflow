@@ -21,7 +21,7 @@ import hashlib
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import String, inspect, select
-from sqlalchemy.orm import Mapped, joinedload
+from sqlalchemy.orm import Mapped, Session, joinedload
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.base import Base, StringID
@@ -30,8 +30,6 @@ from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-
-    from sqlalchemy.orm import Session
 
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
