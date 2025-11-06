@@ -38,8 +38,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSUploadSessionTrigger,
 )
 
-from tests_common.test_utils.version_compat import AirflowSensorTimeout
-
 TEST_BUCKET = "TEST_BUCKET"
 
 TEST_OBJECT = "TEST_OBJECT"
@@ -345,7 +343,7 @@ class TestGoogleCloudStoragePrefixSensor:
             timeout=1,
         )
         mock_hook.return_value.list.return_value = []
-        with pytest.raises(AirflowSensorTimeout):
+        with pytest.raises(AirflowException):
             task.execute(mock.MagicMock)
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")

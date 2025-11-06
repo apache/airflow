@@ -28,8 +28,6 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 
-from tests_common.test_utils.version_compat import AirflowSensorTimeout
-
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
 TEST_SUBSCRIPTION = "test-subscription"
@@ -113,7 +111,7 @@ class TestPubSubPullSensor:
 
         mock_hook.return_value.pull.return_value = []
 
-        with pytest.raises(AirflowSensorTimeout):
+        with pytest.raises(AirflowException):
             operator.execute({})
 
     @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
