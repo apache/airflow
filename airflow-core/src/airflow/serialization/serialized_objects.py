@@ -1342,6 +1342,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
 
+    def __hash__(self):
+        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
+
     def __repr__(self) -> str:
         return f"<SerializedTask({self.task_type}): {self.task_id}>"
 
@@ -3310,6 +3313,7 @@ class SerializedDAG(BaseSerialization):
                                 deadline_time=deadline_time,
                                 callback=deadline.callback,
                                 dagrun_id=orm_dagrun.id,
+                                dag_id=orm_dagrun.dag_id,
                             )
                         )
                         Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})

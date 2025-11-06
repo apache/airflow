@@ -25,7 +25,7 @@ class TestPodLauncher:
     """Tests pod launcher."""
 
     @pytest.mark.parametrize(
-        "executor, rbac, allow, expected_accounts",
+        ("executor", "rbac", "allow", "expected_accounts"),
         [
             ("CeleryKubernetesExecutor", True, True, ["scheduler", "worker"]),
             ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
@@ -51,7 +51,7 @@ class TestPodLauncher:
             assert docs == []
 
     @pytest.mark.parametrize(
-        "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",
+        ("multiNamespaceMode", "namespace", "expectedRole", "expectedRoleBinding"),
         [
             (
                 True,
@@ -93,7 +93,7 @@ class TestPodLauncher:
             assert actualRoleRefKind == "Role"
 
     @pytest.mark.parametrize(
-        "multiNamespaceMode, namespace, expectedRole",
+        ("multiNamespaceMode", "namespace", "expectedRole"),
         [
             (True, "namespace", "namespace-release-name-pod-launcher-role"),
             (True, "other-ns", "other-ns-release-name-pod-launcher-role"),

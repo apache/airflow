@@ -27,7 +27,7 @@ import type { EdgeData } from "./reactflowUtils";
 type Props = EdgeType<EdgeData>;
 
 const CustomEdge = ({ data }: Props) => {
-  const [strokeColor] = useToken("colors", ["border.inverted"]);
+  const [strokeColor, blueColor] = useToken("colors", ["border.inverted", "blue.500"]);
 
   if (data === undefined) {
     return undefined;
@@ -60,9 +60,9 @@ const CustomEdge = ({ data }: Props) => {
         <LinePath
           data={[section.startPoint, ...(section.bendPoints ?? []), section.endPoint]}
           key={section.id}
-          stroke={strokeColor}
+          stroke={rest.isSelected ? blueColor : strokeColor}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
-          strokeWidth={rest.isSelected ? 2 : 1}
+          strokeWidth={rest.isSelected ? 3 : 1}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}
         />
