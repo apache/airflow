@@ -314,7 +314,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             try:
                 return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
             except Exception:
-                raise AirflowException(
+                raise RuntimeError(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
                     self.task_instance.dag_id,
                     self.task_instance.task_id,
