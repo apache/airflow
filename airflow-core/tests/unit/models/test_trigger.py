@@ -35,7 +35,7 @@ from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
