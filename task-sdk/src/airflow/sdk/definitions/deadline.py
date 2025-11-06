@@ -121,13 +121,13 @@ class Callback(ABC):
     """
 
     path: str
-    kwargs: dict | None
+    kwargs: dict
 
     def __init__(self, callback_callable: Callable | str, kwargs: dict[str, Any] | None = None):
         self.path = self.get_callback_path(callback_callable)
         if kwargs and "context" in kwargs:
             raise ValueError("context is a reserved kwarg for this class")
-        self.kwargs = kwargs
+        self.kwargs = kwargs or {}
 
     @classmethod
     def get_callback_path(cls, _callback: str | Callable) -> str:
@@ -192,7 +192,7 @@ class Callback(ABC):
         serialized = self.serialize()
         hashable_items = []
         for k, v in serialized.items():
-            if isinstance(v, dict) and v:
+            if isinstance(v, dict):
                 hashable_items.append((k, tuple(sorted(v.items()))))
             else:
                 hashable_items.append((k, v))

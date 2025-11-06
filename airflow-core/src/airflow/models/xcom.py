@@ -167,6 +167,7 @@ class XComModel(TaskInstanceDependencies):
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        serialize: bool = True,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -178,7 +179,8 @@ class XComModel(TaskInstanceDependencies):
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
-            The default is ``-1`` (set for a non-mapped task).
+        :param serialize: Optional parameter to specify if value should be serialized or not.
+            The default is ``True``.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -215,14 +217,15 @@ class XComModel(TaskInstanceDependencies):
             )
             value = list(value)
 
-        value = cls.serialize_value(
-            value=value,
-            key=key,
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
+        if serialize:
+            value = cls.serialize_value(
+                value=value,
+                key=key,
+                task_id=task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
 
         # Remove duplicate XComs and insert a new one.
         session.execute(

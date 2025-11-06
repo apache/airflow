@@ -907,7 +907,7 @@ class TestDagDetails(TestDagEndpoint):
             "is_paused_upon_creation": None,
             "latest_dag_version": {
                 "bundle_name": "dag_maker",
-                "bundle_url": None,
+                "bundle_url": "http://test_host.github.com/tree/None/dags",
                 "bundle_version": None,
                 "created_at": mock.ANY,
                 "dag_id": "test_dag2",

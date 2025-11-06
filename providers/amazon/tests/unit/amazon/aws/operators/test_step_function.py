@@ -80,7 +80,7 @@ class TestStepFunctionGetExecutionOutputOperator:
 
     @mock.patch.object(StepFunctionGetExecutionOutputOperator, "hook")
     @pytest.mark.parametrize(
-        "response, expected_output",
+        ("response", "expected_output"),
         [
             pytest.param({"output": '{"foo": "bar"}'}, {"foo": "bar"}, id="output"),
             pytest.param({"error": '{"spam": "egg"}'}, {"spam": "egg"}, id="error"),

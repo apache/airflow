@@ -237,7 +237,14 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
+        subprocess.run(
+            command_to_exec,
+            check=False,
+            stderr=sys.__stderr__,
+            stdout=sys.__stdout__,
+            close_fds=True,
+            env=env,
+        )
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)

@@ -65,6 +65,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
+from airflow.models.callback import Callback
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -1089,7 +1090,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._run_scheduler_loop()
 
-            settings.Session.remove()
+            if settings.Session is not None:
+                settings.Session.remove()
         except Exception:
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
@@ -1413,11 +1415,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 with create_session() as session:
                     # Only retrieve expired deadlines that haven't been processed yet.
-                    # `callback_state` is null/None by default until the handler set it.
+                    # `missed` is False by default until the handler sets it.
                     for deadline in session.scalars(
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
-                        .where(Deadline.callback_state.is_(None))
+                        .where(~Deadline.missed)
+                        .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     ):
                         deadline.handle_miss(session)
 
@@ -1897,7 +1900,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
-            dag_run.notify_dagrun_state_changed()
+            dag_run.notify_dagrun_state_changed(msg="started")
 
     @retry_db_transaction
     def _schedule_all_dag_runs(
@@ -1988,7 +1991,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     msg="timed_out",
                 )
 
-                dag_run.notify_dagrun_state_changed()
+                dag_run.notify_dagrun_state_changed(msg="timed_out")
                 if dag_run.end_date and dag_run.start_date:
                     duration = dag_run.end_date - dag_run.start_date
                     Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
@@ -2554,7 +2557,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             delete(Trigger)
             .where(
                 Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
-                Trigger.id.not_in(select(Deadline.trigger_id)),
+                Trigger.id.not_in(select(Callback.trigger_id)),
                 Trigger.id.not_in(select(TaskInstance.trigger_id)),
             )
             .execution_options(synchronize_session="fetch")
