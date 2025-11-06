@@ -40,15 +40,15 @@ MULTI_LINE_QUERY_LOG_PREFIX = "\n\t\t"
 
 def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
     result = ""
-    for key, value_org in params.items():
+    for key, original_value in params.items():
         value: str | Collection[str]
         if key == "QueryString":
             value = (
                 MULTI_LINE_QUERY_LOG_PREFIX
-                + str(value_org).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
+                + str(original_value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
             )
         else:
-            value = value_org
+            value = original_value
         result += f"\t{key}: {value}\n"
     return result.rstrip()
 

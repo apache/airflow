@@ -200,9 +200,9 @@ class Pool(Base):
         )
 
         # calculate queued and running metrics
-        for pool_name, state, count_raw in state_count_by_pool:
+        for pool_name, state, decimal_count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
-            count = int(count_raw)
+            count = int(decimal_count)
 
             stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:
