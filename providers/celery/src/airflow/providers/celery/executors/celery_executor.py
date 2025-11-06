@@ -446,7 +446,7 @@ class CeleryExecutor(BaseExecutor):
 
         This to guard against task leak scenario:
          1. Celery executor sends task to a specific celery queue
-         2. Celery worker is unavailable for the given queue. Celery task is in PENDING state.
+         2. No Celery workers are consuming from the given queue. Celery task will remain in PENDING state.
          3. DagRun timeout kicks in, setting DagRun and associated TaskInstance(s) to failed but not deleting
             the task from self.running
          4. The executor's self.running continuously fills up until hitting self.parallelism
