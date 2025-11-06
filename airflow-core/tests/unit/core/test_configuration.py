@@ -1088,6 +1088,39 @@ key7 =
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
 
+    def test_lookup_sequence_order(self):
+        """Test that lookup sequence follows correct priority order."""
+        test_conf = AirflowConfigParser()
+        sequence = test_conf._lookup_sequence
+
+        assert sequence == [
+            test_conf._get_environment_variables,
+            test_conf._get_option_from_config_file,
+            test_conf._get_option_from_commands,
+            test_conf._get_option_from_secrets,
+            test_conf._get_option_from_defaults,
+            test_conf._get_option_from_provider_fallbacks,
+        ]
+
+    def test_lookup_sequence_override(self):
+        """Test that subclasses can override lookup sequence."""
+
+        class MyAirflowConfigPrser(AirflowConfigParser):
+            @property
+            def _lookup_sequence(self) -> list[callable]:
+                return [
+                    self._get_option_from_secrets,
+                    self._get_option_from_config_file,
+                ]
+
+        test_conf = MyAirflowConfigPrser()
+        myorder = test_conf._lookup_sequence
+        assert len(myorder) == 2
+        assert myorder == [
+            test_conf._get_option_from_secrets,
+            test_conf._get_option_from_config_file,
+        ]
+
 
 @mock.patch.dict(
     "os.environ",
