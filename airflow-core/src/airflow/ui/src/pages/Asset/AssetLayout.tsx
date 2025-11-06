@@ -128,11 +128,11 @@ export const AssetLayout = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
-            {asset?.extra && Object.keys(asset.extra).length > 0 && (
+           {asset?.extra && Object.keys(asset.extra).length > 0 && (
             <Box mt={3} mb={3} px={3}>
               <Text fontWeight="bold" mb={2}>
-                 Static Asset Metadata
-            </Text>
+                 {translate("assets:static_asset_metadata")}
+              </Text>
             <Code
               display="block"
               whiteSpace="pre"
@@ -147,6 +147,7 @@ export const AssetLayout = () => {
             </Code>
           </Box>
        )}
+
             <Box h="100%" overflow="auto" pt={2}>
               <AssetEvents
                 assetId={asset?.id}

@@ -27,4 +27,9 @@
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
   "searchPlaceholder": "Search Assets"
+  {
+    "asset_one": "Asset",
+    "asset_many": "Assets"
+    "static_asset_metadata": "Static Asset Metadata"
+  }
 }
