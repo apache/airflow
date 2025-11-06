@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock, create_autospec
@@ -250,9 +252,7 @@ class TestValidateDataFrameOperator:
             user_agent_str=USER_AGENT_STR,
         )
 
-    def test_pandas_does_not_error_when_no_datasource(
-        self, mock_gx_no_datasource: Mock
-    ) -> None:
+    def test_pandas_does_not_error_when_no_datasource(self, mock_gx_no_datasource: Mock) -> None:
         validate_df = GXValidateDataFrameOperator(
             task_id="validate_df_success",
             configure_dataframe=Mock(return_value=Mock(spec=pd.DataFrame)),
@@ -295,9 +295,7 @@ class TestValidateDataFrameOperator:
         # act
         validate_df.execute(context=context)
 
-    def test_spark_does_not_error_when_no_datasource(
-        self, mock_gx_no_datasource: Mock
-    ) -> None:
+    def test_spark_does_not_error_when_no_datasource(self, mock_gx_no_datasource: Mock) -> None:
         validate_df = GXValidateDataFrameOperator(
             task_id="validate_df_success",
             configure_dataframe=Mock(return_value=Mock(spec=pd.DataFrame)),
@@ -347,9 +345,7 @@ class TestValidateDataFrameOperator:
         column_name = "col_A"
 
         def configure_dataframe() -> pd.DataFrame:
-            return pd.DataFrame(
-                {column_name: ["x", "y", "z"]}
-            )  # values NOT in the expected set
+            return pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
 
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,
@@ -375,9 +371,7 @@ class TestValidateDataFrameOperator:
         column_name = "col_A"
 
         def configure_dataframe() -> pd.DataFrame:
-            return pd.DataFrame(
-                {column_name: ["x", "y", "z"]}
-            )  # values NOT in the expected set
+            return pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
 
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,

@@ -14,25 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-from typing import TYPE_CHECKING, Generator, Literal
+from collections.abc import Generator
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 from great_expectations import Checkpoint, ExpectationSuite, ValidationDefinition
-from great_expectations.data_context import AbstractDataContext, FileDataContext
+from great_expectations.data_context import AbstractDataContext
 from great_expectations.expectations import ExpectColumnValuesToBeInSet
-from pytest_mock import MockerFixture
+
+if TYPE_CHECKING:
+    from great_expectations.data_context import FileDataContext
+    from pytest_mock import MockerFixture
+
+    from airflow.utils.context import Context
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
 from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_checkpoint import (
     GXValidateCheckpointOperator,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class TestValidateCheckpointOperator:
@@ -113,9 +118,7 @@ class TestValidateCheckpointOperator:
         validate_checkpoint.execute(context=context)
 
         # assert
-        mock_gx.get_context.assert_called_once_with(
-            mode=context_type, user_agent_str=USER_AGENT_STR
-        )
+        mock_gx.get_context.assert_called_once_with(mode=context_type, user_agent_str=USER_AGENT_STR)
 
     def test_context_type_cloud(self, mocker: MockerFixture) -> None:
         """Expect that param context_type creates a CloudDataContext."""
@@ -135,9 +138,7 @@ class TestValidateCheckpointOperator:
         validate_checkpoint.execute(context=context)
 
         # assert
-        mock_gx.get_context.assert_called_once_with(
-            mode=context_type, user_agent_str=USER_AGENT_STR
-        )
+        mock_gx.get_context.assert_called_once_with(mode=context_type, user_agent_str=USER_AGENT_STR)
 
     def test_context_type_filesystem(self, mocker: MockerFixture) -> None:
         """Expect that param context_type defers creation of data context to user."""
@@ -179,9 +180,7 @@ class TestValidateCheckpointOperator:
         validate_checkpoint.execute(context=context)
 
         # assert
-        configure_checkpoint.assert_called_once_with(
-            configure_file_data_context.return_value
-        )
+        configure_checkpoint.assert_called_once_with(configure_file_data_context.return_value)
 
     def test_context_type_filesystem_requires_configure_file_data_context(self) -> None:
         """Expect that param context_type requires the configure_file_data_context parameter."""
@@ -353,9 +352,7 @@ class TestValidateCheckpointOperator:
             # setup data source, asset, batch definition
             data_source = context.data_sources.add_pandas(name="test datasource")
             data_asset = data_source.add_dataframe_asset(name="test asset")
-            batch_definition = data_asset.add_batch_definition_whole_dataframe(
-                name="test batch def"
-            )
+            batch_definition = data_asset.add_batch_definition_whole_dataframe(name="test batch def")
 
             # setup expectation suite
             column_name = "col_A"
@@ -394,9 +391,7 @@ class TestValidateCheckpointOperator:
             return checkpoint
 
         column_name = "col_A"
-        df = pd.DataFrame(
-            {column_name: ["x", "y", "z"]}
-        )  # values NOT in the expected set
+        df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
         batch_parameters = {"dataframe": df}
 
         validate_checkpoint = GXValidateCheckpointOperator(
@@ -418,9 +413,7 @@ class TestValidateCheckpointOperator:
             # setup data source, asset, batch definition
             data_source = context.data_sources.add_pandas(name="test datasource")
             data_asset = data_source.add_dataframe_asset(name="test asset")
-            batch_definition = data_asset.add_batch_definition_whole_dataframe(
-                name="test batch def"
-            )
+            batch_definition = data_asset.add_batch_definition_whole_dataframe(name="test batch def")
 
             # setup expectation suite
             column_name = "col_A"
@@ -459,9 +452,7 @@ class TestValidateCheckpointOperator:
             return checkpoint
 
         column_name = "col_A"
-        df = pd.DataFrame(
-            {column_name: ["x", "y", "z"]}
-        )  # values NOT in the expected set
+        df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
         batch_parameters = {"dataframe": df}
 
         validate_checkpoint = GXValidateCheckpointOperator(

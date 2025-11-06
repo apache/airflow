@@ -14,21 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import great_expectations as gx
 import pandas as pd
 import pytest
 from great_expectations import expectations as gxe
-from great_expectations.core.batch_definition import BatchDefinition
-from great_expectations.data_context import AbstractDataContext
 
-from  airflow.providers.greatexpectations.common.errors import GXValidationFailed
-from  airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
+from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
+
+if TYPE_CHECKING:
+    from great_expectations.core.batch_definition import BatchDefinition
+    from great_expectations.data_context import AbstractDataContext
+
 from tests.integration.greatexpectations.conftest import rand_name
-
 
 
 class TestValidateBatchOperator:
@@ -179,9 +184,7 @@ class TestValidateBatchOperator:
         """Test that validation failure raises GXValidationFailed exception."""
         task_id = f"validate_batch_failure_integration_test_{rand_name()}"
         # Create data that will fail validation
-        dataframe = pd.DataFrame(
-            {self.COL_NAME: ["x", "y", "z"]}
-        )  # values NOT in expected set
+        dataframe = pd.DataFrame({self.COL_NAME: ["x", "y", "z"]})  # values NOT in expected set
         expect = gxe.ExpectColumnValuesToBeInSet(
             column=self.COL_NAME,
             value_set=["a", "b", "c"],  # different values to cause failure
@@ -211,9 +214,7 @@ class TestValidateBatchOperator:
         """Test that when validation fails and exception is raised, xcom still contains the failed result."""
         task_id = f"validate_batch_failure_xcom_integration_test_{rand_name()}"
         # Create data that will fail validation
-        dataframe = pd.DataFrame(
-            {self.COL_NAME: ["x", "y", "z"]}
-        )  # values NOT in expected set
+        dataframe = pd.DataFrame({self.COL_NAME: ["x", "y", "z"]})  # values NOT in expected set
         expect = gxe.ExpectColumnValuesToBeInSet(
             column=self.COL_NAME,
             value_set=["a", "b", "c"],  # different values to cause failure

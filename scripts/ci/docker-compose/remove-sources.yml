@@ -72,6 +72,7 @@ services:
       - ../../../empty:/opt/airflow/providers/git/src
       - ../../../empty:/opt/airflow/providers/github/src
       - ../../../empty:/opt/airflow/providers/google/src
+      - ../../../empty:/opt/airflow/providers/greatexpectations/src
       - ../../../empty:/opt/airflow/providers/grpc/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src

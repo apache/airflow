@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
 
@@ -42,8 +42,7 @@ def run_validation_definition(
     batch_parameters: dict,
     gx_context: AbstractDataContext,
 ) -> ExpectationSuiteValidationResult:
-    """Given a BatchDefinition and an Expectation or ExpectationSuite, ensure a
-    ValidationDefinition and run it."""
+    """Given a BatchDefinition and an Expectation or ExpectationSuite, ensure a ValidationDefinition and run it."""
     import great_expectations as gx
 
     if isinstance(expect, gx.expectations.Expectation):
@@ -71,7 +70,7 @@ def run_validation_definition(
 
 def load_data_context(
     context_type: Literal["ephemeral", "cloud"],
-    gx_cloud_config: Union[GXCloudConfig, None],
+    gx_cloud_config: GXCloudConfig | None,
 ) -> AbstractDataContext:
     import great_expectations as gx
 
@@ -83,9 +82,8 @@ def load_data_context(
             cloud_workspace_id=gx_cloud_config.cloud_workspace_id,
             user_agent_str=USER_AGENT_STR,
         )
-    else:
-        # EphemeralDataContext or CloudDataContext with env vars
-        return gx.get_context(
-            mode=context_type,
-            user_agent_str=USER_AGENT_STR,
-        )
+    # EphemeralDataContext or CloudDataContext with env vars
+    return gx.get_context(
+        mode=context_type,
+        user_agent_str=USER_AGENT_STR,
+    )

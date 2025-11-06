@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal
 
 from airflow.models import BaseOperator
-
 from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.common.gx_context_actions import (
     load_data_context,
@@ -28,12 +28,13 @@ from airflow.providers.greatexpectations.common.gx_context_actions import (
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from great_expectations import ExpectationSuite
     from great_expectations.core.batch import BatchParameters
     from great_expectations.core.batch_definition import BatchDefinition
     from great_expectations.data_context import AbstractDataContext
     from great_expectations.expectations import Expectation
+
+    from airflow.utils.context import Context
 
 
 class GXValidateBatchOperator(BaseOperator):
@@ -66,10 +67,8 @@ class GXValidateBatchOperator(BaseOperator):
         expect: Expectation | ExpectationSuite,
         batch_parameters: BatchParameters | None = None,
         context_type: Literal["ephemeral", "cloud"] = "ephemeral",
-        result_format: (
-            Literal["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"] | None
-        ) = None,
-        conn_id: Union[str, None] = None,
+        result_format: (Literal["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"] | None) = None,
+        conn_id: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -90,9 +89,7 @@ class GXValidateBatchOperator(BaseOperator):
             gx_cloud_config = GXCloudHook(gx_cloud_conn_id=self.conn_id).get_conn()
         else:
             gx_cloud_config = None
-        gx_context = load_data_context(
-            gx_cloud_config=gx_cloud_config, context_type=self.context_type
-        )
+        gx_context = load_data_context(gx_cloud_config=gx_cloud_config, context_type=self.context_type)
         batch_definition = self.configure_batch_definition(gx_context)
 
         runtime_batch_params = context.get("params", {}).get("gx_batch_parameters")  # type: ignore[call-overload]
@@ -111,4 +108,4 @@ class GXValidateBatchOperator(BaseOperator):
         result_dict = result.describe_dict()
         context["ti"].xcom_push(key="return_value", value=result_dict)
         if not result.success:
-            raise GXValidationFailed(result_dict, self.task_id) 
+            raise GXValidationFailed(result_dict, self.task_id)

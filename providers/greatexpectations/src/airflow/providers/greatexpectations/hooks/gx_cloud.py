@@ -33,7 +33,8 @@ from airflow.providers.greatexpectations.common.gx_context_actions import load_d
 
 
 class IncompleteGXCloudConfigError(AirflowException):
-    """Great Expectations connection configuration is not complete.
+    """
+    Great Expectations connection configuration is not complete.
 
     Attributes:
         missing_keys: Required configuration keys which were not provided.
@@ -53,6 +54,8 @@ class IncompleteGXCloudConfigError(AirflowException):
 
 @dataclass(frozen=True)
 class GXCloudConfig:
+    """Configuration for Great Expectations Cloud connection."""
+
     cloud_access_token: str
     cloud_organization_id: str
     cloud_workspace_id: str

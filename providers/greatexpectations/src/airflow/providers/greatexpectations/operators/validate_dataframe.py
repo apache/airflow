@@ -16,30 +16,32 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal
 
-from airflow.models import BaseOperator
 from great_expectations.datasource.fluent import PandasDatasource, SparkDatasource
 
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.models import BaseOperator
+from airflow.providers.greatexpectations.common.errors import (
+    ExistingDataSourceTypeMismatch,
+    GXValidationFailed,
+)
 from airflow.providers.greatexpectations.common.gx_context_actions import (
     load_data_context,
     run_validation_definition,
-)
-from airflow.providers.greatexpectations.common.errors import (
-    ExistingDataSourceTypeMismatch,
 )
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
 if TYPE_CHECKING:
     import pyspark.sql as pyspark
-    from airflow.utils.context import Context
     from great_expectations import ExpectationSuite
     from great_expectations.core.batch_definition import BatchDefinition
     from great_expectations.data_context import AbstractDataContext
     from great_expectations.expectations import Expectation
     from pandas import DataFrame
     from pyspark.sql.connect.dataframe import DataFrame as SparkConnectDataFrame
+
+    from airflow.utils.context import Context
 
 
 class GXValidateDataFrameOperator(BaseOperator):
@@ -63,15 +65,11 @@ class GXValidateDataFrameOperator(BaseOperator):
 
     def __init__(
         self,
-        configure_dataframe: Callable[
-            [], DataFrame | pyspark.DataFrame | SparkConnectDataFrame
-        ],
+        configure_dataframe: Callable[[], DataFrame | pyspark.DataFrame | SparkConnectDataFrame],
         expect: Expectation | ExpectationSuite,
         context_type: Literal["ephemeral", "cloud"] = "ephemeral",
-        result_format: (
-            Literal["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"] | None
-        ) = None,
-        conn_id: Union[str, None] = None,
+        result_format: (Literal["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"] | None) = None,
+        conn_id: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -90,9 +88,7 @@ class GXValidateDataFrameOperator(BaseOperator):
             gx_cloud_config = GXCloudHook(gx_cloud_conn_id=self.conn_id).get_conn()
         else:
             gx_cloud_config = None
-        gx_context = load_data_context(
-            gx_cloud_config=gx_cloud_config, context_type=self.context_type
-        )
+        gx_context = load_data_context(gx_cloud_config=gx_cloud_config, context_type=self.context_type)
 
         if isinstance(self.dataframe, DataFrame):
             batch_definition = self._get_pandas_batch_definition(gx_context)
@@ -100,9 +96,7 @@ class GXValidateDataFrameOperator(BaseOperator):
             # if it's not pandas, but the classname is Dataframe, we assume spark
             batch_definition = self._get_spark_batch_definition(gx_context)
         else:
-            raise ValueError(
-                f"Unsupported dataframe type: {type(self.dataframe).__name__}"
-            )
+            raise ValueError(f"Unsupported dataframe type: {type(self.dataframe).__name__}")
 
         batch_parameters = {
             "dataframe": self.dataframe,
@@ -120,9 +114,7 @@ class GXValidateDataFrameOperator(BaseOperator):
         if not result.success:
             raise GXValidationFailed(result_dict, self.task_id)
 
-    def _get_spark_batch_definition(
-        self, gx_context: AbstractDataContext
-    ) -> BatchDefinition:
+    def _get_spark_batch_definition(self, gx_context: AbstractDataContext) -> BatchDefinition:
         name = self.task_id
         try:
             data_source = gx_context.data_sources.get(name=name)
@@ -147,9 +139,7 @@ class GXValidateDataFrameOperator(BaseOperator):
 
         return batch_definition
 
-    def _get_pandas_batch_definition(
-        self, gx_context: AbstractDataContext
-    ) -> BatchDefinition:
+    def _get_pandas_batch_definition(self, gx_context: AbstractDataContext) -> BatchDefinition:
         name = self.task_id
         try:
             data_source = gx_context.data_sources.get(name=name)

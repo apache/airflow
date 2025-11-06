@@ -14,25 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-External connection utilities for building database connection configurations
-from Airflow connections.
-"""
+
+from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal
 
 try:  # airflow 3
     from airflow.sdk import BaseHook
-    from airflow.sdk.definitions.connection import Connection
 except ImportError:  # airflow 2
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-    from airflow.models import (  # type: ignore[attr-defined,no-redef,assignment]
-        Connection,
-    )
+
+if TYPE_CHECKING:
+    try:  # airflow 3
+        from airflow.sdk.definitions.connection import Connection
+    except ImportError:  # airflow 2
+        from airflow.models import Connection  # type: ignore[attr-defined,no-redef,assignment]
 
 from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,7 +52,7 @@ class SnowflakeKeyConnection(BaseModel):
     type: Literal["key"] = "key"
     account: str
     user: str
-    role: Optional[str] = None
+    role: str | None = None
     warehouse: str
     database: str
     schema_name: str = Field(..., alias="schema")
@@ -61,13 +62,11 @@ class SnowflakeKeyConnection(BaseModel):
 def get_connection_by_id(conn_id: str) -> Connection:
     conn = BaseHook.get_connection(conn_id)
     if not conn:
-        raise ValueError(
-            f"Failed to retrieve Airflow connection with conn_id: {conn_id}"
-        )
+        raise ValueError(f"Failed to retrieve Airflow connection with conn_id: {conn_id}")
     return conn
 
 
-def build_redshift_connection_string(conn_id: str, schema: Optional[str] = None) -> str:
+def build_redshift_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for Redshift connections.
 
@@ -85,17 +84,12 @@ def build_redshift_connection_string(conn_id: str, schema: Optional[str] = None)
 
     database_name = schema or conn.schema
     if not database_name:
-        raise ValueError(
-            f"Schema/database name is required for Redshift connection: {conn_id}"
-        )
+        raise ValueError(f"Schema/database name is required for Redshift connection: {conn_id}")
 
-    return (
-        f"redshift+psycopg2://{conn.login}:{conn.password}@"
-        f"{conn.host}:{conn.port}/{database_name}"
-    )
+    return f"redshift+psycopg2://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{database_name}"
 
 
-def build_mysql_connection_string(conn_id: str, schema: Optional[str] = None) -> str:
+def build_mysql_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for MySQL connections.
 
@@ -113,16 +107,12 @@ def build_mysql_connection_string(conn_id: str, schema: Optional[str] = None) ->
 
     database_name = schema or conn.schema
     if not database_name:
-        raise ValueError(
-            f"Schema/database name is required for MySQL connection: {conn_id}"
-        )
+        raise ValueError(f"Schema/database name is required for MySQL connection: {conn_id}")
 
-    return (
-        f"mysql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{database_name}"
-    )
+    return f"mysql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{database_name}"
 
 
-def build_mssql_connection_string(conn_id: str, schema: Optional[str] = None) -> str:
+def build_mssql_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for Microsoft SQL Server connections.
 
@@ -145,12 +135,11 @@ def build_mssql_connection_string(conn_id: str, schema: Optional[str] = None) ->
     driver_param = f"?driver={ms_driver}"
 
     return (
-        f"mssql+pyodbc://{conn.login}:{conn.password}@"
-        f"{conn.host}:{conn.port}/{database_name}{driver_param}"
+        f"mssql+pyodbc://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{database_name}{driver_param}"
     )
 
 
-def build_postgres_connection_string(conn_id: str, schema: Optional[str] = None) -> str:
+def build_postgres_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for PostgreSQL connections.
 
@@ -173,17 +162,13 @@ def build_postgres_connection_string(conn_id: str, schema: Optional[str] = None)
             "See: https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/connections/postgres.html"
         )
 
-    return (
-        f"postgresql+psycopg2://{conn.login}:{conn.password}@"
-        f"{conn.host}:{conn.port}/{postgres_database}"
-    )
+    return f"postgresql+psycopg2://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{postgres_database}"
 
 
-def build_snowflake_connection_string(
-    conn_id: str, schema: Optional[str] = None
-) -> str:
+def build_snowflake_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for Snowflake connections.
+
     Attempts to use SnowflakeHook first, falls back to manual construction.
 
     Args:
@@ -214,11 +199,10 @@ def build_snowflake_connection_string(
     return _build_snowflake_connection_string_manual(conn, schema)
 
 
-def build_snowflake_key_connection(
-    conn_id: str, schema: Optional[str] = None
-) -> SnowflakeKeyConnection:
+def build_snowflake_key_connection(conn_id: str, schema: str | None = None) -> SnowflakeKeyConnection:
     """
     Build key-based connection configuration for Snowflake connections.
+
     Requires SnowflakeHook and private key authentication.
 
     Args:
@@ -232,15 +216,11 @@ def build_snowflake_key_connection(
         ValueError: If connection doesn't exist, required parameters are missing, or private key is not configured
         ImportError: If SnowflakeHook is not available
     """
-    conn = get_connection_by_id(conn_id=conn_id)
-
     # Key-based authentication requires SnowflakeHook
     return _build_snowflake_key_connection_from_hook(conn_id, schema)
 
 
-def _build_snowflake_connection_string_from_hook(
-    conn_id: str, schema: Optional[str] = None
-) -> str:
+def _build_snowflake_connection_string_from_hook(conn_id: str, schema: str | None = None) -> str:
     """Build Snowflake connection string using SnowflakeHook."""
     from airflow.providers.snowflake.hooks.snowflake import (  # type: ignore[import-not-found]
         SnowflakeHook,
@@ -255,14 +235,15 @@ def _build_snowflake_connection_string_from_hook(
 
 
 def _build_snowflake_key_connection_from_hook(
-    conn_id: str, schema: Optional[str] = None
+    conn_id: str, schema: str | None = None
 ) -> SnowflakeKeyConnection:
     """Build Snowflake key-based connection using SnowflakeHook."""
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+
     from airflow.providers.snowflake.hooks.snowflake import (  # type: ignore[import-not-found]
         SnowflakeHook,
     )
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives import serialization
 
     hook = SnowflakeHook(snowflake_conn_id=conn_id)
     hook.schema = schema or hook.schema
@@ -270,14 +251,12 @@ def _build_snowflake_key_connection_from_hook(
     conn = hook.get_connection(conn_id)
 
     # Check for private key authentication
-    private_key_file = conn.extra_dejson.get(
-        "extra__snowflake__private_key_file"
-    ) or conn.extra_dejson.get("private_key_file")
+    private_key_file = conn.extra_dejson.get("extra__snowflake__private_key_file") or conn.extra_dejson.get(
+        "private_key_file"
+    )
 
     if not private_key_file:
-        raise ValueError(
-            f"Private key file is required for key-based authentication: {conn_id}"
-        )
+        raise ValueError(f"Private key file is required for key-based authentication: {conn_id}")
 
     private_key_pem = Path(private_key_file).read_bytes()
 
@@ -296,31 +275,21 @@ def _build_snowflake_key_connection_from_hook(
     )
 
     # Extract individual connection fields
-    snowflake_account = conn.extra_dejson.get("account") or conn.extra_dejson.get(
-        "extra__snowflake__account"
-    )
+    snowflake_account = conn.extra_dejson.get("account") or conn.extra_dejson.get("extra__snowflake__account")
     snowflake_database = conn.extra_dejson.get("database") or conn.extra_dejson.get(
         "extra__snowflake__database"
     )
     snowflake_warehouse = conn.extra_dejson.get("warehouse") or conn.extra_dejson.get(
         "extra__snowflake__warehouse"
     )
-    snowflake_role = conn.extra_dejson.get("role") or conn.extra_dejson.get(
-        "extra__snowflake__role"
-    )
+    snowflake_role = conn.extra_dejson.get("role") or conn.extra_dejson.get("extra__snowflake__role")
 
     if not snowflake_account:
-        raise ValueError(
-            f"Snowflake account is required in connection extras for conn_id: {conn_id}"
-        )
+        raise ValueError(f"Snowflake account is required in connection extras for conn_id: {conn_id}")
     if not snowflake_database:
-        raise ValueError(
-            f"Snowflake database is required in connection extras for conn_id: {conn_id}"
-        )
+        raise ValueError(f"Snowflake database is required in connection extras for conn_id: {conn_id}")
     if not snowflake_warehouse:
-        raise ValueError(
-            f"Snowflake warehouse is required in connection extras for conn_id: {conn_id}"
-        )
+        raise ValueError(f"Snowflake warehouse is required in connection extras for conn_id: {conn_id}")
 
     effective_schema = schema or hook.schema
     if not effective_schema:
@@ -337,36 +306,28 @@ def _build_snowflake_key_connection_from_hook(
     )
 
 
-def _build_snowflake_connection_string_manual(
-    conn: Connection, schema: Optional[str] = None
-) -> str:
+def _build_snowflake_connection_string_manual(conn: Connection, schema: str | None = None) -> str:
     """Build Snowflake connection string manually from connection parameters."""
-    snowflake_account = conn.extra_dejson.get("account") or conn.extra_dejson.get(
-        "extra__snowflake__account"
-    )
-    snowflake_region = conn.extra_dejson.get("region") or conn.extra_dejson.get(
-        "extra__snowflake__region"
-    )
+    snowflake_account = conn.extra_dejson.get("account") or conn.extra_dejson.get("extra__snowflake__account")
+    snowflake_region = conn.extra_dejson.get("region") or conn.extra_dejson.get("extra__snowflake__region")
     snowflake_database = conn.extra_dejson.get("database") or conn.extra_dejson.get(
         "extra__snowflake__database"
     )
     snowflake_warehouse = conn.extra_dejson.get("warehouse") or conn.extra_dejson.get(
         "extra__snowflake__warehouse"
     )
-    snowflake_role = conn.extra_dejson.get("role") or conn.extra_dejson.get(
-        "extra__snowflake__role"
-    )
+    snowflake_role = conn.extra_dejson.get("role") or conn.extra_dejson.get("extra__snowflake__role")
 
     if not snowflake_account:
-        raise ValueError(f"Snowflake account is required in connection extras")
+        raise ValueError("Snowflake account is required in connection extras")
     if not snowflake_database:
-        raise ValueError(f"Snowflake database is required in connection extras")
+        raise ValueError("Snowflake database is required in connection extras")
     if not snowflake_warehouse:
-        raise ValueError(f"Snowflake warehouse is required in connection extras")
+        raise ValueError("Snowflake warehouse is required in connection extras")
 
     effective_schema = schema or conn.schema
     if not effective_schema:
-        raise ValueError(f"Schema is required for Snowflake connection")
+        raise ValueError("Schema is required for Snowflake connection")
 
     if snowflake_region:
         uri_string = (
@@ -385,9 +346,7 @@ def _build_snowflake_connection_string_manual(
     return uri_string
 
 
-def build_gcpbigquery_connection_string(
-    conn_id: str, schema: Optional[str] = None
-) -> str:
+def build_gcpbigquery_connection_string(conn_id: str, schema: str | None = None) -> str:
     """
     Build connection string for Google Cloud BigQuery connections.
 
@@ -427,10 +386,10 @@ def build_sqlite_connection_string(conn_id: str) -> str:
 
 def build_aws_connection_string(
     conn_id: str,
-    schema: Optional[str] = None,
-    database: Optional[str] = None,
-    s3_path: Optional[str] = None,
-    region: Optional[str] = None,
+    schema: str | None = None,
+    database: str | None = None,
+    s3_path: str | None = None,
+    region: str | None = None,
 ) -> str:
     """
     Build connection string for AWS connections (currently supports Athena).
@@ -459,7 +418,4 @@ def build_aws_connection_string(
 
     if athena_db:
         return f"awsathena+rest://@athena.{region}.amazonaws.com/{athena_db}?s3_staging_dir={s3_path}"
-    else:
-        return (
-            f"awsathena+rest://@athena.{region}.amazonaws.com/?s3_staging_dir={s3_path}"
-        )
+    return f"awsathena+rest://@athena.{region}.amazonaws.com/?s3_staging_dir={s3_path}"

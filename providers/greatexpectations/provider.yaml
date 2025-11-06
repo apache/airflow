@@ -54,4 +54,4 @@ operators:
 
 connection-types:
   - hook-class-name: airflow.providers.greatexpectations.hooks.gx_cloud.GXCloudHook
-    connection-type: gx_cloud 
+    connection-type: gx_cloud

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from typing import Literal
 from unittest.mock import Mock
 
@@ -51,13 +53,9 @@ class TestRunValidationDefinition:
         mock_gx.ValidationDefinition.assert_called_once_with(
             name=task_id, suite=expect, data=batch_definition
         )
-        validation_definition_factory.add_or_update.assert_called_once_with(
-            validation=validation_definition
-        )
+        validation_definition_factory.add_or_update.assert_called_once_with(validation=validation_definition)
 
-    @pytest.mark.parametrize(
-        "result_format", ["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"]
-    )
+    @pytest.mark.parametrize("result_format", ["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"])
     def test_validation_is_run_with_result_format(
         self,
         mock_gx: Mock,
@@ -114,9 +112,7 @@ class TestRunValidationDefinition:
         )
 
         # assert
-        validation_definition.run.assert_called_once_with(
-            batch_parameters=batch_parameters
-        )
+        validation_definition.run.assert_called_once_with(batch_parameters=batch_parameters)
 
     def test_expectation_is_transformed_to_suite(self, mock_gx: Mock) -> None:
         # arrange
@@ -143,9 +139,7 @@ class TestRunValidationDefinition:
         mock_gx.ValidationDefinition.assert_called_once_with(
             name=task_id, suite=expected_suite, data=batch_definition
         )
-        mock_gx.ExpectationSuite.assert_called_once_with(
-            name=task_id, expectations=[expect]
-        )
+        mock_gx.ExpectationSuite.assert_called_once_with(name=task_id, expectations=[expect])
 
     def test_result(self, mock_gx: Mock) -> None:
         # arrange
@@ -167,4 +161,4 @@ class TestRunValidationDefinition:
         )
 
         # assert
-        assert result is validation_definition.run.return_value 
+        assert result is validation_definition.run.return_value

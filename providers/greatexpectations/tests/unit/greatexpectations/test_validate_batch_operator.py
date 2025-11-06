@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock, create_autospec
@@ -23,8 +25,10 @@ import pytest
 from great_expectations import ExpectationSuite
 from great_expectations.core import ExpectationValidationResult
 from great_expectations.core.batch_definition import BatchDefinition
-from great_expectations.data_context import AbstractDataContext
 from great_expectations.expectations import ExpectColumnValuesToBeInSet
+
+if TYPE_CHECKING:
+    from great_expectations.data_context import AbstractDataContext
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
 from airflow.providers.greatexpectations.common.errors import GXValidationFailed
@@ -50,9 +54,7 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["a", "b", "c"]})
-        expect = ExpectColumnValuesToBeInSet(
-            column=column_name, value_set=["a", "b", "c", "d", "e"]
-        )
+        expect = ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"])
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
@@ -93,9 +95,7 @@ class TestValidateBatchOperator:
         expect = ExpectationSuite(
             name="test suite",
             expectations=[
-                ExpectColumnValuesToBeInSet(
-                    column=column_name, value_set=["a", "b", "c", "d", "e"]
-                ),
+                ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"]),
             ],
         )
 
@@ -265,9 +265,7 @@ class TestValidateBatchOperator:
         """Expect that param batch_parameters is passed to BatchDefinition.get_batch"""
         # arrange
         mock_context = mock_gx.get_context.return_value
-        mock_validation_definition = (
-            mock_context.validation_definitions.add_or_update.return_value
-        )
+        mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = Mock()
         expect = Mock()
         batch_parameters = {
@@ -290,17 +288,13 @@ class TestValidateBatchOperator:
         validate_batch.execute(context=context)
 
         # assert
-        mock_validation_definition.run.assert_called_once_with(
-            batch_parameters=batch_parameters
-        )
+        mock_validation_definition.run.assert_called_once_with(batch_parameters=batch_parameters)
 
     def test_batch_parameters_passed_through_context_parameters(self, mock_gx: Mock):
         """Expect that param batch_parameters is passed to BatchDefinition.get_batch"""
         # arrange
         mock_context = mock_gx.get_context.return_value
-        mock_validation_definition = (
-            mock_context.validation_definitions.add_or_update.return_value
-        )
+        mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = create_autospec(BatchDefinition)
         expect = create_autospec(ExpectationSuite)
         batch_parameters = {
@@ -325,17 +319,13 @@ class TestValidateBatchOperator:
         validate_batch.execute(context=context)
 
         # assert
-        mock_validation_definition.run.assert_called_once_with(
-            batch_parameters=batch_parameters
-        )
+        mock_validation_definition.run.assert_called_once_with(batch_parameters=batch_parameters)
 
     def test_context_batch_parameters_take_precedence(self, mock_gx: Mock):
         """Expect that param batch_parameters is passed to BatchDefinition.get_batch"""
         # arrange
         mock_context = mock_gx.get_context.return_value
-        mock_validation_definition = (
-            mock_context.validation_definitions.add_or_update.return_value
-        )
+        mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = create_autospec(BatchDefinition)
         expect = create_autospec(ExpectationSuite)
         init_batch_parameters = {
@@ -366,9 +356,7 @@ class TestValidateBatchOperator:
         validate_batch.execute(context=context)
 
         # assert
-        mock_validation_definition.run.assert_called_once_with(
-            batch_parameters=context_batch_parameters
-        )
+        mock_validation_definition.run.assert_called_once_with(batch_parameters=context_batch_parameters)
 
     def test_validation_definition_construction(self, mock_gx: Mock):
         """Expect that the expect param, the task_id, and the return value
@@ -417,9 +405,7 @@ class TestValidateBatchOperator:
             )
 
         column_name = "col_A"
-        df = pd.DataFrame(
-            {column_name: ["x", "y", "z"]}
-        )  # values NOT in the expected set
+        df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,
             value_set=["a", "b", "c"],  # different values to cause failure
@@ -452,9 +438,7 @@ class TestValidateBatchOperator:
             )
 
         column_name = "col_A"
-        df = pd.DataFrame(
-            {column_name: ["x", "y", "z"]}
-        )  # values NOT in the expected set
+        df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,
             value_set=["a", "b", "c"],  # different values to cause failure

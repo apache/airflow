@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pandas as pd
@@ -28,12 +29,14 @@ from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_dataframe import (
     GXValidateDataFrameOperator,
 )
+
 from tests.integration.greatexpectations.conftest import is_valid_gx_cloud_url, rand_name
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from pyspark.sql import SparkSession
     from pyspark.sql.connect.session import SparkSession as SparkConnectSession
+
+    from airflow.utils.context import Context
 
 
 class TestGXValidateDataFrameOperator:
@@ -140,9 +143,7 @@ class TestGXValidateDataFrameOperator:
         task_id = f"test_spark_{rand_name()}"
 
         def configure_dataframe() -> pyspark.DataFrame:
-            data_frame = spark_session.createDataFrame(
-                pd.DataFrame({column_name: ["a", "b", "c"]})
-            )
+            data_frame = spark_session.createDataFrame(pd.DataFrame({column_name: ["a", "b", "c"]}))
             assert isinstance(data_frame, pyspark.DataFrame)
             return data_frame
 
@@ -172,9 +173,7 @@ class TestGXValidateDataFrameOperator:
         task_id = f"test_spark_{rand_name()}"
 
         def configure_dataframe() -> SparkConnectDataFrame:
-            data_frame = spark_connect_session.createDataFrame(
-                pd.DataFrame({column_name: ["a", "b", "c"]})
-            )
+            data_frame = spark_connect_session.createDataFrame(pd.DataFrame({column_name: ["a", "b", "c"]}))
             assert isinstance(data_frame, SparkConnectDataFrame)
             return data_frame
 
@@ -204,9 +203,7 @@ class TestGXValidateDataFrameOperator:
 
         def configure_dataframe() -> pd.DataFrame:
             # Create data that will fail validation
-            return pd.DataFrame(
-                {column_name: ["x", "y", "z"]}
-            )  # values NOT in expected set
+            return pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in expected set
 
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,
@@ -233,9 +230,7 @@ class TestGXValidateDataFrameOperator:
 
         def configure_dataframe() -> pd.DataFrame:
             # Create data that will fail validation
-            return pd.DataFrame(
-                {column_name: ["x", "y", "z"]}
-            )  # values NOT in expected set
+            return pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in expected set
 
         expect = ExpectColumnValuesToBeInSet(
             column=column_name,

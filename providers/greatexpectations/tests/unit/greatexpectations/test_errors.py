@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.greatexpectations.common.errors import (
@@ -169,9 +171,7 @@ class TestExtractValidationFailureContext:
 
     def test_extract_context_checkpoint_result(self, checkpoint_result_data):
         """Test context extraction from CheckpointResult format."""
-        context = extract_validation_failure_context(
-            checkpoint_result_data, "test_task"
-        )
+        context = extract_validation_failure_context(checkpoint_result_data, "test_task")
 
         assert context["xcom_location"] == "Task 'test_task' -> XCom key 'return_value'"
         assert context["statistics"] == {
@@ -190,13 +190,9 @@ class TestExtractValidationFailureContext:
         ]
         assert context["failed_expectation_types"] == expected_failed_types
 
-    def test_extract_context_expectation_suite_result(
-        self, expectation_suite_result_data
-    ):
+    def test_extract_context_expectation_suite_result(self, expectation_suite_result_data):
         """Test context extraction from ExpectationSuiteValidationResult format."""
-        context = extract_validation_failure_context(
-            expectation_suite_result_data, "test_task"
-        )
+        context = extract_validation_failure_context(expectation_suite_result_data, "test_task")
 
         assert context["xcom_location"] == "Task 'test_task' -> XCom key 'return_value'"
         assert context["statistics"] == {
@@ -301,4 +297,4 @@ class TestGXValidationFailed:
         error_msg = str(exc)
         assert "Great Expectations data validation failed." in error_msg
         assert "Task 'test_task' -> XCom key 'return_value'" in error_msg
-        assert "evaluated_expectations: 3" in error_msg 
+        assert "evaluated_expectations: 3" in error_msg

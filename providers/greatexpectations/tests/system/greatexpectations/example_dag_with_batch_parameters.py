@@ -20,12 +20,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import great_expectations.expectations as gxe
+
 from airflow import DAG
+
 try:  # airflow 3
-    from airflow.sdk import task
     from airflow.sdk.bases.operator import chain
 except ImportError:  # airflow 2
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import (  # type: ignore[import-not-found,no-redef]
         chain,
     )
@@ -67,9 +67,7 @@ def configure_checkpoint(context: AbstractDataContext) -> Checkpoint:
     against an ExpectationSuite, and run Actions."""
     # setup data source, asset, batch definition
     batch_definition = (
-        context.data_sources.add_pandas_filesystem(
-            name="Load Datasource", base_directory=data_dir
-        )
+        context.data_sources.add_pandas_filesystem(name="Load Datasource", base_directory=data_dir)
         .add_csv_asset("Load Asset")
         .add_batch_definition_monthly(
             name="Load Batch Definition",
@@ -86,9 +84,7 @@ def configure_checkpoint(context: AbstractDataContext) -> Checkpoint:
                     max_value=11000,
                 ),
                 gxe.ExpectColumnValuesToNotBeNull(column="vendor_id"),
-                gxe.ExpectColumnValuesToBeBetween(
-                    column="passenger_count", min_value=1, max_value=6
-                ),
+                gxe.ExpectColumnValuesToBeBetween(column="passenger_count", min_value=1, max_value=6),
             ],
         )
     )
@@ -120,9 +116,7 @@ expectation_suite = ExpectationSuite(
             max_value=11000,
         ),
         gxe.ExpectColumnValuesToNotBeNull(column="vendor_id"),
-        gxe.ExpectColumnValuesToBeBetween(
-            column="passenger_count", min_value=1, max_value=6
-        ),
+        gxe.ExpectColumnValuesToBeBetween(column="passenger_count", min_value=1, max_value=6),
     ],
 )
 
@@ -157,3 +151,9 @@ with DAG(
         validate_extract,
         validate_load,
     )
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -19,21 +19,21 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Callable, Generator, Literal, Union, cast
+from collections.abc import Callable, Generator
+from typing import TYPE_CHECKING, Literal, cast
 
 from airflow.models import BaseOperator
-
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
 from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.common.gx_context_actions import load_data_context
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from great_expectations import Checkpoint
-    from great_expectations.checkpoint.checkpoint import CheckpointDescriptionDict
     from great_expectations.core.batch import BatchParameters
     from great_expectations.data_context import AbstractDataContext, FileDataContext
+
+    from airflow.utils.context import Context
 
 
 class GXValidateCheckpointOperator(BaseOperator):
@@ -67,11 +67,9 @@ class GXValidateCheckpointOperator(BaseOperator):
         batch_parameters: BatchParameters | None = None,
         context_type: Literal["ephemeral", "cloud", "file"] = "ephemeral",
         configure_file_data_context: (
-            Callable[[], FileDataContext]
-            | Callable[[], Generator[FileDataContext, None, None]]
-            | None
+            Callable[[], FileDataContext] | Callable[[], Generator[FileDataContext, None, None]] | None
         ) = None,
-        conn_id: Union[str, None] = None,
+        conn_id: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -91,8 +89,6 @@ class GXValidateCheckpointOperator(BaseOperator):
         self.conn_id = conn_id
 
     def execute(self, context: Context) -> None:
-        from great_expectations.data_context import AbstractDataContext, FileDataContext
-
         gx_context: AbstractDataContext
         file_context_generator: Generator[FileDataContext, None, None] | None = None
 
@@ -101,13 +97,11 @@ class GXValidateCheckpointOperator(BaseOperator):
                 raise ValueError(
                     "Parameter `configure_file_data_context` must be specified if `context_type` is `file`"
                 )
-            elif inspect.isgeneratorfunction(self.configure_file_data_context):
+            if inspect.isgeneratorfunction(self.configure_file_data_context):
                 file_context_generator = self.configure_file_data_context()
                 gx_context = self._get_value_from_generator(file_context_generator)
             else:
-                file_context_fn = cast(
-                    "Callable[[], FileDataContext]", self.configure_file_data_context
-                )
+                file_context_fn = cast("Callable[[], FileDataContext]", self.configure_file_data_context)
                 gx_context = file_context_fn()
             gx_context.set_user_agent_str(USER_AGENT_STR)
         else:
@@ -115,9 +109,7 @@ class GXValidateCheckpointOperator(BaseOperator):
                 gx_cloud_config = GXCloudHook(gx_cloud_conn_id=self.conn_id).get_conn()
             else:
                 gx_cloud_config = None
-            gx_context = load_data_context(
-                gx_cloud_config=gx_cloud_config, context_type=self.context_type
-            )
+            gx_context = load_data_context(gx_cloud_config=gx_cloud_config, context_type=self.context_type)
         checkpoint = self.configure_checkpoint(gx_context)
 
         runtime_batch_params = context.get("params", {}).get("gx_batch_parameters")  # type: ignore[call-overload]
@@ -135,16 +127,15 @@ class GXValidateCheckpointOperator(BaseOperator):
         if not result.success:
             raise GXValidationFailed(result_dict, self.task_id)
 
-    def _get_value_from_generator(
-        self, generator: Generator[FileDataContext, None, None]
-    ) -> FileDataContext:
+    def _get_value_from_generator(self, generator: Generator[FileDataContext, None, None]) -> FileDataContext:
         try:
             return next(generator)
         except StopIteration:
             raise RuntimeError("Generator must yield exactly once; did not yield")
 
     def _allow_generator_teardown(self, generator: Generator) -> None:
-        """Run the generator to completion to allow for any cleanup/teardown.
+        """
+        Run the generator to completion to allow for any cleanup/teardown.
 
         Also does some error handling to ensure the generator doesn't yield more than once.
         """
@@ -154,6 +145,4 @@ class GXValidateCheckpointOperator(BaseOperator):
         except StopIteration:
             pass
         else:
-            raise RuntimeError(
-                "Generator must yield exactly once; yielded more than once"
-            ) 
+            raise RuntimeError("Generator must yield exactly once; yielded more than once")

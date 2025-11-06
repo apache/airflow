@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,33 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Version compatibility utilities for Great Expectations provider."""
+"""Configuration of Providers docs building."""
 
 from __future__ import annotations
 
-import warnings
-from typing import TYPE_CHECKING
+import os
 
-if TYPE_CHECKING:
-    from packaging.version import Version
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-greatexpectations"
 
-__all__ = ["AIRFLOW_V_2_10_PLUS"]
-
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    airflow_version = "0.0.0"
-
-try:
-    from packaging.version import Version
-
-    _AIRFLOW_VERSION: Version = Version(airflow_version)
-    AIRFLOW_V_2_10_PLUS = Version("2.10.0") <= _AIRFLOW_VERSION
-except Exception:
-    # If we can't parse the version, assume it's a dev version
-    AIRFLOW_V_2_10_PLUS = True
-    warnings.warn(
-        f"Unable to parse Airflow version {airflow_version}. Assuming version 2.10.0 or higher.",
-        UserWarning,
-        stacklevel=2,
-    )
+from docs.provider_conf import *  # noqa: F403

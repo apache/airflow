@@ -1,9 +1,27 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
 import os
 import random
 import string
-from typing import TYPE_CHECKING, Callable, Generator
+from collections.abc import Callable, Generator
+from typing import TYPE_CHECKING
 
 import great_expectations as gx
 import pytest
@@ -12,8 +30,6 @@ from sqlalchemy import create_engine, text
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from _pytest.config import Config
-    from _pytest.nodes import Item
     from great_expectations.data_context import AbstractDataContext
 
 
@@ -125,9 +141,7 @@ def load_postgres_data(
     def _load_postgres_data(data: list[dict]) -> None:
         engine = create_engine(url=postgres_connection_string)
         with engine.connect() as conn, conn.begin():
-            conn.execute(
-                text(f"CREATE TABLE {table_name} (name VARCHAR(255), age INT);")
-            )
+            conn.execute(text(f"CREATE TABLE {table_name} (name VARCHAR(255), age INT);"))
             conn.execute(
                 text(f"INSERT INTO {table_name} (name, age) VALUES (:name, :age);"),
                 data,
@@ -148,4 +162,4 @@ def load_csv_data() -> Generator[Callable[[Path, list[dict]], None], None, None]
             for row in data:
                 f.write(f"{row['name']},{row['age']}\n")
 
-    yield _load_csv_data
+    return _load_csv_data

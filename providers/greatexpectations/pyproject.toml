@@ -34,7 +34,7 @@ authors = [
 maintainers = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
-keywords = [ "airflow-provider", "great-expectations", "airflow", "integration" ]
+keywords = [ "airflow-provider", "greatexpectations", "airflow", "integration" ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -47,13 +47,14 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
-# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "great-expectations>=1.7.0, <2.0",
@@ -62,7 +63,8 @@ dependencies = [
     "structlog < 25.5.0"  # temporary workaround https://github.com/apache/airflow/pull/57335
 ]
 
-
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 athena = ["great-expectations[athena]>=1.7.0"]
 azure = ["great-expectations[azure]>=1.7.0"]
@@ -71,7 +73,10 @@ gcp = ["great-expectations[gcp]>=1.7.0"]
 mssql = ["great-expectations[mssql]>=1.7.0"]
 postgresql = ["great-expectations[postgresql]>=1.7.0"]
 s3 = ["great-expectations[s3]>=1.7.0"]
-snowflake = ["great-expectations[snowflake]>=1.7.0"]
+"snowflake" = [
+    "great-expectations[snowflake]>=1.7.0",
+    "apache-airflow-providers-snowflake"
+]
 spark = [
     "great-expectations[spark,spark-connect]>=1.7.0",
     "pyarrow>=4.0.0"
@@ -82,6 +87,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-snowflake",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 

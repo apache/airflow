@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 def _extract_failed_types_from_expectations(expectations: Any) -> set[str]:
-    """Helper function to extract failed expectation types from a list of expectations."""
+    """Extract failed expectation types from a list of expectations."""
     failed_types: set[str] = set()
 
     if not isinstance(expectations, list):
@@ -76,9 +76,7 @@ def extract_validation_failure_context(
         for validation_result in validation_results:
             if isinstance(validation_result, dict):
                 expectations = validation_result.get("expectations")
-                failed_types.update(
-                    _extract_failed_types_from_expectations(expectations)
-                )
+                failed_types.update(_extract_failed_types_from_expectations(expectations))
 
     # Limit to first 10 unique types, sorted alphabetically
     limited_failed_types = sorted(failed_types)[:10]
@@ -87,7 +85,8 @@ def extract_validation_failure_context(
 
 
 class GXValidationFailed(AirflowException):
-    """Great Expectations data validation failed.
+    """
+    Great Expectations data validation failed.
 
     This exception includes detailed context about the validation failure,
     including statistics and information about which expectations failed.
@@ -101,16 +100,12 @@ class GXValidationFailed(AirflowException):
 
     def __init__(
         self,
-        validation_result_dict: dict[str, Any]
-        | CheckpointDescriptionDict
-        | None = None,
+        validation_result_dict: dict[str, Any] | CheckpointDescriptionDict | None = None,
         task_id: str | None = None,
         message: str | None = None,
     ):
         if validation_result_dict and task_id:
-            self.context = extract_validation_failure_context(
-                validation_result_dict, task_id
-            )
+            self.context = extract_validation_failure_context(validation_result_dict, task_id)
             self.xcom_location = self.context["xcom_location"]
             self.statistics = self.context["statistics"]
             self.failed_expectation_types = self.context["failed_expectation_types"]
@@ -144,9 +139,7 @@ class GXValidationFailed(AirflowException):
             if expectation_count <= 10:
                 lines.append(f"Failed expectation types ({expectation_count}):")
             else:
-                lines.append(
-                    f"Failed expectation types (showing first 10 of {expectation_count}):"
-                )
+                lines.append(f"Failed expectation types (showing first 10 of {expectation_count}):")
             for exp_type in self.failed_expectation_types:
                 lines.append(f"  - {exp_type}")
 

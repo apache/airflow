@@ -59,4 +59,4 @@ PIP package              Version required
 ========================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-greatexpectations/1.0.0/changelog.html>`_. 
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-greatexpectations/1.0.0/changelog.html>`_.
