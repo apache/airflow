@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
@@ -29,6 +30,23 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
+
+
+class AzureAnalysisServicesRefreshStatus:
+    """Azure Analysis Services refresh operation statuses."""
+
+    IN_PROGRESS = "inProgress"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+    TERMINAL_STATUSES = {SUCCEEDED, FAILED, CANCELLED}
+    INTERMEDIATE_STATES = {IN_PROGRESS}
+    FAILURE_STATES = {FAILED, CANCELLED}
+
+
+class AzureAnalysisServicesRefreshException(AirflowException):
+    """An exception that indicates a refresh operation failed to complete."""
 
 
 class AzureAnalysisServicesHook(BaseHook):
@@ -208,4 +226,63 @@ class AzureAnalysisServicesHook(BaseHook):
 
         raise AirflowException(
             f"Failed to start refresh operation. Status: {response.status_code}, Response: {response.text}"
+        )
+
+    def get_refresh_status(
+        self,
+        server_name: str,
+        model_name: str,
+        region: str,
+        refresh_id: str,
+    ) -> dict[str, Any]:
+        """Get the status of a refresh operation."""
+        url = self._build_api_url(server_name, model_name, region, refresh_id)
+        token = self._get_access_token()
+
+        headers = {"Authorization": f"Bearer {token}"}
+
+        self.log.debug("Checking refresh status for refresh_id: %s", refresh_id)
+        response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            return response.json()
+
+        raise AirflowException(
+            f"Failed to get refresh status. Status: {response.status_code}, Response: {response.text}"
+        )
+
+    def wait_for_refresh_completion(
+        self,
+        server_name: str,
+        model_name: str,
+        region: str,
+        refresh_id: str,
+        check_interval: int = 60,
+        timeout: int = 60 * 60 * 24,
+    ) -> dict[str, Any]:
+        """Wait for a refresh operation to complete."""
+        elapsed_time = 0
+
+        while elapsed_time < timeout:
+            status_info = self.get_refresh_status(server_name, model_name, region, refresh_id)
+            current_status = status_info.get("status")
+
+            self.log.info(
+                "Refresh %s status: %s (elapsed: %s seconds)", refresh_id, current_status, elapsed_time
+            )
+
+            if current_status in AzureAnalysisServicesRefreshStatus.TERMINAL_STATUSES:
+                if current_status in AzureAnalysisServicesRefreshStatus.FAILURE_STATES:
+                    raise AzureAnalysisServicesRefreshException(
+                        f"Refresh operation {refresh_id} failed with status: {current_status}. "
+                        f"Details: {status_info}"
+                    )
+                return status_info
+
+            time.sleep(check_interval)
+            elapsed_time += check_interval
+
+        raise AirflowException(
+            f"Refresh operation {refresh_id} did not complete within {timeout} seconds. "
+            f"Last known status: {status_info}"
         )
