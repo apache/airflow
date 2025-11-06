@@ -139,7 +139,7 @@ class _RunInfo(NamedTuple):
     @classmethod
     def calculate(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> Self:
         """
-        Query the the run counts from the db.
+        Query the run counts from the db.
 
         :param dags: dict of dags to query
         """

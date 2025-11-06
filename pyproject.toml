@@ -92,11 +92,14 @@ packages = []
 "otel" = [
     "apache-airflow-core[otel]"
 ]
-"sentry" = [
-    "apache-airflow-core[sentry]"
-]
 "statsd" = [
     "apache-airflow-core[statsd]"
+]
+"all-task-sdk" = [
+    "apache-airflow-task-sdk[all]"
+]
+"sentry" = [
+    "apache-airflow-task-sdk[sentry]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -656,7 +659,6 @@ ignore = [
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
-    "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
     # Rules below explicitly set off which could overlap with Ruff's formatter
     # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
@@ -1284,7 +1286,7 @@ dev = [
     "apache-airflow-task-sdk-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
