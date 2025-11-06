@@ -169,14 +169,14 @@ class BaseSensorOperator(BaseOperator):
         if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
             raise ValueError("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
-            raise RuntimeError(
+            raise ValueError(
                 f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''} "
                 f".{self.task_id}'; received '{self.mode}'."
             )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
-        raise RuntimeError("Override me.")
+        raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
@@ -253,7 +253,7 @@ class BaseSensorOperator(BaseOperator):
             return super().resume_execution(next_method, next_kwargs, context)
         except TaskDeferralTimeout as e:
             raise AirflowSensorTimeout(*e.args) from e
-        except (RuntimeError, AirflowException, TaskDeferralError) as e:
+        except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException(str(e)) from e
             raise

@@ -31,7 +31,7 @@ from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
-from airflow.sdk.exceptions import XComNotFound
+from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
 
@@ -182,7 +182,7 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
-            raise RuntimeError("Only setup/teardown tasks can be used as context managers.")
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
         return SetupTeardownContext
 

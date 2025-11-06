@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from airflow.sdk.exceptions import AirflowException
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
@@ -334,7 +336,7 @@ class SetupTeardownContext(BaseSetupTeardownContext):
         from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
         if not SetupTeardownContext.active:
-            raise RuntimeError("Cannot add task to context outside the context manager.")
+            raise AirflowException("Cannot add task to context outside the context manager.")
         if isinstance(task, PlainXComArg):
             task = task.operator
         SetupTeardownContext.update_context_map(task)

@@ -518,7 +518,7 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
     task = PythonOperator(
         task_id="af_exception_task",
         python_callable=lambda: (_ for _ in ()).throw(
-            RuntimeError("Oops! I am failing with AirflowException!"),
+            AirflowException("Oops! I am failing with AirflowException!"),
         ),
     )
 
@@ -2980,7 +2980,7 @@ class TestTaskRunnerCallsListeners:
         [
             ValueError("oops"),
             SystemExit("oops"),
-            RuntimeError("oops"),
+            AirflowException("oops"),
         ],
     )
     def test_task_runner_calls_listeners_failed(self, mocked_parse, mock_supervisor_comms, exception):
@@ -3254,7 +3254,7 @@ class TestTaskRunnerCallsCallbacks:
 
         class FailingOperator(BaseOperator):
             def execute(self, context):
-                raise RuntimeError("Failing task")
+                raise AirflowException("Failing task")
 
         task = FailingOperator(task_id="failing_task", on_failure_callback=failure_callback)
         runtime_ti = create_runtime_ti(dag_id="dag", task=task)
@@ -3336,7 +3336,7 @@ class TestTaskRunnerCallsCallbacks:
         class FailureOperator(BaseOperator):
             def execute(self, context):
                 time.sleep(0.01)  # Add small delay to ensure measurable duration
-                raise RuntimeError("Test failure")
+                raise AirflowException("Test failure")
 
         failure_task = FailureOperator(task_id="failure_task", on_failure_callback=failure_callback)
         failure_runtime_ti = create_runtime_ti(dag_id="dag", task=failure_task)

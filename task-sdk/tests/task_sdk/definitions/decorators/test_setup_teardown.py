@@ -22,6 +22,7 @@ import pytest
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG, setup, task, task_group, teardown
 from airflow.sdk.definitions.decorators.setup_teardown import context_wrapper
+from airflow.sdk.exceptions import AirflowException
 
 
 def make_task(name, type_, setup_=False, teardown_=False):
@@ -123,7 +124,7 @@ class TestSetupTearDownTask:
     def test_setup_taskgroup_decorator(self):
         with DAG("test_setup_taskgroup_decorator"):
             with pytest.raises(  # noqa: PT012, check decorators required more than one line
-                expected_exception=RuntimeError,
+                expected_exception=AirflowException,
                 match="Task groups cannot be marked as setup or teardown.",
             ):
 
@@ -141,7 +142,7 @@ class TestSetupTearDownTask:
     def test_teardown_taskgroup_decorator(self):
         with DAG("test_teardown_taskgroup_decorator"):
             with pytest.raises(  # noqa: PT012, check decorators required more than one line
-                expected_exception=RuntimeError,
+                expected_exception=AirflowException,
                 match="Task groups cannot be marked as setup or teardown.",
             ):
 
@@ -366,7 +367,7 @@ class TestSetupTearDownTask:
 
         with DAG("test_setup_teardown_as_context_manager_normal_tasks_rel_set_up"):
             with pytest.raises(
-                RuntimeError, match="Only setup/teardown tasks can be used as context managers."
+                AirflowException, match="Only setup/teardown tasks can be used as context managers."
             ):
                 with mytask():
                     pass

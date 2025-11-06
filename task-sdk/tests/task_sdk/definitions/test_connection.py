@@ -25,7 +25,7 @@ import pytest
 
 from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk import Connection
-from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -75,7 +75,7 @@ class TestConnections:
             conn_type="unknown_type",
         )
 
-        with pytest.raises(RuntimeError, match='Unknown hook type "unknown_type"'):
+        with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
     def test_get_uri(self):
@@ -349,13 +349,13 @@ class TestConnectionFromUri:
     def test_from_uri_too_many_schemes_error(self):
         """Test that too many schemes in URI raises an error."""
         uri = "http://https://ftp://example.com"
-        with pytest.raises(RuntimeError, match="Invalid connection string"):
+        with pytest.raises(AirflowException, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
 
     def test_from_uri_invalid_protocol_host_error(self):
         """Test that invalid protocol host raises an error."""
         uri = "http://user@host://example.com"
-        with pytest.raises(RuntimeError, match="Invalid connection string"):
+        with pytest.raises(AirflowException, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
 
     def test_from_uri_roundtrip(self):
