@@ -16,6 +16,32 @@
 # under the License.
 ---
 services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    labels:
+      breeze.description: "Integration required for Great Expectations."
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST_AUTH_METHOD=password
+    volumes:
+      - greatexpectations-postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-U", "postgres", "-c", "select 1", "postgres"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    restart: "on-failure"
+
   airflow:
     environment:
       - INTEGRATION_GREATEXPECTATIONS=true
+      - POSTGRES_HOST=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  greatexpectations-postgres-db-volume:

@@ -27,8 +27,6 @@ import great_expectations as gx
 import pytest
 from sqlalchemy import create_engine, text
 
-pytest_plugins = "tests_common.pytest_plugin"
-
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -50,11 +48,12 @@ def table_name() -> str:
 
 @pytest.fixture
 def postgres_connection_string() -> str:
+    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
     pg_user = os.environ.get("POSTGRES_USER", "postgres")
     pg_pw = os.environ.get("POSTGRES_PASSWORD", "postgres")
     pg_port = os.environ.get("POSTGRES_PORT", "5432")
     pg_db = os.environ.get("POSTGRES_DB", "postgres")
-    return f"postgresql+psycopg2://{pg_user}:{pg_pw}@localhost:{pg_port}/{pg_db}"
+    return f"postgresql+psycopg2://{pg_user}:{pg_pw}@{pg_host}:{pg_port}/{pg_db}"
 
 
 @pytest.fixture

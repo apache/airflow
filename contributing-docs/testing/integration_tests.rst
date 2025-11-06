@@ -66,7 +66,7 @@ core or provider type of test.
 +-------------------+-------------------------------------------------------+
 | elasticsearch     | Integration required for Elasticsearch hooks.         |
 +-------------------+-------------------------------------------------------+
-| greatexpectations | *                                                     |
+| greatexpectations | Integration required for Great Expectations.          |
 +-------------------+-------------------------------------------------------+
 | kafka             | Integration required for Kafka hooks.                 |
 +-------------------+-------------------------------------------------------+
