@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import requests
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -132,3 +134,78 @@ class AzureAnalysisServicesHook(BaseHook):
             return (False, "Failed to obtain access token.")
         except Exception as e:
             return (False, str(e))
+
+    def _build_api_url(
+        self, server_name: str, model_name: str, region: str, refresh_id: str | None = None
+    ) -> str:
+        """Build the API URL for Azure Analysis Services."""
+        base_url = f"https://{region}.asazure.windows.net/servers/{server_name}/models/{model_name}/refreshes"
+        if refresh_id:
+            return f"{base_url}/{refresh_id}"
+        return base_url
+
+    def refresh_model(
+        self,
+        server_name: str,
+        model_name: str,
+        region: str,
+        refresh_type: str = "full",
+        commit_mode: str = "transactional",
+        max_parallelism: int | None = None,
+        retry_count: int | None = None,
+        objects: list[dict] | None = None,
+    ) -> str:
+        """
+        Trigger a refresh operation on an Azure Analysis Services model.
+
+        :param server_name: Name of the Analysis Services server
+        :param model_name: Name of the model to refresh
+        :param region: Azure region (e.g., 'westus2')
+        :param refresh_type: Type of refresh ('full', 'automatic', 'dataOnly', 'calculate', 'clearValues')
+        :param commit_mode: Commit mode ('transactional' or 'partialBatch')
+        :param max_parallelism: Maximum number of parallel threads
+        :param retry_count: Number of retries on failure
+        :param objects: List of objects to refresh (empty list means all objects)
+        :return: Refresh operation ID
+        """
+        url = self._build_api_url(server_name, model_name, region)
+        token = self._get_access_token()
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        body: dict[str, Any] = {
+            "Type": refresh_type,
+            "CommitMode": commit_mode,
+            "Objects": objects if objects is not None else [],
+        }
+
+        if max_parallelism is not None:
+            body["MaxParallelism"] = max_parallelism
+        if retry_count is not None:
+            body["RetryCount"] = retry_count
+
+        self.log.info(
+            "Triggering refresh for model '%s' on server '%s' in region '%s' with type '%s'",
+            model_name,
+            server_name,
+            region,
+            refresh_type,
+        )
+
+        response = requests.post(url, json=body, headers=headers, timeout=30)
+
+        if response.status_code == 202:
+            location = response.headers.get("Location")
+            if not location:
+                raise AirflowException("Refresh started but no Location header in response")
+
+            refresh_id = location.rstrip("/").split("/")[-1]
+            self.log.info("Refresh operation started with ID: %s", refresh_id)
+            return refresh_id
+
+        raise AirflowException(
+            f"Failed to start refresh operation. Status: {response.status_code}, Response: {response.text}"
+        )
