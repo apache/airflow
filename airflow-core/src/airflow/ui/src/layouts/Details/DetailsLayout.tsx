@@ -75,7 +75,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
-  const [versionDisplayMode, setVersionDisplayMode] = useLocalStorage<string>(
+  const [showVersionIndicatorMode, setshowVersionIndicatorMode] = useLocalStorage<string>(
     `version_display_mode-${dagId}`,
     "dag",
   );
@@ -150,10 +150,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setTriggeringUserFilter={setTriggeringUserFilter}
-                  setVersionDisplayMode={setVersionDisplayMode}
+                  setshowVersionIndicatorMode={setshowVersionIndicatorMode}
                   showGantt={showGantt}
                   triggeringUserFilter={triggeringUserFilter}
-                  versionDisplayMode={versionDisplayMode}
+                  showVersionIndicatorMode={showVersionIndicatorMode}
                 />
                 {dagView === "graph" ? (
                   <Graph />
@@ -165,7 +165,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}
-                      versionDisplayMode={versionDisplayMode}
+                      showVersionIndicatorMode={showVersionIndicatorMode}
                     />
                     {showGantt ? (
                       <Gantt

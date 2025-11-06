@@ -115,7 +115,7 @@
     "graphDirection": {
       "label": "Graph Direction"
     },
-    "versionDisplay": {
+    "showVersionIndicator": {
       "label": "Version Display",
       "options": {
         "hideAll": "Hide All",

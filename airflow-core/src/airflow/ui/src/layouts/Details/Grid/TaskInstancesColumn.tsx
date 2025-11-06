@@ -32,7 +32,7 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly runId: string;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
-  readonly versionDisplayMode?: string;
+  readonly showVersionIndicatorMode?: string;
 };
 
 export const TaskInstancesColumn = ({
@@ -41,7 +41,7 @@ export const TaskInstancesColumn = ({
   onCellClick,
   runId,
   taskInstances,
-  versionDisplayMode,
+  showVersionIndicatorMode,
 }: Props) => {
   const { dagId = "" } = useParams();
 
@@ -57,7 +57,7 @@ export const TaskInstancesColumn = ({
 
     const hasVersionChangeFlag =
       hasMixedVersions &&
-      (versionDisplayMode === "dag" || versionDisplayMode === "all") &&
+      (showVersionIndicatorMode === "dag" || showVersionIndicatorMode === "all") &&
       idx > 0 &&
       (() => {
         const prevNode = nodes[idx - 1];

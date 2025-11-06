@@ -45,7 +45,7 @@ type Props = {
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
-  readonly versionDisplayMode?: string;
+  readonly showVersionIndicatorMode?: string;
 };
 
 export const Grid = ({
@@ -54,7 +54,7 @@ export const Grid = ({
   runType,
   showGantt,
   triggeringUser,
-  versionDisplayMode,
+  showVersionIndicatorMode,
 }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
@@ -155,7 +155,7 @@ export const Grid = ({
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
-                versionDisplayMode={versionDisplayMode}
+                showVersionIndicatorMode={showVersionIndicatorMode}
               />
             ))}
           </Flex>

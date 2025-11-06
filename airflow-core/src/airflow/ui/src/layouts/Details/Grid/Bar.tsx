@@ -40,10 +40,10 @@ type Props = {
     isBundleVersionChange?: boolean;
     isDagVersionChange?: boolean;
   } & GridRunsResponse;
-  readonly versionDisplayMode?: string;
+  readonly showVersionIndicatorMode?: string;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDisplayMode }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -63,9 +63,9 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
       transition="background-color 0.2s"
     >
       {Boolean(
-        run.isBundleVersionChange && (versionDisplayMode === "bundle" || versionDisplayMode === "all"),
+        run.isBundleVersionChange && (showVersionIndicatorMode === "bundle" || showVersionIndicatorMode === "all"),
       ) && <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />}
-      {Boolean(run.isDagVersionChange && (versionDisplayMode === "dag" || versionDisplayMode === "all")) && (
+      {Boolean(run.isDagVersionChange && (showVersionIndicatorMode === "dag" || showVersionIndicatorMode === "all")) && (
         <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />
       )}
 
@@ -103,7 +103,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, versionDispla
         onCellClick={onCellClick}
         runId={run.run_id}
         taskInstances={gridTISummaries?.task_instances ?? []}
-        versionDisplayMode={versionDisplayMode}
+        showVersionIndicatorMode={showVersionIndicatorMode}
       />
     </Box>
   );
