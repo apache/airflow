@@ -99,10 +99,9 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.elements import Case
 
     from airflow.models.dag_version import DagVersion
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
