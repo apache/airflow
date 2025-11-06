@@ -21,7 +21,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
     "commands": [
         "create-minor-branch",
         "prepare-airflow-distributions",
-        "prepare-airflow-tarball",
+        "prepare-tarball",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -86,14 +86,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
-                "--tag",
             ],
         }
     ],
-    "breeze release-management prepare-airflow-tarball": [
+    "breeze release-management prepare-tarball": [
         {
-            "name": "Package flags",
-            "options": ["--version", "--distribution-name", "--tag"],
+            "name": "Tarball flags",
+            "options": ["--tarball-type", "--version"],
         }
     ],
     "breeze release-management prepare-task-sdk-distributions": [
@@ -103,7 +102,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
-                "--tag",
             ],
         }
     ],
@@ -114,7 +112,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
-                "--tag",
             ],
         }
     ],
@@ -236,7 +233,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-tag-check",
                 "--version-suffix",
                 "--distributions-list",
-                "--tag",
             ],
         }
     ],

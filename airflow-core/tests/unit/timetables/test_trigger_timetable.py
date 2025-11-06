@@ -50,7 +50,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, next_start_time",
+    ("last_automated_data_interval", "next_start_time"),
     [
         pytest.param(
             None,
@@ -88,7 +88,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, next_start_time",
+    ("last_automated_data_interval", "next_start_time"),
     [
         pytest.param(
             None,
@@ -129,7 +129,7 @@ def test_daily_delta_trigger_no_catchup_first_starts_at_next_schedule(
 
 
 @pytest.mark.parametrize(
-    "current_time, earliest, expected",
+    ("current_time", "earliest", "expected"),
     [
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
@@ -177,7 +177,7 @@ def test_hourly_cron_trigger_no_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "current_time, earliest, expected",
+    ("current_time", "earliest", "expected"),
     [
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc),
@@ -233,7 +233,7 @@ def test_hourly_delta_trigger_no_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, earliest, expected",
+    ("last_automated_data_interval", "earliest", "expected"),
     [
         pytest.param(
             DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
@@ -274,7 +274,7 @@ def test_hourly_cron_trigger_catchup_next_info(
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, earliest, expected",
+    ("last_automated_data_interval", "earliest", "expected"),
     [
         pytest.param(
             DataInterval.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=utc)),
@@ -356,7 +356,7 @@ def test_validate_success(timetable: Timetable) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, message",
+    ("timetable", "message"),
     [
         pytest.param(
             CronTriggerTimetable("0 0 1 13 0", timezone=utc),
@@ -382,7 +382,7 @@ def test_validate_failure(timetable: Timetable, message: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "timetable, data",
+    ("timetable", "data"),
     [
         pytest.param(
             HOURLY_CRON_TRIGGER_TIMETABLE,
@@ -425,7 +425,7 @@ def test_cron_trigger_serialization(timetable: CronTriggerTimetable, data: dict[
 
 
 @pytest.mark.parametrize(
-    "timetable, data",
+    ("timetable", "data"),
     [
         pytest.param(
             HOURLY_TIMEDELTA_TIMETABLE,
@@ -472,7 +472,7 @@ NEXT = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=16, hour=3))
 
 @pytest.mark.parametrize("catchup", [True, False])
 @pytest.mark.parametrize(
-    "run_immediately, current_time, correct_interval",
+    ("run_immediately", "current_time", "correct_interval"),
     [
         (True, WAY_AFTER, PREVIOUS),
         (False, JUST_AFTER, PREVIOUS),
@@ -511,7 +511,7 @@ def test_run_immediately_fast_dag(catchup):
 
 
 @pytest.mark.parametrize(
-    "start_date, expected",
+    ("start_date", "expected"),
     [
         (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1)),
         (pendulum.datetime(2025, 1, 1, minute=5), pendulum.datetime(2025, 1, 1, minute=30)),
@@ -528,7 +528,7 @@ def test_multi_run_first(start_date, expected):
 
 
 @pytest.mark.parametrize(
-    "last, expected",
+    ("last", "expected"),
     [
         (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1, minute=30)),
         (pendulum.datetime(2025, 1, 1, minute=30), pendulum.datetime(2025, 1, 1, hour=1)),
@@ -544,7 +544,7 @@ def test_multi_run_next_catchup(last, expected):
 
 
 @pytest.mark.parametrize(
-    "last, current_time, expected",
+    ("last", "current_time", "expected"),
     [
         pytest.param(
             pendulum.datetime(2025, 2, 1),
