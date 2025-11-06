@@ -96,7 +96,7 @@ export const DagVersionIndicator = ({
               visibility="hidden"
             >
               <Text
-                color={{ _dark: "black", _light: "white" }}
+                color="fg.inverted"
                 fontSize="2xs"
                 fontWeight="bold"
                 lineHeight="1"
@@ -144,7 +144,7 @@ export const DagVersionIndicator = ({
             visibility="hidden"
           >
             <Text
-              color={{ _dark: "black", _light: "white" }}
+              color="fg.inverted"
               fontSize="2xs"
               fontWeight="bold"
               lineHeight="1"
