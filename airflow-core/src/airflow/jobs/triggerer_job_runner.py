@@ -44,7 +44,6 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.jobs.queues import KeyedHeadQueue, PartitionedQueue
 from airflow.models.trigger import Trigger
-from airflow.sdk import Context
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -88,6 +87,7 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
+    from airflow.sdk import Context
     from airflow.sdk.api.client import Client
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
