@@ -268,7 +268,7 @@ class TestGitSyncSchedulerTest:
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
     @pytest.mark.parametrize(
-        "tag,expected_prefix",
+        ("tag", "expected_prefix"),
         [
             ("v3.6.7", "GIT_SYNC_"),
             ("v4.4.2", "GITSYNC_"),

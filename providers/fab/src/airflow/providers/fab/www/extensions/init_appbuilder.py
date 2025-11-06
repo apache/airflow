@@ -592,6 +592,8 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     return AirflowAppBuilder(
         app=app,
         session=settings.Session(),

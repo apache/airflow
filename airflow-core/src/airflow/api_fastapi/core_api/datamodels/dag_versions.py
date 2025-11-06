@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
@@ -41,5 +42,5 @@ class DagVersionResponse(BaseModel):
 class DAGVersionCollectionResponse(BaseModel):
     """DAG Version Collection serializer for responses."""
 
-    dag_versions: list[DagVersionResponse]
+    dag_versions: Iterable[DagVersionResponse]
     total_entries: int

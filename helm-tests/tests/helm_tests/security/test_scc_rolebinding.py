@@ -25,7 +25,7 @@ class TestSCCActivation:
     """Tests SCCs."""
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created",
+        ("rbac_enabled", "scc_enabled", "created"),
         [
             (False, False, False),
             (False, True, False),
@@ -64,7 +64,7 @@ class TestSCCActivation:
             assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-dag-processor"
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created,namespace,expected_name",
+        ("rbac_enabled", "scc_enabled", "created", "namespace", "expected_name"),
         [
             (True, True, True, "default", "default-release-name-scc-rolebinding"),
             (True, True, True, "other-ns", "other-ns-release-name-scc-rolebinding"),
@@ -91,7 +91,7 @@ class TestSCCActivation:
             assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
 
     @pytest.mark.parametrize(
-        "rbac_enabled,scc_enabled,created",
+        ("rbac_enabled", "scc_enabled", "created"),
         [
             (True, True, True),
         ],

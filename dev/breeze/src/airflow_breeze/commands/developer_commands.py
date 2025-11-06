@@ -718,7 +718,7 @@ def start_airflow(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -777,7 +777,7 @@ def build_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        docs_list_as_tuple = tuple(distributions_list.split(","))
+        docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "

@@ -31,8 +31,18 @@ from typing import TYPE_CHECKING, Any, Literal
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession as SAAsyncSession,
+    create_async_engine,
+)
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+try:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+except ImportError:
+    async_sessionmaker = sessionmaker  # type: ignore[assignment,misc]
+
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
@@ -111,15 +121,30 @@ Mapping of sync scheme to async scheme.
 :meta private:
 """
 
-engine: Engine
-Session: scoped_session
+engine: Engine | None = None
+Session: scoped_session | None = None
 # NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
 # additional precautions. The only use case is when the session lifecycle needs
 # custom handling. Most of the time we only want one unique thread local session object,
 # this is achieved by the Session factory above.
-NonScopedSession: sessionmaker
-async_engine: AsyncEngine
-AsyncSession: Callable[..., SAAsyncSession]
+NonScopedSession: sessionmaker | None = None
+async_engine: AsyncEngine | None = None
+AsyncSession: Callable[..., SAAsyncSession] | None = None
+
+
+def get_engine():
+    """Get the configured engine, raising an error if not configured."""
+    if engine is None:
+        raise RuntimeError("Engine not configured. Call configure_orm() first.")
+    return engine
+
+
+def get_session():
+    """Get the configured Session, raising an error if not configured."""
+    if Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
+    return Session
+
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json_lib
@@ -353,19 +378,22 @@ def _configure_async_session() -> None:
     this does not work well with Pytest and you can end up with issues when the
     session and runs in a different event loop from the test itself.
     """
-    global AsyncSession
-    global async_engine
+    global AsyncSession, async_engine
+
+    if not SQL_ALCHEMY_CONN_ASYNC:
+        async_engine = None
+        AsyncSession = None
+        return
 
     async_engine = create_async_engine(
         SQL_ALCHEMY_CONN_ASYNC,
         connect_args=_get_connect_args("async"),
         future=True,
     )
-    AsyncSession = sessionmaker(
+    AsyncSession = async_sessionmaker(
         bind=async_engine,
-        autocommit=False,
-        autoflush=False,
         class_=SAAsyncSession,
+        autoflush=False,
         expire_on_commit=False,
     )
 
@@ -420,6 +448,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             autoflush=False,
             expire_on_commit=False,
         )
+    if engine is None:
+        raise RuntimeError("Engine must be initialized before creating a session")
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 

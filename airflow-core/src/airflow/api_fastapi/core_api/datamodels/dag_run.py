@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -88,7 +89,7 @@ class DAGRunResponse(BaseModel):
 class DAGRunCollectionResponse(BaseModel):
     """DAG Run Collection serializer for responses."""
 
-    dag_runs: list[DAGRunResponse]
+    dag_runs: Iterable[DAGRunResponse]
     total_entries: int
 
 

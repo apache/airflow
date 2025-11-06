@@ -41,7 +41,7 @@ def get_current_task_instance_session() -> Session:
             log.warning('File: "%s", %s , in %s', filename, line_number, name)
             if line:
                 log.warning("  %s", line.strip())
-        __current_task_instance_session = settings.Session()
+        __current_task_instance_session = settings.get_session()()
     return __current_task_instance_session
 
 

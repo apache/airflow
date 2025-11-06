@@ -354,7 +354,7 @@ class TestOutletEventAccessor:
         ],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -385,7 +385,7 @@ class TestOutletEventAccessor:
         ],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -472,7 +472,7 @@ class TestTriggeringAssetEventsAccessor:
         )
 
     @pytest.mark.parametrize(
-        "key, result_indexes",
+        ("key", "result_indexes"),
         [
             (Asset("1"), [0, 1]),
             (Asset("2"), [2]),
@@ -485,7 +485,7 @@ class TestTriggeringAssetEventsAccessor:
         assert accessor[key] == expected
 
     @pytest.mark.parametrize(
-        "name, resolved_asset, result_indexes",
+        ("name", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -508,7 +508,7 @@ class TestTriggeringAssetEventsAccessor:
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
-        "uri, resolved_asset, result_indexes",
+        ("uri", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -559,7 +559,7 @@ TEST_INLETS = [TEST_ASSET, TEST_ASSET_ALIAS] + TEST_ASSET_REFS
 
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
-        "access_key, internal_key",
+        ("access_key", "internal_key"),
         (
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
@@ -578,7 +578,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        ["access_key", "asset"],
+        ("access_key", "asset"),
         (
             (Asset.ref(name="test"), Asset(name="test")),
             (Asset.ref(name="test1"), Asset(name="test1", uri="test://asset-uri")),
@@ -604,7 +604,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),
@@ -750,7 +750,7 @@ class TestInletEventAccessor:
         )
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),

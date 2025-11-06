@@ -75,7 +75,7 @@ class TestGitSyncWebserver:
         )
 
     @pytest.mark.parametrize(
-        "airflow_version, exclude_webserver",
+        ("airflow_version", "exclude_webserver"),
         [
             ("2.0.0", True),
             ("2.0.2", True),

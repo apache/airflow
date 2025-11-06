@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from airflow._shared.timezones import timezone
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
@@ -43,14 +42,10 @@ class ReadyToRescheduleDep(BaseTIDep):
         This dependency fails if the latest reschedule request's reschedule date is still
         in the future.
         """
-        from airflow.models.mappedoperator import MappedOperator
-
-        is_mapped = isinstance(ti.task, MappedOperator)
-        executor, _ = ExecutorLoader.import_default_executor_cls()
         if (
             # Mapped sensors don't have the reschedule property (it can only be calculated after unmapping),
             # so we don't check them here. They are handled below by checking TaskReschedule instead.
-            not is_mapped and not getattr(ti.task, "reschedule", False)
+            ti.map_index < 0 and not getattr(ti.task, "reschedule", False)
         ):
             yield self._passing_status(reason="Task is not in reschedule mode.")
             return
@@ -75,7 +70,7 @@ class ReadyToRescheduleDep(BaseTIDep):
         if not next_reschedule_date:
             # Because mapped sensors don't have the reschedule property, here's the last resort
             # and we need a slightly different passing reason
-            if is_mapped:
+            if ti.map_index >= 0:
                 yield self._passing_status(reason="The task is mapped and not in reschedule mode")
                 return
             yield self._passing_status(reason="There is no reschedule request for this task instance.")

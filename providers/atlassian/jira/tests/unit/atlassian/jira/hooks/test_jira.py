@@ -176,7 +176,7 @@ class TestJiraAsyncHook:
             assert mocked_function.call_args.kwargs.get("auth").password == "password"
 
     @pytest.mark.asyncio
-    async def test_create_issue_with_sucess(self, aioresponse, setup_connections):
+    async def test_create_issue_with_success(self, aioresponse, setup_connections):
         """Asserts that create issue return with success."""
         hook = JiraAsyncHook(jira_conn_id="jira_default")
         fields = {

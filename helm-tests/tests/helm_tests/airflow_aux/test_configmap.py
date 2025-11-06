@@ -48,7 +48,7 @@ class TestConfigmap:
         assert annotations.get("key-two") == "value-two"
 
     @pytest.mark.parametrize(
-        "af_version, secret_key, secret_key_name, expected",
+        ("af_version", "secret_key", "secret_key_name", "expected"),
         [
             ("3.0.0", None, None, False),
             ("2.2.0", None, None, True),
@@ -98,7 +98,7 @@ class TestConfigmap:
         assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
     @pytest.mark.parametrize(
-        "executor, af_version, should_be_created",
+        ("executor", "af_version", "should_be_created"),
         [
             ("KubernetesExecutor", "1.10.11", False),
             ("KubernetesExecutor", "1.10.12", True),
@@ -166,7 +166,7 @@ metadata:
         assert expected in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "dag_values, expected_default_dag_folder",
+        ("dag_values", "expected_default_dag_folder"),
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -203,7 +203,7 @@ metadata:
         assert expected_folder_config in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "airflow_version, enabled",
+        ("airflow_version", "enabled"),
         [
             ("2.10.4", False),
             ("3.0.0", True),
@@ -220,7 +220,7 @@ metadata:
         assert expected_line in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "airflow_version, enabled",
+        ("airflow_version", "enabled"),
         [
             ("2.10.4", False),
             ("2.10.4", True),
@@ -242,7 +242,7 @@ metadata:
         assert expected_line in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "airflow_version, base_url, execution_api_server_url, expected_execution_url",
+        ("airflow_version", "base_url", "execution_api_server_url", "expected_execution_url"),
         [
             (
                 "3.0.0",

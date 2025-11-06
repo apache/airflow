@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -109,6 +110,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskState,
     TaskStatesResult,
     ToSupervisor,
@@ -1358,6 +1360,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetTaskBreadcrumbs):
+            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,

@@ -34,7 +34,7 @@ class TestAPIServerDeployment:
     """Tests api-server deployment."""
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -384,7 +384,7 @@ class TestAPIServerDeployment:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_claim_name",
+        ("log_persistence_values", "expected_claim_name"),
         [
             ({"enabled": False}, None),
             ({"enabled": True}, "release-name-logs"),
@@ -636,7 +636,7 @@ class TestAPIServerService:
         assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
@@ -679,7 +679,7 @@ class TestAPIServerService:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             (
                 [{"nodePort": "31000", "port": "8080"}],
@@ -733,7 +733,7 @@ class TestAPIServerNetworkPolicy:
         assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 8080}]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (

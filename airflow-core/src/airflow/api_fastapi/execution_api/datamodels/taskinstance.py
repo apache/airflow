@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
@@ -353,6 +354,12 @@ class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
     task_states: dict[str, Any]
+
+
+class TaskBreadcrumbsResponse(BaseModel):
+    """Response for task breadcrumbs."""
+
+    breadcrumbs: Iterable[dict[str, Any]]
 
 
 class InactiveAssetsResponse(BaseModel):

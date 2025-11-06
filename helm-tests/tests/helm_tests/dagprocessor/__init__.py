@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-default_stages: [manual]
-default_language_version:
-  python: python311
-minimum_prek_version: '0.0.26'
-repos:
-  - repo: https://github.com/eclipse-csi/octopin
-    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
-    hooks:
-      - id: pin-versions
-        name: Pin versions of dependencies in CI workflows (manual)
-        stages: ['manual']

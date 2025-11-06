@@ -178,12 +178,16 @@ def copy_jar_to_s3(bucket: str):
             conn_type="http",
             host="https://github.com/",
         )
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
         session.add(conn)
         session.commit()
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_connection(conn_id: str):
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
         conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
         session.delete(conn_to_details)

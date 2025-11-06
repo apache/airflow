@@ -33,7 +33,7 @@ class TestKeda:
         assert docs == []
 
     @pytest.mark.parametrize(
-        "executor, is_created",
+        ("executor", "is_created"),
         [
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
@@ -113,7 +113,7 @@ class TestKeda:
         return query
 
     @pytest.mark.parametrize(
-        "executor,concurrency",
+        ("executor", "concurrency"),
         [
             ("CeleryExecutor", 8),
             ("CeleryExecutor", 16),
@@ -139,7 +139,7 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        "executor,queue,should_filter",
+        ("executor", "queue", "should_filter"),
         [
             ("CeleryExecutor", None, False),
             ("CeleryExecutor", "my_queue", False),
@@ -170,7 +170,7 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        "enabled, kind",
+        ("enabled", "kind"),
         [
             ("enabled", "StatefulSet"),
             ("not_enabled", "Deployment"),

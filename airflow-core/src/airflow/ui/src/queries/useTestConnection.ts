@@ -16,21 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 
-import { useConnectionServiceTestConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
+import { useConnectionServiceTestConnection } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
-  const queryClient = useQueryClient();
-
-  const onSuccess = async (res: ConnectionTestResponse) => {
-    await queryClient.invalidateQueries({
-      queryKey: [useConnectionServiceGetConnectionsKey],
-    });
-    setConnected(res.status);
-  };
+  const onSuccess = (res: ConnectionTestResponse) => setConnected(res.status);
 
   const onError = () => {
     setConnected(false);

@@ -24,6 +24,68 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.2 (2025-11-05)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix import error when upgrading structlog to 25.5.0+ (#57335)
+- Fix connection retrieval in ``DagProcessorManager`` for bundle initialization (#57459)
+- Fix incorrect task instance counts displayed in task group headers (#55670)
+- Fix task retry execution after tasks are killed by external signals (#55767)
+- Fix triggerer errors after Airflow 2 to 3 migration (#55884)
+- Fix tasks unable to access ``triggering_user_name`` context variable (#56193)
+- Fix outlet event extra data being empty in task instance success listener callbacks (#57031)
+- UI: Fix panel button spacing and alignment issues (#57062)
+- UI: Fix broken grid view links for tasks with retries (#57097)
+- Fix DAG processor crash when renaming DAG tag case on MySQL (#57113)
+- Fix iteration errors when using ``ObjectStoragePath`` (#57156)
+- Fix auto-refresh not working on Required Actions page (#57207)
+- Fix DAG processor crash by ignoring callbacks from other bundles (#57330)
+- Fix asset name text overflow in DAG list view (#57363)
+- Fix memory leak caused by repeated SSL context creation in API client (#57374)
+- Fix performance issues loading DAG list page with many DAGs (#57444)
+- Fix text selection jumping unexpectedly in log viewer (#57453)
+- Fix DAG documentation pane not scroll-able when content is too long (#57518)
+- Fix incorrect macro listings in template reference documentation (#57529)
+- Fix Human-In-The-Loop operators failing when using notifiers (#57551)
+- Fix n+1 query issues in XCom API endpoints (#57554)
+- Fix n+1 query issues in Event Logs API endpoint (#57558)
+- Fix n+1 query to fetch tags in the dags list page (#57570)
+- Optimize database query to prevent "Out of sort memory" errors with many DAG versions (#57042)
+- Optimize DAG list query for users with limited access (#57460)
+- Optimize dynamic DAG updates to avoid loading large serialized DAGs (#57592)
+- Reduce serialized DAG size by optimizing callback serialization in ``default_args`` (#57397)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- UI: Improve global navigation visual design, interaction, and accessibility (#57565)
+- UI: Add button to download all task logs at once (#56771)
+- UI: Add timestamp column to ``XCom`` viewer and standardize task instance columns (#57447)
+- UI: Improve highlighting of selected task instances and edges in grid view (#57560)
+- Improve retry logic by migrating from ``retryhttp`` to ``tenacity`` library (#56762)
+- Improve exception logging for task instance heartbeat failures (#57179)
+- Add ``Content-Type`` header to Task SDK API requests (#57386)
+- Log execution API server URL at task startup (#57409)
+- Reduce log noise by changing "Connection not found" from error to debug level (#57548)
+- Add ``task_display_name`` alias in event log API responses (#57609)
+- Improve Pydantic model validation strictness in serialization (#57616)
+- Fix systemd service files issues (#57231)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Improve plugin system documentation for clarity and completeness (#57068)
+- Improve clarity on api workers recommendation in docs (#57404)
+- Fix ``instance_name`` in UI docs (#57523)
+- Fix airflow macros list in template document (#57529)
+
 Airflow 3.1.1 (2025-10-27)
 --------------------------
 

@@ -53,6 +53,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatesResponse,
     TerminalStateNonSuccess,
@@ -347,6 +348,11 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
+
+    def get_task_breakcrumbs(self, dag_id: str, run_id: str) -> TaskBreadcrumbsResponse:
+        params = {"dag_id": dag_id, "run_id": run_id}
+        resp = self.client.get("task-instances/breadcrumbs", params=params)
+        return TaskBreadcrumbsResponse.model_validate_json(resp.read())
 
     def validate_inlets_and_outlets(self, id: uuid.UUID) -> InactiveAssetsResponse:
         """Validate whether there're inactive assets in inlets and outlets of a given task instance."""

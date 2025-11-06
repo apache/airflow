@@ -34,6 +34,7 @@ from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -528,7 +529,8 @@ class TestGetHITLDetailsEndpoint:
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
             "hitl_details": [expected_sample_hitl_detail_dict],
@@ -597,7 +599,8 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count

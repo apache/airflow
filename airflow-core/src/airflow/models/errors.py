@@ -39,5 +39,7 @@ class ParseImportError(Base):
 
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""
+        if self.bundle_name is None or self.filename is None:
+            raise ValueError("bundle_name and filename must not be None")
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
         return "/".join([str(bundle.path), self.filename])

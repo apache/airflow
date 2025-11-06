@@ -50,43 +50,41 @@ def next_run_assets(
     else:
         on_clause = True
 
-    events = [
-        dict(info._mapping)
-        for info in session.execute(
-            select(
-                AssetModel.id,
-                AssetModel.uri,
-                AssetModel.name,
-                func.max(AssetEvent.timestamp).label("lastUpdate"),
-                func.max(
-                    case(
-                        (AssetDagRunQueue.asset_id.is_not(None), 1),
-                        else_=0,
-                    )
-                ).label("queued"),
-            )
-            .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
-            .join(
-                AssetDagRunQueue,
-                and_(
-                    AssetDagRunQueue.asset_id == AssetModel.id,
-                    AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
-                ),
-                isouter=True,
-            )
-            .join(
-                AssetEvent,
-                and_(
-                    AssetEvent.asset_id == AssetModel.id,
-                    on_clause,
-                ),
-                isouter=True,
-            )
-            .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
-            .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
-            .order_by(AssetModel.uri)
+    query_result = session.execute(
+        select(
+            AssetModel.id,
+            AssetModel.uri,
+            AssetModel.name,
+            func.max(AssetEvent.timestamp).label("lastUpdate"),
+            func.max(
+                case(
+                    (AssetDagRunQueue.asset_id.is_not(None), 1),
+                    else_=0,
+                )
+            ).label("queued"),
         )
-    ]
+        .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
+        .join(
+            AssetDagRunQueue,
+            and_(
+                AssetDagRunQueue.asset_id == AssetModel.id,
+                AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
+            ),
+            isouter=True,
+        )
+        .join(
+            AssetEvent,
+            and_(
+                AssetEvent.asset_id == AssetModel.id,
+                on_clause,
+            ),
+            isouter=True,
+        )
+        .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
+        .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
+        .order_by(AssetModel.uri)
+    )
+    events = [dict(info._mapping) for info in query_result]
 
     for event in events:
         if not event.pop("queued", None):

@@ -426,10 +426,12 @@ Group extras
 The group extras are convenience extras. Such extra installs many optional dependencies together.
 It is not recommended to use it in production, but it is useful for CI, development and testing purposes.
 
-+-----------+------------------------------------------+---------------------------------------------------+
-| extra     | install command                          | enables                                           |
-+===========+==========================================+===================================================+
-| all       | ``pip install apache-airflow[all]``      | All optional dependencies including all providers |
-+-----------+------------------------------------------+---------------------------------------------------+
-| all-core  | ``pip install apache-airflow[all-core]`` | All optional core dependencies                    |
-+-----------+------------------------------------------+---------------------------------------------------+
++--------------+----------------------------------------------+---------------------------------------------------+
+| extra        | install command                              | enables                                           |
++==============+==============================================+===================================================+
+| all          | ``pip install apache-airflow[all]``          | All optional dependencies including all providers |
++--------------+----------------------------------------------+---------------------------------------------------+
+| all-core     | ``pip install apache-airflow[all-core]``     | All optional core dependencies                    |
++--------------+----------------------------------------------+---------------------------------------------------+
+| all-task-sdk | ``pip install apache-airflow[all-task-sdk]`` | All optional task SDK dependencies                |
++--------------+----------------------------------------------+---------------------------------------------------+

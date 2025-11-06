@@ -281,15 +281,13 @@ There is a separate prek ``pin-versions`` prek hook which is used to pin version
 GitHub Actions in the CI workflows.
 
 This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
-is also configured in a separate ``.prek-config.yaml`` file in the
-``dev`` directory as it requires Python 3.11 to run. It is not run automatically
-when you commit the code but in runs as a separate job in the CI. However, you can run it
-manually by running:
+It is not run automatically when you commit the code but in runs as a separate job in the CI.
+However, you can run it manually by running:
 
 .. code-block:: bash
 
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    prek -c dev/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
+    prek --all-files --hook-stage manual --verbose pin-versions
 
 
 Mypy checks

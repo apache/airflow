@@ -142,7 +142,7 @@ class TestIngressFlower:
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
     @pytest.mark.parametrize(
-        "global_value, flower_value, expected",
+        ("global_value", "flower_value", "expected"),
         [
             (None, None, False),
             (None, False, False),

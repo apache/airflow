@@ -87,7 +87,7 @@ class TestPublishDocsToS3:
             self.publish_docs_to_s3.get_all_eligible_docs
 
     @pytest.mark.parametrize(
-        "all_eligible_docs, doc_exists, overwrite, expected_source_dest_mapping",
+        ("all_eligible_docs", "doc_exists", "overwrite", "expected_source_dest_mapping"),
         [
             (
                 ["apache-airflow-providers-amazon", "apache-airflow-providers-google", "apache-airflow"],
@@ -194,7 +194,7 @@ class TestPublishDocsToS3:
         assert self.publish_docs_to_s3.source_dest_mapping == expected_source_dest_mapping
 
     @pytest.mark.parametrize(
-        "all_eligible_docs, doc_exists, overwrite, expected_source_dest_mapping",
+        ("all_eligible_docs", "doc_exists", "overwrite", "expected_source_dest_mapping"),
         [
             (
                 ["apache-airflow-providers-amazon", "apache-airflow-providers-google", "apache-airflow"],

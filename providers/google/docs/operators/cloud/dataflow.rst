@@ -144,14 +144,6 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :start-after: [START howto_operator_start_java_job_jar_on_gcs_deferrable]
     :end-before: [END howto_operator_start_java_job_jar_on_gcs_deferrable]
 
-Here is an example of creating and running a pipeline in Java with jar stored on local file system:
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_native_java.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_start_java_job_local_jar]
-    :end-before: [END howto_operator_start_java_job_local_jar]
-
 Here is an example of creating and running a streaming pipeline in Java with jar stored on GCS:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_java_streaming.py

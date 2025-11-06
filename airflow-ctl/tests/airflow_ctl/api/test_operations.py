@@ -128,7 +128,7 @@ class TestBaseOperations:
             client.connections.get("1")
 
     @pytest.mark.parametrize(
-        "total_entries, limit, expected_response",
+        ("total_entries", "limit", "expected_response"),
         [
             (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (

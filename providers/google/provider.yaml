@@ -127,12 +127,6 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/ads.rst
     tags: [gmp]
-  - integration-name: Google AutoML
-    external-doc-url: https://cloud.google.com/automl/
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/automl.rst
-    logo: /docs/integration-logos/Cloud-AutoML.png
-    tags: [gcp]
   - integration-name: Google BigQuery Data Transfer Service
     external-doc-url: https://cloud.google.com/bigquery/transfer/
     logo: /docs/integration-logos/BigQuery.png
@@ -473,9 +467,6 @@ operators:
   - integration-name: Google Cloud AlloyDB
     python-modules:
       - airflow.providers.google.cloud.operators.alloy_db
-  - integration-name: Google AutoML
-    python-modules:
-      - airflow.providers.google.cloud.operators.automl
   - integration-name: Google BigQuery
     python-modules:
       - airflow.providers.google.cloud.operators.bigquery
@@ -539,9 +530,6 @@ operators:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.operators.kubernetes_engine
-  - integration-name: Google Machine Learning Engine
-    python-modules:
-      - airflow.providers.google.cloud.operators.mlengine
   - integration-name: Google Cloud Natural Language
     python-modules:
       - airflow.providers.google.cloud.operators.natural_language
@@ -729,9 +717,6 @@ hooks:
   - integration-name: Google Ads
     python-modules:
       - airflow.providers.google.ads.hooks.ads
-  - integration-name: Google AutoML
-    python-modules:
-      - airflow.providers.google.cloud.hooks.automl
   - integration-name: Google BigQuery
     python-modules:
       - airflow.providers.google.cloud.hooks.bigquery

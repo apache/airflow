@@ -82,6 +82,7 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
         "workers": num_workers,
         "timeout_keep_alive": worker_timeout,
         "timeout_graceful_shutdown": worker_timeout,
+        "timeout_worker_healthcheck": worker_timeout,
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
         "access_log": True,

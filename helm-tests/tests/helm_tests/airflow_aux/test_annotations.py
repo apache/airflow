@@ -38,7 +38,7 @@ class TestServiceAccountAnnotations:
     """Tests Service Account Annotations."""
 
     @pytest.mark.parametrize(
-        "values,show_only,expected_annotations",
+        ("values", "show_only", "expected_annotations"),
         [
             (
                 {
@@ -350,7 +350,7 @@ class TestServiceAccountAnnotations:
 
 
 @pytest.mark.parametrize(
-    "values,show_only,expected_annotations",
+    ("values", "show_only", "expected_annotations"),
     [
         (
             {

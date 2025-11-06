@@ -76,6 +76,6 @@ def list_dag_warnings(
     dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=list(dag_warnings),
+        dag_warnings=dag_warnings,
         total_entries=total_entries,
     )

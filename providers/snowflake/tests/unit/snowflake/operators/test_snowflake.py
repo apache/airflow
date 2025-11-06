@@ -187,7 +187,7 @@ class TestSnowflakeIntervalCheckOperator:
 
 
 @pytest.mark.parametrize(
-    "operator_class, kwargs",
+    ("operator_class", "kwargs"),
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
         (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
@@ -342,7 +342,7 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(context=None)
 
     @pytest.mark.parametrize(
-        "mock_sql, statement_count",
+        ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")

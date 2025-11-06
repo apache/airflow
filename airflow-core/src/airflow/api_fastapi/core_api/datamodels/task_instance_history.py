@@ -31,7 +31,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import BaseHITLDetail
 from airflow.utils.state import TaskInstanceState
 
 
-class HITLDetailHisotry(BaseHITLDetail):
+class HITLDetailHistory(BaseHITLDetail):
     """Schema for Human-in-the-loop detail history."""
 
 
@@ -67,7 +67,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
-    hitl_detail: HITLDetailHisotry | None
+    hitl_detail: HITLDetailHistory | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

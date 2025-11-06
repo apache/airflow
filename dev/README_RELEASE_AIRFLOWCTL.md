@@ -153,9 +153,25 @@ git push apache --tags "airflow-ctl/${VERSION_RC}"
 * Release candidate packages:
 
 ```shell script
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION_RC}
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --tag "airflow-ctl/${VERSION_RC}"
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}"
 ```
+
+The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
+will be done in a docker container.  However, if you have  `hatch` installed locally you can use
+`--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
+
+
+```shell script
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --use-local-hatch --tag "airflow-ctl/${VERSION_RC}"
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}"
+```
+
+
+The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
+reproducible `.whl`, `.tar.gz` packages in the dist folder.
+The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
 
 * Sign all your packages
 
@@ -478,15 +494,13 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION}
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --tag ${VERSION}
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}
-cd airflow-ctl
+cd ${PATH_TO_SVN}/airflow-ctl
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -504,58 +518,63 @@ You should see output similar to:
 apache_airflow_airflow_ctl-1.0.0.tar.gz:No diff found
 ```
 
-### Licences check
+### Licence check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
-  the jar is inside)
-* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
-* Enter the sources folder run the check
+Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you:
 
 ```shell script
-# Get rat if you do not have it
-if command -v wget >/dev/null 2>&1; then
-    echo "Using wget to download Apache RAT..."
-    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
-else
-    echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
-    exit 1
-fi
-# Cleanup old folders (if needed)
-find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
-cat /tmp/files.txt | xargs rm -rf
-# Unpack all source packages
-for i in *source.tar.gz
-do
-   tar -xvzf $i
-done
-# Generate list of unpacked packages
-find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
-# Check licences
-for d in $(cat /tmp/files.txt | sort)
-do
-  pushd $d 2>&1 >/dev/null
-  echo "Checking licences for $d"
-  java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes .  2>/dev/null | grep '! '
-  popd 2>&1 >/dev/null
-done
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
 ```
 
-You should see output similar to:
-
-```
-Checking licences for ./apache_airflow_airflow_ctl-1.0.0
-...
-```
-
-You will see there files that are considered problematic by RAT tool (RAT prints such files preceding them with "! ").
-
-Cleanup:
+Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-cat /tmp/files.txt | xargs rm -rf
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
+
+Run the check:
+
+```shell script
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+```
+
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
+
+```
+INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
+```
+
 
 ### Signature check
 

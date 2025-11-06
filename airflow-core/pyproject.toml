@@ -84,6 +84,7 @@ dependencies = [
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
+    "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -178,16 +179,11 @@ dependencies = [
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
 ]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
-]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]

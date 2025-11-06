@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, Field, NonNegativeInt
@@ -57,7 +58,7 @@ class BackfillResponse(BaseModel):
 class BackfillCollectionResponse(BaseModel):
     """Backfill Collection serializer for responses."""
 
-    backfills: list[BackfillResponse]
+    backfills: Iterable[BackfillResponse]
     total_entries: int
 
 

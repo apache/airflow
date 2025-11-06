@@ -127,7 +127,7 @@ def test_get_suspended_provider_folders():
 
 
 @pytest.mark.parametrize(
-    "short_packages, filters, long_packages",
+    ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
@@ -155,7 +155,7 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 @pytest.mark.parametrize(
-    "provider_id, pip_package_name",
+    ("provider_id", "pip_package_name"),
     [
         ("asana", "apache-airflow-providers-asana"),
         ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
@@ -166,7 +166,7 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, expected_package_name",
+    ("provider_id", "expected_package_name"),
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
@@ -177,7 +177,7 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
 
 
 @pytest.mark.parametrize(
-    "requirement_string, expected",
+    ("requirement_string", "expected"),
     [
         pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
         pytest.param(
@@ -217,7 +217,7 @@ def test_parse_pip_requirements_parse(requirement_string: str, expected: tuple[s
 
 
 @pytest.mark.parametrize(
-    "requirements, markdown, table",
+    ("requirements", "markdown", "table"),
     [
         (
             ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
@@ -253,7 +253,7 @@ def test_validate_provider_info_with_schema():
 
 
 @pytest.mark.parametrize(
-    "provider_id, min_version",
+    ("provider_id", "min_version"),
     [
         ("amazon", "2.10.0"),
         ("fab", "3.0.2"),
@@ -348,7 +348,7 @@ def _check_dependencies_modified_properly(
 
 
 @pytest.mark.parametrize(
-    "provider_id, version_suffix, floored_version_suffix",
+    ("provider_id", "version_suffix", "floored_version_suffix"),
     [
         ("google", ".dev0", ".dev0"),
         ("google", ".dev1", ".dev0"),
@@ -402,7 +402,7 @@ AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / 
 
 
 @pytest.mark.parametrize(
-    "distributions,  init_file_path, version_suffix, floored_version_suffix",
+    ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev0", ".dev0"),
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev1+testversion34", ".dev0"),

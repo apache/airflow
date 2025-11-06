@@ -103,9 +103,15 @@ def create_docker(txt: str):
     )
 
 
-def check_providers(files: list[str]):
+def check_providers(files: list[str], release_date: str):
     print("Checking providers from packages.txt:\n")
     missing_list = []
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_providers-{release_date}-source.tar.gz",
+        ]
+    )
+    missing_list.extend(check_all_files(expected_files=expected_files, actual_files=files))
     for name, version in get_packages():
         print(f"Checking {name} {version}")
         version = strip_rc_suffix(version)
@@ -229,11 +235,18 @@ def cli():
 
 @click.command()
 @path_option
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @click.pass_context
-def providers(ctx, path: str):
+def providers(ctx, path: str, release_date: str):
     files = os.listdir(os.path.join(path, "providers"))
     pips = [f"{name}=={version}" for name, version in get_packages()]
-    missing_files = check_providers(files)
+    missing_files = check_providers(files, release_date)
     create_docker(
         PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips))
     )
