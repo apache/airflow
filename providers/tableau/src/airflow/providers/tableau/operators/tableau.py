@@ -122,7 +122,13 @@ class TableauOperator(BaseOperator):
             if self.resource == "tasks" and self.method == "run":
                 task_item = resource.get_by_id(resource_id)
                 response = method(task_item)
-                job_item = JobItem.from_response(response, tableau_hook.server.namespace)[0]
+                job_items = JobItem.from_response(response, tableau_hook.server.namespace)
+                if not isinstance(job_items, list) or not len(job_items):
+                    self.log.error(
+                        "Failed to parse Tableau API response. Expected a list of JobItem, got: %s", job_items
+                    )
+                    raise AirflowException("Unexpected API response")
+                job_item = job_items[0]
             else:
                 job_item = method(resource_id)
 
