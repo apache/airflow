@@ -30,6 +30,7 @@ V = TypeVar("V")
 class KeyedHeadQueue(Generic[K, V]):
     """
     A keyed queue where:
+
       - `popleft()` returns only the *first value* per key (in insertion order of keys).
       - Once a key's first value is popped, that key will never yield in `popleft()` again.
       - Remaining values for consumed keys are preserved.
@@ -80,6 +81,7 @@ class KeyedHeadQueue(Generic[K, V]):
     def popleft(self) -> tuple[K, V]:
         """
         Pop the *first inserted value* for the next key in order.
+
         Raises IndexError if all first values have been popped.
         """
         with self._lock:
@@ -95,6 +97,7 @@ class KeyedHeadQueue(Generic[K, V]):
     def popall(self) -> tuple[K, list[tuple[K, V]]]:
         """
         Pop all values for the first unconsumed key (in insertion order).
+
         Marks the key as consumed.
         Raises IndexError if no keys remain.
         """
@@ -111,25 +114,18 @@ class KeyedHeadQueue(Generic[K, V]):
         return key in self._map
 
     def __iter__(self) -> Iterable[tuple[K, V]]:
-        """
-        Iterate over leftover (key, value) pairs in a snapshot,
-        so concurrent appends during iteration are not visible.
-        """
+        """Iterate over leftover (key, value) pairs in a snapshot, so concurrent appends during iteration are not visible."""
         for key, values in self._map.items():
             for value in values:
                 yield key, value
 
     def __len__(self) -> int:
-        """
-        Count remaining values available.
-        """
+        """Count remaining values available."""
         with self._lock:
             return sum(len(value) for value in self.__map.values())
 
     def __bool__(self) -> bool:
-        """
-        Count of keys that still have their first value available.
-        """
+        """Count of keys that still have their first value available."""
         with self._lock:
             if not sum(1 for key in self.__map if key not in self.__popped_keys) > 0:
                 self.__popped_keys.clear()
@@ -145,6 +141,7 @@ class KeyedHeadQueue(Generic[K, V]):
 class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[tuple[K, V]]]):
     """
     Dict-like container where each key maps to an asyncio.Queue.
+
     Tracks sizes safely for concurrent access.
     Provides put(item) and popleft().
     Uses a total counter to make __bool__ O(1).
