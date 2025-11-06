@@ -21,7 +21,7 @@ from asyncio import Lock as AsyncLock, Queue
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import Iterable
 from threading import Lock
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 K = TypeVar("K")
 V = TypeVar("V")
