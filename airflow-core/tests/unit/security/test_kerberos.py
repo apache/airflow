@@ -32,6 +32,12 @@ pytestmark = pytest.mark.db_test
 
 
 class TestKerberos:
+    @pytest.fixture(autouse=True)
+    def fresh_detect_conf_var(self):
+        """Clear cache of kerberos detection function."""
+        detect_conf_var.cache_clear()
+        return None
+
     @pytest.mark.parametrize(
         ("kerberos_config", "expected_cmd"),
         [
@@ -92,7 +98,6 @@ class TestKerberos:
         expected_cmd_text = " ".join(shlex.quote(f) for f in expected_cmd)
 
         with conf_vars(kerberos_config), caplog.at_level(logging.INFO, logger=kerberos.log.name):
-            detect_conf_var.cache_clear()
             caplog.clear()
             mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
             mock_subprocess.call.return_value = 0
@@ -126,7 +131,6 @@ class TestKerberos:
         mock_subprocess.call.return_value = 0
 
         with caplog.at_level(logging.INFO, logger=kerberos.log.name):
-            detect_conf_var.cache_clear()
             caplog.clear()
             renew_from_kt(principal="test-principal", keytab="keytab")
             assert caplog.messages == [
@@ -167,7 +171,6 @@ class TestKerberos:
         mock_subp.stdout = mock.MagicMock(name="stdout", **{"readlines.return_value": ["STDOUT"]})
         mock_subp.stderr = mock.MagicMock(name="stderr", **{"readlines.return_value": ["STDERR"]})
 
-        detect_conf_var.cache_clear()
         caplog.clear()
         with pytest.raises(SystemExit) as ctx:
             renew_from_kt(principal="test-principal", keytab="keytab")
@@ -216,7 +219,6 @@ class TestKerberos:
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 1
 
-        detect_conf_var.cache_clear()
         caplog.clear()
         with pytest.raises(SystemExit) as ctx:
             renew_from_kt(principal="test-principal", keytab="keytab")
