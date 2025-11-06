@@ -201,7 +201,7 @@ class RunTrigger(BaseModel):
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
 
     dag_data: dict | None = None
-    """Serialized DAG model in dict format so it can be deserialized in trigger subprocess."""
+    """Serialized Dag model in dict format so it can be deserialized in trigger subprocess."""
 
 
 All = Annotated[
