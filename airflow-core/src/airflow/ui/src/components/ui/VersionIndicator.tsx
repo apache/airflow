@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { FiGitCommit } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
+
+import { Tooltip } from "src/components/ui";
 
 export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <Box
-      color="orange.fg"
-      left={-2}
-      position="absolute"
-      title={`${translate("versionDetails.bundleVersion")}: ${bundleVersion}`}
-      top={93}
-      zIndex={1}
-    >
-      <FiGitCommit size="15px" />
-    </Box>
+    <Tooltip content={`${translate("versionDetails.bundleVersion")}: ${bundleVersion}`}>
+      <Box
+        color="orange.fg"
+        left={-2}
+        position="absolute"
+        top={93}
+        zIndex={1}
+      >
+        <FiGitCommit size="15px" />
+      </Box>
+    </Tooltip>
   );
 };
 
@@ -61,13 +64,13 @@ export const DagVersionIndicator = ({
         <>
           <Box bg="orange.focusRing" height="full" position="absolute" width={0.5} />
 
-          <Box
-            _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
-            left="50%"
-            position="absolute"
-            top={-2}
-            transform="translateX(-50%)"
-            zIndex="tooltip"
+          <Tooltip
+            content={
+              `v${dagVersionNumber ?? ""}`
+            }
+            positioning={{
+              placement: "top",
+            }}
           >
             <Box
               _hover={{
@@ -77,44 +80,23 @@ export const DagVersionIndicator = ({
               bg="orange.focusRing"
               borderRadius="full"
               height={2}
+              left="50%"
+              position="absolute"
+              top={-2}
+              transform="translateX(-50%)"
               transition="all 0.2s"
               width={2}
             />
-            <Box
-              bg="orange.focusRing"
-              borderRadius="full"
-              className="version-tooltip"
-              left="50%"
-              opacity={0}
-              pointerEvents="none"
-              position="absolute"
-              px={0.5}
-              py={0.5}
-              top={-0.5}
-              transform="translateX(-50%)"
-              transition="all 0.2s"
-              visibility="hidden"
-            >
-              <Text
-                color="fg.inverted"
-                fontSize="2xs"
-                fontWeight="bold"
-                lineHeight="1"
-                whiteSpace="nowrap"
-              >
-                {`v${dagVersionNumber ?? ""}`}
-              </Text>
-            </Box>
-          </Box>
+          </Tooltip>
         </>
       ) : (
-        <Box
-          _hover={{ "& > .version-tooltip": { opacity: 1, visibility: "visible" } }}
-          left="50%"
-          position="absolute"
-          top={-1.5}
-          transform="translateX(-50%)"
-          zIndex="tooltip"
+        <Tooltip
+          content={
+              `v${dagVersionNumber ?? ""}`
+          }
+          positioning={{
+            placement: "right",
+          }}
         >
           <Box
             _hover={{
@@ -124,36 +106,15 @@ export const DagVersionIndicator = ({
             color="orange.fg"
             display="flex"
             justifyContent="center"
+            left="50%"
+            position="absolute"
+            top={-1.5}
+            transform="translateX(-50%)"
             transition="all 0.2s"
           >
             <FiGitCommit size="15px" />
           </Box>
-          <Box
-            bg="orange.focusRing"
-            borderRadius="full"
-            className="version-tooltip"
-            left="50%"
-            opacity={0}
-            pointerEvents="none"
-            position="absolute"
-            px={0.5}
-            py={0.5}
-            top={0.5}
-            transform="translateX(-50%)"
-            transition="all 0.2s"
-            visibility="hidden"
-          >
-            <Text
-              color="fg.inverted"
-              fontSize="2xs"
-              fontWeight="bold"
-              lineHeight="1"
-              whiteSpace="nowrap"
-            >
-              {`v${dagVersionNumber ?? ""}`}
-            </Text>
-          </Box>
-        </Box>
+        </Tooltip>
       )}
     </Box>
   );
