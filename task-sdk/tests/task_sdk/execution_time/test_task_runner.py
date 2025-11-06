@@ -182,8 +182,57 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
     assert ti.task
     assert ti.task.dag
-    assert isinstance(ti.task, BaseOperator)
-    assert isinstance(ti.task.dag, DAG)
+
+
+@mock.patch("airflow.dag_processing.dagbag.DagBag")
+def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+    """Test that checks that the dagbag is constructed as expected during parsing"""
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        parse(what, mock.Mock())
+
+    mock_dagbag.assert_called_once_with(
+        dag_folder=mock.ANY,
+        include_examples=False,
+        safe_mode=False,
+        load_op_links=False,
+        bundle_name="my-bundle",
+    )
 
 
 @pytest.mark.parametrize(
@@ -554,6 +603,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.task is ti.get_template_context()["task"], "task in context should be updated too"
     assert ti.state == TaskInstanceState.SUCCESS
 
     mock_supervisor_comms.send.assert_any_call(
@@ -568,7 +618,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
 
 
 @pytest.mark.parametrize(
-    ["task_params", "expected_rendered_fields"],
+    ("task_params", "expected_rendered_fields"),
     [
         pytest.param(
             {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -810,7 +860,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
 
 
 @pytest.mark.parametrize(
-    ["command", "rendered_command"],
+    ("command", "rendered_command"),
     [
         ("{{ task.task_id }}", "templated_task"),
         ("{{ run_id }}", "c"),
@@ -863,7 +913,7 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
 
 @pytest.mark.parametrize(
-    ["dag_id", "task_id", "fail_with_exception"],
+    ("dag_id", "task_id", "fail_with_exception"),
     [
         pytest.param(
             "basic_failed", "fail-exception", AirflowFailException("Oops. Failing by AirflowFailException!")
@@ -953,7 +1003,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
 
 
 @pytest.mark.parametrize(
-    ["task_outlets", "expected_msg"],
+    ("task_outlets", "expected_msg"),
     [
         pytest.param(
             [Asset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -1149,6 +1199,28 @@ def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_sup
     assert ti.rendered_map_index == "Hello! test_run"
 
 
+def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_supervisor_comms):
+    """Test that rendered_map_index is rendered and potentially updated after execution."""
+
+    def test_function(ti):
+        # Simulate setting a context variable during execution
+        ti.xcom_push(key="execution_result", value="completed")
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+        map_index_template="Label: {{ task.task_id }}",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_progressive_map_index")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    # Verify that rendered_map_index is set (existing behavior)
+    assert ti.rendered_map_index == "Label: test_task"
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
@@ -1336,7 +1408,7 @@ class TestRuntimeTaskInstance:
         assert result == "Task: test_template_render -> test_template_render_task"
 
     @pytest.mark.parametrize(
-        ["content", "expected_output"],
+        ("content", "expected_output"),
         [
             ('{{ conn.get("a_connection").host }}', "hostvalue"),
             ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
@@ -1374,7 +1446,7 @@ class TestRuntimeTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
-        ["accessor_type", "var_value", "expected_value"],
+        ("accessor_type", "var_value", "expected_value"),
         [
             pytest.param("value", "test_value", "test_value"),
             pytest.param(
@@ -1525,7 +1597,7 @@ class TestRuntimeTaskInstance:
                     )
 
     @pytest.mark.parametrize(
-        "task_ids, map_indexes, expected_value",
+        ("task_ids", "map_indexes", "expected_value"),
         [
             pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
             pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
@@ -1744,7 +1816,7 @@ class TestRuntimeTaskInstance:
             )
 
     @pytest.mark.parametrize(
-        ["cmd", "rendered_cmd"],
+        ("cmd", "rendered_cmd"),
         [
             pytest.param("echo 'hi'", "echo 'hi'", id="no_template_fields"),
             pytest.param(SET_DURING_EXECUTION, SET_DURING_EXECUTION.serialize(), id="with_default"),
@@ -1778,7 +1850,7 @@ class TestRuntimeTaskInstance:
         )
 
     @pytest.mark.parametrize(
-        ["task_reschedule_count", "expected_date"],
+        ("task_reschedule_count", "expected_date"),
         [
             (
                 0,
@@ -2010,7 +2082,7 @@ class TestRuntimeTaskInstance:
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
-        ["do_xcom_push", "should_push_xcom", "expected_xcom_value"],
+        ("do_xcom_push", "should_push_xcom", "expected_xcom_value"),
         [
             pytest.param(False, False, None, id="do_xcom_push_false"),
             pytest.param(True, True, "Hello World!", id="do_xcom_push_true"),
@@ -2780,7 +2852,7 @@ class TestTaskRunnerCallsCallbacks:
         raise self._Failure("sorry!")
 
     @pytest.mark.parametrize(
-        "execute_impl, should_retry, expected_state, expected_results",
+        ("execute_impl", "should_retry", "expected_state", "expected_results"),
         [
             pytest.param(
                 _execute_success,
@@ -2851,7 +2923,7 @@ class TestTaskRunnerCallsCallbacks:
         assert collected_results == expected_results
 
     @pytest.mark.parametrize(
-        ["base_url", "expected_url"],
+        ("base_url", "expected_url"),
         [
             ("http://localhost:8080/", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
             ("http://localhost:8080", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
@@ -3003,7 +3075,14 @@ class TestTaskRunnerCallsCallbacks:
         )
 
     @pytest.mark.parametrize(
-        "callback_to_test, execute_impl, should_retry, expected_state, expected_results, extra_exceptions",
+        (
+            "callback_to_test",
+            "execute_impl",
+            "should_retry",
+            "expected_state",
+            "expected_results",
+            "extra_exceptions",
+        ),
         [
             pytest.param(
                 "on_success_callback",
@@ -3159,7 +3238,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["skip_when_already_exists", "expected_state"],
+        ("skip_when_already_exists", "expected_state"),
         [
             (True, TaskInstanceState.SKIPPED),
             (False, TaskInstanceState.FAILED),
@@ -3200,7 +3279,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["allowed_states", "failed_states", "target_dr_state", "expected_task_state"],
+        ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
             (None, None, DagRunState.FAILED, TaskInstanceState.FAILED),
             (None, None, DagRunState.SUCCESS, TaskInstanceState.SUCCESS),
@@ -3294,7 +3373,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["allowed_states", "failed_states", "intermediate_state"],
+        ("allowed_states", "failed_states", "intermediate_state"),
         [
             ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
         ],

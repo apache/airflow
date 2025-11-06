@@ -1800,6 +1800,7 @@ class TestAwsS3Hook:
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_01.py", Body=b"test data")
         s3_client.put_object(Bucket=s3_bucket, Key="dag_02.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/", Body=b"")
         s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_a.py", Body=b"test data")
         s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_b.py", Body=b"test data")
 

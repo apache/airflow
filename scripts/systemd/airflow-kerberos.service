@@ -26,7 +26,7 @@ EnvironmentFile=/etc/sysconfig/airflow
 User=airflow
 Group=airflow
 Type=simple
-ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && kerberos'
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow kerberos'
 Restart=on-failure
 RestartSec=5s
 

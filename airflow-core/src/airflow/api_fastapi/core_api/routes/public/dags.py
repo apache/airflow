@@ -137,6 +137,7 @@ def get_dags(
             last_dag_run_state,
         ],
         order_by=order_by,
+        dag_ids=readable_dags_filter.value,
     )
 
     dags_select, total_entries = paginated_select(
@@ -188,7 +189,7 @@ def get_dag(
 ) -> DAGResponse:
     """Get basic information about a DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    dag_model: DagModel = session.get(DagModel, dag_id)
+    dag_model = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
@@ -215,7 +216,7 @@ def get_dag_details(
     """Get details of DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    dag_model: DagModel = session.get(DagModel, dag_id)
+    dag_model = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 

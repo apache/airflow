@@ -19,16 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from airflow.providers.sftp.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import TaskDecorator, get_unique_task_id, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        TaskDecorator,
-        get_unique_task_id,
-        task_decorator_factory,
-    )
+from airflow.providers.common.compat.sdk import TaskDecorator, get_unique_task_id, task_decorator_factory
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 

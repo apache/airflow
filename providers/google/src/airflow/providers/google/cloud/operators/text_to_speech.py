@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):

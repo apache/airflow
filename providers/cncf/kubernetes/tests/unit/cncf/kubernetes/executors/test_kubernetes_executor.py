@@ -1188,7 +1188,7 @@ class TestKubernetesExecutor:
             ],
             any_order=True,
         )
-        assert executor.running == expected_running_ti_keys
+        assert {k8s_res.key for k8s_res in executor.completed} == expected_running_ti_keys
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
@@ -1257,7 +1257,7 @@ class TestKubernetesExecutor:
         """
         This verifies legacy behavior.  Remove when removing ``cleanup_stuck_queued_tasks``.
 
-        It's expected that that method, ``cleanup_stuck_queued_tasks`` will patch the pod
+        It's expected that method, ``cleanup_stuck_queued_tasks`` will patch the pod
         such that it is ignored by watcher, delete the pod, remove from running set, and
         fail the task.
 
@@ -1311,7 +1311,7 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     def test_revoke_task(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
         """
-        It's expected that that ``revoke_tasks`` will patch the pod
+        It's expected that ``revoke_tasks`` will patch the pod
         such that it is ignored by watcher, delete the pod and remove from running set.
         """
         mock_kube_client = mock.MagicMock()

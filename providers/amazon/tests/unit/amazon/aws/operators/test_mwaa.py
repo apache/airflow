@@ -85,6 +85,7 @@ class TestMwaaTriggerDagRunOperator:
                 "conf": OP_KWARGS["conf"],
                 "note": OP_KWARGS["note"],
             },
+            airflow_version=None,
         )
         assert op_ret_val == HOOK_RETURN_VALUE
 
@@ -93,7 +94,7 @@ class TestMwaaTriggerDagRunOperator:
         validate_template_fields(operator)
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

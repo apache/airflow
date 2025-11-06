@@ -46,6 +46,8 @@ from airflow.sdk.log import mask_secret
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from pydantic.types import JsonValue
+
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
@@ -354,6 +356,9 @@ class ConnectionAccessor:
         # All instances of ConnectionAccessor are equal since it is a stateless dynamic accessor
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
         from airflow.exceptions import AirflowNotFoundException
 
@@ -378,6 +383,9 @@ class VariableAccessor:
             return False
         # All instances of VariableAccessor are equal since it is a stateless dynamic accessor
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
@@ -414,6 +422,9 @@ class MacrosAccessor:
         if not isinstance(other, MacrosAccessor):
             return False
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
 
 class _AssetRefResolutionMixin:
@@ -471,10 +482,10 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
+    extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset | AssetRef, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
         if not isinstance(self.key, AssetAliasUniqueKey):
             return

@@ -26,7 +26,7 @@ from airflowctl.ctl.commands import config_command
 from airflowctl.ctl.commands.config_command import ConfigChange, ConfigParameter
 
 
-class TestCliConfigLint:
+class TestCliConfigCommands:
     parser = cli_parser.get_parser()
 
     @patch("rich.print")

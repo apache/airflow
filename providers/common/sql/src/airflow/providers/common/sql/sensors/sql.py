@@ -21,11 +21,11 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook, BaseSensorOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook, BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SqlSensor(BaseSensorOperator):

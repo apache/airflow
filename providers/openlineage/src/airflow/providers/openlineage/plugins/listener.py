@@ -29,6 +29,7 @@ from openlineage.client.serde import Serde
 from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
+from airflow.providers.common.compat.sdk import timeout, timezone
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
@@ -48,14 +49,14 @@ from airflow.providers.openlineage.utils.utils import (
     is_selective_lineage_enabled,
     print_warning,
 )
-from airflow.providers.openlineage.version_compat import timeout, timezone
 from airflow.settings import configure_orm
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.settings import Session
 
 if sys.platform == "darwin":
     from setproctitle import getproctitle
