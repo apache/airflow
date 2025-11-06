@@ -58,9 +58,7 @@ class DBDagBag:
     def get_dag_model(self, version_id: str, session: Session) -> SerializedDagModel | None:
         if not (serdag := self._dags.get(version_id)):
             dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-            if not dag_version:
-                return None
-            if not (serdag := dag_version.serialized_dag):
+            if not dag_version or not (serdag := dag_version.serialized_dag):
                 return None
         self._read_dag(serdag)
         return serdag
