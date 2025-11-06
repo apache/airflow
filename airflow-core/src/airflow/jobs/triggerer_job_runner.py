@@ -691,9 +691,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                workload = create_workload(new_trigger_orm, session=session)
-
-                if workload:
+                if workload := create_workload(new_trigger_orm, session=session):
                     to_create.append(workload)
 
             self.creating_triggers.extend(to_create)
