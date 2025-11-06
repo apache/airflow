@@ -100,7 +100,7 @@ class TestCallback:
     def test_get_metric_info(self):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
         callback.data["kwargs"] = {"context": {"dag_id": TEST_DAG_ID}, "email": "test@example.com"}
-        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS.value, "0")
 
         assert metric_info["stat"] == "deadline_alerts.callback_success"
         assert metric_info["tags"] == {
