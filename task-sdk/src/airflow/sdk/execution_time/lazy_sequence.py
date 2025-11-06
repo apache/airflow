@@ -48,7 +48,7 @@ class LazyXComIterator(Iterator[T]):
     seq: LazyXComSequence[T]
     index: int = 0
     dir: Literal[1, -1] = 1
-    _buffer = deque()
+    _buffer: deque[T] = attrs.field(factory=deque, init=False)
 
     def __next__(self) -> T:
         if self.index < 0:
@@ -57,7 +57,7 @@ class LazyXComIterator(Iterator[T]):
 
         # If the buffer is empty, fetch the next chunk
         if not self._buffer:
-            chunk = list(self.seq[self.index: self.index + lazy_xcom_prefetch_size])
+            chunk = list(self.seq[self.index : self.index + lazy_xcom_prefetch_size])
             if not chunk:
                 raise StopIteration()
             self._buffer.extend(chunk)
