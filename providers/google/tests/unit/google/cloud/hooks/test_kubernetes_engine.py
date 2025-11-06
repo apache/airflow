@@ -393,7 +393,7 @@ class TestGKEHook:
         assert operation_mock.call_count == 2
 
     @pytest.mark.parametrize(
-        "cluster_obj, expected_result",
+        ("cluster_obj", "expected_result"),
         [
             (CLUSTER_TEST_AUTOPROVISIONING, True),
             (CLUSTER_TEST_AUTOSCALED, True),
@@ -451,7 +451,7 @@ class TestGKEKubernetesHookDeployments:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "api_client, expected_client",
+        ("api_client", "expected_client"),
         [
             (None, mock.MagicMock()),
             (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
@@ -629,7 +629,7 @@ class TestGKEKubernetesHookPod:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "disable_tcp_keepalive, expected",
+        ("disable_tcp_keepalive", "expected"),
         (
             (True, False),
             (None, True),
