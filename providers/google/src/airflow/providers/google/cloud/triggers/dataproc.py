@@ -302,7 +302,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if not self.task_instance:
-            raise AirflowException(f"TaskInstance not set on {self.__class__.__name__}!")
+            raise RuntimeError(f"TaskInstance not set on {self.__class__.__name__}!")
 
         if not isinstance(self.task_instance, RuntimeTaskInstance):
             task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
