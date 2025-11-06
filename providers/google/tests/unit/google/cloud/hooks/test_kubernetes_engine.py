@@ -531,7 +531,7 @@ class TestGKEKubernetesAsyncHook:
         caplog.set_level(logging.INFO)
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
-        await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
+        logs = await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
         get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
@@ -539,9 +539,11 @@ class TestGKEKubernetesAsyncHook:
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
+            container_name=None,
+            since_seconds=None,
         )
-        assert "Test string #1" in caplog.text
-        assert "Test string #2" in caplog.text
+        assert "Test string #1" in logs
+        assert "Test string #2" in logs
 
 
 @pytest_asyncio.fixture
