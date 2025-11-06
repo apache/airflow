@@ -198,7 +198,7 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
@@ -311,7 +311,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
@@ -369,7 +369,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
@@ -484,7 +484,7 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
@@ -542,7 +542,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
@@ -658,7 +658,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
@@ -831,7 +831,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, build_ol_id, 
         )
     )
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
@@ -998,7 +998,7 @@ def test_emit_dag_complete_event(
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
@@ -1169,7 +1169,7 @@ def test_emit_dag_failed_event(
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
 
 
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
@@ -1184,7 +1184,7 @@ def test_openlineage_adapter_stats_emit_failed(
 
     adapter.emit(MagicMock())
 
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    mock_stats_timer.assert_called_with("ol.emit.attempts", tags={"event_type": ANY, "transport_type": ANY})
     mock_stats_incr.assert_has_calls([mock.call("ol.emit.failed")])
 
 
