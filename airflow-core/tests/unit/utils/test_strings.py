@@ -23,7 +23,7 @@ from airflow.utils.strings import to_boolean
 
 
 @pytest.mark.parametrize(
-    "input_string, expected_result",
+    ("input_string", "expected_result"),
     [
         (" yes ", True),
         (" 1\n", True),
