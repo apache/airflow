@@ -32,7 +32,6 @@ import methodtools
 
 from airflow.configuration import conf
 from airflow.sdk import TriggerRule, WeightRule
-from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
@@ -306,6 +305,8 @@ class AbstractOperator(Templater, DAGNode):
                     rendered_content = self.render_template(value, context, jinja_env, seen_oids)
             except Exception:
                 # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
                 masked_value = redact(value)
                 log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
