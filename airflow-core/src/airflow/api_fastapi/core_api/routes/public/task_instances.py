@@ -242,10 +242,10 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = list(session.scalars(task_instance_select).all())
+    task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=list(task_instances),
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 
@@ -525,7 +525,7 @@ def get_task_instances(
 
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
-        task_instances=list(task_instances),
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 
@@ -641,7 +641,7 @@ def get_task_instances_batch(
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=list(task_instances),
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 

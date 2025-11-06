@@ -25,7 +25,7 @@ class TestPodReader:
     """Tests RBAC Pod Reader."""
 
     @pytest.mark.parametrize(
-        "webserver, airflow_version, expected",
+        ("webserver", "airflow_version", "expected"),
         [
             (True, "2.9.0", ["release-name-airflow-webserver"]),
             (False, "2.9.0", []),
@@ -46,7 +46,7 @@ class TestPodReader:
         assert actual == expected
 
     @pytest.mark.parametrize(
-        "webserver, expected",
+        ("webserver", "expected"),
         [
             (True, "release-name-pod-log-reader-role"),
             (False, None),
@@ -63,7 +63,7 @@ class TestPodReader:
         assert actual == expected
 
     @pytest.mark.parametrize(
-        "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",
+        ("multiNamespaceMode", "namespace", "expectedRole", "expectedRoleBinding"),
         [
             (
                 True,
@@ -110,7 +110,7 @@ class TestPodReader:
             assert actualRoleRefKind == "Role"
 
     @pytest.mark.parametrize(
-        "multiNamespaceMode, namespace, expectedRole",
+        ("multiNamespaceMode", "namespace", "expectedRole"),
         [
             (True, "namespace", "namespace-release-name-pod-log-reader-role"),
             (True, "other-ns", "other-ns-release-name-pod-log-reader-role"),

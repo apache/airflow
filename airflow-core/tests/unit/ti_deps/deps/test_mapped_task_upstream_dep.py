@@ -45,7 +45,7 @@ UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 
 
 @pytest.mark.parametrize(
-    ["task_state", "upstream_states", "expected_state", "expect_failed_dep"],
+    ("task_state", "upstream_states", "expected_state", "expect_failed_dep"),
     [
         # finished mapped dependencies with state != success result in failed dep and a modified state
         (None, [None, None], None, False),

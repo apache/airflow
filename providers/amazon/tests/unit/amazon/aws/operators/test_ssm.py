@@ -52,7 +52,7 @@ class TestSsmRunCommandOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

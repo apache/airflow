@@ -292,6 +292,6 @@ def get_hitl_details(
     hitl_details = session.scalars(hitl_detail_select)
 
     return HITLDetailCollection(
-        hitl_details=list(hitl_details),
+        hitl_details=hitl_details,
         total_entries=total_entries,
     )
