@@ -522,7 +522,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -559,7 +559,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
