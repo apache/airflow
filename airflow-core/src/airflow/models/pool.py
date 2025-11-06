@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
@@ -33,7 +34,9 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
 
 
 class PoolStats(TypedDict):
@@ -67,7 +70,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
+    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 
@@ -173,7 +176,7 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] | Query[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)

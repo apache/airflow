@@ -5759,6 +5759,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5767,6 +5779,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5799,6 +5823,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -6589,6 +6625,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -6597,6 +6645,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -6629,6 +6689,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -8713,7 +8785,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8769,7 +8842,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -11199,7 +11273,7 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailHisotry:
+    HITLDetailHistory:
       properties:
         options:
           items:
@@ -11269,7 +11343,7 @@ components:
       - options
       - subject
       - created_at
-      title: HITLDetailHisotry
+      title: HITLDetailHistory
       description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
@@ -12160,7 +12234,7 @@ components:
           - type: 'null'
         hitl_detail:
           anyOf:
-          - $ref: '#/components/schemas/HITLDetailHisotry'
+          - $ref: '#/components/schemas/HITLDetailHistory'
           - type: 'null'
       type: object
       required:

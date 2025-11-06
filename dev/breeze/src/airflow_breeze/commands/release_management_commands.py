@@ -87,7 +87,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_candidate_command import create_tarball_release
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
@@ -227,12 +226,6 @@ option_use_local_hatch = click.option(
     envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
-option_tag = click.option(
-    "--tag",
-    type=str,
-    help="Tag to use for the release processes",
-    default=None,
-)
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(
@@ -263,7 +256,7 @@ AIRFLOW_UV_VERSION = "0.9.7"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.12"
+PREK_VERSION = "0.2.13"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -288,7 +281,7 @@ AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
 
 
 class DistributionBuildType(Enum):
-    """Type of the build"""
+    """Type of the Python distribution to build."""
 
     AIRFLOW = "airflow"
     PROVIDERS = "providers"
@@ -544,24 +537,6 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
-def create_tarball_from_tag(
-    version_suffix: str,
-    distribution_name: Literal[
-        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
-    ],
-    tag: str | None,
-):
-    if tag is not None:
-        get_console().print(f"Tag Used for source tarball creation: {tag}")
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name=distribution_name,
-            tag=tag,
-        )
-    else:
-        get_console().print("No tag provided, skipping source tarball creation.")
-
-
 @release_management.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
@@ -569,14 +544,12 @@ def create_tarball_from_tag(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -607,13 +580,6 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow",
-        tag=tag,
-    )
 
 
 def _prepare_non_core_distributions(
@@ -740,14 +706,12 @@ def _prepare_non_core_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -762,13 +726,6 @@ def prepare_task_sdk_distributions(
         distribution_pretty_name="Task SDK",
     )
 
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_task_sdk",
-        tag=tag,
-    )
-
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
@@ -777,14 +734,12 @@ def prepare_task_sdk_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -798,13 +753,6 @@ def prepare_airflow_ctl_distributions(
         distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
-    )
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_ctl",
-        tag=tag,
     )
 
 
@@ -834,8 +782,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
 )
 @option_github_repository
 @argument_provider_distributions
-@option_answer
-@option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -866,6 +812,8 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
+@option_answer
+@option_dry_run
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
@@ -1091,7 +1039,7 @@ def _build_provider_distributions(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1100,7 +1048,6 @@ def _build_provider_distributions(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_distributions
-@option_tag
 @option_verbose
 def prepare_provider_distributions(
     clean_dist: bool,
@@ -1114,7 +1061,6 @@ def prepare_provider_distributions(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix: str,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1125,7 +1071,7 @@ def prepare_provider_distributions(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override provider_distributions with values from DISTRIBUTIONS_LIST
-        distributions_list_as_tuple = tuple(distributions_list.split(","))
+        distributions_list_as_tuple = tuple(distributions_list.split(" "))
     if provider_distributions and distributions_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -1199,13 +1145,6 @@ def prepare_provider_distributions(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_providers",
-        tag=tag,
-    )
 
 
 def run_generate_constraints(
@@ -1295,10 +1234,18 @@ def run_generate_constraints_in_parallel(
     "issues to avoid errors. The default behaviour would be to clean both local and remote tags.",
     show_default=True,
 )
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @option_dry_run
 @option_verbose
 def tag_providers(
     clean_tags: bool,
+    release_date: str,
 ):
     found_remote = None
     remotes = ["origin", "apache"]
@@ -1315,8 +1262,6 @@ def tag_providers(
                 break
         except subprocess.CalledProcessError:
             pass
-
-    release_date = os.environ.get("PACKAGE_DATE", datetime.now().strftime("%Y-%m-%d"))
 
     if found_remote is None:
         raise ValueError("Could not find the remote configured to push to apache/airflow")
@@ -1843,7 +1788,7 @@ def run_publish_docs_in_parallel(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1874,7 +1819,7 @@ def publish_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        packages_list_as_tuple = tuple(distributions_list.split(","))
+        packages_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "

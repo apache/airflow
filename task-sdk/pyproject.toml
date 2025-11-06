@@ -75,6 +75,12 @@ dependencies = [
     # End of shared logging dependencies
 ]
 
+[project.optional-dependencies]
+"sentry" = [
+    "sentry-sdk>=2.30.0",
+]
+"all" = ["apache-airflow-task-sdk[sentry]"]
+
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 Documentation = "https://airflow.apache.org/docs/"
