@@ -19,11 +19,15 @@ from __future__ import annotations
 
 import collections
 import itertools
+from collections import deque
 from collections.abc import Iterator, Sequence
+from os import cpu_count
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
 import structlog
+
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -35,7 +39,7 @@ T = TypeVar("T")
 # ``XCom.deserialize_value``. We don't want to wrap the API values in a nested
 # {"value": value} dict since it wastes bandwidth.
 _XComWrapper = collections.namedtuple("_XComWrapper", "value")
-
+lazy_xcom_prefetch_size = conf.getint("core", "lazy_xcom_prefetch_size", fallback=cpu_count() or 1)
 log = structlog.get_logger(logger_name=__name__)
 
 
@@ -44,15 +48,21 @@ class LazyXComIterator(Iterator[T]):
     seq: LazyXComSequence[T]
     index: int = 0
     dir: Literal[1, -1] = 1
+    _buffer = deque()
 
     def __next__(self) -> T:
         if self.index < 0:
             # When iterating backwards, avoid extra HTTP request
             raise StopIteration()
-        try:
-            val = self.seq[self.index]
-        except IndexError:
-            raise StopIteration from None
+
+        # If the buffer is empty, fetch the next chunk
+        if not self._buffer:
+            chunk = list(self.seq[self.index: self.index + lazy_xcom_prefetch_size])
+            if not chunk:
+                raise StopIteration()
+            self._buffer.extend(chunk)
+
+        val = self._buffer.popleft()
         self.index += self.dir
         return val
 
