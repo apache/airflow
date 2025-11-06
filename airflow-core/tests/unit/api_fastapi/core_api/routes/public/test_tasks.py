@@ -26,6 +26,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.dag import sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
@@ -358,7 +359,8 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 2,
         }
-        response = test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -432,7 +434,9 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 2,
         }
-        response = test_client.get(f"{self.api_prefix}/{self.mapped_dag_id}/tasks")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.mapped_dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -479,23 +483,27 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": len(downstream_dict),
         }
-        response = test_client.get(f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
     def test_should_respond_200_ascending_order_by_start_date(self, test_client):
-        response = test_client.get(
-            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=start_date",
-        )
+        with assert_queries_count(2):
+            response = test_client.get(
+                f"{self.api_prefix}/{self.dag_id}/tasks?order_by=start_date",
+            )
         assert response.status_code == 200
         assert self.task1_start_date < self.task2_start_date
         assert response.json()["tasks"][0]["task_id"] == self.task_id
         assert response.json()["tasks"][1]["task_id"] == self.task_id2
 
     def test_should_respond_200_descending_order_by_start_date(self, test_client):
-        response = test_client.get(
-            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=-start_date",
-        )
+        with assert_queries_count(2):
+            response = test_client.get(
+                f"{self.api_prefix}/{self.dag_id}/tasks?order_by=-start_date",
+            )
         assert response.status_code == 200
         # - means is descending
         assert self.task1_start_date < self.task2_start_date

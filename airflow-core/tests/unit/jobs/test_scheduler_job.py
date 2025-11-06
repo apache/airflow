@@ -59,7 +59,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.deadline import Deadline, DeadlineCallbackState
+from airflow.models.deadline import Deadline
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -69,7 +69,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -86,6 +86,7 @@ from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sy
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
@@ -193,6 +194,7 @@ class TestSchedulerJob:
         clear_db_jobs()
         clear_db_assets()
         clear_db_deadline()
+        clear_db_callbacks()
         clear_db_triggers()
 
     @pytest.fixture(autouse=True)
@@ -948,7 +950,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "state, total_executed_ti",
+        ("state", "total_executed_ti"),
         [
             (DagRunState.SUCCESS, 0),
             (DagRunState.FAILED, 0),
@@ -1822,7 +1824,7 @@ class TestSchedulerJob:
         mock_queue_workload.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -1965,7 +1967,7 @@ class TestSchedulerJob:
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2104,7 +2106,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2639,7 +2641,7 @@ class TestSchedulerJob:
         assert len(dag_runs) == 2
 
     @pytest.mark.parametrize(
-        "ti_state, final_ti_span_status",
+        ("ti_state", "final_ti_span_status"),
         [
             pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
             pytest.param(State.RUNNING, SpanStatus.ACTIVE, id="dr_still_running"),
@@ -2764,7 +2766,7 @@ class TestSchedulerJob:
         assert self.job_runner.active_spans.get("ti:" + ti.id) is None
 
     @pytest.mark.parametrize(
-        "state, final_span_status",
+        ("state", "final_span_status"),
         [
             pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
             pytest.param(State.RUNNING, SpanStatus.NEEDS_CONTINUANCE, id="dr_still_running"),
@@ -2954,7 +2956,7 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker, session):
         """
@@ -2999,7 +3001,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
@@ -3154,7 +3156,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
+    @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
         """
         Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
@@ -3276,7 +3278,7 @@ class TestSchedulerJob:
         assert len(new_tis) == 0
 
     @pytest.mark.parametrize(
-        "ti_states, run_state",
+        ("ti_states", "run_state"),
         [
             (["failed", "success"], "failed"),
             (["success", "success"], "success"),
@@ -4255,7 +4257,7 @@ class TestSchedulerJob:
         assert actual == should_update
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        ("run_type", "expected"),
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
@@ -4496,7 +4498,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
-        "disable, enable",
+        ("disable", "enable"),
         [
             pytest.param({"is_stale": True}, {"is_stale": False}, id="active"),
             pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
@@ -5611,7 +5613,7 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
     @pytest.mark.parametrize(
-        "pause_it, expected_running",
+        ("pause_it", "expected_running"),
         [
             (True, 0),
             (False, 3),
@@ -5818,7 +5820,7 @@ class TestSchedulerJob:
         assert DagRun.find(run_id="dr1_run_2")[0].state == State.RUNNING
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5860,7 +5862,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5906,7 +5908,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5952,7 +5954,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -6710,7 +6712,7 @@ class TestSchedulerJob:
         assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
 
     @pytest.mark.parametrize(
-        "paused, stale, expected_classpath",
+        ("paused", "stale", "expected_classpath"),
         [
             pytest.param(
                 False,
@@ -6929,7 +6931,7 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
     @pytest.mark.parametrize(
-        "retries,callback_kind,expected",
+        ("retries", "callback_kind", "expected"),
         [
             (1, "retry", TaskInstanceState.UP_FOR_RETRY),
             (0, "failure", TaskInstanceState.FAILED),
@@ -7046,28 +7048,49 @@ class TestSchedulerJob:
         callback_path = "classpath.notify"
 
         # Create a test Dag run for Deadline
-        with dag_maker(dag_id="test_deadline_dag"):
+        dag_id = "test_deadline_dag"
+        with dag_maker(dag_id=dag_id):
             EmptyOperator(task_id="empty")
         dagrun_id = dag_maker.create_dagrun().id
 
-        handled_deadlines = []
-        for state in DeadlineCallbackState:
-            deadline = Deadline(
-                deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
-            )
-            deadline.callback_state = state
-            handled_deadlines.append(deadline)
+        handled_deadline_async = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_async.missed = True
+
+        handled_deadline_sync = Deadline(
+            deadline_time=past_date,
+            callback=SyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
+        )
+        handled_deadline_sync.missed = True
+
         expired_deadline1 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         expired_deadline2 = Deadline(
-            deadline_time=past_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=past_date, callback=SyncCallback(callback_path), dagrun_id=dagrun_id, dag_id=dag_id
         )
         future_deadline = Deadline(
-            deadline_time=future_date, callback=AsyncCallback(callback_path), dagrun_id=dagrun_id
+            deadline_time=future_date,
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun_id,
+            dag_id=dag_id,
         )
 
-        session.add_all([expired_deadline1, expired_deadline2, future_deadline] + handled_deadlines)
+        session.add_all(
+            [
+                expired_deadline1,
+                expired_deadline2,
+                future_deadline,
+                handled_deadline_async,
+                handled_deadline_sync,
+            ]
+        )
         session.flush()
 
         self.job_runner._execute()
@@ -7155,7 +7178,7 @@ class TestSchedulerJobQueriesCount:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "expected_query_count, dag_count, task_count",
+        ("expected_query_count", "dag_count", "task_count"),
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
@@ -7221,7 +7244,7 @@ class TestSchedulerJobQueriesCount:
 
     @pytest.mark.flaky(reruns=3, reruns_delay=5)
     @pytest.mark.parametrize(
-        "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
+        ("expected_query_counts", "dag_count", "task_count", "start_ago", "schedule", "shape"),
         [
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),

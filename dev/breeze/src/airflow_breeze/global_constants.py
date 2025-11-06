@@ -221,7 +221,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.5"
+UV_VERSION = "0.9.7"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -237,9 +237,9 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-# packages that are distributions of Airflow
-class DistributionType(Enum):
-    AIRFLOW_CORE = "apache_airflow"
+# Type of the tarball to build
+class TarBallType(Enum):
+    AIRFLOW = "apache_airflow"
     PROVIDERS = "apache_airflow_providers"
     TASK_SDK = "apache_airflow_task_sdk"
     AIRFLOW_CTL = "apache_airflow_ctl"
@@ -391,6 +391,7 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+PR_NUMBER_PATTERN = r"^\d+$"
 
 
 def normalize_platform_machine(platform_machine: str) -> str:
@@ -548,6 +549,7 @@ COMMITTERS = [
     "feng-tao",
     "ferruzzi",
     "gopidesupavan",
+    "guan404ming",
     "houqp",
     "hussein-awala",
     "jason810496",
@@ -822,7 +824,6 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.9": "3.9.24",
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",

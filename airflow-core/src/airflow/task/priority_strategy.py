@@ -73,6 +73,9 @@ class PriorityWeightStrategy(ABC):
             return False
         return self.serialize() == other.serialize()
 
+    def __hash__(self):
+        return hash(self.serialize())
+
 
 class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the task's priority weight directly."""

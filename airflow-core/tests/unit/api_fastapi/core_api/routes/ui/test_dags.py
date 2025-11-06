@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -70,7 +69,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
                 if dag_run.start_date is not None:
-                    dag_run.end_date = dag_run.start_date + timedelta(hours=1)
+                    dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)
         session.commit()
 

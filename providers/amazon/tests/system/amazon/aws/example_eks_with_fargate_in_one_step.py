@@ -117,6 +117,15 @@ with DAG(
     # only describe the pod if the task above failed, to help diagnose
     describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
+    # Wait for fargate profile to be in stable state before deletion
+    await_fargate_profile_stable = EksFargateProfileStateSensor(
+        task_id="await_fargate_profile_stable",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        fargate_profile_name=fargate_profile_name,
+        target_state=FargateProfileStates.ACTIVE,
+    )
+
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_cluster_and_fargate_profile = EksDeleteClusterOperator(
@@ -146,6 +155,7 @@ with DAG(
         start_pod,
         # TEST TEARDOWN
         describe_pod,
+        await_fargate_profile_stable,
         delete_cluster_and_fargate_profile,
         await_delete_cluster,
     )

@@ -53,6 +53,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
@@ -253,8 +254,10 @@ def get_hitl_details(
         .join(TI.dag_run)
         .options(
             joinedload(HITLDetailModel.task_instance).options(
-                joinedload(TI.dag_run),
-            )
+                joinedload(TI.dag_run).joinedload(DagRun.dag_model),
+                joinedload(TI.task_instance_note),
+                joinedload(TI.dag_version).joinedload(DagVersion.bundle),
+            ),
         )
     )
     if dag_id != "~":
@@ -289,6 +292,6 @@ def get_hitl_details(
     hitl_details = session.scalars(hitl_detail_select)
 
     return HITLDetailCollection(
-        hitl_details=list(hitl_details),
+        hitl_details=hitl_details,
         total_entries=total_entries,
     )
