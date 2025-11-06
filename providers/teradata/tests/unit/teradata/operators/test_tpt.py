@@ -126,49 +126,44 @@ class TestDdlOperator:
 
     def test_ddl_parameter_validation(self):
         # Test empty DDL list
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="ddl parameter must be a non-empty list"):
             DdlOperator(
                 task_id="test_empty_ddl",
                 ddl=[],
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "ddl parameter must be a non-empty list" in str(context.value)
 
         # Test non-list DDL parameter
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="ddl parameter must be a non-empty list"):
             DdlOperator(
                 task_id="test_non_list_ddl",
                 ddl="CREATE TABLE test_table (id INT)",  # string instead of list
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "ddl parameter must be a non-empty list" in str(context.value)
 
         # Test DDL with empty string
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="ddl parameter must be a non-empty list"):
             DdlOperator(
                 task_id="test_empty_string_ddl",
                 ddl=["CREATE TABLE test_table (id INT)", ""],
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "ddl parameter must be a non-empty list" in str(context.value)
 
         # Test DDL with None value
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="ddl parameter must be a non-empty list"):
             DdlOperator(
                 task_id="test_none_ddl",
                 ddl=None,
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "ddl parameter must be a non-empty list" in str(context.value)
 
         # Test DDL with list containing non-string values
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="ddl parameter must be a non-empty list"):
             DdlOperator(
                 task_id="test_non_string_ddl",
                 ddl=["CREATE TABLE test_table (id INT)", 123],
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "ddl parameter must be a non-empty list" in str(context.value)
 
     @patch("airflow.providers.teradata.operators.tpt.TptHook")
     def test_error_list_validation(self, mock_tpt_hook):
@@ -202,24 +197,22 @@ class TestDdlOperator:
         assert operator.error_list == [3803, 3807, 5495]
 
         # Test with invalid error_list type (string)
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="error_list must be an int or a list of ints"):
             DdlOperator(
                 task_id="test_invalid_error_list_string",
                 ddl=["CREATE TABLE test_table (id INT)"],
                 error_list="3803",  # string instead of int or list
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "error_list must be an int or a list of ints" in str(context.value)
 
         # Test with invalid error_list type (dict)
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="error_list must be an int or a list of ints"):
             DdlOperator(
                 task_id="test_invalid_error_list_dict",
                 ddl=["CREATE TABLE test_table (id INT)"],
                 error_list={"code": 3803},  # dict instead of int or list
                 teradata_conn_id="teradata_default",
             ).execute({})
-        assert "error_list must be an int or a list of ints" in str(context.value)
 
     # ----- Error Handling Tests -----
 
