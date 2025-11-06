@@ -203,7 +203,7 @@ class TestLambdaInvokeFunctionOperator:
         "keep_empty_log_lines", [pytest.param(True, id="keep"), pytest.param(False, id="truncate")]
     )
     @pytest.mark.parametrize(
-        "log_result, expected_execution_logs",
+        ("log_result", "expected_execution_logs"),
         [
             pytest.param(LOG_RESPONSE, True, id="log-result"),
             pytest.param(BAD_LOG_RESPONSE, False, id="corrupted-log-result"),

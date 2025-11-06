@@ -214,7 +214,7 @@ def test_short_circuit(appflow_conn, ctx):
 
 
 @pytest.mark.parametrize(
-    "op_class, op_base_args",
+    ("op_class", "op_base_args"),
     [
         pytest.param(
             AppflowRunAfterOperator,
