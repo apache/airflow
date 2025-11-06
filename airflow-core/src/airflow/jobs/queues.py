@@ -21,10 +21,13 @@ from asyncio import Lock as AsyncLock, Queue
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import Iterable
 from threading import Lock
-from typing import Any
+from typing import Any, Generic, TypeVar
+
+K = TypeVar("K")
+V = TypeVar("V")
 
 
-class KeyedHeadQueue:
+class KeyedHeadQueue(Generic[K, V]):
     """
     A keyed queue where:
       - `popleft()` returns only the *first value* per key (in insertion order of keys).
@@ -44,29 +47,29 @@ class KeyedHeadQueue:
         list(q)  # [('task1', 'event2')]
     """
 
-    def __init__(self):
-        self.__map = OrderedDict()  # key -> deque of values
-        self.__popped_keys = set()  # keys whose first value has been consumed
+    def __init__(self) -> None:
+        self.__map: OrderedDict[K, deque[tuple[K, V]]] = OrderedDict()  # key -> deque of values
+        self.__popped_keys: set[K] = set()  # keys whose first value has been consumed
         self._lock = Lock()
 
     @property
-    def _map(self) -> OrderedDict:
+    def _map(self) -> OrderedDict[K, list[tuple[K, V]]]:
         with self._lock:
             return OrderedDict((key, list(value)) for key, value in self.__map.items())
 
     @property
-    def _popped_keys(self) -> set:
+    def _popped_keys(self) -> set[K]:
         with self._lock:
             return set(self.__popped_keys)
 
-    def get(self, key, default_value: list | None = None) -> list | None:
+    def get(self, key: K, default_value: list[tuple[K, V]] | None = None) -> list[tuple[K, V]] | None:
         return list(self._map.get(key, default_value or []))
 
-    def extend(self, elements: Iterable[tuple]):
+    def extend(self, elements: Iterable[tuple[K, V]]) -> None:
         for element in elements:
             self.append(element)
 
-    def append(self, element: tuple):
+    def append(self, element: tuple[K, V]) -> None:
         """Append a (key, value) pair unless key already consumed."""
         key = element[0]
         with self._lock:
@@ -74,25 +77,22 @@ class KeyedHeadQueue:
                 self.__map[key] = deque()
             self.__map[key].append(element)
 
-    def popleft(self):
+    def popleft(self) -> tuple[K, V]:
         """
         Pop the *first inserted value* for the next key in order.
         Raises IndexError if all first values have been popped.
         """
-        # find first key not yet popped
         with self._lock:
             for key, values in self.__map.items():
                 if key not in self.__popped_keys:
                     value = values.popleft()
                     self.__popped_keys.add(key)
-                    # if deque still has leftovers, keep it for iteration
                     if not values:
                         del self.__map[key]
                     return value
-
         raise IndexError("pop from empty KeyedHeadQueue")
 
-    def popall(self):
+    def popall(self) -> tuple[K, list[tuple[K, V]]]:
         """
         Pop all values for the first unconsumed key (in insertion order).
         Marks the key as consumed.
@@ -107,10 +107,10 @@ class KeyedHeadQueue:
 
         raise IndexError("pop from empty KeyedHeadQueue")
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: K) -> bool:
         return key in self._map
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[tuple[K, V]]:
         """
         Iterate over leftover (key, value) pairs in a snapshot,
         so concurrent appends during iteration are not visible.
@@ -119,14 +119,14 @@ class KeyedHeadQueue:
             for value in values:
                 yield key, value
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Count remaining values available.
         """
         with self._lock:
             return sum(len(value) for value in self.__map.values())
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Count of keys that still have their first value available.
         """
@@ -136,14 +136,13 @@ class KeyedHeadQueue:
                 return False
             return True
 
-
-    def keys(self):
+    def keys(self) -> list[K]:
         """Keys still waiting for their first value to be popped."""
         with self._lock:
             return [key for key in self.__map.keys() if key not in self.__popped_keys]
 
 
-class PartitionedQueue(defaultdict):
+class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[tuple[K, V]]]):
     """
     Dict-like container where each key maps to an asyncio.Queue.
     Tracks sizes safely for concurrent access.
@@ -152,18 +151,18 @@ class PartitionedQueue(defaultdict):
     Supports both async and threading locks.
     """
 
-    def __init__(self, maxsize: int = 0):
+    def __init__(self, maxsize: int = 0) -> None:
         super().__init__(lambda: Queue(maxsize=maxsize))
         self.maxsize = maxsize
-        self._async_locks: dict[str, AsyncLock] = defaultdict(AsyncLock)
-        self._locks: dict[str, Lock] = defaultdict(Lock)
-        self._sizes: dict[str, int] = defaultdict(int)  # track sizes per key
+        self._async_locks: dict[K, AsyncLock] = defaultdict(AsyncLock)
+        self._locks: dict[K, Lock] = defaultdict(Lock)
+        self._sizes: dict[K, int] = defaultdict(int)  # track sizes per key
         self._total_size: int = 0  # total items across all queues
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self._total_size > 0
 
-    async def put(self, item: tuple[Any, Any]) -> None:
+    async def put(self, item: tuple[K, V]) -> None:
         key = item[0]
         queue = self[key]
         async with self._async_locks[key]:
@@ -172,7 +171,7 @@ class PartitionedQueue(defaultdict):
                 self._sizes[key] += 1
                 self._total_size += 1
 
-    def popleft(self) -> tuple[Any, Any]:
+    def popleft(self) -> tuple[K, V]:
         """Pop an item from the first non-empty queue synchronously (non-blocking) using thread lock."""
         for key, queue in list(self.items()):
             with self._locks[key]:

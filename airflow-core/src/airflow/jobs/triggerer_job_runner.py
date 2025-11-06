@@ -850,10 +850,10 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]]
+    events: PartitionedQueue[int, events.TriggerEvent]
 
     # Outbound queue of failed triggers
-    failed_triggers: deque[tuple[int, BaseException | None]]
+    failed_triggers: KeyedHeadQueue[int, BaseException | None]
 
     # Should-we-stop flag
     # TODO: set this in a sig-int handler
