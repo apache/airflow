@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
 from tests.integration.greatexpectations.conftest import is_valid_gx_cloud_url, rand_name
 
+pytestmark = pytest.mark.integration("greatexpectations")
+
 
 class TestValidateCheckpointOperator:
     """Test cases for GXValidateCheckpointOperator with different context types."""

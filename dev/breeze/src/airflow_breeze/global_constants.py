@@ -80,6 +80,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "cassandra",
     "drill",
     "elasticsearch",
+    "greatexpectations",
     "tinkerpop",
     "kafka",
     "localstack",

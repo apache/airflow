@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 from tests.integration.greatexpectations.conftest import rand_name
 
+pytestmark = pytest.mark.integration("greatexpectations")
+
 
 class TestValidateBatchOperator:
     COL_NAME = "my_column"

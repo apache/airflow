@@ -48,15 +48,25 @@ def table_name() -> str:
 
 @pytest.fixture
 def postgres_connection_string() -> str:
-    pg_user = os.environ["POSTGRES_USER"]
-    pg_pw = os.environ["POSTGRES_PASSWORD"]
-    pg_port = os.environ["POSTGRES_PORT"]
-    pg_db = os.environ["POSTGRES_DB"]
+    pg_user = os.environ.get("POSTGRES_USER", "postgres")
+    pg_pw = os.environ.get("POSTGRES_PASSWORD", "postgres")
+    pg_port = os.environ.get("POSTGRES_PORT", "5432")
+    pg_db = os.environ.get("POSTGRES_DB", "postgres")
     return f"postgresql+psycopg2://{pg_user}:{pg_pw}@localhost:{pg_port}/{pg_db}"
 
 
 @pytest.fixture
-def cloud_context() -> AbstractDataContext:
+def gx_cloud_credentials_available() -> bool:
+    """Check if GX Cloud credentials are available."""
+    required_vars = ["GX_CLOUD_ACCESS_TOKEN", "GX_CLOUD_ORGANIZATION_ID", "GX_CLOUD_WORKSPACE_ID"]
+    return all(os.environ.get(var) for var in required_vars)
+
+
+@pytest.fixture
+def cloud_context(gx_cloud_credentials_available: bool) -> AbstractDataContext:
+    """Create a GX Cloud context, skipping if credentials are not available."""
+    if not gx_cloud_credentials_available:
+        pytest.skip("GX Cloud credentials are not available. Skipping cloud tests.")
     return gx.get_context(mode="cloud")
 
 

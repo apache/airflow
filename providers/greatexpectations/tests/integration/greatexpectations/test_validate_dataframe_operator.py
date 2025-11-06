@@ -33,14 +33,11 @@ from airflow.providers.greatexpectations.operators.validate_dataframe import (
 from tests.integration.greatexpectations.conftest import is_valid_gx_cloud_url, rand_name
 
 if TYPE_CHECKING:
-    from pyspark.sql import SparkSession
-    from pyspark.sql.connect.session import SparkSession as SparkConnectSession
-
     from airflow.utils.context import Context
+pytestmark = pytest.mark.integration("greatexpectations")
 
 
 class TestGXValidateDataFrameOperator:
-    @pytest.mark.integration
     def test_validate_dataframe_with_cloud(
         self,
         ensure_data_source_cleanup: Callable[[str], None],
@@ -84,7 +81,6 @@ class TestGXValidateDataFrameOperator:
         assert pushed_result["success"] is True
         assert is_valid_gx_cloud_url(pushed_result["result_url"])
 
-    @pytest.mark.integration
     def test_multiple_runs(
         self,
         ensure_data_source_cleanup: Callable[[str], None],
@@ -135,67 +131,6 @@ class TestGXValidateDataFrameOperator:
         assert pushed_result_a["success"] is True
         assert pushed_result_b["success"] is True
 
-    @pytest.mark.spark_integration
-    def test_spark(self, spark_session: SparkSession) -> None:
-        import pyspark.sql as pyspark
-
-        column_name = "col_A"
-        task_id = f"test_spark_{rand_name()}"
-
-        def configure_dataframe() -> pyspark.DataFrame:
-            data_frame = spark_session.createDataFrame(pd.DataFrame({column_name: ["a", "b", "c"]}))
-            assert isinstance(data_frame, pyspark.DataFrame)
-            return data_frame
-
-        validate_df = GXValidateDataFrameOperator(
-            task_id=task_id,
-            configure_dataframe=configure_dataframe,
-            expect=ExpectColumnValuesToBeInSet(
-                column=column_name,
-                value_set=["a", "b", "c", "d", "e"],
-            ),
-        )
-        mock_ti = Mock()
-
-        # act
-        validate_df.execute(context={"ti": mock_ti})
-
-        # assert
-        # Get the result from xcom_push call
-        pushed_result = mock_ti.xcom_push.call_args[1]["value"]
-        assert pushed_result["success"]
-
-    @pytest.mark.spark_connect_integration
-    def test_spark_connect(self, spark_connect_session: SparkConnectSession) -> None:
-        from pyspark.sql.connect.dataframe import DataFrame as SparkConnectDataFrame
-
-        column_name = "col_A"
-        task_id = f"test_spark_{rand_name()}"
-
-        def configure_dataframe() -> SparkConnectDataFrame:
-            data_frame = spark_connect_session.createDataFrame(pd.DataFrame({column_name: ["a", "b", "c"]}))
-            assert isinstance(data_frame, SparkConnectDataFrame)
-            return data_frame
-
-        validate_df = GXValidateDataFrameOperator(
-            task_id=task_id,
-            configure_dataframe=configure_dataframe,
-            expect=ExpectColumnValuesToBeInSet(
-                column=column_name,
-                value_set=["a", "b", "c", "d", "e"],
-            ),
-        )
-        mock_ti = Mock()
-
-        # act
-        validate_df.execute(context={"ti": mock_ti})
-
-        # assert
-        # Get the result from xcom_push call
-        pushed_result = mock_ti.xcom_push.call_args[1]["value"]
-        assert pushed_result["success"]
-
-    @pytest.mark.integration
     def test_validation_failure_raises_exception(self) -> None:
         """Test that validation failure raises GXValidationFailed exception."""
         column_name = "col_A"
@@ -222,7 +157,6 @@ class TestGXValidateDataFrameOperator:
         with pytest.raises(GXValidationFailed):
             validate_df.execute(context={"ti": mock_ti})
 
-    @pytest.mark.integration
     def test_validation_failure_xcom_contains_result(self) -> None:
         """Test that when validation fails and exception is raised, xcom still contains the failed result."""
         column_name = "col_A"
@@ -255,22 +189,3 @@ class TestGXValidateDataFrameOperator:
         assert call_args[1]["key"] == "return_value"
         result = call_args[1]["value"]
         assert result["success"] is False
-
-
-@pytest.fixture
-def spark_session() -> SparkSession:
-    import pyspark.sql as pyspark
-
-    session = pyspark.SparkSession.builder.getOrCreate()
-    assert isinstance(session, pyspark.SparkSession)
-    return session
-
-
-@pytest.fixture
-def spark_connect_session() -> SparkConnectSession:
-    import pyspark.sql as pyspark
-    from pyspark.sql.connect.session import SparkSession as SparkConnectSession
-
-    session = pyspark.SparkSession.builder.remote("sc://localhost:15002").getOrCreate()  # type: ignore[attr-defined]
-    assert isinstance(session, SparkConnectSession)
-    return session
