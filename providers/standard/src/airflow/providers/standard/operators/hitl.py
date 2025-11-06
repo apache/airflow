@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -168,6 +168,8 @@ class HITLOperator(BaseOperator):
 
     @property
     def serialized_params(self) -> dict[str, dict[str, Any]]:
+        if not AIRFLOW_V_3_1_3_PLUS:
+            return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
         return {k: self.params.get_param(k).serialize() for k in self.params}
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
