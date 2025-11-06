@@ -329,10 +329,13 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query: str | None = urlencode(self.extra_dejson)
+                safe_extras = {
+                    k: json.dumps(v) if not isinstance(v, str) else v for k, v in self.extra_dejson.items()
+                }
+                query: str | None = urlencode(safe_extras)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+            if query and safe_extras == dict(parse_qsl(query, keep_blank_values=True)):
                 uri += ("?" if self.schema else "/?") + query
             else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})

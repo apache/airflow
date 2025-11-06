@@ -38,6 +38,29 @@ if TYPE_CHECKING:
 
 
 class TestConnection:
+    def test_get_uri_with_non_string_extras(self):
+        """Ensure non-string extras (bool, ints, etc.) are properly stringified in URI"""
+        conn = Connection(
+            conn_type="mssql",
+            host="host",
+            login="user",
+            password="pass",
+            schema="db",
+            extra={
+                "tds_version": 7.3,
+                "as_dict": True,
+                "retries": 3,
+                "nested": {"a": 1},
+                "trust_server_certificate": False,
+            },
+        )
+        url = conn.get_uri()
+        assert "tds_version=7.3" in url
+        assert "as_dict=true" in url
+        assert "retries=3" in url
+        assert "nested=%7B%22a%22%3A+1%7D" in url
+        assert "trust_server_certificate=false" in url
+
     @pytest.mark.parametrize(
         "uri, expected_conn_type, expected_host, expected_login, expected_password,"
         " expected_port, expected_schema, expected_extra_dict, expected_exception_message",
