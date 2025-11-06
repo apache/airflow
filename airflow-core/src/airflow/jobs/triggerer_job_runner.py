@@ -1152,9 +1152,6 @@ class TriggerRunner:
         name = self.triggers[trigger_id]["name"]
         await self.log.ainfo("trigger %s starting", name)
         try:
-            if context:
-                trigger.render_template_fields(context=context)
-
             async for event in trigger.run():
                 await self.log.ainfo(
                     "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
