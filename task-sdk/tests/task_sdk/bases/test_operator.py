@@ -32,7 +32,6 @@ import structlog
 from airflow.sdk import task as task_decorator
 from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
-    AirflowException,
     BaseOperator,
     BaseOperatorMeta,
     ExecutorSafeguard,
@@ -787,7 +786,7 @@ class TestBaseOperator:
         MockOperator.start_from_trigger = True
 
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
             "'arg2', which is not allowed when start_from_trigger is enabled.",
         ):
