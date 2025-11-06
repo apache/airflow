@@ -32,7 +32,7 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
@@ -242,7 +242,7 @@ class AirflowConfigParser(ConfigParser):
         self._providers_configuration_loaded = False
 
     @property
-    def _lookup_sequence(self) -> list[callable]:
+    def _lookup_sequence(self) -> list[Callable]:
         """
         Define the sequence of lookup methods for get().
 
@@ -994,7 +994,7 @@ class AirflowConfigParser(ConfigParser):
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
     @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
+    def get(self, section: str, key: str, **kwargs) -> str | object: ...
 
     def _get_option_from_defaults(
         self,
@@ -1005,7 +1005,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         """Get config option from default values."""
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
@@ -1020,7 +1020,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         """Get config option from provider fallback defaults."""
         if self.get_provider_config_fallback_defaults(section, key) is not None:
             # no expansion needed
@@ -1158,7 +1158,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         option = self._get_secret_option(section, key)
         if option:
             return option
@@ -1180,7 +1180,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -1202,7 +1202,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         """Get config option from config file."""
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
@@ -1225,7 +1225,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | type[VALUE_NOT_FOUND_SENTINEL]:
+    ) -> str | object:
         """Get config option from environment variables."""
         team_name = kwargs.get("team_name", None)
         option = self._get_env_var_option(section, key, team_name=team_name)
