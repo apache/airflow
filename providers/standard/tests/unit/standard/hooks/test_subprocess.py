@@ -34,7 +34,7 @@ OS_ENV_VAL = "this-is-from-os-environ"
 
 class TestSubprocessHook:
     @pytest.mark.parametrize(
-        "env,expected",
+        ("env", "expected"),
         [
             ({"ABC": "123", "AAA": "456"}, {"ABC": "123", "AAA": "456", OS_ENV_KEY: ""}),
             ({}, {OS_ENV_KEY: ""}),
@@ -66,7 +66,7 @@ class TestSubprocessHook:
             assert actual == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ("test-val", "test-val"),
             ("test-val\ntest-val\n", ""),

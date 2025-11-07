@@ -254,7 +254,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "logging_interval, exp_event",
+        ("logging_interval", "exp_event"),
         [
             pytest.param(
                 0,
@@ -313,7 +313,7 @@ class TestKubernetesPodTrigger:
         assert mock_fetch_container_logs_before_current_sec.call_count == 2
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
@@ -460,7 +460,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "exc_count, call_count",
+        ("exc_count", "call_count"),
         [
             pytest.param(0, 1, id="no exception"),
             pytest.param(2, 3, id="2 exc, 1 success"),

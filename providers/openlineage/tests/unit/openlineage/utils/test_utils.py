@@ -369,7 +369,7 @@ def test_truncate_string_to_byte_size_non_bmp_characters():
 
 
 @pytest.mark.parametrize(
-    "operator, expected_doc, expected_mime_type",
+    ("operator", "expected_doc", "expected_mime_type"),
     [
         (None, None, None),
         (MagicMock(doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None), None, None),
@@ -425,7 +425,7 @@ def test_get_task_documentation_longer_than_allowed():
 
 
 @pytest.mark.parametrize(
-    "dag, expected_doc, expected_mime_type",
+    ("dag", "expected_doc", "expected_mime_type"),
     [
         (None, None, None),
         (MagicMock(doc_md=None, description=None), None, None),

@@ -423,7 +423,7 @@ class TestConnection:
                 assert actual_val == expected_val
 
     @pytest.mark.parametrize(
-        "uri,uri_parts",
+        ("uri", "uri_parts"),
         [
             (
                 "http://:password@host:80/database",
@@ -545,7 +545,7 @@ class TestConnection:
         assert connection.schema == uri_parts.schema
 
     @pytest.mark.parametrize(
-        "extra, expected",
+        ("extra", "expected"),
         [
             ('{"extra": null}', None),
             ('{"extra": {"yo": "hi"}}', '{"yo": "hi"}'),
@@ -557,7 +557,7 @@ class TestConnection:
         assert Connection.from_json(extra).extra == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('{"conn_type": "abc-abc"}', "abc_abc"),
             ('{"conn_type": "abc_abc"}', "abc_abc"),
@@ -569,7 +569,7 @@ class TestConnection:
         assert Connection.from_json(val).conn_type == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('{"port": 1}', 1),
             ('{"port": "1"}', 1),
@@ -581,7 +581,7 @@ class TestConnection:
         assert Connection.from_json(val).port == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('pass :/!@#$%^&*(){}"', 'pass :/!@#$%^&*(){}"'),  # these are the same
             (None, None),
@@ -824,7 +824,7 @@ class TestConnection:
         assert Connection(uri="//abc").host == "abc"
 
     @pytest.mark.parametrize(
-        "conn, expected_json",
+        ("conn", "expected_json"),
         [
             pytest.param("get_connection1", "{}", id="empty"),
             pytest.param("get_connection2", '{"host": "apache.org"}', id="empty-extra"),
