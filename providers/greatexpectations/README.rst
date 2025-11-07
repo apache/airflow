@@ -49,13 +49,13 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-========================  ==================
-PIP package              Version required
-========================  ==================
-``apache-airflow``       ``>=2.10.0``
-``great-expectations``   ``>=1.3.11,<2.0``
-``setuptools``           ``>=41.0.0``
-========================  ==================
+=========================  ====================
+PIP package                 Version required
+=========================  ====================
+``apache-airflow``          ``>=2.10.0``
+``great-expectations``      ``>=1.3.11,<2.0``
+``setuptools``              ``>=41.0.0``
+=========================  ====================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-greatexpectations/1.0.0/changelog.html>`_.
