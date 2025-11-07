@@ -162,7 +162,7 @@ class TestOSSTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
