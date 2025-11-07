@@ -97,6 +97,47 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
+  const initialValues = useMemo(() => {
+    const values: Record<string, FilterValue> = {};
+
+    filterConfigs.forEach((config) => {
+      if (config.type === "daterange") {
+        // Handle daterange filters using startKey and endKey
+        const startDate =
+          config.startKey !== undefined && config.startKey !== ""
+            ? searchParams.get(config.startKey)
+            : undefined;
+        const endDate =
+          config.endKey !== undefined && config.endKey !== "" ? searchParams.get(config.endKey) : undefined;
+
+        if (
+          (startDate !== undefined && startDate !== null && startDate !== "") ||
+          (endDate !== undefined && endDate !== null && endDate !== "")
+        ) {
+          values[config.key] = {
+            endDate: endDate ?? undefined,
+            startDate: startDate ?? undefined,
+          };
+        }
+      } else {
+        // Handle other filter types
+        const value = searchParams.get(config.key);
+
+        if (value !== null && value !== "") {
+          if (config.type === "number") {
+            const parsedValue = Number(value);
+
+            values[config.key] = isNaN(parsedValue) ? value : parsedValue;
+          } else {
+            values[config.key] = value;
+          }
+        }
+      }
+    });
+
+    return values;
+  }, [filterConfigs, searchParams]);
+
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
       setTableURLState({
@@ -132,6 +173,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   return {
     filterConfigs,
     handleFiltersChange,
+    initialValues,
     searchParams,
   };
 };

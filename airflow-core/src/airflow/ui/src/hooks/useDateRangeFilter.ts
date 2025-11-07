@@ -237,8 +237,8 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       // Update inputs to reflect the new date values
       const newInputs = {
         ...prev.inputs,
-        start: newStartDate ? dayjs(newStartDate).format(DATE_INPUT_FORMAT) : "",
-        end: newEndDate ? dayjs(newEndDate).format(DATE_INPUT_FORMAT) : "",
+        end: newEndDate === undefined ? "" : dayjs(newEndDate).format(DATE_INPUT_FORMAT),
+        start: newStartDate === undefined ? "" : dayjs(newStartDate).format(DATE_INPUT_FORMAT),
       };
       // Revalidate with the new inputs
       const validationErrors = validateInputs(newInputs);
@@ -246,8 +246,8 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       return {
         ...prev,
         currentMonth: clickedDate,
-        selectionTarget: nextTarget,
         inputs: newInputs,
+        selectionTarget: nextTarget,
         validationErrors,
       };
     });

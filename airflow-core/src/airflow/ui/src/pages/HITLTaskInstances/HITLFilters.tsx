@@ -18,15 +18,14 @@
  */
 import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue, type DateRangeValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
-  const [urlSearchParams] = useSearchParams();
 
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const fixedKeys: Array<FilterableSearchParamsKeys> = [
@@ -51,60 +50,7 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
     return [...keys, ...fixedKeys];
   }, [dagId, taskId]);
 
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const processDateRangeValue = (gteKey: string, lteKey: string): DateRangeValue | undefined => {
-      const gte = searchParams.get(gteKey);
-      const lte = searchParams.get(lteKey);
-
-      if ((gte !== null && gte !== "") || (lte !== null && lte !== "")) {
-        return {
-          endDate: lte ?? undefined,
-          startDate: gte ?? undefined,
-        } as DateRangeValue;
-      }
-
-      return undefined;
-    };
-
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      if (config.key === (SearchParamsKeys.CREATED_AT_RANGE as string)) {
-        const dateRange = processDateRangeValue(
-          SearchParamsKeys.CREATED_AT_GTE,
-          SearchParamsKeys.CREATED_AT_LTE,
-        );
-
-        if (dateRange !== undefined) {
-          values[config.key] = dateRange;
-        }
-      } else {
-        const value = searchParams.get(config.key);
-
-        if (value !== null && value !== "") {
-          if (config.type === "number") {
-            const parsedValue = Number(value);
-
-            values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-          } else {
-            values[config.key] = value;
-          }
-        }
-      }
-    });
-
-    searchParamKeys.forEach((key) => {
-      const value = urlSearchParams.get(key);
-
-      if (value !== null && value.trim() !== "") {
-        values[key] = value;
-      }
-    });
-
-    return values;
-  }, [filterConfigs, searchParamKeys, searchParams, urlSearchParams]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <VStack align="start" pt={2}>
