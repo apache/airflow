@@ -22,6 +22,7 @@ import logging
 import os
 import pickle
 import re
+from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -1186,6 +1187,24 @@ class TestDag:
             triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr.creating_job_id == job_id
+
+    @pytest.mark.parametrize(["partition_key"], [[None], ["my-key"], [123]])
+    def test_create_dagrun_partition_key(self, partition_key, dag_maker):
+        with dag_maker("test_create_dagrun_partition_key"):
+            ...
+        cm = nullcontext()
+        if isinstance(partition_key, int):
+            cm = pytest.raises(ValueError, match="Expected partition_key to be `str` | `None` but got `int`")
+        with cm:
+            dr = dag_maker.create_dagrun(
+                run_id="test_create_dagrun_partition_key",
+                run_after=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+                state=State.NONE,
+                triggered_by=DagRunTriggeredByType.TEST,
+                partition_key=partition_key,
+            )
+            assert dr.partition_key == partition_key
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)

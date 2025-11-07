@@ -169,7 +169,7 @@ class TestLocalExecutor:
             executor.end()
 
     @pytest.mark.parametrize(
-        ["conf_values", "expected_server"],
+        ("conf_values", "expected_server"),
         [
             (
                 {
