@@ -21,6 +21,8 @@ import datetime
 import logging
 import os
 import pickle
+import re
+from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -1186,6 +1188,24 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
+    @pytest.mark.parametrize(["partition_key"], [[None], ["my-key"], [123]])
+    def test_create_dagrun_partition_key(self, partition_key, dag_maker):
+        with dag_maker("test_create_dagrun_partition_key"):
+            ...
+        cm = nullcontext()
+        if isinstance(partition_key, int):
+            cm = pytest.raises(ValueError, match="Expected partition_key to be `str` | `None` but got `int`")
+        with cm:
+            dr = dag_maker.create_dagrun(
+                run_id="test_create_dagrun_partition_key",
+                run_after=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+                state=State.NONE,
+                triggered_by=DagRunTriggeredByType.TEST,
+                partition_key=partition_key,
+            )
+            assert dr.partition_key == partition_key
+
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
         task_without_task_group = EmptyOperator(task_id="task_without_group_id")
@@ -1429,7 +1449,7 @@ my_postgres_conn:
         ) as dag:
             EmptyOperator(task_id=task_id)
 
-        session = settings.Session()
+        session = settings.get_session()()
         dagrun_1 = dag_maker.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
@@ -2870,7 +2890,12 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
     run_id = DagRun.generate_run_id(run_type=run_id_type, run_after=DEFAULT_DATE, logical_date=DEFAULT_DATE)
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+        ),
+    ):
         SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag)).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
@@ -2880,9 +2905,6 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             state=DagRunState.QUEUED,
             triggered_by=DagRunTriggeredByType.TEST,
         )
-    assert str(ctx.value) == (
-        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
-    )
 
 
 class TestTaskClearingSetupTeardownBehavior:

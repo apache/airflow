@@ -137,6 +137,7 @@ def get_dags(
             last_dag_run_state,
         ],
         order_by=order_by,
+        dag_ids=readable_dags_filter.value,
     )
 
     dags_select, total_entries = paginated_select(
@@ -165,7 +166,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=list(dags),
+        dags=dags,
         total_entries=total_entries,
     )
 
@@ -341,7 +342,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=list(dags),
+        dags=dags,
         total_entries=total_entries,
     )
 

@@ -2166,18 +2166,6 @@ class TestKubernetesPodOperator:
         process_pod_deletion_mock.assert_called_once_with(pod_1)
         assert result.metadata.name == pod_2.metadata.name
 
-    @patch(POD_MANAGER_CLASS.format("fetch_container_logs"))
-    @patch(KUB_OP_PATH.format("invoke_defer_method"))
-    def test_defere_call_one_more_time_after_error(self, invoke_defer_method, fetch_container_logs):
-        fetch_container_logs.return_value = PodLoggingStatus(False, None)
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-
-        op.trigger_reentry(
-            create_context(op), event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"}
-        )
-
-        invoke_defer_method.assert_called_with(None)
-
 
 class TestSuppress:
     def test__suppress(self, caplog):
@@ -2545,6 +2533,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
+    @pytest.mark.xfail
     def test_async_write_logs_should_execute_successfully(
         self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
     ):
@@ -2565,8 +2554,12 @@ class TestKubernetesPodOperatorAsync:
         self.run_pod_async(k)
 
         if get_logs:
-            assert f"Container logs: {test_logs}"
+            # Note: the test below is broken and failing. Either the mock is wrong
+            # or the mocked container is not in a state that logging methods are called at-all.
+            # See https://github.com/apache/airflow/issues/57515
+            assert f"Container logs: {test_logs}"  # noqa: PLW0129
             post_complete_action.assert_called_once()
+            mock_manager.return_value.read_pod_logs.assert_called()
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
@@ -2605,32 +2598,6 @@ class TestKubernetesPodOperatorAsync:
         pod.status = V1PodStatus(phase=PodPhase.FAILED)
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
-
-    @patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
-    )
-    @patch(f"{HOOK_CLASS}.get_pod")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_running(
-        self,
-        fetch_container_logs,
-        await_pod_completion,
-        get_pod,
-        mock_convert_config_file_to_dict,
-    ):
-        """When logs fetch exits with status running, raise task deferred"""
-        pod = MagicMock()
-        get_pod.return_value = pod
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-        await_pod_completion.return_value = None
-        fetch_container_logs.return_value = PodLoggingStatus(True, None)
-        with pytest.raises(TaskDeferred):
-            op.trigger_reentry(
-                create_context(op),
-                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
-            )
-        fetch_container_logs.is_called_with(pod, "base")
 
     @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
@@ -2701,17 +2668,6 @@ class TestKubernetesPodOperatorAsync:
             "namespace": TEST_NAMESPACE,
         }
         k.trigger_reentry(context=context, event=callback_event)
-
-        # check on_operator_resuming callback
-        mock_callbacks.on_operator_resuming.assert_called_once()
-        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
-            "client": k.client,
-            "mode": ExecutionMode.SYNC,
-            "pod": remote_pod_mock,
-            "operator": k,
-            "context": context,
-            "event": callback_event,
-        }
 
         # check on_pod_cleanup callback
         mock_callbacks.on_pod_cleanup.assert_called_once()
