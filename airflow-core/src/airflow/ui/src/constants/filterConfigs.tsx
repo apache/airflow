@@ -93,6 +93,13 @@ export const useFilterConfigs = () => {
       label: translate("hitl:filters.createdAtTo"),
       type: FilterTypes.DATE,
     },
+    [SearchParamsKeys.CREATED_AT_RANGE]: {
+      endKey: SearchParamsKeys.CREATED_AT_LTE,
+      icon: <MdDateRange />,
+      label: translate("hitl:filters.createdAt"),
+      startKey: SearchParamsKeys.CREATED_AT_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <DagIcon />,

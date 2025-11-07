@@ -63,6 +63,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CREATED_AT_GTE
   | SearchParamsKeys.CREATED_AT_LTE
+  | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
