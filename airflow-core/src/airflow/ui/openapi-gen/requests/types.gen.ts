@@ -2086,7 +2086,7 @@ export type GetAssetAliasData = {
     assetAliasId: number;
 };
 
-export type GetAssetAliasResponse = AssetAliasResponse;
+export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
     assetId?: number | null;
@@ -3463,7 +3463,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: AssetAliasResponse;
+                200: unknown;
                 /**
                  * Unauthorized
                  */

@@ -77,7 +77,7 @@ export class AssetService {
      * Get an asset alias.
      * @param data The data for the request.
      * @param data.assetAliasId
-     * @returns AssetAliasResponse Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static getAssetAlias(data: GetAssetAliasData): CancelablePromise<GetAssetAliasResponse> {

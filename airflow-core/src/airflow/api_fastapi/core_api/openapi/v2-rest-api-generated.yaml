@@ -226,8 +226,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/AssetAliasResponse'
+              schema: {}
         '401':
           content:
             application/json:

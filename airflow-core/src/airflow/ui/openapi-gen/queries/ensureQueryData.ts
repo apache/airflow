@@ -49,7 +49,7 @@ export const ensureUseAssetServiceGetAssetAliasesData = (queryClient: QueryClien
 * Get an asset alias.
 * @param data The data for the request.
 * @param data.assetAliasId
-* @returns AssetAliasResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient, { assetAliasId }: {

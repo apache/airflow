@@ -49,7 +49,7 @@ export const prefetchUseAssetServiceGetAssetAliases = (queryClient: QueryClient,
 * Get an asset alias.
 * @param data The data for the request.
 * @param data.assetAliasId
-* @returns AssetAliasResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, { assetAliasId }: {

@@ -24,7 +24,6 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
-from sqlalchemy.sql import ColumnElement
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -90,7 +89,7 @@ def _generate_queued_event_where_clause(
     dag_id: str | None = None,
     before: datetime | str | None = None,
     permitted_dag_ids: set[str] | None = None,
-) -> list[ColumnElement[bool]]:
+) -> list:
     """Get AssetDagRunQueue where clause."""
     where_clause = []
     if dag_id is not None:
@@ -247,7 +246,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=list(session.scalars(asset_aliases_select).all()),
+        asset_aliases=list(session.scalars(asset_aliases_select)),
         total_entries=total_entries,
     )
 
@@ -257,7 +256,7 @@ def get_asset_aliases(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
-def get_asset_alias(asset_alias_id: int, session: SessionDep) -> AssetAliasResponse:
+def get_asset_alias(asset_alias_id: int, session: SessionDep):
     """Get an asset alias."""
     alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.id == asset_alias_id))
     if alias is None:
