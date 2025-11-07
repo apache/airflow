@@ -236,13 +236,13 @@ so you need to use `--version-suffix` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
-* Generate the packages with the rc1 version (specify the version suffix with PyPI switch). Note that
+* Generate the packages with the rc<X> version (specify the version suffix with PyPI switch). Note that
 you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze release-management prepare-airflow-ctl-distributions --version-suffix rc1 --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --version-suffix "${VERSION_SUFFIX}" --distribution-format both
 ```
 
 * Verify the artifacts that would be uploaded:
