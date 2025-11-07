@@ -57,12 +57,9 @@ const handleDateRangeChange = (
 };
 
 export type FilterableSearchParamsKeys =
-  | SearchParamsKeys.AFTER
-  | SearchParamsKeys.BEFORE
+  | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.CONF_CONTAINS
-  | SearchParamsKeys.CREATED_AT_GTE
-  | SearchParamsKeys.CREATED_AT_LTE
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
@@ -70,22 +67,17 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
-  | SearchParamsKeys.END_DATE
+  | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.KEY_PATTERN
-  | SearchParamsKeys.LOGICAL_DATE_GTE
-  | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
-  | SearchParamsKeys.RUN_AFTER_GTE
-  | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_AFTER_RANGE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_TYPE
-  | SearchParamsKeys.START_DATE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
