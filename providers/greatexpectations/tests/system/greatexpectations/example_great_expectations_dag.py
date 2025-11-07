@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -45,8 +47,7 @@ if TYPE_CHECKING:
     from great_expectations.core.batch_definition import BatchDefinition
     from great_expectations.data_context import AbstractDataContext
 
-base_path = Path(__file__).parents[2]
-data_dir = base_path / "include" / "data"
+data_dir = Path(__file__).parent / "resources"
 data_file = data_dir / "yellow_tripdata_sample_2019-01.csv"
 
 
@@ -137,9 +138,16 @@ expectation_suite = ExpectationSuite(
     ],
 )
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "greatexpectations_example_dag"
+
 
 with DAG(
-    dag_id="gx_provider_example_dag",
+    dag_id=DAG_ID,
+    schedule=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example", "great_expectations"],
 ) as dag:
     validate_extract = GXValidateBatchOperator(
         task_id="validate_extract",
