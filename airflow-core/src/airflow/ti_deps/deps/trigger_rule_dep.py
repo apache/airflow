@@ -20,7 +20,7 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView, Mapping
+from collections.abc import Iterable, Iterator, KeysView, Mapping
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -372,13 +372,11 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts: list[Row[tuple[str, int]]] = list(
-                    session.execute(
-                        select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                        .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
-                        .group_by(TaskInstance.task_id)
-                    ).all()
+                task_id_counts: Iterable[Row[tuple[str, int]]] = session.scalars(
+                    select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                    .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
+                    .group_by(TaskInstance.task_id)
                 )
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
