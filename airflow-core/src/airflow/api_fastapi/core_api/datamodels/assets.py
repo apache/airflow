@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
@@ -107,7 +108,7 @@ class AssetAliasResponse(BaseModel):
 class AssetAliasCollectionResponse(BaseModel):
     """Asset alias collection response."""
 
-    asset_aliases: list[AssetAliasResponse]
+    asset_aliases: Iterable[AssetAliasResponse]
     total_entries: int
 
 
@@ -149,7 +150,7 @@ class AssetEventResponse(BaseModel):
 class AssetEventCollectionResponse(BaseModel):
     """Asset event collection response."""
 
-    asset_events: list[AssetEventResponse]
+    asset_events: Iterable[AssetEventResponse]
     total_entries: int
 
 

@@ -493,7 +493,7 @@ class TestFileTaskLogHandler:
         assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
-        "remote_logs, local_logs, served_logs_checked",
+        ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
             (True, False, False),
@@ -857,7 +857,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 
 @pytest.mark.parametrize(
-    "chunk_size, expected_read_calls",
+    ("chunk_size", "expected_read_calls"),
     [
         (10, 4),
         (20, 3),
@@ -999,7 +999,7 @@ def test__create_sort_key():
 
 
 @pytest.mark.parametrize(
-    "timestamp, line_num, expected",
+    ("timestamp", "line_num", "expected"),
     [
         pytest.param(
             pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -1026,7 +1026,7 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
 
 
 @pytest.mark.parametrize(
-    "log_stream, expected",
+    ("log_stream", "expected"),
     [
         pytest.param(
             convert_list_to_stream(
@@ -1128,7 +1128,7 @@ def test__add_log_from_parsed_log_streams_to_heap():
 
 
 @pytest.mark.parametrize(
-    "heap_setup, flush_size, last_log, expected_events",
+    ("heap_setup", "flush_size", "last_log", "expected_events"),
     [
         pytest.param(
             [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],
