@@ -404,6 +404,16 @@ components:
         - name
       title: ResourceResponse
       description: Outgoing representation of a resource.
+    Role:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+        - name
+      title: Role
+      description: Lightweight role reference used by /users schemas.
     RoleBody:
       properties:
         name:

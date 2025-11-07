@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 
 
@@ -200,7 +200,7 @@ class TestUsersService:
     def test_resolve_roles_returns_found_and_missing(self, get_fab_auth_manager, security_manager):
         found, missing = FABAuthManagerUsers._resolve_roles(
             security_manager,
-            [RoleRef(name="Admin"), RoleRef(name="NOPE"), RoleRef(name="Admin")],
+            [Role(name="Admin"), Role(name="NOPE"), Role(name="Admin")],
         )
         assert [r.name for r in found] == ["Admin"]
         assert missing == ["NOPE"]

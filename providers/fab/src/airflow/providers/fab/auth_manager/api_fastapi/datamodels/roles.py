@@ -40,7 +40,7 @@ class ActionResourceResponse(BaseModel):
     resource: ResourceResponse
 
 
-class RoleRef(BaseModel):
+class Role(BaseModel):
     """Lightweight role reference used by /users schemas."""
 
     name: str

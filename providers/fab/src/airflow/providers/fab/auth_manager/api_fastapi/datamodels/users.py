@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING
 from pydantic import Field, SecretStr, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 
 
 class UserBody(StrictBaseModel):
@@ -35,7 +35,7 @@ class UserBody(StrictBaseModel):
     email: str = Field(min_length=1)
     first_name: str = Field(min_length=1)
     last_name: str = Field(min_length=1)
-    roles: list[RoleRef] | None = None
+    roles: list[Role] | None = None
     password: SecretStr
 
 
@@ -46,7 +46,7 @@ class UserResponse(BaseModel):
     email: str
     first_name: str
     last_name: str
-    roles: list[RoleRef] | None = None
+    roles: list[Role] | None = None
     active: bool | None = None
     last_login: datetime | None = None
     login_count: int | None = None

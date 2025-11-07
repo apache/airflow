@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserBody,
     UserResponse,
@@ -31,14 +31,14 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
 
 
 class TestUserModels:
-    def test_userbody_accepts_role_dicts_and_rolerefs_and_secretstr(self):
+    def test_userbody_accepts_role_dicts_and_Roles_and_secretstr(self):
         data = {
             "username": "alice",
             "email": "alice@example.com",
             "first_name": "Alice",
             "last_name": "Liddell",
             "password": "s3cr3t",  # should coerce into SecretStr
-            "roles": [{"name": "Admin"}, RoleRef(name="User")],
+            "roles": [{"name": "Admin"}, Role(name="User")],
         }
         body = UserBody.model_validate(data)
         assert body.username == "alice"

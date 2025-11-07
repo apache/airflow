@@ -20,12 +20,12 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import UserBody, UserResponse
 from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import RoleRef
+    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
@@ -34,7 +34,7 @@ class FABAuthManagerUsers:
 
     @staticmethod
     def _resolve_roles(
-        sm: FabAirflowSecurityManagerOverride, role_refs: list[RoleRef] | None
+        sm: FabAirflowSecurityManagerOverride, role_refs: list[Role] | None
     ) -> tuple[list, list[str]]:
         seen = set()
         roles: list = []
