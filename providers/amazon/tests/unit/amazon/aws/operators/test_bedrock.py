@@ -121,7 +121,7 @@ class TestBedrockCustomizeModelOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -149,7 +149,7 @@ class TestBedrockCustomizeModelOperator:
     success = {"ResponseMetadata": {"HTTPStatusCode": 201}, "jobArn": CUSTOMIZE_JOB_ARN}
 
     @pytest.mark.parametrize(
-        "side_effect, ensure_unique_name",
+        ("side_effect", "ensure_unique_name"),
         [
             pytest.param([conflict_exception, success], True, id="conflict_and_ensure_unique"),
             pytest.param([conflict_exception, success], False, id="conflict_and_not_ensure_unique"),
@@ -209,7 +209,7 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -272,7 +272,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -309,7 +309,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         )
 
     @pytest.mark.parametrize(
-        "error_message, should_retry",
+        ("error_message", "should_retry"),
         [
             ("no such index [bedrock-kb-index]", True),
             ("server returned 401", True),
@@ -481,7 +481,7 @@ class TestBedrockIngestDataOperator:
         assert mock_sleep.call_count == 5
 
     @pytest.mark.parametrize(
-        "error_message, should_retry",
+        ("error_message", "should_retry"),
         [
             ("Dependency error document status code: 404", True),
             ("request failed: [http_exception] server returned 401", True),
@@ -531,7 +531,7 @@ class TestBedrockRaGOperator:
     MODEL_ARN = "model arn"
 
     @pytest.mark.parametrize(
-        "source_type, vector_search_config, knowledge_base_id, sources, expect_success",
+        ("source_type", "vector_search_config", "knowledge_base_id", "sources", "expect_success"),
         [
             pytest.param(
                 "invalid_source_type",
@@ -743,7 +743,7 @@ class TestBedrockBatchInferenceOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

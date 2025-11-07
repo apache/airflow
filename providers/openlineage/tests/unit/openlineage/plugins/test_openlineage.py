@@ -38,7 +38,7 @@ class TestOpenLineageProviderPlugin:
             del sys.modules["airflow.providers.openlineage.plugins.openlineage"]
 
     @pytest.mark.parametrize(
-        "mocks, expected",
+        ("mocks", "expected"),
         [
             # 0: not disabled but no configuration found
             ([], 0),

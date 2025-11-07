@@ -610,6 +610,7 @@ extend-select = [
     "PLW1501", # {mode} is not a valid mode for open
     "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
     "PLW1508", # Invalid type for environment variable default; expected str or None
+    "PLW1509", # preexec_fn argument is unsafe when using threads
     "PLW1510", # subprocess.run without explicit check argument
     "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
@@ -659,7 +660,6 @@ ignore = [
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
-    "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
     # Rules below explicitly set off which could overlap with Ruff's formatter
     # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules

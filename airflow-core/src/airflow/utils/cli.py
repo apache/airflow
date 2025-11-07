@@ -239,6 +239,7 @@ def get_dag_by_file_location(dag_id: str):
         raise AirflowException(
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
+    # This method is called only when we explicitly do not have a bundle name
     dagbag = DagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
 
