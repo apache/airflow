@@ -23,6 +23,7 @@ aiosqlite==0.21.0
 alembic==1.17.1
 annotated-types==0.7.0
 anyio==4.11.0
+apache-airflow-task-sdk==1.1.2
 argcomplete==3.6.3
 asgiref==3.10.0
 attrs==25.4.0

@@ -190,6 +190,7 @@ apache-airflow-providers-weaviate==3.2.4
 apache-airflow-providers-yandex==4.2.0
 apache-airflow-providers-ydb==2.2.2
 apache-airflow-providers-zendesk==4.10.3
+apache-airflow-task-sdk==1.1.2
 apache-beam==2.69.0
 apispec==6.8.4
 apprise==1.9.5
