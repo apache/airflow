@@ -3324,10 +3324,6 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
-export type LogoutData = {
-    next?: string | null;
-};
-
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
@@ -6405,7 +6401,6 @@ export type $OpenApiTs = {
     };
     '/api/v2/auth/logout': {
         get: {
-            req: LogoutData;
             res: {
                 /**
                  * Successful Response
@@ -6415,10 +6410,6 @@ export type $OpenApiTs = {
                  * Temporary Redirect
                  */
                 307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };
