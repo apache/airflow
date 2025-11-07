@@ -305,6 +305,13 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_config.worker_pods_queued_check_interval,
             self.clear_not_launched_queued_tasks,
         )
+
+        self.event_scheduler.call_regular_interval(
+            conf.getfloat("scheduler", "orphaned_tasks_check_interval", fallback=300.0),
+            self._adopt_completed_pods,
+            (self.kube_client,),
+        )
+
         # We also call this at startup as that's the most likely time to see
         # stuck queued tasks
         self.clear_not_launched_queued_tasks()
