@@ -950,7 +950,7 @@ def _callable_that_imports_from_bundle():
         from bug_test_dag_repro.lib.helper import get_message
 
         return get_message()
-    except Exception as e:
+    except ImportError as e:
         # This helps debug if the import fails during the test
         import sys
 
