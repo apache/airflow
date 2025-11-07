@@ -332,3 +332,83 @@ class TestRoles:
             resp = test_client.delete("/fab/v1/roles/")
             assert resp.status_code == 404
             mock_roles.delete_role.assert_not_called()
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_role(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        dummy_out = RoleResponse(name="roleA", permissions=[])
+        mock_roles.get_role.return_value = dummy_out
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles/roleA")
+            assert resp.status_code == 200
+            assert resp.json() == dummy_out.model_dump(by_alias=True)
+            mock_roles.get_role.assert_called_once_with(name="roleA")
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_role_forbidden(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = False
+        mock_get_auth_manager.return_value = mgr
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles/roleA")
+            assert resp.status_code == 403
+            mock_roles.get_role.assert_not_called()
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_role_validation_404_not_found(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+        mock_roles.get_role.side_effect = HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Role with name 'non_existent_role' does not exist.",
+        )
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles/non_existent_role")
+            assert resp.status_code == 404
+            mock_roles.get_role.assert_called_once_with(name="non_existent_role")
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    def test_get_role_validation_404_empty_name(
+        self, mock_get_application_builder, mock_get_auth_manager, mock_roles, test_client, as_user
+    ):
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        with as_user():
+            resp = test_client.get("/fab/v1/roles/")
+            assert resp.status_code == 404
+            mock_roles.get_role.assert_not_called()

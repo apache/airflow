@@ -478,7 +478,7 @@ class TestDagRunOperatorAF2:
             assert len(dagruns) == 2
 
     @pytest.mark.parametrize(
-        "trigger_run_id, trigger_logical_date",
+        ("trigger_run_id", "trigger_logical_date"),
         [
             (None, DEFAULT_DATE),
             ("dummy_run_id", None),
@@ -528,7 +528,7 @@ class TestDagRunOperatorAF2:
         assert dr.get_task_instance("test_task").state == TaskInstanceState.SKIPPED
 
     @pytest.mark.parametrize(
-        "trigger_run_id, trigger_logical_date, expected_dagruns_count",
+        ("trigger_run_id", "trigger_logical_date", "expected_dagruns_count"),
         [
             (None, DEFAULT_DATE, 1),
             (None, None, 2),
@@ -722,7 +722,7 @@ class TestDagRunOperatorAF2:
             task.execute_complete(context={}, event=trigger.serialize())
 
     @pytest.mark.parametrize(
-        argnames=["trigger_logical_date"],
+        argnames=("trigger_logical_date",),
         argvalues=[
             pytest.param(DEFAULT_DATE, id=f"logical_date={DEFAULT_DATE}"),
             pytest.param(None, id="logical_date=None"),

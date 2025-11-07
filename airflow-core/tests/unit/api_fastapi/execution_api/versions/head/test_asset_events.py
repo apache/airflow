@@ -91,7 +91,7 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
 class TestGetAssetEventByAsset:
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -159,7 +159,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -211,7 +211,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -263,7 +263,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -304,7 +304,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -372,7 +372,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -408,7 +408,7 @@ class TestGetAssetEventByAsset:
         }
 
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),

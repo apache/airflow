@@ -38,6 +38,15 @@ if TYPE_CHECKING:
 
 
 class TestConnection:
+    @pytest.fixture(autouse=True)
+    def clear_fernet_cache(self):
+        """Clear the fernet cache before each test to avoid encryption issues."""
+        from airflow.models.crypto import get_fernet
+
+        get_fernet.cache_clear()
+        yield
+        get_fernet.cache_clear()
+
     @pytest.mark.parametrize(
         "uri, expected_conn_type, expected_host, expected_login, expected_password,"
         " expected_port, expected_schema, expected_extra_dict, expected_exception_message",

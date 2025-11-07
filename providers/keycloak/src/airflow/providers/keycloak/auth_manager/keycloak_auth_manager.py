@@ -110,6 +110,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
+    def get_url_logout(self) -> str | None:
+        base_url = conf.get("api", "base_url", fallback="/")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         if self._token_expired(user.access_token):
             log.debug("Refreshing the token")

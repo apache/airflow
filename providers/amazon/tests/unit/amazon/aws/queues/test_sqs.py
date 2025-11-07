@@ -42,7 +42,7 @@ def test_message_sqs_queue_matches():
 
 
 @pytest.mark.parametrize(
-    "scheme, expected_result",
+    ("scheme", "expected_result"),
     [
         pytest.param("sqs", True, id="sqs_scheme"),
         pytest.param("kafka", False, id="kafka_scheme"),
