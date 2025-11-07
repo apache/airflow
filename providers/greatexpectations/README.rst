@@ -40,11 +40,11 @@ in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-greatexpectations``
 
-The package supports the following python versions: 3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -55,7 +55,6 @@ PIP package              Version required
 ``apache-airflow``       ``>=2.10.0``
 ``great-expectations``   ``>=1.3.11,<2.0``
 ``setuptools``           ``>=41.0.0``
-``numpy``                ``<2.0.0``
 ========================  ==================
 
 The changelog for the provider package can be found in the
