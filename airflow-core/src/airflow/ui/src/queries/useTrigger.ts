@@ -28,9 +28,11 @@ import {
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
+import { isHttpError } from "src/utils";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
+
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -63,6 +65,27 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   };
 
   const onError = (_error: unknown) => {
+    // Check if error is a 403 (Forbidden) status
+    if (isHttpError(_error, 403)) {
+      toaster.create({
+        description: translate("triggerDag.toaster.error.forbidden.description", "You don't have permission to trigger this DAG"),
+        title: translate("triggerDag.toaster.error.forbidden.title", "Permission Denied"),
+        type: "error",
+      });
+    } else if (isHttpError(_error, 401)) {
+      toaster.create({
+        description: translate("triggerDag.toaster.error.unauthorized.description", "Please log in to trigger DAGs"),
+        title: translate("triggerDag.toaster.error.unauthorized.title", "Authentication Required"), 
+        type: "error",
+      });
+    } else {
+      // Generic error handling for other status codes
+      toaster.create({
+        description: translate("triggerDag.toaster.error.generic.description", "Failed to trigger DAG"),
+        title: translate("triggerDag.toaster.error.generic.title", "Error"),
+        type: "error",
+      });
+    }
     setError(_error);
   };
 
@@ -93,5 +116,11 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return { 
+    error, 
+    isPending, 
+    triggerDagRun,
+    isForbidden: isHttpError(error, 403),
+    isUnauthorized: isHttpError(error, 401)
+  };
 };
