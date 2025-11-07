@@ -148,7 +148,7 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 
 ```shell script
 git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache --tags "airflow-ctl/${VERSION_RC}"
+git push apache "airflow-ctl/${VERSION_RC}"
 ```
 
 * Release candidate packages:
