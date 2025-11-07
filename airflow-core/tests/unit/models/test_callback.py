@@ -67,7 +67,7 @@ def clean_db(request):
 
 class TestCallback:
     @pytest.mark.parametrize(
-        "callback_def, expected_cb_instance",
+        ("callback_def", "expected_cb_instance"),
         [
             pytest.param(
                 TEST_ASYNC_CALLBACK, TriggererCallback(callback_def=TEST_ASYNC_CALLBACK), id="triggerer"
@@ -140,7 +140,7 @@ class TestTriggererCallback:
         assert callback.state == CallbackState.QUEUED
 
     @pytest.mark.parametrize(
-        "event, terminal_state",
+        ("event", "terminal_state"),
         [
             pytest.param(
                 TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "test_result"}),
