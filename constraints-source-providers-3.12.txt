@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-06T21:47:52.808374
+# This constraints file was automatically generated on 2025-11-07T09:48:10.604873
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -51,7 +51,7 @@ aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
 aiohttp==3.13.2
-aioitertools==0.12.0
+aioitertools==0.13.0
 aiomysql==0.3.2
 aioresponses==0.7.8
 aiosignal==1.4.0
@@ -225,7 +225,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.126.0
+google-cloud-aiplatform==1.126.1
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -504,7 +504,7 @@ pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.15.3
-pymssql==2.3.8
+pymssql==2.3.9
 pyodbc==5.3.0
 pyodps==0.12.5
 pyparsing==3.2.5
@@ -570,7 +570,7 @@ rpds-py==0.28.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.14
 ruamel.yaml==0.18.16
-ruff==0.14.3
+ruff==0.14.4
 s3fs==2025.10.0
 s3transfer==0.14.0
 sagemaker_studio==1.0.23
@@ -717,6 +717,6 @@ ydb==3.21.13
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==6.0
+zope.event==6.1
 zope.interface==8.0.1
 zstandard==0.25.0
