@@ -112,6 +112,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         if self._token_expired(user.access_token):
+            log.debug("Refreshing the token")
             client = self.get_keycloak_client()
             tokens = client.refresh_token(user.refresh_token)
             user.refresh_token = tokens["refresh_token"]
