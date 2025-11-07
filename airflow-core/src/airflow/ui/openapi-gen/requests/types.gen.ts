@@ -1211,7 +1211,7 @@ export type PoolPatchBody = {
 export type PoolResponse = {
     name: string;
     slots: number;
-    description: string | null;
+    description?: string | null;
     include_deferred: boolean;
     occupied_slots: number;
     running_slots: number;
