@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import Depends, Query, status
+from fastapi import Depends, Path, Query, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -83,3 +83,20 @@ def get_roles(
     """List roles with pagination and ordering."""
     with get_application_builder():
         return FABAuthManagerRoles.get_roles(order_by=order_by, limit=limit, offset=offset)
+
+
+@roles_router.delete(
+    "/roles/{name}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[Depends(requires_fab_custom_view("DELETE", permissions.RESOURCE_ROLE))],
+)
+def delete_role(name: str = Path(..., min_length=1)) -> None:
+    """Delete an existing role."""
+    with get_application_builder():
+        return FABAuthManagerRoles.delete_role(name=name)

@@ -32,6 +32,8 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__API__BASE_URL: 'http://airflow-apiserver:8080/'
     AIRFLOW__API_AUTH__JWT_SECRET: 'test-secret-key-for-testing'
+    AIRFLOW_VAR_TEST_VARIABLE_KEY: 'test_variable_value'
+    AIRFLOW_CONN_TEST_CONNECTION: 'postgresql://testuser:testpass@testhost:5432/testdb'
   user: "${AIRFLOW_UID:-50000}:0"
   volumes:
     - ${PWD}/dags:/opt/airflow/dags

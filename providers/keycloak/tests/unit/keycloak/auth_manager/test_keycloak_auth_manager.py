@@ -130,7 +130,7 @@ class TestKeycloakAuthManager:
         assert result.refresh_token == "new_refresh_token"
 
     @pytest.mark.parametrize(
-        "function, method, details, permission, attributes",
+        ("function", "method", "details", "permission", "attributes"),
         [
             [
                 "is_authorized_configuration",
@@ -198,7 +198,7 @@ class TestKeycloakAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
@@ -278,7 +278,7 @@ class TestKeycloakAuthManager:
         assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
-        "method, access_entity, details, permission, attributes",
+        ("method", "access_entity", "details", "permission", "attributes"),
         [
             [
                 "GET",
@@ -311,7 +311,7 @@ class TestKeycloakAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
@@ -344,7 +344,7 @@ class TestKeycloakAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
@@ -372,7 +372,7 @@ class TestKeycloakAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
@@ -398,7 +398,7 @@ class TestKeycloakAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "status_code, response, expected",
+        ("status_code", "response", "expected"),
         [
             [
                 200,
@@ -455,7 +455,7 @@ class TestKeycloakAuthManager:
         assert len(auth_manager.get_cli_commands()) == 1
 
     @pytest.mark.parametrize(
-        "expiration, expected",
+        ("expiration", "expected"),
         [
             (-30, True),
             (30, False),
