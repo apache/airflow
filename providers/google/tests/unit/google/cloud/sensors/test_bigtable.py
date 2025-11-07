@@ -36,7 +36,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class BigtableWaitForTableReplicationTest:
     @pytest.mark.parametrize(
-        "missing_attribute, project_id, instance_id, table_id",
+        ("missing_attribute", "project_id", "instance_id", "table_id"),
         [
             ("instance_id", PROJECT_ID, "", TABLE_ID),
             ("table_id", PROJECT_ID, INSTANCE_ID, ""),

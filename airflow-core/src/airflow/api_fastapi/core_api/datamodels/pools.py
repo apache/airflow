@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Annotated
 
 from pydantic import BeforeValidator, Field
@@ -57,7 +57,7 @@ class PoolResponse(BasePool):
 class PoolCollectionResponse(BaseModel):
     """Pool Collection serializer for responses."""
 
-    pools: list[PoolResponse]
+    pools: Iterable[PoolResponse]
     total_entries: int
 
 
