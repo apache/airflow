@@ -25,6 +25,8 @@ These tests validate the Execution API endpoints for DAG Run operations:
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk.api.datamodels._generated import DagRunStateResponse
 from airflow.sdk.execution_time.comms import DRCount
 from task_sdk_tests import console
@@ -68,3 +70,51 @@ def test_dag_run_get_count(sdk_client, dag_info):
     assert isinstance(response, DRCount)
     assert response.count >= 1, f"Expected at least 1 DAG run, got {response.count}"
     console.print("[green]✅ DAG run get count test passed!")
+
+
+@pytest.mark.skip(reason="TODO: Implement DAG Run get_state (not found) test")
+def test_dag_run_get_state_not_found(sdk_client):
+    """
+    Test getting state for non-existent DAG run.
+
+    Expected: ErrorResponse with DAGRUN_NOT_FOUND error
+    Endpoint: GET /execution/dag-runs/{dag_id}/{run_id}/state
+    """
+    console.print("[yellow]TODO: Implement test_dag_run_get_state_not_found")
+    raise NotImplementedError("test_dag_run_get_state_not_found not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement DAG Run get_count (not found) test")
+def test_dag_run_get_count_not_found(sdk_client):
+    """
+    Test getting count for non-existent DAG.
+
+    Expected: DRCount with count=0
+    Endpoint: GET /execution/dag-runs/count
+    """
+    console.print("[yellow]TODO: Implement test_dag_run_get_count_not_found")
+    raise NotImplementedError("test_dag_run_get_count_not_found not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement DAG Run get_previous test")
+def test_dag_run_get_previous(sdk_client, dag_info):
+    """
+    Test getting previous DAG run before a logical date.
+
+    Expected: PreviousDagRunResult with dag_run field
+    Endpoint: GET /execution/dag-runs/{dag_id}/previous
+    """
+    console.print("[yellow]TODO: Implement test_dag_run_get_previous")
+    raise NotImplementedError("test_dag_run_get_previous not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement DAG Run get_previous (not found) test")
+def test_dag_run_get_previous_not_found(sdk_client):
+    """
+    Test getting previous DAG run for non-existent DAG.
+
+    Expected: ErrorResponse with DAG_NOT_FOUND error
+    Endpoint: GET /execution/dag-runs/{dag_id}/previous
+    """
+    console.print("[yellow]TODO: Implement test_dag_run_get_previous_not_found")
+    raise NotImplementedError("test_dag_run_get_previous_not_found not implemented")
