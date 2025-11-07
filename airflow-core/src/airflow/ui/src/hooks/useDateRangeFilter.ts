@@ -233,11 +233,24 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     }
 
     onChange({ endDate: newEndDate, startDate: newStartDate });
-    setEditingState((prev) => ({
-      ...prev,
-      currentMonth: clickedDate,
-      selectionTarget: nextTarget,
-    }));
+    setEditingState((prev) => {
+      // Update inputs to reflect the new date values
+      const newInputs = {
+        ...prev.inputs,
+        start: newStartDate ? dayjs(newStartDate).format(DATE_INPUT_FORMAT) : "",
+        end: newEndDate ? dayjs(newEndDate).format(DATE_INPUT_FORMAT) : "",
+      };
+      // Revalidate with the new inputs
+      const validationErrors = validateInputs(newInputs);
+
+      return {
+        ...prev,
+        currentMonth: clickedDate,
+        selectionTarget: nextTarget,
+        inputs: newInputs,
+        validationErrors,
+      };
+    });
   };
 
   const handleInputChange =

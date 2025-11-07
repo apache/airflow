@@ -61,7 +61,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
       onChange={onChange}
       onRemove={onRemove}
     >
-      <Popover.Root defaultOpen={!hasValue} key={filter.id} lazyMount unmountOnExit>
+      <Popover.Root defaultOpen={!hasValue} key={filter.id} lazyMount positioning={{ placement: "bottom-start" }} unmountOnExit>
         <Popover.Trigger asChild>
           <Box
             alignItems="center"
