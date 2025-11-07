@@ -34,7 +34,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
-    ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     BREEZE_DEBUG_APISERVER_PORT,
@@ -47,6 +46,7 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -196,7 +196,7 @@ class ShellParams:
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
-    postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
+    postgres_version: str = DEFAULT_POSTGRES_VERSION
     project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
     providers_constraints_location: str = ""
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]

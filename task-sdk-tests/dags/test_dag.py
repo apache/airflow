@@ -30,6 +30,12 @@ def get_task_instance_id(ti=None):
 
 
 @task(dag=dag)
+def return_tuple_task(ti=None):
+    """Task that returns a tuple for testing XCom serialization/deserialization"""
+    return 1, "test_value"
+
+
+@task(dag=dag)
 def long_running_task(ti=None):
     """Long-running task that sleeps for 5 minutes to allow testing"""
     print(f"Starting long-running task with TI ID: {ti.id}")
@@ -42,6 +48,7 @@ def long_running_task(ti=None):
 
 
 get_ti_id = get_task_instance_id()
+tuple_task = return_tuple_task()
 long_task = long_running_task()
 
-get_ti_id >> long_task
+get_ti_id >> tuple_task >> long_task
