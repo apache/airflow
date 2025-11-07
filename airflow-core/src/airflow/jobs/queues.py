@@ -113,7 +113,7 @@ class KeyedHeadQueue(Generic[K, V]):
     def __contains__(self, key: K) -> bool:
         return key in self._map
 
-    def __iter__(self) -> Iterable[tuple[K, V]]:
+    def __iter__(self) -> Iterable[tuple[K, tuple[K, V]]]:
         """Iterate over leftover (key, value) pairs in a snapshot, so concurrent appends during iteration are not visible."""
         for key, values in self._map.items():
             for value in values:
