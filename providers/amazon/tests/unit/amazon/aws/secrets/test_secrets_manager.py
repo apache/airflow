@@ -151,7 +151,7 @@ class TestSecretsManagerBackend:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "connection_id, connections_lookup_pattern, num_client_calls",
+        ("connection_id", "connections_lookup_pattern", "num_client_calls"),
         [
             ("test", "test", 1),
             ("test", ".*", 1),
@@ -178,7 +178,7 @@ class TestSecretsManagerBackend:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "variable_key, variables_lookup_pattern, num_client_calls",
+        ("variable_key", "variables_lookup_pattern", "num_client_calls"),
         [
             ("test", "test", 1),
             ("test", ".*", 1),
@@ -205,7 +205,7 @@ class TestSecretsManagerBackend:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "config_key, config_lookup_pattern, num_client_calls",
+        ("config_key", "config_lookup_pattern", "num_client_calls"),
         [
             ("test", "test", 1),
             ("test", ".*", 1),
