@@ -22,7 +22,7 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "module_path, attr_name, expected_value, warning_message",
+    ("module_path", "attr_name", "expected_value", "warning_message"),
     (
         pytest.param(
             "airflow",

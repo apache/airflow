@@ -408,7 +408,7 @@ def get_dag_runs(
     dag_runs = session.scalars(dag_run_select)
 
     return DAGRunCollectionResponse(
-        dag_runs=list(dag_runs),
+        dag_runs=dag_runs,
         total_entries=total_entries,
     )
 
@@ -635,6 +635,6 @@ def get_list_dag_runs_batch(
     dag_runs = session.scalars(dag_runs_select)
 
     return DAGRunCollectionResponse(
-        dag_runs=list(dag_runs),
+        dag_runs=dag_runs,
         total_entries=total_entries,
     )

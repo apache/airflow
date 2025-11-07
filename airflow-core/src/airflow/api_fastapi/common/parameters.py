@@ -583,7 +583,7 @@ class RangeFilter(BaseParam[Range]):
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
-) -> Callable[[datetime | None, datetime | None], RangeFilter]:
+) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -608,7 +608,7 @@ def datetime_range_filter_factory(
 
 def float_range_filter_factory(
     filter_name: str, model: Base
-) -> Callable[[float | None, float | None], RangeFilter]:
+) -> Callable[[float | None, float | None, float | None, float | None], RangeFilter]:
     def depends_float(
         lower_bound_gte: float | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -872,6 +872,15 @@ QueryTIQueueFilter = Annotated[
         filter_param_factory(TaskInstance.queue, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
     ),
 ]
+QueryTIPoolNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.pool, "pool_name_pattern")),
+]
+
+QueryTIQueueNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.queue, "queue_name_pattern")),
+]
 QueryTIExecutorFilter = Annotated[
     FilterParam[list[str]],
     Depends(
@@ -920,6 +929,15 @@ QueryTIOperatorFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+QueryTIOperatorNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.custom_operator_name,
+            "operator_name_pattern",
         )
     ),
 ]

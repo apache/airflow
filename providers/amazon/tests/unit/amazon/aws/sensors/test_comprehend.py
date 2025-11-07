@@ -137,7 +137,7 @@ class TestComprehendCreateDocumentClassifierCompletedSensor:
         assert op.hook._config.read_timeout == 42
 
     @pytest.mark.parametrize(
-        "state, message, output",
+        ("state", "message", "output"),
         [
             pytest.param("TRAINED", "", "s3://test-output", id="training succeeded"),
             pytest.param(

@@ -39,7 +39,7 @@ class TestSchedulerCommand:
         cls.parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize(
-        "executor, expect_serve_logs",
+        ("executor", "expect_serve_logs"),
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),

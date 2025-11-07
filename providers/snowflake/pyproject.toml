@@ -78,7 +78,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure"
+    "apache-airflow-providers-microsoft-azure>=12.8.0"
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
