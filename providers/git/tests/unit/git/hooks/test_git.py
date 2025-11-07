@@ -104,7 +104,7 @@ class TestGitHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, hook_kwargs, expected_repo_url",
+        ("conn_id", "hook_kwargs", "expected_repo_url"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT),
             (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),

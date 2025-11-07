@@ -100,3 +100,16 @@ def delete_role(name: str = Path(..., min_length=1)) -> None:
     """Delete an existing role."""
     with get_application_builder():
         return FABAuthManagerRoles.delete_role(name=name)
+
+
+@roles_router.get(
+    "/roles/{name}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+    dependencies=[Depends(requires_fab_custom_view("GET", permissions.RESOURCE_ROLE))],
+)
+def get_role(name: str = Path(..., min_length=1)) -> RoleResponse:
+    """Get an existing role."""
+    with get_application_builder():
+        return FABAuthManagerRoles.get_role(name=name)
