@@ -1426,14 +1426,10 @@ export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }:
 /**
 * Logout
 * Logout the user.
-* @param data The data for the request.
-* @param data.next
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const prefetchUseLoginServiceLogout = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }), queryFn: () => LoginService.logout({ next }) });
+export const prefetchUseLoginServiceLogout = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLogoutKeyFn(), queryFn: () => LoginService.logout() });
 /**
 * Refresh
 * Refresh the authentication token.
