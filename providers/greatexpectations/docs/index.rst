@@ -25,7 +25,6 @@
     :caption: Basics
 
     Home <self>
-    Changelog <changelog>
     Security <security>
 
 .. toctree::
@@ -58,15 +57,16 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-greatexpectations/>
     Installing from sources <installing-providers-from-sources>
 
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 
 
 apache-airflow-providers-greatexpectations package

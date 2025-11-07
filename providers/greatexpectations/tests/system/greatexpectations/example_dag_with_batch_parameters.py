@@ -150,13 +150,13 @@ with DAG(
         "gx_batch_parameters": _batch_parameters,
     },
 ) as dag:
-    # [START howto_operator_gx_validate_batch_with_params]
+    # [START howto_operator_gx_validate_batch]
     validate_extract = GXValidateBatchOperator(
         task_id="validate_extract",
         configure_batch_definition=configure_pandas_batch_definition,
         configure_expectations=configure_expectations,
     )
-    # [END howto_operator_gx_validate_batch_with_params]
+    # [END howto_operator_gx_validate_batch]
 
     # [START howto_operator_gx_validate_checkpoint_with_params]
     validate_load = GXValidateCheckpointOperator(
