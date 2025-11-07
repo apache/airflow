@@ -199,6 +199,7 @@ class TestTIRunState:
                 "conf": {},
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
+                "partition_key": None,
             },
             "task_reschedule_count": 0,
             "upstream_map_indexes": {},
