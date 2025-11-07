@@ -69,6 +69,7 @@ body:
         - git
         - github
         - google
+        - greatexpectations
         - grpc
         - hashicorp
         - http
