@@ -372,7 +372,7 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts: Iterable[Row[tuple[str, int]]] = session.scalars(
+                task_id_counts: Iterable[Row[tuple[str, int]]] = session.execute(
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
