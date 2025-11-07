@@ -156,10 +156,6 @@ dependencies = [
     # Start of shared configuration dependencies
     "pyyaml>=6.0.3",
     # End of shared configuration dependencies
-    # Start of shared observability dependencies
-    "statsd>=3.3.0",
-    "datadog>=0.50.0",
-    # End of shared observability dependencies
 ]
 
 
@@ -186,12 +182,18 @@ dependencies = [
 ]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "opentelemetry-proto<9999,>=1.27.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
 ]
+"datadog" = [
+    "datadog>=0.50.0",
+]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
+    "apache-airflow-core[async,graphviz,kerberos,memray,otel,statsd,datadog]"
 ]
 
 [project.scripts]

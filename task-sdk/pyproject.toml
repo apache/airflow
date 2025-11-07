@@ -79,11 +79,6 @@ dependencies = [
     # End of shared configuration dependencies
     # Start of shared observability dependencies
     "sqlalchemy>=1.4.36",
-    "opentelemetry-api>=1.27.0",
-    "opentelemetry-exporter-otlp>=1.27.0",
-    "opentelemetry-proto<9999,>=1.27.0",
-    "statsd>=3.3.0",
-    "datadog>=0.50.0",
     # End of shared observability dependencies
 ]
 
@@ -91,7 +86,18 @@ dependencies = [
 "sentry" = [
     "sentry-sdk>=2.30.0",
 ]
-"all" = ["apache-airflow-task-sdk[sentry]"]
+"otel" = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "opentelemetry-proto<9999,>=1.27.0",
+]
+"statsd" = [
+    "statsd>=3.3.0",
+]
+"datadog" = [
+    "datadog>=0.50.0",
+]
+"all" = ["apache-airflow-task-sdk[sentry,otel,statsd,datadog]"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
