@@ -499,6 +499,7 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
         event = AssetAliasEvent(
             source_alias_name=asset_alias_name,
             dest_asset_key=asset_key,
+            dest_asset_extra=asset.extra if isinstance(asset, Asset) else {},
             extra=extra or {},
         )
         self.asset_alias_events.append(event)

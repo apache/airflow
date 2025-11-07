@@ -399,6 +399,7 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
                 dest_asset_key=AssetUniqueKey(
                     name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
                 ),
+                dest_asset_extra=e["dest_asset_extra"],
                 extra=e["extra"],
             )
             for e in asset_alias_events
