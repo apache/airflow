@@ -60,7 +60,7 @@ class TestGoogleSearchAdsReportingHook:
         "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.customer_service"
     )
     @pytest.mark.parametrize(
-        "given_args, expected_args_extras",
+        ("given_args", "expected_args_extras"),
         [
             ({"page_token": None}, {}),
             ({"page_token": "next_page_token"}, {"pageToken": "next_page_token"}),
@@ -149,7 +149,7 @@ class TestGoogleSearchAdsReportingHook:
         "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.fields_service"
     )
     @pytest.mark.parametrize(
-        "given_args, expected_args_extras",
+        ("given_args", "expected_args_extras"),
         [
             ({"page_token": None}, {}),
             ({"page_token": "next_page_token"}, {"pageToken": "next_page_token"}),

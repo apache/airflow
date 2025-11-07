@@ -33,7 +33,7 @@ services:
       - POSTGRES_DB=airflow
       - POSTGRES_HOST_AUTH_METHOD=password
     volumes:
-      - postgres-db-volume:/var/lib/postgresql/data
+      - postgres-data-volume:/var/lib/postgresql/{$POSTGRES_VERSION}/docker
     healthcheck:
       test: ["CMD", "psql", "-h", "localhost", "-U", "postgres", "-c", "select 1", "airflow"]
       interval: 10s
@@ -42,4 +42,5 @@ services:
       retries: 5
     restart: "on-failure"
 volumes:
-  postgres-db-volume:
+  postgres-data-volume:
+    name: "postgres${POSTGRES_VERSION}-db-volume"
