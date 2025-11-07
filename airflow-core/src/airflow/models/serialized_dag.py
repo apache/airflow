@@ -653,7 +653,7 @@ class SerializedDagModel(Base):
         if load_json is not None:
             iterator_result = [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
         else:
-            iterator_result = [(str(row[0]), dict(row[1]) if row[1] else {}) for row in query.all()]
+            iterator_result = [(str(row[0]), row[1] if row[1] else []) for row in query.all()]
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator_result, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
