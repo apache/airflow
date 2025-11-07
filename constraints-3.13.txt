@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-06T15:02:26.851785
+# This constraints file was automatically generated on 2025-11-07T14:17:30.458089
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -64,7 +64,7 @@ aiobotocore==2.25.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.2
-aioitertools==0.12.0
+aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.0.0
@@ -301,7 +301,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.126.0
+google-cloud-aiplatform==1.126.1
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -317,7 +317,7 @@ google-cloud-core==2.5.0
 google-cloud-datacatalog==3.28.0
 google-cloud-dataflow-client==0.10.0
 google-cloud-dataform==0.7.0
-google-cloud-dataplex==2.14.0
+google-cloud-dataplex==2.15.0
 google-cloud-dataproc-metastore==1.20.0
 google-cloud-dataproc==5.23.0
 google-cloud-dlp==3.33.0
@@ -340,14 +340,14 @@ google-cloud-storage-transfer==1.18.0
 google-cloud-storage==3.5.0
 google-cloud-tasks==2.20.0
 google-cloud-texttospeech==2.33.0
-google-cloud-translate==3.22.0
+google-cloud-translate==3.23.0
 google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
 google-genai==1.49.0
 google-resumable-media==2.7.2
-googleapis-common-protos==1.71.0
+googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.2.1
 greenlet==3.2.4
@@ -448,7 +448,7 @@ natsort==8.4.0
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==6.0.2
+neo4j==6.0.3
 nest-asyncio==1.6.0
 numpy==2.3.4
 oauthlib==3.3.1
@@ -523,7 +523,7 @@ pyexasol==1.2.1
 pygtrie==2.5.0
 pykerberos==1.2.4
 pymongo==4.15.3
-pymssql==2.3.8
+pymssql==2.3.9
 pyodbc==5.3.0
 pyodps==0.12.5
 pyparsing==3.2.5
@@ -655,6 +655,6 @@ yarl==1.22.0
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
-zope.event==6.0
+zope.event==6.1
 zope.interface==8.0.1
 zstandard==0.25.0
