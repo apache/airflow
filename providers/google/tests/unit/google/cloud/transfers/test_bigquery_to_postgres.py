@@ -127,7 +127,8 @@ class TestBigQueryToPostgresOperator:
         )
 
     @pytest.mark.parametrize(
-        "selected_fields, replace_index", [(None, None), (["col_1, col_2"], None), (None, ["col_1"])]
+        ("selected_fields", "replace_index"),
+        [(None, None), (["col_1, col_2"], None), (None, ["col_1"])],
     )
     def test_init_raises_exception_if_replace_is_true_and_missing_params(
         self, selected_fields, replace_index
