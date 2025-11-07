@@ -204,7 +204,12 @@ jobs:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: true
       - name: "Run pin-versions"
-        run: prek --all-files --verbose --hook-stage manual pin-versions
+        run: |
+          if ! prek --all-files --verbose --hook-stage manual pin-versions; then
+              echo -e "\n\033[0;31mThere are changes in actions hooks after upgrade check.\033[0m"
+              echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+              exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
