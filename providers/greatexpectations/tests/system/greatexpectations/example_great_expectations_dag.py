@@ -21,8 +21,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import great_expectations.expectations as gxe
-
 from airflow import DAG
 
 try:
@@ -32,7 +30,6 @@ except ImportError:
         chain,
     )
 
-from great_expectations import Checkpoint, ExpectationSuite, ValidationDefinition
 
 from airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
 from airflow.providers.greatexpectations.operators.validate_checkpoint import (
@@ -44,6 +41,7 @@ from airflow.providers.greatexpectations.operators.validate_dataframe import (
 
 if TYPE_CHECKING:
     import pandas as pd
+    from great_expectations import Checkpoint
     from great_expectations.core.batch_definition import BatchDefinition
     from great_expectations.data_context import AbstractDataContext
 
@@ -77,6 +75,9 @@ def configure_checkpoint(context: AbstractDataContext) -> Checkpoint:
     """This function takes a GX Context and returns a Checkpoint that
     can load our CSV files from the data directory, validate them
     against an ExpectationSuite, and run Actions."""
+    import great_expectations.expectations as gxe
+    from great_expectations import Checkpoint, ExpectationSuite, ValidationDefinition
+
     # setup data source, asset, batch definition
     batch_definition = (
         context.data_sources.add_pandas_filesystem(name="Load Datasource", base_directory=data_dir)
@@ -126,17 +127,25 @@ batch_parameters = {"year": "2019", "month": SUCCESS_MONTH}
 
 
 # define a consistent set of expectations we'll use throughout the pipeline
-expectation_suite = ExpectationSuite(
-    name="Taxi Data Expectations",
-    expectations=[
-        gxe.ExpectTableRowCountToBeBetween(
-            min_value=9000,
-            max_value=11000,
-        ),
-        gxe.ExpectColumnValuesToNotBeNull(column="vendor_id"),
-        gxe.ExpectColumnValuesToBeBetween(column="passenger_count", min_value=1, max_value=6),
-    ],
-)
+
+
+def configure_expectations(context: AbstractDataContext):
+    """Return the expectation suite for validation."""
+    import great_expectations.expectations as gxe
+    from great_expectations import ExpectationSuite
+
+    return ExpectationSuite(
+        name="Taxi Data Expectations",
+        expectations=[
+            gxe.ExpectTableRowCountToBeBetween(
+                min_value=9000,
+                max_value=11000,
+            ),
+            gxe.ExpectColumnValuesToNotBeNull(column="vendor_id"),
+            gxe.ExpectColumnValuesToBeBetween(column="passenger_count", min_value=1, max_value=6),
+        ],
+    )
+
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "greatexpectations_example_dag"
@@ -152,14 +161,14 @@ with DAG(
     validate_extract = GXValidateBatchOperator(
         task_id="validate_extract",
         configure_batch_definition=configure_pandas_batch_definition,
-        expect=expectation_suite,
+        configure_expectations=configure_expectations,
         batch_parameters=batch_parameters,
     )
 
     validate_transform = GXValidateDataFrameOperator(
         task_id="validate_transform",
         configure_dataframe=configure_data_frame,
-        expect=expectation_suite,
+        configure_expectations=configure_expectations,
     )
 
     validate_load = GXValidateCheckpointOperator(

@@ -54,12 +54,14 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["a", "b", "c"]})
-        expect = ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"])
+
+        def configure_expectations(context: AbstractDataContext):
+            return ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"])
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=configure_ephemeral_batch_definition,
-            expect=expect,
+            configure_expectations=configure_expectations,
             batch_parameters={"dataframe": df},
         )
         mock_ti = Mock()
@@ -92,17 +94,19 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["a", "b", "c"]})
-        expect = ExpectationSuite(
-            name="test suite",
-            expectations=[
-                ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"]),
-            ],
-        )
+
+        def configure_expectations(context: AbstractDataContext):
+            return ExpectationSuite(
+                name="test suite",
+                expectations=[
+                    ExpectColumnValuesToBeInSet(column=column_name, value_set=["a", "b", "c", "d", "e"]),
+                ],
+            )
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=configure_ephemeral_batch_definition,
-            expect=expect,
+            configure_expectations=configure_expectations,
             batch_parameters={"dataframe": df},
         )
         mock_ti = Mock()
@@ -191,15 +195,17 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["a", "b", "c"]})
-        expect = ExpectColumnValuesToBeInSet(
-            column=column_name,
-            value_set=["a", "b", "c", "d", "e"],  # type: ignore[arg-type]
-        )
+
+        def configure_expectations(context: AbstractDataContext):
+            return ExpectColumnValuesToBeInSet(
+                column=column_name,
+                value_set=["a", "b", "c", "d", "e"],  # type: ignore[arg-type]
+            )
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=configure_ephemeral_batch_definition,
-            expect=expect,
+            configure_expectations=configure_expectations,
             batch_parameters={"dataframe": df},
             result_format=result_format,
         )
@@ -222,7 +228,7 @@ class TestValidateBatchOperator:
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=lambda context: Mock(),
-            expect=Mock(),
+            configure_expectations=lambda context: Mock(),
             batch_parameters={"dataframe": Mock()},
             context_type=context_type,
         )
@@ -245,7 +251,7 @@ class TestValidateBatchOperator:
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=lambda context: Mock(),
-            expect=Mock(),
+            configure_expectations=lambda context: Mock(),
             batch_parameters={"dataframe": Mock()},
             context_type=context_type,
         )
@@ -267,7 +273,6 @@ class TestValidateBatchOperator:
         mock_context = mock_gx.get_context.return_value
         mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = Mock()
-        expect = Mock()
         batch_parameters = {
             "year": "2024",
             "month": "01",
@@ -277,7 +282,7 @@ class TestValidateBatchOperator:
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=lambda context: mock_batch_definition,
-            expect=expect,
+            configure_expectations=lambda context: Mock(),
             batch_parameters=batch_parameters,
             context_type="ephemeral",
         )
@@ -296,7 +301,6 @@ class TestValidateBatchOperator:
         mock_context = mock_gx.get_context.return_value
         mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = create_autospec(BatchDefinition)
-        expect = create_autospec(ExpectationSuite)
         batch_parameters = {
             "year": "2024",
             "month": "01",
@@ -306,7 +310,7 @@ class TestValidateBatchOperator:
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=lambda context: mock_batch_definition,
-            expect=expect,
+            configure_expectations=lambda context: create_autospec(ExpectationSuite),
             context_type="ephemeral",
         )
         mock_ti = Mock()
@@ -327,7 +331,6 @@ class TestValidateBatchOperator:
         mock_context = mock_gx.get_context.return_value
         mock_validation_definition = mock_context.validation_definitions.add_or_update.return_value
         mock_batch_definition = create_autospec(BatchDefinition)
-        expect = create_autospec(ExpectationSuite)
         init_batch_parameters = {
             "year": "2020",
             "month": "02",
@@ -342,7 +345,7 @@ class TestValidateBatchOperator:
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_success",
             configure_batch_definition=lambda context: mock_batch_definition,
-            expect=expect,
+            configure_expectations=lambda context: create_autospec(ExpectationSuite),
             batch_parameters=init_batch_parameters,
             context_type="ephemeral",
         )
@@ -368,12 +371,12 @@ class TestValidateBatchOperator:
         mock_validation_definition_factory = mock_context.validation_definitions
         mock_validation_definition = mock_gx.ValidationDefinition.return_value
         mock_batch_definition = create_autospec(BatchDefinition)
-        expect = create_autospec(ExpectationSuite)
+        mock_expect = create_autospec(ExpectationSuite)
 
         validate_batch = GXValidateBatchOperator(
             task_id=task_id,
             configure_batch_definition=lambda context: mock_batch_definition,
-            expect=expect,
+            configure_expectations=lambda context: mock_expect,
             batch_parameters=Mock(),
             context_type="ephemeral",
         )
@@ -385,7 +388,7 @@ class TestValidateBatchOperator:
 
         # assert
         mock_gx.ValidationDefinition.assert_called_once_with(
-            name=task_id, suite=expect, data=mock_batch_definition
+            name=task_id, suite=mock_expect, data=mock_batch_definition
         )
         mock_validation_definition_factory.add_or_update.assert_called_once_with(
             validation=mock_validation_definition
@@ -406,15 +409,17 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
-        expect = ExpectColumnValuesToBeInSet(
-            column=column_name,
-            value_set=["a", "b", "c"],  # different values to cause failure
-        )
+
+        def configure_expectations(context: AbstractDataContext):
+            return ExpectColumnValuesToBeInSet(
+                column=column_name,
+                value_set=["a", "b", "c"],  # different values to cause failure
+            )
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_failure",
             configure_batch_definition=configure_ephemeral_batch_definition,
-            expect=expect,
+            configure_expectations=configure_expectations,
             batch_parameters={"dataframe": df},
         )
         mock_ti = Mock()
@@ -439,15 +444,17 @@ class TestValidateBatchOperator:
 
         column_name = "col_A"
         df = pd.DataFrame({column_name: ["x", "y", "z"]})  # values NOT in the expected set
-        expect = ExpectColumnValuesToBeInSet(
-            column=column_name,
-            value_set=["a", "b", "c"],  # different values to cause failure
-        )
+
+        def configure_expectations(context: AbstractDataContext):
+            return ExpectColumnValuesToBeInSet(
+                column=column_name,
+                value_set=["a", "b", "c"],  # different values to cause failure
+            )
 
         validate_batch = GXValidateBatchOperator(
             task_id="validate_batch_failure",
             configure_batch_definition=configure_ephemeral_batch_definition,
-            expect=expect,
+            configure_expectations=configure_expectations,
             batch_parameters={"dataframe": df},
         )
 

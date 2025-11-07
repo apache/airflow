@@ -45,8 +45,9 @@ class GXValidateBatchOperator(BaseOperator):
         task_id: Airflow task ID. Alphanumeric name used in the Airflow UI and to name components in GX Cloud.
         configure_batch_definition: A callable that returns a BatchDefinition to configure GX to read your data.
             For more information, see https://docs.greatexpectations.io/docs/core/connect_to_data/filesystem_data/#create-a-batch-definition).
-        expect: An Expectation or ExpectationSuite to validate against the Batch. Available Expectations can
-            be found at https://greatexpectations.io/expectations.
+        configure_expectations: A callable that accepts an AbstractDataContext and returns an Expectation or
+            ExpectationSuite to validate against the Batch. Available Expectations can be found at
+            https://greatexpectations.io/expectations.
         batch_parameters: dictionary that specifies a time-based Batch of data to validate your Expectations against.
             Defaults to the first valid Batch found, which is the most recent Batch (with default sort ascending)
             or the oldest Batch if the Batch Definition has been configured to sort descending.
@@ -64,7 +65,7 @@ class GXValidateBatchOperator(BaseOperator):
     def __init__(
         self,
         configure_batch_definition: Callable[[AbstractDataContext], BatchDefinition],
-        expect: Expectation | ExpectationSuite,
+        configure_expectations: Callable[[AbstractDataContext], Expectation | ExpectationSuite],
         batch_parameters: BatchParameters | None = None,
         context_type: Literal["ephemeral", "cloud"] = "ephemeral",
         result_format: (Literal["BOOLEAN_ONLY", "BASIC", "SUMMARY", "COMPLETE"] | None) = None,
@@ -80,7 +81,7 @@ class GXValidateBatchOperator(BaseOperator):
             self.batch_parameters = batch_parameters
         self.context_type = context_type
         self.configure_batch_definition = configure_batch_definition
-        self.expect = expect
+        self.configure_expectations = configure_expectations
         self.result_format = result_format
         self.conn_id = conn_id
 
@@ -91,6 +92,7 @@ class GXValidateBatchOperator(BaseOperator):
             gx_cloud_config = None
         gx_context = load_data_context(gx_cloud_config=gx_cloud_config, context_type=self.context_type)
         batch_definition = self.configure_batch_definition(gx_context)
+        expect = self.configure_expectations(gx_context)
 
         runtime_batch_params = context.get("params", {}).get("gx_batch_parameters")  # type: ignore[call-overload]
         if runtime_batch_params:
@@ -99,7 +101,7 @@ class GXValidateBatchOperator(BaseOperator):
             batch_parameters = self.batch_parameters
         result = run_validation_definition(
             task_id=self.task_id,
-            expect=self.expect,
+            expect=expect,
             batch_definition=batch_definition,
             result_format=self.result_format,
             batch_parameters=batch_parameters,
