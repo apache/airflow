@@ -17,11 +17,10 @@
  * under the License.
  */
 import { Box, IconButton, Input, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import React from "react";
 import { MdClose } from "react-icons/md";
 
-import { DATE_INPUT_FORMAT, TIME_INPUT_FORMAT, type ValidationError } from "src/hooks/useDateRangeFilter";
+import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
   readonly field: "end" | "start";

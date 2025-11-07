@@ -63,6 +63,7 @@ export const DateRangeInputs = ({
     if (editingState.selectionTarget === fieldName) {
       return "brand.focusRing";
     }
+
     return "border";
   };
 
