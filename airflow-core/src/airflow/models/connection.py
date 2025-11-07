@@ -261,6 +261,17 @@ class Connection(Base, LoggingMixin):
             return f"{protocol}://{host}"
         return host
 
+    @staticmethod
+    def _stringify_extra_values(v):
+        """Convert extras to string-safe form for URI encoding."""
+        if isinstance(v, (dict, list)):
+            return json.dumps(v)
+        if isinstance(v, bool):
+            return str(v).lower()
+        if v is None:
+            return "null"
+        return str(v)
+
     def get_uri(self) -> str:
         """
         Return the connection URI in Airflow format.
@@ -329,26 +340,8 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                extras_dict = self.extra_dejson
-                has_unserializable = any(v in (None, "") for v in extras_dict.values())
-
-                safe_extras = {
-                    k: (
-                        json.dumps(v)
-                        if isinstance(v, (dict, list))
-                        else str(v).lower()
-                        if isinstance(v, bool)
-                        else "null"
-                        if v is None
-                        else str(v)
-                    )
-                    for k, v in extras_dict.items()
-                }
-                if has_unserializable:
-                    uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-                else:
-                    uri += ("?" if self.schema else "/?") + urlencode(safe_extras)
-
+                safe_extras = {k: self._stringify_extra_values(v) for k, v in self.extra_dejson.items()}
+                uri += ("?" if self.schema else "/?") + urlencode(safe_extras)
             except Exception:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
 
