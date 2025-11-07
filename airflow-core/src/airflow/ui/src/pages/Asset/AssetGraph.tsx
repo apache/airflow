@@ -29,15 +29,42 @@ import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { getReactFlowThemeStyle } from "src/theme";
+import { getTaskLevelDependencies } from "src/utils/assetGraph";
 
-export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
+export const AssetGraph = ({
+  asset,
+  showDagLevelDependencies = true,
+  showTaskLevelDependencies = false,
+}: {
+  readonly asset?: AssetResponse;
+  readonly showDagLevelDependencies?: boolean;
+  readonly showTaskLevelDependencies?: boolean;
+}) => {
   const { assetId } = useParams();
   const { colorMode = "light" } = useColorMode();
 
-  const { data = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`);
+  const { data: dagLevelGraphData = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`);
+  const taskLevelGraphData = getTaskLevelDependencies({ edges: [], nodes: [] }, asset);
+
+  const combinedGraphData = {
+    edges: [
+      ...(showDagLevelDependencies ? dagLevelGraphData.edges : []),
+      ...(showTaskLevelDependencies ? taskLevelGraphData.edges : []),
+    ],
+    nodes: [
+      // Always show the asset nodes from DAG level data
+      ...dagLevelGraphData.nodes.filter((node) => node.id === `asset:${assetId}`),
+      // Conditionally show dag nodes
+      ...(showDagLevelDependencies
+        ? dagLevelGraphData.nodes.filter((node) => node.id !== `asset:${assetId}`)
+        : []),
+      // Conditionally show task nodes
+      ...(showTaskLevelDependencies ? taskLevelGraphData.nodes : []),
+    ],
+  };
 
   const { data: graphData } = useGraphLayout({
-    ...data,
+    ...combinedGraphData,
     direction: "RIGHT",
     openGroupIds: [],
   });
@@ -56,6 +83,10 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       ...edge.data,
       rest: {
         ...edge.data?.rest,
+        edgeType:
+          showTaskLevelDependencies && (edge.source.startsWith("task:") || edge.target.startsWith("task:"))
+            ? "task"
+            : "dag",
         isSelected: `asset:${asset?.id}` === edge.source || `asset:${asset?.id}` === edge.target,
       },
     },

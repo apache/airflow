@@ -30,5 +30,7 @@
   "name": "Name",
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
-  "searchPlaceholder": "Search Assets"
+  "searchPlaceholder": "Search Assets",
+  "showDagLevelDependencies": "Show Dag Level Dependencies",
+  "showTaskLevelDependencies": "Show Task Level Dependencies"
 }
