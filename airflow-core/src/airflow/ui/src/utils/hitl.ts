@@ -128,7 +128,7 @@ export const getHITLParamsDict = (
           type: typeof value === "number" ? "number" : "string",
           values_display: undefined,
         },
-        value: paramData?.value ?? paramData ?? value,
+        value: paramData?.value ??  value,
       };
     });
   }
