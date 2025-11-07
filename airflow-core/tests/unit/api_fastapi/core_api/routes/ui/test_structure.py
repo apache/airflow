@@ -207,7 +207,7 @@ def asset3_id(make_dags, asset3, session) -> str:
 
 class TestStructureDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"dag_id": DAG_ID},
@@ -602,7 +602,7 @@ class TestStructureDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             pytest.param(
                 {"dag_id": DAG_ID},

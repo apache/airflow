@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+
 from tests_common.test_utils.config import conf_vars
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
@@ -74,12 +76,12 @@ class TestGetLogin(TestAuthEndpoint):
 
 class TestLogout(TestAuthEndpoint):
     @pytest.mark.parametrize(
-        "mock_logout_url, expected_redirection",
+        "mock_logout_url, expected_redirection, delete_cookies",
         [
             # logout_url is None, should redirect to the login page directly.
-            (None, AUTH_MANAGER_LOGIN_URL),
+            (None, AUTH_MANAGER_LOGIN_URL, True),
             # logout_url is defined, should redirect to the logout_url.
-            ("http://localhost/auth/some_logout_url", "http://localhost/auth/some_logout_url"),
+            ("http://localhost/auth/some_logout_url", "http://localhost/auth/some_logout_url", False),
         ],
     )
     def test_should_respond_307(
@@ -87,9 +89,14 @@ class TestLogout(TestAuthEndpoint):
         test_client,
         mock_logout_url,
         expected_redirection,
+        delete_cookies,
     ):
         test_client.app.state.auth_manager.get_url_logout.return_value = mock_logout_url
         response = test_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
         assert response.headers["location"] == expected_redirection
+
+        if delete_cookies:
+            cookies = response.headers.get_list("set-cookie")
+            assert any(f"{COOKIE_NAME_JWT_TOKEN}=" in c for c in cookies)

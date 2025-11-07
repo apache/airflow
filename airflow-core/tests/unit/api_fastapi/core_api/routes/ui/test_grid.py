@@ -281,7 +281,7 @@ class TestGetGridDataEndpoint:
         ]
 
     @pytest.mark.parametrize(
-        "order_by,expected",
+        ("order_by", "expected"),
         [
             (
                 "logical_date",
@@ -319,7 +319,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "limit, expected",
+        ("limit", "expected"),
         [
             (
                 1,
@@ -337,7 +337,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {
@@ -364,7 +364,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {
@@ -532,7 +532,7 @@ class TestGetGridDataEndpoint:
         ]
 
     @pytest.mark.parametrize(
-        "endpoint,run_type,expected",
+        ("endpoint", "run_type", "expected"),
         [
             ("runs", "scheduled", [GRID_RUN_1]),
             ("runs", "manual", [GRID_RUN_2]),
@@ -547,7 +547,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "endpoint,triggering_user,expected",
+        ("endpoint", "triggering_user", "expected"),
         [
             ("runs", "user2", [GRID_RUN_2]),
             ("runs", "nonexistent", []),
@@ -567,7 +567,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == [GRID_RUN_2]
 
     @pytest.mark.parametrize(
-        "endpoint,state,expected",
+        ("endpoint", "state", "expected"),
         [
             ("runs", "success", [GRID_RUN_1]),
             ("runs", "failed", [GRID_RUN_2]),

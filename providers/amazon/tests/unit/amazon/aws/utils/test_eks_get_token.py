@@ -29,7 +29,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 class TestGetEksToken:
     @time_machine.travel("1995-02-14", tick=False)
     @pytest.mark.parametrize(
-        "args, expected_region_name",
+        ("args", "expected_region_name"),
         [
             [
                 [

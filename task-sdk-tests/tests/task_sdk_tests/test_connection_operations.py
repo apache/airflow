@@ -26,6 +26,8 @@ Prerequisites:
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from task_sdk_tests import console
 
@@ -55,3 +57,15 @@ def test_connection_get(sdk_client):
     assert response.host == "testhost"
     assert response.schema_ == "testdb"
     console.print("[green]✅ Connection get test passed!")
+
+
+@pytest.mark.skip(reason="TODO: Implement Connection get (not found) test")
+def test_connection_get_not_found(sdk_client):
+    """
+    Test getting a non-existent connection.
+
+    Expected: ErrorResponse with CONNECTION_NOT_FOUND error
+    Endpoint: GET /execution/connections/{conn_id}
+    """
+    console.print("[yellow]TODO: Implement test_connection_get_not_found")
+    raise NotImplementedError("test_connection_get_not_found not implemented")
