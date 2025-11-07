@@ -164,7 +164,7 @@ class TestEdgeWorker:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @pytest.mark.parametrize(
-        "configs, expected_url",
+        ("configs", "expected_url"),
         [
             (
                 {("edge", "api_url"): "https://api-host/edge_worker/v1/rpcapi"},
@@ -217,7 +217,7 @@ class TestEdgeWorker:
         assert mock_supervise.call_args.kwargs["server"] == "http://mock-url"
 
     @pytest.mark.parametrize(
-        "reserve_result, fetch_result, expected_calls",
+        ("reserve_result", "fetch_result", "expected_calls"),
         [
             pytest.param(None, False, (0, 0), id="no_job"),
             pytest.param(
@@ -357,7 +357,7 @@ class TestEdgeWorker:
         )
 
     @pytest.mark.parametrize(
-        "drain, maintenance_mode, jobs, expected_state",
+        ("drain", "maintenance_mode", "jobs", "expected_state"),
         [
             pytest.param(False, False, False, EdgeWorkerState.IDLE, id="idle"),
             pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
