@@ -436,7 +436,7 @@ class SerializedDagModel(Base):
             # if the dag_version is not associated with any task instances
 
             # Use direct UPDATE to avoid loading the full serialized DAG
-            result = session.execute(
+            update_result = session.execute(
                 update(cls)
                 .where(cls.dag_version_id == dag_version.id)
                 .values(
@@ -448,7 +448,7 @@ class SerializedDagModel(Base):
                 )
             )
 
-            if result.rowcount == 0:
+            if getattr(update_result, "rowcount", 0) == 0:
                 # No rows updated - serialized DAG doesn't exist
                 return False
             # The dag_version and dag_code may not have changed, still we should
@@ -514,7 +514,7 @@ class SerializedDagModel(Base):
             )
             .where(cls.dag_id.in_(dag_ids))
         ).all()
-        return latest_serdags or []
+        return list(latest_serdags)
 
     @classmethod
     @provide_session
@@ -559,7 +559,7 @@ class SerializedDagModel(Base):
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:
-                self.__data_cache = self._data
+                self.__data_cache = self._data if self._data is not None else {}
 
         return self.__data_cache
 
@@ -613,7 +613,9 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        load_json: Callable | None
+        data_col_to_select: Any
+        load_json: Callable[[Any], Any] | None
+
         if COMPRESS_SERIALIZED_DAGS is False:
             dialect = get_dialect_name(session)
             if dialect in ["sqlite", "mysql"]:
@@ -648,11 +650,11 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        iterator = (
-            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
-            if load_json is not None
-            else query.all()
-        )
-        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        if load_json is not None:
+            iterator_result = [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
+        else:
+            iterator_result = [(str(row[0]), dict(row[1]) if row[1] else {}) for row in query.all()]
+
+        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator_result, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag
