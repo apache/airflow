@@ -38,6 +38,7 @@ from airflow.providers.fab.www.extensions.init_session import init_airflow_sessi
 from airflow.providers.fab.www.extensions.init_views import (
     init_api_auth_provider,
     init_api_error_handlers,
+    init_error_handlers,
     init_plugins,
 )
 from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
@@ -99,6 +100,7 @@ def create_app(enable_plugins: bool):
             base_template="airflow/main.html",
             enable_plugins=enable_plugins,
         )
+        init_error_handlers(flask_app)
         # In two scenarios a Flask application can be created:
         # - To support Airflow 2 plugins relying on Flask (``enable_plugins`` is True)
         # - To support FAB auth manager (``enable_plugins`` is False)
