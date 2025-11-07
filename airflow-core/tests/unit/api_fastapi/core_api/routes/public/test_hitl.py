@@ -539,7 +539,7 @@ class TestGetHITLDetailsEndpoint:
 
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize(
-        "params, expected_ti_count",
+        ("params", "expected_ti_count"),
         [
             # ti related filter
             ({"dag_id_pattern": "hitl_dag"}, 5),
@@ -637,7 +637,7 @@ class TestGetHITLDetailsEndpoint:
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize("asc_desc_mark", ["", "-"], ids=["asc", "desc"])
     @pytest.mark.parametrize(
-        "key, get_key_lambda",
+        ("key", "get_key_lambda"),
         [
             # ti key
             ("ti_id", lambda x: x["task_instance"]["id"]),
