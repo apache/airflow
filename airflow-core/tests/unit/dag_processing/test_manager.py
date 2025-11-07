@@ -553,7 +553,7 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
-        ["callbacks", "path", "expected_body"],
+        ("callbacks", "path", "expected_body"),
         [
             pytest.param(
                 [],
@@ -748,7 +748,7 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag2").is_stale is True
 
     @pytest.mark.parametrize(
-        "rel_filelocs, expected_return, expected_dag1_stale, expected_dag2_stale",
+        ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
         [
             pytest.param(
                 ["test_dag1.py"],  # Only dag1 present, dag2 deleted
@@ -787,7 +787,7 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag2").is_stale is expected_dag2_stale
 
     @pytest.mark.parametrize(
-        "active_files, should_call_cleanup",
+        ("active_files", "should_call_cleanup"),
         [
             pytest.param(
                 [
@@ -1295,7 +1295,7 @@ class TestDagFileProcessorManager:
                 bundleone.get_current_version.assert_called_once()
 
     @pytest.mark.parametrize(
-        "bundle_names, expected",
+        ("bundle_names", "expected"),
         [
             (None, {"bundle1", "bundle2", "bundle3"}),
             (["bundle1"], {"bundle1"}),
