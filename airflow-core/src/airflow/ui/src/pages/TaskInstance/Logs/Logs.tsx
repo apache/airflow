@@ -121,7 +121,7 @@ export const Logs = () => {
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
-    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}`;
+    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}.txt`;
     document.body.append(element);
     element.click();
     element.remove();
