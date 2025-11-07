@@ -274,6 +274,22 @@ For example, this following command:
      prek mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
+.. _breeze-dev:running-prek-in-breeze:
+
+A note on running ``prek`` inside the Breeze container
+-----------------------------------------------------
+
+While ``prek`` (pre-commit) is intended to be run on your host machine, it can
+also be run from within the Breeze shell for debugging or manual checks.
+
+If you choose to do this, you may need to mount all sources by running
+``breeze shell --mount-sources all``.
+
+.. note::
+   In older versions of Airflow, running ``prek`` inside a non-TTY
+   environment (like the Breeze shell) would cause an ``AttributeError``
+   crash. This was fixed in :pr:`57497` and ``prek`` can now be
+   run safely inside the container.
 
 Selecting files to run static checks on
 ---------------------------------------
