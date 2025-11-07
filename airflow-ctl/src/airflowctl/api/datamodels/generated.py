@@ -1483,7 +1483,7 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHisotry(BaseModel):
+class HITLDetailHistory(BaseModel):
     """
     Schema for Human-in-the-loop detail history.
     """
@@ -1667,7 +1667,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
-    hitl_detail: HITLDetailHisotry | None = None
+    hitl_detail: HITLDetailHistory | None = None
 
 
 class TaskInstanceResponse(BaseModel):

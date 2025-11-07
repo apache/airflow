@@ -2166,18 +2166,6 @@ class TestKubernetesPodOperator:
         process_pod_deletion_mock.assert_called_once_with(pod_1)
         assert result.metadata.name == pod_2.metadata.name
 
-    @patch(POD_MANAGER_CLASS.format("fetch_container_logs"))
-    @patch(KUB_OP_PATH.format("invoke_defer_method"))
-    def test_defere_call_one_more_time_after_error(self, invoke_defer_method, fetch_container_logs):
-        fetch_container_logs.return_value = PodLoggingStatus(False, None)
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-
-        op.trigger_reentry(
-            create_context(op), event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"}
-        )
-
-        invoke_defer_method.assert_called_with(None)
-
 
 class TestSuppress:
     def test__suppress(self, caplog):
@@ -2611,32 +2599,6 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
-    )
-    @patch(f"{HOOK_CLASS}.get_pod")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_running(
-        self,
-        fetch_container_logs,
-        await_pod_completion,
-        get_pod,
-        mock_convert_config_file_to_dict,
-    ):
-        """When logs fetch exits with status running, raise task deferred"""
-        pod = MagicMock()
-        get_pod.return_value = pod
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-        await_pod_completion.return_value = None
-        fetch_container_logs.return_value = PodLoggingStatus(True, None)
-        with pytest.raises(TaskDeferred):
-            op.trigger_reentry(
-                create_context(op),
-                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
-            )
-        fetch_container_logs.is_called_with(pod, "base")
-
     @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
@@ -2706,17 +2668,6 @@ class TestKubernetesPodOperatorAsync:
             "namespace": TEST_NAMESPACE,
         }
         k.trigger_reentry(context=context, event=callback_event)
-
-        # check on_operator_resuming callback
-        mock_callbacks.on_operator_resuming.assert_called_once()
-        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
-            "client": k.client,
-            "mode": ExecutionMode.SYNC,
-            "pod": remote_pod_mock,
-            "operator": k,
-            "context": context,
-            "event": callback_event,
-        }
 
         # check on_pod_cleanup callback
         mock_callbacks.on_pod_cleanup.assert_called_once()

@@ -100,11 +100,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     }
   }, [isLoading, rowVirtualizer, hash, parsedLogs]);
 
-  useLayoutEffect(() => {
-    // Force remeasurement when wrap changes since item heights will change
-    rowVirtualizer.measure();
-  }, [wrap, rowVirtualizer]);
-
   const handleScrollTo = (to: "bottom" | "top") => {
     if (parsedLogs.length > 0) {
       rowVirtualizer.scrollToIndex(to === "bottom" ? parsedLogs.length - 1 : 0);
@@ -131,17 +126,10 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         position="relative"
         py={3}
         ref={parentRef}
-        textWrap={wrap ? "pre-wrap" : "nowrap"}
+        textWrap={wrap ? "pre" : "nowrap"}
         width="100%"
       >
-        <VStack
-          alignItems="flex-start"
-          gap={0}
-          h={`${rowVirtualizer.getTotalSize()}px`}
-          minH="100%"
-          position="relative"
-          width="100%"
-        >
+        <VStack alignItems="flex-start" gap={0} h={`${rowVirtualizer.getTotalSize()}px`}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => (
             <Box
               _ltr={{
@@ -158,7 +146,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               data-index={virtualRow.index}
               data-testid={`virtualized-item-${virtualRow.index}`}
               key={virtualRow.key}
-              minWidth="100%"
               position="absolute"
               ref={rowVirtualizer.measureElement}
               top={`${virtualRow.start}px`}
@@ -167,14 +154,6 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               {parsedLogs[virtualRow.index] ?? undefined}
             </Box>
           ))}
-          <Box
-            bottom={0}
-            left={0}
-            minH={`calc(100% - ${rowVirtualizer.getTotalSize()}px)`}
-            position="absolute"
-            top={`${rowVirtualizer.getTotalSize()}px`}
-            width="100%"
-          />
         </VStack>
       </Code>
 

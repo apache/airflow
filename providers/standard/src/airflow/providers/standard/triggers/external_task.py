@@ -269,7 +269,7 @@ class DagStateTrigger(BaseTrigger):
         def count_dags(self, *, session: Session = NEW_SESSION) -> int:
             """Count how many dag runs in the database match our criteria."""
             _dag_run_date_condition = (
-                DagRun.run_id.in_(self.run_ids)
+                DagRun.run_id.in_(self.run_ids or [])
                 if AIRFLOW_V_3_0_PLUS
                 else DagRun.execution_date.in_(self.execution_dates)
             )
@@ -283,4 +283,4 @@ class DagStateTrigger(BaseTrigger):
                 )
             )
             result = session.execute(stmt).scalar()
-            return typing.cast("int", result or 0)
+            return result or 0

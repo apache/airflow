@@ -55,7 +55,7 @@ DEFAULT_CONN_ID = "snowflake_default"
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    ("sql", "return_last", "split_statement", "hook_results", "hook_descriptions", "expected_results"),
     [
         pytest.param(
             "select * from dummy",
