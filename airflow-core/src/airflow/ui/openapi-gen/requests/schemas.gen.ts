@@ -268,6 +268,17 @@ export const $AssetEventResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Timestamp'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     type: 'object',
@@ -1667,7 +1678,7 @@ export const $CreateAssetEventsBody = {
     },
     additionalProperties: false,
     type: 'object',
-    required: ['asset_id', 'partition_key'],
+    required: ['asset_id'],
     title: 'CreateAssetEventsBody',
     description: 'Create asset events request.'
 } as const;

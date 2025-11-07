@@ -72,6 +72,7 @@ export type AssetEventResponse = {
     source_map_index: number;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
+    partition_key?: string | null;
 };
 
 /**
@@ -501,7 +502,7 @@ export type ConnectionTestResponse = {
  */
 export type CreateAssetEventsBody = {
     asset_id: number;
-    partition_key: string | null;
+    partition_key?: string | null;
     extra?: {
         [key: string]: unknown;
     };

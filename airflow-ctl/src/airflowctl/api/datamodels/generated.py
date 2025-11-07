@@ -1047,6 +1047,7 @@ class AssetEventResponse(BaseModel):
     source_map_index: Annotated[int, Field(title="Source Map Index")]
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetResponse(BaseModel):

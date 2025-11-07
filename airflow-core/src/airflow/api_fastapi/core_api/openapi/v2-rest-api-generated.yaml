@@ -8811,6 +8811,11 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - id
@@ -9817,7 +9822,6 @@ components:
       type: object
       required:
       - asset_id
-      - partition_key
       title: CreateAssetEventsBody
       description: Create asset events request.
     DAGCollectionResponse:
