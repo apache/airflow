@@ -24,6 +24,8 @@ These tests validate the Execution API endpoints for Variable operations:
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.execution_time.comms import ErrorResponse
 from task_sdk_tests import console
@@ -72,3 +74,27 @@ def test_variable_get_not_found(sdk_client):
     assert isinstance(response, ErrorResponse)
     assert str(response.error).find("VARIABLE_NOT_FOUND") != -1
     console.print("[green]✅ Variable get (not found) test passed!")
+
+
+@pytest.mark.skip(reason="TODO: Implement Variable set test")
+def test_variable_set(sdk_client):
+    """
+    Test setting variable value.
+
+    Expected: OKResponse with ok=True
+    Endpoint: PUT /execution/variables/{key}
+    """
+    console.print("[yellow]TODO: Implement test_variable_set")
+    raise NotImplementedError("test_variable_set not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement Variable delete test")
+def test_variable_delete(sdk_client):
+    """
+    Test deleting variable value.
+
+    Expected: OKResponse with ok=True
+    Endpoint: DELETE /execution/variables/{key}
+    """
+    console.print("[yellow]TODO: Implement test_variable_delete")
+    raise NotImplementedError("test_variable_delete not implemented")
