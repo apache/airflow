@@ -29,7 +29,6 @@ from sqlalchemy.orm import Mapped
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
-from airflow.models.mappedoperator import MappedOperator
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
