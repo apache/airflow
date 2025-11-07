@@ -16,19 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, Heading, Text, Button, Container, HStack, Code } from "@chakra-ui/react";
+import { Box, VStack, Heading, Text, Button, Container, HStack, Code, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useRouteError, isRouteErrorResponse } from "react-router-dom";
+import { useNavigate, useRouteError, isRouteErrorResponse, useLocation } from "react-router-dom";
 
 import { AirflowPin } from "src/assets/AirflowPin";
 
 export const ErrorPage = () => {
   const navigate = useNavigate();
   const error = useRouteError();
+  const location = useLocation();
   const { t: translate } = useTranslation();
 
   let errorMessage = translate("error.defaultMessage");
   let statusCode = "";
+  
+  // Check if we're in the OAuth flow
+  const isInAuthFlow = location.pathname.includes('oauth') || 
+                      location.pathname.includes('login') ||
+                      (error && typeof error === 'object' && 'status' in error && error.status === 401);
+
+  // If we're in the auth flow, don't show the error page
+  if (isInAuthFlow) {
+    return (
+      <Box alignItems="center" display="flex" justifyContent="center" pt={36} px={4}>
+        <Container maxW="lg">
+          <VStack gap={8} textAlign="center">
+            <AirflowPin height="50px" width="50px" />
+            <Spinner size="xl" color="blue.500" />
+            <Text>Authenticating...</Text>
+          </VStack>
+        </Container>
+      </Box>
+    );
+  }
 
   if (isRouteErrorResponse(error)) {
     statusCode = String(error.status);
