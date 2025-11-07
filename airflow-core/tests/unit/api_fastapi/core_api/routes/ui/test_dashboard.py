@@ -238,7 +238,7 @@ def make_multiple_dags(dag_maker, session):
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
