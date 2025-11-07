@@ -145,7 +145,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     validationErrors: [],
   }));
 
-  const validateInputs = (inputs: DateRangeEditingState['inputs']): Array<ValidationError> => {
+  const validateInputs = (inputs: DateRangeEditingState["inputs"]): Array<ValidationError> => {
     const errors: Array<ValidationError> = [];
 
     if (inputs.start && !validateDateInput(inputs.start)) {
@@ -296,14 +296,14 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     }
 
     if (startDateValue) {
-      return `${translate("common:filters.from")} ${formatDateTime(startDateValue)}`;
+      return `${translate("common:table.from")} ${formatDateTime(startDateValue)}`;
     }
 
-    return endDateValue ? `${translate("common:filters.to")} ${formatDateTime(endDateValue)}` : "";
+    return endDateValue ? `${translate("common:table.to")} ${formatDateTime(endDateValue)}` : "";
   };
 
-  const getFieldError = (field: ValidationError['field']) =>
-    editingState.validationErrors.find(error => error.field === field);
+  const getFieldError = (field: ValidationError["field"]) =>
+    editingState.validationErrors.find((error) => error.field === field);
 
   const hasValidationErrors = editingState.validationErrors.length > 0;
 

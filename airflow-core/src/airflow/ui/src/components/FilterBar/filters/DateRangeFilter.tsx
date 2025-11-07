@@ -16,23 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, IconButton, Input, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { MdAccessTime, MdCalendarToday, MdClose } from "react-icons/md";
+import { MdCalendarToday, MdClose } from "react-icons/md";
 
 import { Popover } from "src/components/ui";
-import { useTimezone } from "src/context/timezone";
-import { useDateRangeFilter, DATE_INPUT_FORMAT, TIME_INPUT_FORMAT, type ValidationError } from "src/hooks/useDateRangeFilter";
+import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 
 import { FilterPill } from "../FilterPill";
 import type { DateRangeValue, FilterPluginProps } from "../types";
-import { isValidDateValue, isValidFilterValue } from "../utils";
+import { isValidFilterValue } from "../utils";
 import { DateRangeCalendar } from "./DateRangeCalendar";
+import { DateRangeInputs } from "./DateRangeInputs";
 
 export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
-  const { selectedTimezone } = useTimezone();
   const value =
     filter.value !== null && filter.value !== undefined && typeof filter.value === "object"
       ? (filter.value as DateRangeValue)
@@ -40,23 +38,20 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
 
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
-  const { editingState, endDateValue, formatDisplayValue, getFieldError, handleDateClick, handleInputChange, hasValidationErrors, setEditingState, startDateValue } =
-    useDateRangeFilter({
-      onChange,
-      translate,
-      value
-    });
-
-  const getBorderColor = (fieldName: ValidationError['field']) => {
-    if (getFieldError(fieldName)) {
-      return "danger.solid";
-    }
-    if (editingState.selectionTarget === fieldName) {
-      return "brand.focusRing";
-    }
-
-    return "border";
-  };
+  const {
+    editingState,
+    endDateValue,
+    formatDisplayValue,
+    getFieldError,
+    handleDateClick,
+    handleInputChange,
+    setEditingState,
+    startDateValue,
+  } = useDateRangeFilter({
+    onChange,
+    translate,
+    value,
+  });
 
   return (
     <FilterPill
@@ -79,8 +74,10 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
             cursor="pointer"
             display="flex"
             h="10"
+            maxWidth="600px"
+            minWidth="300px"
             overflow="hidden"
-            width="360px"
+            width="fit-content"
           >
             <HStack
               alignItems="center"
@@ -98,7 +95,12 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
               <Text>{filter.config.label}:</Text>
             </HStack>
             <HStack flex="1" gap={2} px={2.5} py={0.5}>
-              <Text color={hasValue ? "inherit" : "gray.500"} fontSize="sm">
+              <Text
+                color={hasValue ? "inherit" : "gray.500"}
+                flexShrink={0}
+                fontSize="sm"
+                whiteSpace="nowrap"
+              >
                 {hasValue ? formatDisplayValue() : translate("common:filters.selectDateRange")}
               </Text>
               <Box
@@ -107,7 +109,6 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                   color: "gray.600",
                 }}
                 alignItems="center"
-                aria-label={`Remove ${filter.config.label} filter`}
                 bg="transparent"
                 borderRadius="full"
                 color="gray.400"
@@ -130,227 +131,17 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
         </Popover.Trigger>
         <Popover.Content p={3} w="320px">
           <VStack gap={2} w="full">
-            <VStack gap={1} w="full">
-              <HStack justify="flex-start" w="full">
-                <HStack gap={1}>
-                  <MdAccessTime size={14} />
-                  <Text color="fg.muted" fontSize="xs">
-                    {selectedTimezone}
-                  </Text>
-                </HStack>
-              </HStack>
-
-              <HStack alignItems="flex-start" gap={2} w="full">
-                <Box flex="1">
-                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
-                    {translate("common:table.from")}
-                  </Text>
-                  <Box position="relative">
-                    <Input
-                      _focus={{ borderColor: "brand.focusRing" }}
-                      borderColor={getBorderColor("start")}
-                      fontSize="sm"
-                      fontWeight="medium"
-                      onBlur={() => {
-                        if (
-                          startDateValue &&
-                          editingState.inputs.start &&
-                          !dayjs(editingState.inputs.start, DATE_INPUT_FORMAT, true).isValid()
-                        ) {
-                          setEditingState((prev) => ({
-                            ...prev,
-                            inputs: { ...prev.inputs, start: startDateValue.format(DATE_INPUT_FORMAT) },
-                          }));
-                        }
-                      }}
-                      onChange={handleInputChange("start", "date")}
-                      onFocus={() => setEditingState((prev) => ({ ...prev, selectionTarget: "start" }))}
-                      placeholder={DATE_INPUT_FORMAT}
-                      value={editingState.inputs.start}
-                    />
-                    {Boolean(editingState.inputs.start) && (
-                      <IconButton
-                        aria-label="Clear start date"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onChange({ ...value, startDate: undefined });
-                          setEditingState((prev) => ({
-                            ...prev,
-                            inputs: { ...prev.inputs, start: "", startTime: "" },
-                            validationErrors: prev.validationErrors.filter(
-                              (error) => error.field !== "start" && error.field !== "startTime" && error.field !== "range"
-                            ),
-                          }));
-                        }}
-                        position="absolute"
-                        right={1}
-                        size="2xs"
-                        top="50%"
-                        transform="translateY(-50%)"
-                        variant="ghost"
-                      >
-                        <MdClose size={12} />
-                      </IconButton>
-                    )}
-                  </Box>
-                  <Box alignItems="flex-start" display="flex" minH="16px">
-                    {getFieldError("start") && (
-                      <Text color="danger.fg" fontSize="xs" mt={1}>
-                        {getFieldError("start")?.message}
-                      </Text>
-                    )}
-                  </Box>
-                </Box>
-
-                <Box flex="1">
-                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
-                    {translate("common:table.to")}
-                  </Text>
-                  <Box position="relative">
-                    <Input
-                      _focus={{ borderColor: "brand.focusRing" }}
-                      borderColor={getBorderColor("end")}
-                      fontSize="sm"
-                      fontWeight="medium"
-                      onBlur={() => {
-                        if (
-                          endDateValue &&
-                          editingState.inputs.end &&
-                          !dayjs(editingState.inputs.end, DATE_INPUT_FORMAT, true).isValid()
-                        ) {
-                          setEditingState((prev) => ({
-                            ...prev,
-                            inputs: { ...prev.inputs, end: endDateValue.format(DATE_INPUT_FORMAT) },
-                          }));
-                        }
-                      }}
-                      onChange={handleInputChange("end", "date")}
-                      onFocus={() => setEditingState((prev) => ({ ...prev, selectionTarget: "end" }))}
-                      placeholder={DATE_INPUT_FORMAT}
-                      value={editingState.inputs.end}
-                    />
-                    {Boolean(editingState.inputs.end) && (
-                      <IconButton
-                        aria-label="Clear end date"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onChange({ ...value, endDate: undefined });
-                          setEditingState((prev) => ({
-                            ...prev,
-                            inputs: { ...prev.inputs, end: "", endTime: "" },
-                            validationErrors: prev.validationErrors.filter(
-                              (error) => error.field !== "end" && error.field !== "endTime" && error.field !== "range"
-                            ),
-                          }));
-                        }}
-                        position="absolute"
-                        right={1}
-                        size="2xs"
-                        top="50%"
-                        transform="translateY(-50%)"
-                        variant="ghost"
-                      >
-                        <MdClose size={12} />
-                      </IconButton>
-                    )}
-                  </Box>
-                  <Box alignItems="flex-start" display="flex" minH="16px">
-                    {getFieldError("end") && (
-                      <Text color="danger.fg" fontSize="xs" mt={1}>
-                        {getFieldError("end")?.message}
-                      </Text>
-                    )}
-                  </Box>
-                </Box>
-              </HStack>
-
-              <HStack alignItems="flex-start" gap={2} w="full">
-                <Box flex="1">
-                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
-                    {translate("common:filters.startTime")}
-                  </Text>
-                  <Box position="relative">
-                    <Input
-                      borderColor={getBorderColor("startTime")}
-                      fontSize="sm"
-                      onChange={handleInputChange("start", "time")}
-                      placeholder={TIME_INPUT_FORMAT}
-                      value={editingState.inputs.startTime}
-                      w="full"
-                    />
-                    {Boolean(editingState.inputs.startTime) && (
-                      <IconButton
-                        aria-label="Clear start time"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleInputChange("start", "time")({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
-                        }}
-                        position="absolute"
-                        right={1}
-                        size="2xs"
-                        top="50%"
-                        transform="translateY(-50%)"
-                        variant="ghost"
-                      >
-                        <MdClose size={12} />
-                      </IconButton>
-                    )}
-                  </Box>
-                  <Box alignItems="flex-start" display="flex" minH="16px">
-                    {getFieldError("startTime") && (
-                      <Text color="danger.fg" fontSize="xs" mt={1}>
-                        {getFieldError("startTime")?.message}
-                      </Text>
-                    )}
-                  </Box>
-                </Box>
-
-                <Box flex="1">
-                  <Text color="fg.muted" fontSize="xs" mb={0.5}>
-                    {translate("common:filters.endTime")}
-                  </Text>
-                  <Box position="relative">
-                    <Input
-                      borderColor={getBorderColor("endTime")}
-                      fontSize="sm"
-                      onChange={handleInputChange("end", "time")}
-                      placeholder={TIME_INPUT_FORMAT}
-                      value={editingState.inputs.endTime}
-                      w="full"
-                    />
-                    {Boolean(editingState.inputs.endTime) && (
-                      <IconButton
-                        aria-label="Clear end time"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleInputChange("end", "time")({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
-                        }}
-                        position="absolute"
-                        right={1}
-                        size="2xs"
-                        top="50%"
-                        transform="translateY(-50%)"
-                        variant="ghost"
-                      >
-                        <MdClose size={12} />
-                      </IconButton>
-                    )}
-                  </Box>
-                  <Box alignItems="flex-start" display="flex" minH="16px">
-                    {getFieldError("endTime") && (
-                      <Text color="danger.fg" fontSize="xs" mt={1}>
-                        {getFieldError("endTime")?.message}
-                      </Text>
-                    )}
-                  </Box>
-                </Box>
-              </HStack>
-              {getFieldError("range") && (
-                <Text color="danger.fg" fontSize="xs" textAlign="center">
-                  {getFieldError("range")?.message}
-                </Text>
-              )}
-            </VStack>
+            <DateRangeInputs
+              editingState={editingState}
+              endDateValue={endDateValue}
+              getFieldError={getFieldError}
+              handleInputChange={handleInputChange}
+              onChange={onChange}
+              setEditingState={setEditingState}
+              startDateValue={startDateValue}
+              translate={translate}
+              value={value}
+            />
             <DateRangeCalendar
               currentMonth={editingState.currentMonth}
               onDateClick={handleDateClick}

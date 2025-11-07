@@ -21,19 +21,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Initialize dayjs plugins
-dayjs.extend(timezone);
-dayjs.extend(utc);
-
 import { useMemo } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { TimezoneContext } from "src/context/timezone";
 import { ChakraWrapper } from "src/utils/ChakraWrapper";
 
-import { DateRangeFilter } from "./DateRangeFilter";
 import type { DateRangeValue, FilterPluginProps } from "../types";
+import { DateRangeFilter } from "./DateRangeFilter";
+
+// Initialize dayjs plugins
+dayjs.extend(timezone);
+dayjs.extend(utc);
 
 // Mock useTranslation
 const mockTranslate = vi.fn((key: string) => {
@@ -79,17 +78,24 @@ const defaultProps: FilterPluginProps = {
   onRemove: mockOnRemove,
 };
 
-const TestWrapper = ({ children, testTimezone = "UTC" }: { readonly children: React.ReactNode; readonly testTimezone?: string }) => {
-  const contextValue = useMemo(() => ({
-    selectedTimezone: testTimezone,
-    setSelectedTimezone: vi.fn(),
-  }), [testTimezone]);
+const TestWrapper = ({
+  children,
+  testTimezone = "UTC",
+}: {
+  readonly children: React.ReactNode;
+  readonly testTimezone?: string;
+}) => {
+  const contextValue = useMemo(
+    () => ({
+      selectedTimezone: testTimezone,
+      setSelectedTimezone: vi.fn(),
+    }),
+    [testTimezone],
+  );
 
   return (
     <ChakraWrapper>
-      <TimezoneContext.Provider value={contextValue}>
-        {children}
-      </TimezoneContext.Provider>
+      <TimezoneContext.Provider value={contextValue}>{children}</TimezoneContext.Provider>
     </ChakraWrapper>
   );
 };
@@ -104,7 +110,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(screen.getByText("Date Range:")).toBeInTheDocument();
@@ -120,7 +126,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(screen.getByText(/Jan 15, 2024 10:30 - Jan 20, 2024 15:45/u)).toBeInTheDocument();
@@ -135,7 +141,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(screen.getByText(/From Jan 15, 2024 10:30/u)).toBeInTheDocument();
@@ -150,7 +156,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(screen.getByText(/To Jan 20, 2024 15:45/u)).toBeInTheDocument();
@@ -165,7 +171,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(screen.getByText(/Jan 15, 2024 10:30 - 15:45/u)).toBeInTheDocument();
@@ -182,7 +188,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper testTimezone="America/New_York">
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       // Time should be adjusted for EST/EDT (UTC-5)
@@ -195,7 +201,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const removeButton = screen.getByLabelText("Remove Date Range filter");
@@ -211,7 +217,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const placeholder = screen.getByText("Select Date Range");
@@ -228,7 +234,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const displayValue = screen.getByText(/Jan 15, 2024/u);
@@ -243,7 +249,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(mockTranslate).toHaveBeenCalledWith("common:filters.selectDateRange");
@@ -259,7 +265,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} filter={{ ...mockFilter, value }} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       expect(mockTranslate).toHaveBeenCalledWith("common:filters.from");
@@ -270,7 +276,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const [dateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
@@ -289,7 +295,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const dateInputs = screen.getAllByPlaceholderText("YYYY/MM/DD");
@@ -306,7 +312,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const inputs = screen.getAllByPlaceholderText("YYYY/MM/DD");
@@ -323,7 +329,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const startTimeInput = screen.getAllByPlaceholderText("HH:mm")[0];
@@ -339,7 +345,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const endTimeInput = screen.getAllByPlaceholderText("HH:mm")[1];
@@ -355,7 +361,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const dateInputs = screen.getAllByPlaceholderText("YYYY/MM/DD");
@@ -378,7 +384,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const dateInputs = screen.getAllByPlaceholderText("YYYY/MM/DD");
@@ -401,7 +407,7 @@ describe("DateRangeFilter", () => {
       render(
         <TestWrapper>
           <DateRangeFilter {...defaultProps} />
-        </TestWrapper>
+        </TestWrapper>,
       );
 
       const dateInputs = screen.getAllByPlaceholderText("YYYY/MM/DD");

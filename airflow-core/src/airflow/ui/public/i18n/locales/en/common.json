@@ -71,7 +71,6 @@
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
-  "date": "Date",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
   "direction": "Direction",
@@ -118,6 +117,7 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "mapIndex": "Map Index",
