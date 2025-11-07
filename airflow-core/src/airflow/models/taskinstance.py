@@ -959,7 +959,7 @@ class TaskInstance(Base, LoggingMixin):
 
         delay = self.task.retry_delay
         multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
-        if multiplier != 1.0:
+        if multiplier != 1.0 and multiplier > 0:
             try:
                 # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
                 # we must round up prior to converting to an int, otherwise a divide by zero error
