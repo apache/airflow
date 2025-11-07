@@ -480,7 +480,7 @@ class PermittedTeamFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted teams for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Team.name.in_(self.value))
+        return select.where(Team.name.in_(self.value or set()))
 
 
 def permitted_team_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedTeamFilter]:
