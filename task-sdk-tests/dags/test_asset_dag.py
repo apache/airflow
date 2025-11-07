@@ -43,17 +43,3 @@ with DAG(
         return "asset_produced"
 
     produce_asset()
-
-
-with DAG(
-    dag_id="asset_consumer_dag",
-    description="DAG that is triggered by asset updates",
-    schedule=[test_asset],
-    catchup=False,
-) as consumer_dag:
-
-    @task
-    def consume_asset():
-        """Task that consumes the asset."""
-        print("Consuming test asset")
-        return "asset_consumed"
