@@ -76,7 +76,7 @@ class TestDynamoDBHook:
         assert path.as_uri().endswith("/airflow/providers/amazon/aws/waiters/dynamodb.json")
 
     @pytest.mark.parametrize(
-        "response, status, error",
+        ("response", "status", "error"),
         [
             pytest.param(
                 {"ImportTableDescription": {"ImportStatus": "COMPLETED"}}, "COMPLETED", False, id="complete"
@@ -116,7 +116,7 @@ class TestDynamoDBHook:
             assert msg is None
 
     @pytest.mark.parametrize(
-        "effect, error",
+        ("effect", "error"),
         [
             pytest.param(
                 ClientError(
