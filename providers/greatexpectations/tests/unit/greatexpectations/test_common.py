@@ -23,7 +23,6 @@ import great_expectations.expectations as gxe
 import pytest
 
 from airflow.providers.greatexpectations.common.gx_context_actions import (
-    load_data_context,
     run_validation_definition,
 )
 
@@ -161,56 +160,3 @@ class TestRunValidationDefinition:
 
         # assert
         assert result is validation_definition.run.return_value
-
-
-class TestLoadDataContext:
-    def test_load_ephemeral_context(self, mock_gx: Mock) -> None:
-        # arrange
-        context_type = "ephemeral"
-        gx_cloud_config = None
-
-        # act
-        result = load_data_context(context_type=context_type, gx_cloud_config=gx_cloud_config)
-
-        # assert
-        mock_gx.get_context.assert_called_once_with(
-            mode="ephemeral",
-            user_agent_str="Apache Airflow GX Operator / 1.0.0",
-        )
-        assert result is mock_gx.get_context.return_value
-
-    def test_load_cloud_context_with_config(self, mock_gx: Mock) -> None:
-        # arrange
-        context_type = "cloud"
-        gx_cloud_config = Mock()
-        gx_cloud_config.cloud_access_token = "token"
-        gx_cloud_config.cloud_organization_id = "org_id"
-        gx_cloud_config.cloud_workspace_id = "workspace_id"
-
-        # act
-        result = load_data_context(context_type=context_type, gx_cloud_config=gx_cloud_config)
-
-        # assert
-        mock_gx.get_context.assert_called_once_with(
-            mode="cloud",
-            cloud_access_token="token",
-            cloud_organization_id="org_id",
-            cloud_workspace_id="workspace_id",
-            user_agent_str="Apache Airflow GX Operator / 1.0.0",
-        )
-        assert result is mock_gx.get_context.return_value
-
-    def test_load_cloud_context_without_config(self, mock_gx: Mock) -> None:
-        # arrange
-        context_type = "cloud"
-        gx_cloud_config = None
-
-        # act
-        result = load_data_context(context_type=context_type, gx_cloud_config=gx_cloud_config)
-
-        # assert
-        mock_gx.get_context.assert_called_once_with(
-            mode="cloud",
-            user_agent_str="Apache Airflow GX Operator / 1.0.0",
-        )
-        assert result is mock_gx.get_context.return_value
