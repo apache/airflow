@@ -23,12 +23,14 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
@@ -214,6 +216,7 @@ class TestConnection:
             ),
         ],
     )
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
 
