@@ -222,6 +222,8 @@ class DagRun(Base, LoggingMixin):
     :meta private:
     """
 
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
         dag: SerializedDAG | None
@@ -323,6 +325,7 @@ class DagRun(Base, LoggingMixin):
         triggering_user_name: str | None = None,
         backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
+        partition_key: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
@@ -358,6 +361,11 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier = {}
+        if not isinstance(partition_key, str | None):
+            raise ValueError(
+                f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
+            )
+        self.partition_key = partition_key
         super().__init__()
 
     def __repr__(self):
