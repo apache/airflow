@@ -348,7 +348,14 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt encrypted password for login={self.login}  "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
+            try:
+                return fernet.decrypt(bytes(self._password, "utf-8")).decode()
+            except Exception as e:
+                from cryptography.fernet import InvalidToken
+
+                if isinstance(e, InvalidToken):
+                    return self._password
+                raise
         return self._password
 
     def set_password(self, value: str | None):
@@ -374,7 +381,7 @@ class Connection(Base, LoggingMixin):
                 )
             extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
         else:
-            extra_val = self._extra
+            extra_val = self._extra or ""
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
         return extra_val
