@@ -77,7 +77,8 @@ packages = []
 ]
 "datadog" = [
     "apache-airflow-core[datadog]",
-    "apache-airflow-task-sdk[datadog]"
+    "apache-airflow-task-sdk[datadog]",
+    "apache-airflow-providers-datadog>=3.8.0"
 ]
 "graphviz" = [
     "apache-airflow-core[graphviz]"
@@ -89,22 +90,18 @@ packages = []
     "apache-airflow-core[memray]"
 ]
 "otel" = [
-    "apache-airflow-core[otel]"
+    "apache-airflow-core[otel]",
+    "apache-airflow-task-sdk[otel]"
 ]
 "statsd" = [
-    "apache-airflow-core[statsd]"
+    "apache-airflow-core[statsd]",
+    "apache-airflow-task-sdk[statsd]"
 ]
 "all-task-sdk" = [
     "apache-airflow-task-sdk[all]"
 ]
-"otel" = [
-    "apache-airflow-task-sdk[otel]"
-]
 "sentry" = [
     "apache-airflow-task-sdk[sentry]"
-]
-"statsd" = [
-    "apache-airflow-task-sdk[statsd]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -201,9 +198,6 @@ packages = []
 ]
 "databricks" = [
     "apache-airflow-providers-databricks>=6.11.0"
-]
-"datadog" = [
-    "apache-airflow-providers-datadog>=3.8.0"
 ]
 "dbt.cloud" = [
     "apache-airflow-providers-dbt-cloud>=3.11.0"
