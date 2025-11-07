@@ -237,13 +237,9 @@ class Trigger(Base):
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = select(Trigger.id).where(
             # no TIs referencing trigger_id that are not failed
-            ~exists().where(
-                (TaskInstance.trigger_id == Trigger.id)
-            ),
+            ~exists().where((TaskInstance.trigger_id == Trigger.id)),
             # no TIs referencing next_trigger_id that are not failed
-            ~exists().where(
-                (TaskInstance.next_trigger_id == Trigger.id)
-            ),
+            ~exists().where((TaskInstance.next_trigger_id == Trigger.id)),
             # no assets
             ~cls.assets.any(),
             # no callback
@@ -353,7 +349,7 @@ class Trigger(Base):
             if unfinished_tis == 0:
                 task_instances = list(
                     session.scalars(
-                    select(TaskInstance).where(
+                        select(TaskInstance).where(
                             TaskInstance.next_trigger_id == trigger_id,
                             # TaskInstance.state.in_([TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]),
                         )
