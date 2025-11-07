@@ -285,11 +285,6 @@ also be run from within the Breeze shell for debugging or manual checks.
 If you choose to do this, you may need to mount all sources by running
 ``breeze shell --mount-sources all``.
 
-.. note::
-   In older versions of Airflow, running ``prek`` inside a non-TTY
-   environment (like the Breeze shell) would cause an ``AttributeError``
-   crash. This was fixed in :pr:`57497` and ``prek`` can now be
-   run safely inside the container.
 
 Selecting files to run static checks on
 ---------------------------------------
