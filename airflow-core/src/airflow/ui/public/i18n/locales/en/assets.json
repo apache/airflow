@@ -1,5 +1,6 @@
 {
   "consumingDags": "Consuming Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "Create Event",
     "manual": {
