@@ -82,6 +82,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/logout:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Logout
+      description: Generate a new API token.
+      operationId: logout
+      responses:
+        '307':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /auth/fab/v1/roles:
     post:
       tags:
