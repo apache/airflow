@@ -341,7 +341,7 @@ class TestLogView:
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
 
     @pytest.mark.parametrize(
-        "state,try_number,expected_event,use_self_ti",
+        ("state", "try_number", "expected_event", "use_self_ti"),
         [
             (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
             (
@@ -370,7 +370,7 @@ class TestLogView:
         assert any(expected_event in e for e in events)
 
     @pytest.mark.parametrize(
-        "state,try_number,expected_event,use_self_ti",
+        ("state", "try_number", "expected_event", "use_self_ti"),
         [
             (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
             (

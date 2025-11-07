@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -86,5 +86,5 @@ class HITLDetail(BaseHITLDetail):
 class HITLDetailCollection(BaseModel):
     """Schema for a collection of Human-in-the-loop details."""
 
-    hitl_details: list[HITLDetail]
+    hitl_details: Iterable[HITLDetail]
     total_entries: int
