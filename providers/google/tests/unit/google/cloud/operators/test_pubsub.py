@@ -207,7 +207,7 @@ class TestPubSubSubscriptionCreateOperator:
         assert response == TEST_SUBSCRIPTION
 
     @pytest.mark.parametrize(
-        "project_id, subscription, subscription_project_id, expected_input, expected_output",
+        ("project_id", "subscription", "subscription_project_id", "expected_input", "expected_output"),
         [
             (
                 TEST_PROJECT,
@@ -353,7 +353,7 @@ class TestPubSubPublishOperator:
         )
 
     @pytest.mark.parametrize(
-        "project_id, expected_dataset",
+        ("project_id", "expected_dataset"),
         [
             # 1. project_id provided
             (TEST_PROJECT, f"topic:{TEST_PROJECT}:{TEST_TOPIC}"),

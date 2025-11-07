@@ -266,7 +266,7 @@ class TestOracleHookConn:
             self.db_hook.get_conn()
 
     @pytest.mark.parametrize(
-        "connection_params, expected_uri",
+        ("connection_params", "expected_uri"),
         [
             pytest.param(
                 {"extra": '{"service_name": "service"}', "schema": None, "port": 1521},

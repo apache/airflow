@@ -168,7 +168,7 @@ class TestPodGenerator:
         )
 
     @pytest.mark.parametrize(
-        "content_json, expected",
+        ("content_json", "expected"),
         [
             pytest.param(
                 '{"token":"mock","ti":{"id":"4d828a62-a417-4936-a7a6-2b3fabacecab","task_id":"mock","dag_id":"mock","run_id":"mock","try_number":1,"map_index":-1,"pool_slots":1,"queue":"default","priority_weight":1},"dag_rel_path":"mock.py","bundle_info":{"name":"n/a","version":"no matter"},"log_path":"mock.log","kind":"ExecuteTask"}',
@@ -349,14 +349,14 @@ class TestPodGenerator:
         assert result_dict == expected_dict
 
     @pytest.mark.parametrize(
-        "config_image, expected_image",
+        ("config_image", "expected_image"),
         [
             pytest.param("my_image:my_tag", "my_image:my_tag", id="image_in_cfg"),
             pytest.param(None, "busybox", id="no_image_in_cfg"),
         ],
     )
     @pytest.mark.parametrize(
-        "pod_override_object_namespace, expected_namespace",
+        ("pod_override_object_namespace", "expected_namespace"),
         [
             ("new_namespace", "new_namespace"),  # pod_override_object namespace should be used
             (None, "test_namespace"),  # if it is not provided, we use default one
@@ -704,7 +704,7 @@ class TestPodGenerator:
         assert re.match(r"^[a-z0-9]{8}$", actual_suffix)
 
     @pytest.mark.parametrize(
-        "pod_id, expected_starts_with",
+        ("pod_id", "expected_starts_with"),
         (
             (
                 "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen-",
@@ -743,7 +743,7 @@ class TestPodGenerator:
         PodGenerator(pod=k8s.V1Pod())
 
     @pytest.mark.parametrize(
-        "extra, extra_expected",
+        ("extra", "extra_expected"),
         [
             pytest.param(dict(), {}, id="base"),
             pytest.param(dict(airflow_worker=2), {"airflow-worker": "2"}, id="worker"),

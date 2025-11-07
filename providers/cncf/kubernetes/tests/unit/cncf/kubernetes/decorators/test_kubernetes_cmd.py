@@ -81,7 +81,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "func_return, exception",
+        ("func_return", "exception"),
         [
             pytest.param("string", TypeError, id="iterable_str"),
             pytest.param(True, TypeError, id="bool"),
@@ -236,7 +236,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        argnames=["command", "op_arg", "expected_command"],
+        argnames=("command", "op_arg", "expected_command"),
         argvalues=[
             pytest.param(
                 ["echo", "hello"],
