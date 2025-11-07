@@ -453,8 +453,8 @@ svn update .
 
 Set an environment variable: PATH_TO_SVN to the root of folder where you have airflow-ctl
 
-``` shell
-cd asf-dist/dev/airflow/airflow-ctl
+```shell script
+cd asf-dist/dev/airflow
 export PATH_TO_SVN=$(pwd -P)
 ```
 
@@ -503,7 +503,7 @@ breeze release-management prepare-airflow-ctl-distributions --distribution-forma
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}/airflow-ctl
+cd ${PATH_TO_SVN}/airflow-ctl/${VERSION_RC}
 ```
 
 6) Compare the packages in SVN to the ones you just built
