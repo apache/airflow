@@ -286,6 +286,9 @@ def _build_snowflake_key_connection_from_hook(
     )
     snowflake_role = conn.extra_dejson.get("role") or conn.extra_dejson.get("extra__snowflake__role")
 
+    snowflake_user = conn.login
+    if not snowflake_user:
+        raise ValueError(f"Snowflake user is required for connection: {conn_id}")
     if not snowflake_account:
         raise ValueError(f"Snowflake account is required in connection extras for conn_id: {conn_id}")
     if not snowflake_database:
@@ -299,7 +302,7 @@ def _build_snowflake_key_connection_from_hook(
 
     return SnowflakeKeyConnection(
         account=snowflake_account,
-        user=conn.login,
+        user=snowflake_user,
         role=snowflake_role,
         warehouse=snowflake_warehouse,
         database=snowflake_database,
