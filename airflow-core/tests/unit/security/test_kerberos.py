@@ -36,7 +36,6 @@ class TestKerberos:
     def fresh_detect_conf_var(self):
         """Clear cache of kerberos detection function."""
         detect_conf_var.cache_clear()
-        return None
 
     @pytest.mark.parametrize(
         ("kerberos_config", "expected_cmd"),
