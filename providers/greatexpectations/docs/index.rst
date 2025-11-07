@@ -33,7 +33,8 @@
     :maxdepth: 1
     :caption: Guides
 
-    Operators <operators/great_expectations>
+    Connection types <connections/gx_cloud>
+    Operators <operators/index>
 
 .. toctree::
     :hidden:

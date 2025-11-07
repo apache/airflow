@@ -158,24 +158,30 @@ with DAG(
     catchup=False,
     tags=["example", "great_expectations"],
 ) as dag:
+    # [START howto_operator_gx_validate_batch]
     validate_extract = GXValidateBatchOperator(
         task_id="validate_extract",
         configure_batch_definition=configure_pandas_batch_definition,
         configure_expectations=configure_expectations,
         batch_parameters=batch_parameters,
     )
+    # [END howto_operator_gx_validate_batch]
 
+    # [START howto_operator_gx_validate_dataframe]
     validate_transform = GXValidateDataFrameOperator(
         task_id="validate_transform",
         configure_dataframe=configure_data_frame,
         configure_expectations=configure_expectations,
     )
+    # [END howto_operator_gx_validate_dataframe]
 
+    # [START howto_operator_gx_validate_checkpoint]
     validate_load = GXValidateCheckpointOperator(
         task_id="validate_load",
         configure_checkpoint=configure_checkpoint,
         batch_parameters=batch_parameters,
     )
+    # [END howto_operator_gx_validate_checkpoint]
 
     chain(
         validate_extract,
