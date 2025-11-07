@@ -249,6 +249,8 @@ def _build_snowflake_key_connection_from_hook(
     hook.schema = schema or hook.schema
 
     conn = hook.get_connection(conn_id)
+    if not conn:
+        raise ValueError(f"Failed to retrieve Airflow connection with conn_id: {conn_id}")
 
     # Check for private key authentication
     private_key_file = conn.extra_dejson.get("extra__snowflake__private_key_file") or conn.extra_dejson.get(

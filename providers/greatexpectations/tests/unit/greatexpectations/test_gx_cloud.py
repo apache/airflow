@@ -35,7 +35,7 @@ from airflow.providers.greatexpectations.hooks.gx_cloud import (
 class TestGXCloudHookGetConn:
     """Test class for GXCloudHook.get_conn method."""
 
-    @patch("great_expectations_provider.hooks.gx_cloud.BaseHook.get_connection")
+    @patch("airflow.providers.greatexpectations.hooks.gx_cloud.BaseHook.get_connection")
     def test_get_conn_success(self, mock_get_connection: Mock) -> None:
         """Test successful connection retrieval with all required parameters."""
         mock_conn = Mock()
@@ -54,7 +54,7 @@ class TestGXCloudHookGetConn:
         assert result.cloud_workspace_id == "test_workspace_id"
         mock_get_connection.assert_called_once_with("test_conn")
 
-    @patch("great_expectations_provider.hooks.gx_cloud.BaseHook.get_connection")
+    @patch("airflow.providers.greatexpectations.hooks.gx_cloud.BaseHook.get_connection")
     @pytest.mark.parametrize(
         "password,login,schema,expected_missing_keys",
         [

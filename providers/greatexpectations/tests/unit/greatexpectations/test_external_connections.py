@@ -300,9 +300,14 @@ class TestSnowflakeConnectionString:
 
     @patch("airflow.providers.greatexpectations.common.external_connections.BaseHook.get_connection")
     @patch(
+        "airflow.providers.greatexpectations.common.external_connections._build_snowflake_connection_string_from_hook"
+    )
+    @patch(
         "airflow.providers.greatexpectations.common.external_connections._build_snowflake_connection_string_manual"
     )
-    def test_build_snowflake_connection_string_manual_success(self, mock_manual_build, mock_get_connection):
+    def test_build_snowflake_connection_string_manual_success(
+        self, mock_manual_build, mock_hook_build, mock_get_connection
+    ):
         """Test successful Snowflake connection string with manual construction."""
         mock_conn = Mock()
         mock_conn.login = "user"
@@ -314,6 +319,7 @@ class TestSnowflakeConnectionString:
             "warehouse": "test_wh",
         }
         mock_get_connection.return_value = mock_conn
+        mock_hook_build.side_effect = ImportError("Snowflake provider not found")
         mock_manual_build.return_value = (
             "snowflake://user:pass@test_account/test_db/test_schema?warehouse=test_wh"
         )
@@ -321,6 +327,7 @@ class TestSnowflakeConnectionString:
         result = build_snowflake_connection_string("test_conn")
 
         assert result == "snowflake://user:pass@test_account/test_db/test_schema?warehouse=test_wh"
+        mock_manual_build.assert_called_once_with(mock_conn, None)
 
 
 class TestSnowflakeKeyConnection:
@@ -357,10 +364,12 @@ class TestSnowflakeKeyConnection:
         assert result.private_key == b"private_key_bytes"
         mock_hook_build.assert_called_once_with("test_conn", None)
 
-    @patch("airflow.providers.greatexpectations.common.external_connections.BaseHook.get_connection")
-    def test_build_snowflake_key_connection_no_connection(self, mock_get_connection):
+    @patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook")
+    def test_build_snowflake_key_connection_no_connection(self, mock_hook_class):
         """Test Snowflake key connection when connection doesn't exist."""
-        mock_get_connection.return_value = None
+        mock_hook_instance = Mock()
+        mock_hook_class.return_value = mock_hook_instance
+        mock_hook_instance.get_connection.return_value = None
 
         with pytest.raises(
             ValueError,
