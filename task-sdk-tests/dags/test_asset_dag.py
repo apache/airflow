@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from airflow.sdk import DAG, Asset, task
 
-test_asset = Asset(uri="test://asset1", name="test_asset")
+test_asset = Asset(uri="test://asset1/", name="test_asset")
 
 with DAG(
     dag_id="asset_producer_dag",
