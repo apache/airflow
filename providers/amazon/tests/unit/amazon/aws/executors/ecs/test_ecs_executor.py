@@ -1158,7 +1158,7 @@ class TestAwsEcsExecutor:
         self.sync_call_count += 1
 
     @pytest.mark.parametrize(
-        "desired_status, last_status, exit_code, expected_status",
+        ("desired_status", "last_status", "exit_code", "expected_status"),
         [
             ("RUNNING", "QUEUED", 0, State.QUEUED),
             ("STOPPED", "RUNNING", 0, State.RUNNING),
@@ -1667,7 +1667,7 @@ class TestEcsExecutorConfig:
             assert task_kwargs["launchType"] == "FARGATE"
 
     @pytest.mark.parametrize(
-        "run_task_kwargs, exec_config, expected_result",
+        ("run_task_kwargs", "exec_config", "expected_result"),
         [
             # No input run_task_kwargs or executor overrides
             (

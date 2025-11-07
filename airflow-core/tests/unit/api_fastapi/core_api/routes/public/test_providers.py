@@ -50,7 +50,7 @@ MOCK_PROVIDERS = {
 
 class TestGetProviders:
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_package_name",
+        ("query_params", "expected_total_entries", "expected_package_name"),
         [
             # Filters
             ({}, 2, ["apache-airflow-providers-amazon", "apache-airflow-providers-apache-cassandra"]),

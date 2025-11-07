@@ -137,7 +137,7 @@ class TestTIRunState:
         clear_db_dags()
 
     @pytest.mark.parametrize(
-        "max_tries, should_retry",
+        ("max_tries", "should_retry"),
         [
             pytest.param(0, False, id="max_retries=0"),
             pytest.param(3, True, id="should_retry"),
@@ -910,7 +910,7 @@ class TestTIUpdateState:
         ],
     )
     @pytest.mark.parametrize(
-        "outlet_events, expected_extra",
+        ("outlet_events", "expected_extra"),
         [
             pytest.param([], {}, id="default"),
             pytest.param(
@@ -969,7 +969,7 @@ class TestTIUpdateState:
         assert event[0].extra == expected_extra
 
     @pytest.mark.parametrize(
-        "outlet_events, expected_extra",
+        ("outlet_events", "expected_extra"),
         [
             pytest.param([], None, id="default"),
             pytest.param(
@@ -2033,7 +2033,7 @@ class TestGetCount:
         assert response.json() == 3
 
     @pytest.mark.parametrize(
-        ["map_index", "dynamic_task_args", "expected_count"],
+        ("map_index", "dynamic_task_args", "expected_count"),
         (
             pytest.param(None, [1, 2, 3], 4, id="use-default-map-index"),
             pytest.param(-1, [1, 2, 3], 1, id="map-index-(-1)"),
@@ -2077,13 +2077,7 @@ class TestGetCount:
         assert response.json() == expected_count
 
     @pytest.mark.parametrize(
-        [
-            "map_index",
-            "dynamic_task_args",
-            "task_ids",
-            "task_group_name",
-            "expected_count",
-        ],
+        ("map_index", "dynamic_task_args", "task_ids", "task_group_name", "expected_count"),
         (
             pytest.param(None, [1, 2, 3], None, None, 5, id="use-default-map-index-None"),
             pytest.param(-1, [1, 2, 3], ["task1"], None, 1, id="with-task-ids-and-map-index-(-1)"),
@@ -2341,7 +2335,7 @@ class TestGetTaskStates:
         }
 
     @pytest.mark.parametrize(
-        ["map_index", "dynamic_task_args", "states", "expected"],
+        ("map_index", "dynamic_task_args", "states", "expected"),
         (
             pytest.param(
                 None,
@@ -2397,14 +2391,7 @@ class TestGetTaskStates:
         assert response.json() == {"task_states": {dr.run_id: expected}}
 
     @pytest.mark.parametrize(
-        [
-            "map_index",
-            "dynamic_task_args",
-            "task_ids",
-            "task_group_name",
-            "states",
-            "expected",
-        ],
+        ("map_index", "dynamic_task_args", "task_ids", "task_group_name", "states", "expected"),
         (
             pytest.param(
                 None,

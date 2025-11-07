@@ -221,7 +221,7 @@ class TestGetDependencies:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "node_id, expected_response_fixture",
+        ("node_id", "expected_response_fixture"),
         [
             # Primary Component
             ("dag:downstream", "expected_primary_component_response"),
