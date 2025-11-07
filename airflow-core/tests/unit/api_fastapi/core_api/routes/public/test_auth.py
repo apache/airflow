@@ -74,7 +74,7 @@ class TestGetLogin(TestAuthEndpoint):
 
 class TestLogout(TestAuthEndpoint):
     @pytest.mark.parametrize(
-        "mock_logout_url, expected_redirection",
+        ("mock_logout_url", "expected_redirection"),
         [
             # logout_url is None, should redirect to the login page directly.
             (None, AUTH_MANAGER_LOGIN_URL),
