@@ -60,6 +60,10 @@ export const DateRangeInputs = ({
     if (getFieldError(fieldName)) {
       return "danger.solid";
     }
+    // Check if there's a range error and this is a date field
+    if (getFieldError("range") && (fieldName === "start" || fieldName === "end")) {
+      return "danger.solid";
+    }
     if (editingState.selectionTarget === fieldName) {
       return "brand.focusRing";
     }
@@ -111,7 +115,7 @@ export const DateRangeInputs = ({
   };
 
   return (
-    <VStack gap={2} w="full">
+    <VStack gap={0.5} w="full">
       <HStack justify="flex-start" w="full">
         <HStack gap={1}>
           <MdAccessTime size={14} />

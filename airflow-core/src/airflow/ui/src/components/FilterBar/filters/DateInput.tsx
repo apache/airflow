@@ -56,7 +56,7 @@ export const DateInput = ({
 
   return (
     <Box flex="1">
-      <Text color="fg.muted" fontSize="xs" mb={0.5}>
+      <Text color="fg.muted" fontSize="xs" mb={0.25}>
         {label}
       </Text>
       <Box position="relative">
@@ -90,9 +90,9 @@ export const DateInput = ({
           </IconButton>
         )}
       </Box>
-      <Box alignItems="flex-start" display="flex" minH="16px">
+      <Box alignItems="flex-start" display="flex" minH="12px">
         {getFieldError(fieldName) && (
-          <Text color="danger.fg" fontSize="xs" mt={1}>
+          <Text color="danger.fg" fontSize="xs" mt={0.5}>
             {getFieldError(fieldName)?.message}
           </Text>
         )}
