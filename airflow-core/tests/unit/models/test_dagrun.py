@@ -911,7 +911,7 @@ class TestDagRun:
         assert task.queue == "queue1"
 
     @pytest.mark.parametrize(
-        "prev_ti_state, is_ti_schedulable",
+        ("prev_ti_state", "is_ti_schedulable"),
         [
             (TaskInstanceState.SUCCESS, True),
             (TaskInstanceState.SKIPPED, True),
@@ -953,7 +953,7 @@ class TestDagRun:
         assert ("test_dop_task" in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize(
-        "prev_ti_state, is_ti_schedulable",
+        ("prev_ti_state", "is_ti_schedulable"),
         [
             (TaskInstanceState.SUCCESS, True),
             (TaskInstanceState.SKIPPED, True),
@@ -1078,7 +1078,7 @@ class TestDagRun:
         assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
 
     @pytest.mark.parametrize(
-        "schedule, expected",
+        ("schedule", "expected"),
         [
             ("*/5 * * * *", True),
             (None, False),
@@ -2199,7 +2199,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
 
 
 @pytest.mark.parametrize(
-    "partial_params, mapped_params, expected",
+    ("partial_params", "mapped_params", "expected"),
     [
         pytest.param(None, [{"a": 1}], 1, id="simple"),
         pytest.param({"b": 2}, [{"a": 1}], 1, id="merge"),
@@ -2574,7 +2574,7 @@ def test_dagrun_with_note(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
+    ("dag_run_state", "on_failure_fail_dagrun"), [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
 )
 def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state, on_failure_fail_dagrun):
     with dag_maker():
@@ -2604,7 +2604,7 @@ def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state,
 
 
 @pytest.mark.parametrize(
-    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
+    ("dag_run_state", "on_failure_fail_dagrun"), [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
 )
 def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
     dag_maker, session, dag_run_state, on_failure_fail_dagrun
@@ -2714,7 +2714,7 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
 
 
 @pytest.mark.parametrize(
-    "input, expected",
+    ("input", "expected"),
     [
         (["s1 >> w1 >> t1"], {"w1"}),  # t1 ignored
         (["s1 >> w1 >> t1", "s1 >> t1"], {"w1"}),  # t1 ignored; properly wired to setup
@@ -2779,7 +2779,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 
 
 @pytest.mark.parametrize(
-    "pattern, run_id, result",
+    ("pattern", "run_id", "result"),
     [
         ["^[A-Z]", "ABC", True],
         ["^[A-Z]", "abc", False],

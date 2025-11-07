@@ -218,7 +218,7 @@ def create_async_request_client_response_success(json=GET_RESPONSE, status_code=
 
 class TestSnowflakeSqlApiHook:
     @pytest.mark.parametrize(
-        "sql,statement_count,expected_response, expected_query_ids",
+        ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [
             (SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"]),
             (SQL_MULTIPLE_STMTS, 4, {"statementHandles": ["uuid", "uuid1"]}, ["uuid", "uuid1"]),
@@ -285,7 +285,7 @@ class TestSnowflakeSqlApiHook:
         assert query_ids == expected_query_ids
 
     @pytest.mark.parametrize(
-        "sql,statement_count,expected_response, expected_query_ids",
+        ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
     @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
@@ -313,7 +313,7 @@ class TestSnowflakeSqlApiHook:
         assert exception_info
 
     @pytest.mark.parametrize(
-        "sql,statement_count,bindings",
+        ("sql", "statement_count", "bindings"),
         [
             (SQL_MULTIPLE_STMTS, 4, {"1": {"type": "FIXED", "value": "123"}}),
         ],
@@ -589,7 +589,7 @@ class TestSnowflakeSqlApiHook:
             SnowflakeSqlApiHook(snowflake_conn_id="test_conn").get_private_key()
 
     @pytest.mark.parametrize(
-        "status_code,response,expected_response",
+        ("status_code", "response", "expected_response"),
         [
             (
                 200,
@@ -662,7 +662,7 @@ class TestSnowflakeSqlApiHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "status_code,response,expected_response",
+        ("status_code", "response", "expected_response"),
         [
             (
                 200,
@@ -722,7 +722,7 @@ class TestSnowflakeSqlApiHook:
         assert hook.role == hook_params.get("role", None)
 
     @pytest.mark.parametrize(
-        "test_hook_params, sql, statement_count, expected_payload, expected_response",
+        ("test_hook_params", "sql", "statement_count", "expected_payload", "expected_response"),
         [
             (
                 {},
@@ -842,7 +842,7 @@ class TestSnowflakeSqlApiHook:
         )
 
     @pytest.mark.parametrize(
-        "status_code,should_retry",
+        ("status_code", "should_retry"),
         [
             (429, True),  # Too Many Requests - should retry
             (503, True),  # Service Unavailable - should retry

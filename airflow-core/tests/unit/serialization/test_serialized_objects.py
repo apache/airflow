@@ -276,7 +276,7 @@ class MockLazySelectSequence(LazySelectSequence):
 
 
 @pytest.mark.parametrize(
-    "input, encoded_type, cmp_func",
+    ("input", "encoded_type", "cmp_func"),
     [
         ("test_str", None, equals),
         (1, None, equals),
@@ -614,7 +614,7 @@ def test_hash_property():
 
 
 @pytest.mark.parametrize(
-    "payload, expected_cls",
+    ("payload", "expected_cls"),
     [
         pytest.param(
             {
@@ -737,6 +737,7 @@ class TestKubernetesImportAvoidance:
             pytest.skip("Kubernetes already imported, cannot test import avoidance")
 
         # Call _has_kubernetes() - should check sys.modules and return False without importing
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is False
@@ -747,6 +748,7 @@ class TestKubernetesImportAvoidance:
         pytest.importorskip("kubernetes")
 
         # Now k8s is imported, should return True
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is True
