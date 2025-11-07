@@ -23,12 +23,14 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
@@ -48,8 +50,17 @@ class TestConnection:
         get_fernet.cache_clear()
 
     @pytest.mark.parametrize(
-        "uri, expected_conn_type, expected_host, expected_login, expected_password,"
-        " expected_port, expected_schema, expected_extra_dict, expected_exception_message",
+        (
+            "uri",
+            "expected_conn_type",
+            "expected_host",
+            "expected_login",
+            "expected_password",
+            "expected_port",
+            "expected_schema",
+            "expected_extra_dict",
+            "expected_exception_message",
+        ),
         [
             (
                 "type://user:pass@host:100/schema",
@@ -167,7 +178,7 @@ class TestConnection:
             assert conn.extra_dejson == expected_extra_dict
 
     @pytest.mark.parametrize(
-        "connection, expected_uri",
+        ("connection", "expected_uri"),
         [
             (
                 Connection(
@@ -205,11 +216,12 @@ class TestConnection:
             ),
         ],
     )
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        "connection, expected_conn_id",
+        ("connection", "expected_conn_id"),
         [
             # a valid example of connection id
             (
@@ -273,7 +285,7 @@ class TestConnection:
         assert connection.conn_id == expected_conn_id
 
     @pytest.mark.parametrize(
-        "conn_type, host",
+        ("conn_type", "host"),
         [
             # same protocol to type
             ("http", "http://host"),

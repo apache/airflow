@@ -652,7 +652,7 @@ class TestHiveServer2Hook:
             )
 
     @pytest.mark.parametrize(
-        "host, port, schema, message",
+        ("host", "port", "schema", "message"),
         [
             ("localhost", "10000", "default", None),
             ("localhost:", "10000", "default", "The host used in beeline command"),
@@ -906,7 +906,7 @@ class TestHiveCli:
         assert not hook.high_availability
 
     @pytest.mark.parametrize(
-        "extra_dejson, correct_proxy_user, proxy_user",
+        ("extra_dejson", "correct_proxy_user", "proxy_user"),
         [
             ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
         ],
@@ -938,7 +938,7 @@ class TestHiveCli:
             hook._prepare_cli_cmd()
 
     @pytest.mark.parametrize(
-        "extra_dejson, expected_keys",
+        ("extra_dejson", "expected_keys"),
         [
             (
                 {"high_availability": "true"},

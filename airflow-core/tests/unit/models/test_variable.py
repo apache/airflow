@@ -336,7 +336,7 @@ class TestVariable:
 
 
 @pytest.mark.parametrize(
-    "variable_value, deserialize_json, expected_masked_values",
+    ("variable_value", "deserialize_json", "expected_masked_values"),
     [
         ("s3cr3t", False, ["s3cr3t"]),
         ('{"api_key": "s3cr3t"}', True, ["s3cr3t"]),

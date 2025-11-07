@@ -71,7 +71,7 @@ SCHEMA_JSON_BIT_FIELDS = [
 
 class TestMsSqlToGoogleCloudStorageOperator:
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("string", "string"),
             (32.9, 32.9),
@@ -165,7 +165,8 @@ class TestMsSqlToGoogleCloudStorageOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     @pytest.mark.parametrize(
-        "bit_fields,schema_json", [(None, SCHEMA_JSON), (["bit_fields", SCHEMA_JSON_BIT_FIELDS])]
+        ("bit_fields", "schema_json"),
+        [(None, SCHEMA_JSON), (["bit_fields", SCHEMA_JSON_BIT_FIELDS])],
     )
     def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class, bit_fields, schema_json):
         """Test writing schema files."""
@@ -196,7 +197,7 @@ class TestMsSqlToGoogleCloudStorageOperator:
         assert gcs_hook_mock.upload.call_count == 2
 
     @pytest.mark.parametrize(
-        "connection_port, default_port, expected_port",
+        ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
     )
     def test_execute_openlineage_events(self, connection_port, default_port, expected_port):
