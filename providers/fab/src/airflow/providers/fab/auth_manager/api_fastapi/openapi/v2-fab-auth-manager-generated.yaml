@@ -9,7 +9,7 @@ paths:
   /auth/token:
     post:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Create Token
       description: Generate a new API token.
       operationId: create_token
@@ -17,37 +17,37 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginBody"
+              $ref: '#/components/schemas/LoginBody'
         required: true
       responses:
-        "201":
+        '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
-        "400":
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
-        "401":
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
-        "422":
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/token/cli:
     post:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Create Token Cli
       description: Generate a new CLI API token.
       operationId: create_token_cli
@@ -55,42 +55,42 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginBody"
+              $ref: '#/components/schemas/LoginBody'
         required: true
       responses:
-        "201":
+        '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
-        "400":
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
           description: Bad Request
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
-        "401":
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
-        "422":
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/logout:
     get:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Logout
       description: Generate a new API token.
       operationId: logout
       responses:
-        "307":
+        '307':
           description: Successful Response
           content:
             application/json:
@@ -98,244 +98,302 @@ paths:
   /auth/fab/v1/roles:
     post:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Create Role
       description: Create a new role (actions can be empty).
       operationId: create_role
       security:
-        - OAuth2PasswordBearer: []
-        - HTTPBearer: []
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RoleBody"
+              $ref: '#/components/schemas/RoleBody'
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoleResponse"
-        "400":
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
-        "401":
+        '401':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        "403":
+        '403':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        "409":
+        '409':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
-        "500":
+        '500':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Internal Server Error
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Get Roles
       description: List roles with pagination and ordering.
       operationId: get_roles
       security:
-        - OAuth2PasswordBearer: []
-        - HTTPBearer: []
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
-        - name: order_by
-          in: query
-          required: false
-          schema:
-            type: string
-            description: Field to order by. Prefix with '-' for descending.
-            default: name
-            title: Order By
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
           description: Field to order by. Prefix with '-' for descending.
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            description: Number of items to skip before starting to collect results.
-            default: 0
-            title: Offset
+          default: name
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
           description: Number of items to skip before starting to collect results.
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            default: 100
-            title: Limit
+          default: 0
+          title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoleCollectionResponse"
-        "400":
+                $ref: '#/components/schemas/RoleCollectionResponse'
+        '400':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
-        "401":
+        '401':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        "403":
+        '403':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        "500":
+        '500':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Internal Server Error
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/fab/v1/roles/{name}:
     delete:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Delete Role
       description: Delete an existing role.
       operationId: delete_role
       security:
-        - OAuth2PasswordBearer: []
-        - HTTPBearer: []
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            title: Name
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
-        "401":
+        '401':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        "403":
+        '403':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        "404":
+        '404':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
     get:
       tags:
-        - FabAuthManager
+      - FabAuthManager
       summary: Get Role
       description: Get an existing role.
       operationId: get_role
       security:
-        - OAuth2PasswordBearer: []
-        - HTTPBearer: []
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            title: Name
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoleResponse"
-        "401":
+                $ref: '#/components/schemas/RoleResponse'
+        '401':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        "403":
+        '403':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        "404":
+        '404':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPExceptionResponse"
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        "422":
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/users:
+    post:
+      tags:
+      - FabAuthManager
+      summary: Create User
+      operationId: create_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
 components:
   schemas:
     ActionResourceResponse:
       properties:
         action:
-          $ref: "#/components/schemas/ActionResponse"
+          $ref: '#/components/schemas/ActionResponse'
         resource:
-          $ref: "#/components/schemas/ResourceResponse"
+          $ref: '#/components/schemas/ResourceResponse'
       type: object
       required:
-        - action
-        - resource
+      - action
+      - resource
       title: ActionResourceResponse
       description: Pairing of an action with a resource.
     ActionResponse:
@@ -345,27 +403,27 @@ components:
           title: Name
       type: object
       required:
-        - name
+      - name
       title: ActionResponse
       description: Outgoing representation of an action (permission name).
     HTTPExceptionResponse:
       properties:
         detail:
           anyOf:
-            - type: string
-            - additionalProperties: true
-              type: object
+          - type: string
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:
-        - detail
+      - detail
       title: HTTPExceptionResponse
       description: HTTPException Model used for error response.
     HTTPValidationError:
       properties:
         detail:
           items:
-            $ref: "#/components/schemas/ValidationError"
+            $ref: '#/components/schemas/ValidationError'
           type: array
           title: Detail
       type: object
@@ -380,8 +438,8 @@ components:
           title: Password
       type: object
       required:
-        - username
-        - password
+      - username
+      - password
       title: LoginBody
       description: API Token serializer for requests.
     LoginResponse:
@@ -391,7 +449,7 @@ components:
           title: Access Token
       type: object
       required:
-        - access_token
+      - access_token
       title: LoginResponse
       description: API Token serializer for responses.
     ResourceResponse:
@@ -401,7 +459,7 @@ components:
           title: Name
       type: object
       required:
-        - name
+      - name
       title: ResourceResponse
       description: Outgoing representation of a resource.
     Role:
@@ -411,7 +469,7 @@ components:
           title: Name
       type: object
       required:
-        - name
+      - name
       title: Role
       description: Lightweight role reference used by /users schemas.
     RoleBody:
@@ -422,20 +480,20 @@ components:
           title: Name
         actions:
           items:
-            $ref: "#/components/schemas/ActionResourceResponse"
+            $ref: '#/components/schemas/ActionResourceResponse'
           type: array
           title: Actions
       additionalProperties: false
       type: object
       required:
-        - name
+      - name
       title: RoleBody
       description: Incoming payload for creating/updating a role.
     RoleCollectionResponse:
       properties:
         roles:
           items:
-            $ref: "#/components/schemas/RoleResponse"
+            $ref: '#/components/schemas/RoleResponse'
           type: array
           title: Roles
         total_entries:
@@ -443,8 +501,8 @@ components:
           title: Total Entries
       type: object
       required:
-        - roles
-        - total_entries
+      - roles
+      - total_entries
       title: RoleCollectionResponse
       description: Outgoing representation of a paginated collection of roles.
     RoleResponse:
@@ -454,12 +512,12 @@ components:
           title: Name
         actions:
           items:
-            $ref: "#/components/schemas/ActionResourceResponse"
+            $ref: '#/components/schemas/ActionResourceResponse'
           type: array
           title: Actions
       type: object
       required:
-        - name
+      - name
       title: RoleResponse
       description: Outgoing representation of a role and its permissions.
     UserBody:
@@ -482,10 +540,10 @@ components:
           title: Last Name
         roles:
           anyOf:
-            - items:
-                $ref: "#/components/schemas/RoleRef"
-              type: array
-            - type: "null"
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
           title: Roles
         password:
           type: string
@@ -495,11 +553,11 @@ components:
       additionalProperties: false
       type: object
       required:
-        - username
-        - email
-        - first_name
-        - last_name
-        - password
+      - username
+      - email
+      - first_name
+      - last_name
+      - password
       title: UserBody
       description: Incoming payload for creating a user.
     UserResponse:
@@ -518,50 +576,50 @@ components:
           title: Last Name
         roles:
           anyOf:
-            - items:
-                $ref: "#/components/schemas/RoleRef"
-              type: array
-            - type: "null"
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
           title: Roles
         active:
           anyOf:
-            - type: boolean
-            - type: "null"
+          - type: boolean
+          - type: 'null'
           title: Active
         last_login:
           anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Last Login
         login_count:
           anyOf:
-            - type: integer
-            - type: "null"
+          - type: integer
+          - type: 'null'
           title: Login Count
         fail_login_count:
           anyOf:
-            - type: integer
-            - type: "null"
+          - type: integer
+          - type: 'null'
           title: Fail Login Count
         created_on:
           anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Created On
         changed_on:
           anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Changed On
       type: object
       required:
-        - username
-        - email
-        - first_name
-        - last_name
+      - username
+      - email
+      - first_name
+      - last_name
       title: UserResponse
       description: Outgoing representation of a user (no password).
     ValidationError:
@@ -569,8 +627,8 @@ components:
         loc:
           items:
             anyOf:
-              - type: string
-              - type: integer
+            - type: string
+            - type: integer
           type: array
           title: Location
         msg:
@@ -581,9 +639,9 @@ components:
           title: Error Type
       type: object
       required:
-        - loc
-        - msg
-        - type
+      - loc
+      - msg
+      - type
       title: ValidationError
   securitySchemes:
     OAuth2PasswordBearer:
