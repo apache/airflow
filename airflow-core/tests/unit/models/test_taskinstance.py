@@ -1685,9 +1685,7 @@ class TestTaskInstance:
         for ti in dr.get_task_instances(session=session):
             ti.run(session=session)
 
-        events = dict(
-            (row[0], row[1]) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent))
-        )
+        events = dict((tuple(row)) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent)))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
