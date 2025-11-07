@@ -65,7 +65,7 @@ class TestCalendar:
         clear_db_dags()
 
     @pytest.mark.parametrize(
-        "query_params, result",
+        ("query_params", "result"),
         [
             (
                 {},
@@ -111,7 +111,7 @@ class TestCalendar:
         assert body == result
 
     @pytest.mark.parametrize(
-        "query_params, result",
+        ("query_params", "result"),
         [
             (
                 {"granularity": "hourly"},

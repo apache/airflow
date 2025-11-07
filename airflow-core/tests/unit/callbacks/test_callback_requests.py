@@ -45,7 +45,7 @@ pytestmark = pytest.mark.db_test
 
 class TestCallbackRequest:
     @pytest.mark.parametrize(
-        "input,request_class",
+        ("input", "request_class"),
         [
             (
                 None,  # to be generated when test is run
@@ -98,7 +98,7 @@ class TestCallbackRequest:
         assert input == result
 
     @pytest.mark.parametrize(
-        "task_callback_type,expected_is_failure",
+        ("task_callback_type", "expected_is_failure"),
         [
             (None, True),
             (TaskInstanceState.FAILED, True),
