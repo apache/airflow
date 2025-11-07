@@ -20,6 +20,7 @@ Simple DAG that triggers another simple DAG.
 It checks:
     - task's trigger_dag_id
     - DAGRun START and COMPLETE events, for the triggered DAG
+    - propagation of OL parent and root info from DAGRun conf
 """
 
 from __future__ import annotations
@@ -47,7 +48,17 @@ with DAG(
         trigger_dag_id="openlineage_trigger_dag_child__notrigger",
         trigger_run_id=f"openlineage_trigger_dag_triggering_child_{datetime.now().isoformat()}",
         wait_for_completion=True,
-        conf={"some_config": "value1"},
+        conf={
+            "some_config": "value1",
+            "openlineage": {
+                "parentRunId": "3bb703d1-09c1-4a42-8da5-35a0b3216072",
+                "parentJobNamespace": "prod_biz",
+                "parentJobName": "get_files",
+                "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
+                "rootParentJobNamespace": "prod_analytics",
+                "rootParentJobName": "generate_report_sales_e2e",
+            },
+        },
         poke_interval=10,
     )
 

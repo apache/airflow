@@ -209,3 +209,23 @@ class TestRolesService:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.get_roles(order_by="nope", limit=10, offset=0)
         assert ex.value.status_code == 400
+
+    # DELETE /roles/{name}
+
+    def test_delete_role_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = _make_role_obj("roleA", [])
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        FABAuthManagerRoles.delete_role(name="roleA")
+
+        security_manager.delete_role.assert_called_once()
+
+    def test_delete_role_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = None
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.delete_role(name="roleA")
+        assert ex.value.status_code == 404

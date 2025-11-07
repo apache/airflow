@@ -312,13 +312,13 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 export GPG_TTY=$(tty)
 
 # Set Version
-export VERSION=3.0.5rc1
+export VERSION=3.1.3
 export VERSION_SUFFIX=rc1
-export VERSION_BRANCH=2-1
-export VERSION_WITHOUT_RC=${VERSION/rc?/}
-export TASK_SDK_VERSION=1.0.5rc1
-export TASK_SDK_VERSION_WITHOUT_RC=${TASK_SDK_VERSION/rc?/}
-export PREVIOUS_VERSION=3.0.4
+export VERSION_RC=${VERSION}${VERSION_RC}
+export VERSION_BRANCH=3-1
+export TASK_SDK_VERSION=1.1.3
+export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
+export PREVIOUS_VERSION=3.1.2
 export SYNC_BRANCH=changes-3.1.2rc1 # sync branch, if different from the test branch
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -359,13 +359,13 @@ uv tool install -e ./dev/breeze
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
-- Commit the above changes with the message `Update version to ${VERSION_WITHOUT_RC}`.
+- Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
   Preview with:
 
     ```shell script
-    towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir . --config newsfragments/config.toml
     ```
 
 
@@ -404,9 +404,9 @@ uv tool install -e ./dev/breeze
     git checkout main
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process \
-        --version ${VERSION} \
+        --version ${VERSION_RC} \
         --previous-version ${PREVIOUS_VERSION} \
-        --task-sdk-version ${TASK_SDK_VERSION} \
+        --task-sdk-version ${TASK_SDK_VERSION_RC} \
         --sync-branch ${SYNC_BRANCH}
    ```
 
@@ -416,9 +416,9 @@ uv tool install -e ./dev/breeze
    ```shell script
    # Test with dry-run (shows what would be executed without doing it)
    breeze release-management start-rc-process \
-       --version ${VERSION} \
+       --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
-       --task-sdk-version ${TASK_SDK_VERSION} \
+       --task-sdk-version ${TASK_SDK_VERSION_RC} \
        --remote-name upstream \
        --dry-run
    ```
@@ -427,14 +427,14 @@ uv tool install -e ./dev/breeze
 
   ```shell script
   cat <<EOF
-  Status of testing of Apache Airflow ${VERSION}
+  Status of testing of Apache Airflow ${VERSION_RC}
   EOF
   ```
 
 - Generate the body of the issue using the below command:
 
   ```shell script
-    breeze release-management generate-issue-content-core --previous-release ${PREVIOUS_VERSION} --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release ${PREVIOUS_VERSION} --current-release ${VERSION_RC}
     ```
 
 ## Publish release candidate documentation (staging)
@@ -461,7 +461,7 @@ The command does the following:
 breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
 
 # Example for RC
-breeze workflow-run publish-docs --ref ${VERSION} --site-env staging apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref ${VERSION_RC} --site-env staging apache-airflow docker-stack task-sdk
 ```
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
@@ -548,7 +548,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Release Airflow ${VERSION_WITHOUT_RC} from ${VERSION} & Task SDK ${TASK_SDK_VERSION_WITHOUT_RC} from ${TASK_SDK_VERSION}
+[VOTE] Release Airflow ${VERSION} from ${VERSION_RC} & Task SDK ${TASK_SDK_VERSION} from ${TASK_SDK_VERSION_RC}
 EOF
 ```
 
@@ -558,7 +558,7 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-The release candidates for Apache Airflow ${VERSION} and Task SDK ${TASK_SDK_VERSION} are now available for testing!
+The release candidates for Apache Airflow ${VERSION_RC} and Task SDK ${TASK_SDK_VERSION_RC} are now available for testing!
 
 This email is calling for a vote on the release, which will last at least 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
 until Monday, October 11, 2021 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
@@ -569,24 +569,24 @@ Status of testing of the release is kept in TODO:URL_OF_THE_ISSUE_HERE
 
 Consider this my +1 binding vote.
 
-Airflow ${VERSION} is available at:
-https://dist.apache.org/repos/dist/dev/airflow/${VERSION}/
+Airflow ${VERSION_RC} is available at:
+https://dist.apache.org/repos/dist/dev/airflow/${VERSION_RC}/
 
 "apache-airflow" Meta package:
-- *apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
-- *apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-- *apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+- *apache-airflow-${VERSION}-source.tar.gz* is a source release that comes with INSTALL instructions.
+- *apache-airflow-${VERSION}.tar.gz* is the binary Python "sdist" release.
+- *apache_airflow-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 "apache-airflow-core" package:
-- *apache_airflow_core-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-- *apache_airflow_core-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+- *apache_airflow_core-${VERSION}.tar.gz* is the binary Python "sdist" release.
+- *apache_airflow_core-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Task SDK ${TASK_SDK_VERSION} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/task-sdk/${TASK_SDK_VERSION}/
 
 "apache-airflow-task-sdk" package:
-- *apache_airflow_task_sdk-${TASK_SDK_VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-- *apache_airflow_task_sdk-${TASK_SDK_VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+- *apache_airflow_task_sdk-${TASK_SDK_VERSION}.tar.gz* is the binary Python "sdist" release.
+- *apache_airflow_task_sdk-${TASK_SDK_VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -607,26 +607,26 @@ The test procedure for contributors and members of the community who would like 
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
 
 Please note that the version number excludes the 'rcX' string, so it's now
-simply ${VERSION_WITHOUT_RC} for Airflow package and ${TASK_SDK_VERSION_WITHOUT_RC} for Task SDK. This will allow us to rename the artifact without modifying
+simply ${VERSION} for Airflow package and ${TASK_SDK_VERSION} for Task SDK. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
 Docs (for preview):
-https://airflow.staged.apache.org/docs/apache-airflow/${VERSION_WITHOUT_RC}
+https://airflow.staged.apache.org/docs/apache-airflow/${VERSION}
 
 Release Notes:
-- https://github.com/apache/airflow/blob/${VERSION}/RELEASE_NOTES.rst
-- https://airflow.staged.apache.org/docs/apache-airflow/${VERSION_WITHOUT_RC}/release_notes.html (Rendered HTML)
+- https://github.com/apache/airflow/blob/${VERSION_RC}/RELEASE_NOTES.rst
+- https://airflow.staged.apache.org/docs/apache-airflow/${VERSION}/release_notes.html (Rendered HTML)
 
 Testing Instructions using PyPI:
 You can build a virtualenv that installs this and other required packages (e.g. task sdk), like this:
 
 uv venv
 uv pip install -U \\
-  apache-airflow==${VERSION} \\
-  apache-airflow-core==${VERSION} \\
-  apache-airflow-task-sdk==${TASK_SDK_VERSION}
+  apache-airflow==${VERSION_RC} \\
+  apache-airflow-core==${VERSION_RC} \\
+  apache-airflow-task-sdk==${TASK_SDK_VERSION_RC}
 
-Constraints files are at https://github.com/apache/airflow/tree/constraints-${VERSION}
+Constraints files are at https://github.com/apache/airflow/tree/constraints-${VERSION_RC}
 
 Cheers,
 <your name>
@@ -661,15 +661,18 @@ Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 wit
 you are checking):
 
 ```shell script
-VERSION=X.Y.Zrc1
-TASK_SDK_VERSION=X.Y.Zrc1
+VERSION=X.Y.Z
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+TASK_SDK_VERSION=X.Y.Z
+TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
 git fetch apache --tags
-git checkout ${VERSION}
+git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-distributions --distribution-format both --tag ${VERSION}
+breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-task-sdk-distributions --distribution-format both
-breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION}
+breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
 The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
@@ -677,9 +680,9 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --tag ${VERSION}
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION}
+breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
 This is generally faster and requires less resources/network bandwidth. Note that you have to
@@ -700,13 +703,13 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
-cd asf-dist/dev/airflow/${VERSION}
+cd asf-dist/dev/airflow/${VERSION_RC}
 for i in *.whl *.tar.gz
 do
   echo "Checking if $(basename $i) is the same as ${AIRFLOW_REPO_ROOT}/dist/$(basename $i)"
   diff "$(basename $i)" "${AIRFLOW_REPO_ROOT}/dist/$(basename $i)" && echo "OK"
 done
-cd ../task-sdk/${TASK_SDK_VERSION}
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
 for i in *.whl *.tar.gz
 do
   echo "Checking if $(basename $i) is the same as ${AIRFLOW_REPO_ROOT}/dist/$(basename $i)"
@@ -758,13 +761,13 @@ present in SVN. This script may help also with verifying installation of the pac
 
 ```shell script
 cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py airflow -v ${VERSION} -p ${PATH_TO_SVN}
+uv run check_files.py airflow -v ${VERSION_RC} -p ${PATH_TO_SVN}
 ```
 
 
 ```shell script
 cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py task-sdk -v ${TASK_SDK_VERSION} -p ${PATH_TO_SVN}/task-sdk
+uv run check_files.py task-sdk -v ${TASK_SDK_VERSION_RC} -p ${PATH_TO_SVN}/task-sdk
 ```
 
 ## Licence check
@@ -782,7 +785,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
@@ -940,7 +943,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.10.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>rc<X>/constraints-3.10.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -1024,17 +1027,19 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-export RC=3.0.5rc5
-export VERSION=${RC/rc?/}
-export TASK_SDK_RC=1.0.5rc1
-export PREVIOUS_RELEASE=3.0.4
+export VERSION=3.1.3
+export VERSION_SUFFIX=rc1
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
+export TASK_SDK_VERSION=1.1.3
+export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
+export PREVIOUS_RELEASE=3.1.2
 # cd to the airflow repo directory and set the environment variable below
 export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
-    --release-candidate ${RC} \
+    --release-candidate ${VERSION_RC} \
     --previous-release ${PREVIOUS_RELEASE} \
-    --task-sdk-release-candidate ${TASK_SDK_RC}
+    --task-sdk-release-candidate ${TASK_SDK_VERSION_RC}
 ```
 
 Note: The `--task-sdk-release-candidate` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
@@ -1073,11 +1078,11 @@ the older branches, you should set the "skip" field to true.
 ```shell script
 for PYTHON in 3.10 3.11 3.12 3.13
 do
-    docker pull apache/airflow:${VERSION}-python${PYTHON}
-    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
+    docker pull apache/airflow:${VERSION_RC}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION_RC}-python${PYTHON}
 done
-docker pull apache/airflow:${VERSION}
-breeze prod-image verify --image-name apache/airflow:${VERSION}
+docker pull apache/airflow:${VERSION_RC}
+breeze prod-image verify --image-name apache/airflow:${VERSION_RC}
 ```
 
 ## Publish final documentation
@@ -1103,7 +1108,7 @@ The command does the following:
 
 ```shell script
 # Example for final release
-breeze workflow-run publish-docs --ref ${VERSION_WITHOUT_RC} --site-env live apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref ${VERSION} --site-env live apache-airflow docker-stack task-sdk
 ```
 
 The `--ref` parameter should be the tag of the final version you are publishing.
