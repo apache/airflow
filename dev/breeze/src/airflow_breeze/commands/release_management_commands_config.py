@@ -92,7 +92,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management prepare-tarball": [
         {
             "name": "Tarball flags",
-            "options": ["--tarball-type", "--version"],
+            "options": ["--tarball-type", "--version", "--version-suffix"],
         }
     ],
     "breeze release-management prepare-task-sdk-distributions": [
