@@ -102,7 +102,7 @@ class TestAthenaSQLHookConn:
         )
 
     @pytest.mark.parametrize(
-        "conn_params, conn_extra, expected_call_args",
+        ("conn_params", "conn_extra", "expected_call_args"),
         [
             (
                 {"schema": "athena_sql_schema1"},

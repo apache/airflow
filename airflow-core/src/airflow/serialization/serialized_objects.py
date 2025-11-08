@@ -31,7 +31,7 @@ import re
 import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from functools import cached_property, lru_cache
+from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
 from typing import (
@@ -140,7 +140,6 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseEventTrigger
 
-    HAS_KUBERNETES: bool
     try:
         from kubernetes.client import models as k8s  # noqa: TC004
 
@@ -2312,6 +2311,7 @@ def _create_orm_dagrun(
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
+    partition_key: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -2338,6 +2338,7 @@ def _create_orm_dagrun(
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
+        partition_key=partition_key,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))
@@ -3223,6 +3224,7 @@ class SerializedDAG(BaseSerialization):
         start_date: datetime.datetime | None = None,
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
+        partition_key: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -3295,6 +3297,7 @@ class SerializedDAG(BaseSerialization):
             backfill_id=backfill_id,
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
+            partition_key=partition_key,
             session=session,
         )
 
@@ -3851,6 +3854,7 @@ class SerializedAssetWatcher(AssetWatcher):
     trigger: dict
 
 
+@cache
 def _has_kubernetes(attempt_import: bool = False) -> bool:
     """
     Check if kubernetes libraries are available.
@@ -3859,17 +3863,11 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
         False, only check if already in sys.modules (avoids expensive import).
     :return: True if kubernetes libraries are available, False otherwise.
     """
-    global HAS_KUBERNETES
-    if "HAS_KUBERNETES" in globals():
-        return HAS_KUBERNETES
-
     # Check if kubernetes is already imported before triggering expensive import
     if "kubernetes.client" not in sys.modules and not attempt_import:
-        HAS_KUBERNETES = False
         return False
 
     # Loading kube modules is expensive, so delay it until the last moment
-
     try:
         from kubernetes.client import models as k8s
 
@@ -3877,10 +3875,9 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
-        HAS_KUBERNETES = True
+        return True
     except ImportError:
-        HAS_KUBERNETES = False
-    return HAS_KUBERNETES
+        return False
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset, covariant=True)

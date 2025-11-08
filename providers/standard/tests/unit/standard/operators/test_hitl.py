@@ -163,7 +163,7 @@ class TestHITLOperator:
         hitl_op.validate_defaults()
 
     @pytest.mark.parametrize(
-        "extra_kwargs, expected_error_msg",
+        ("extra_kwargs", "expected_error_msg"),
         [
             ({"defaults": ["0"]}, r'defaults ".*" should be a subset of options ".*"'),
             (
@@ -242,7 +242,7 @@ class TestHITLOperator:
         }
 
     @pytest.mark.parametrize(
-        "input_params, expected_params",
+        ("input_params", "expected_params"),
         [
             (ParamsDict({"input": 1}), {"input": 1}),
             ({"input": Param(5, type="integer", minimum=3)}, {"input": 5}),
@@ -290,7 +290,7 @@ class TestHITLOperator:
         }
 
     @pytest.mark.parametrize(
-        "event, expected_exception",
+        ("event", "expected_exception"),
         [
             ({"error": "unknown", "error_type": "unknown"}, HITLTriggerEventError),
             ({"error": "this is timeotu", "error_type": "timeout"}, HITLTimeoutError),
@@ -350,7 +350,7 @@ class TestHITLOperator:
             )
 
     @pytest.mark.parametrize(
-        "options, params_input, expected_parsed_query",
+        ("options", "params_input", "expected_parsed_query"),
         [
             (None, None, {"map_index": ["-1"]}),
             ("1", None, {"_options": ["['1']"], "map_index": ["-1"]}),
@@ -414,7 +414,7 @@ class TestHITLOperator:
             assert parse_qs(parse_result.query) == expected_parsed_query
 
     @pytest.mark.parametrize(
-        "options, params_input, expected_err_msg",
+        ("options", "params_input", "expected_err_msg"),
         [
             ([100, "2", 30000], None, "options {.*} are not valid options"),
             (
