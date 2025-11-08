@@ -370,7 +370,7 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> str:
+    def get_extra(self) -> str | None:
         """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
@@ -379,12 +379,12 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
+            extra_val: str | None = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
         else:
-            extra_val = self._extra or ""
+            extra_val = self._extra
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
-        return extra_val
+        return extra_val or None
 
     def set_extra(self, value: str | None):
         """Encrypt extra-data and save in object attribute to object."""
