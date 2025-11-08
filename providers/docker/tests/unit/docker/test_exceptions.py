@@ -39,7 +39,7 @@ EXPECTED_SKIP_MESSAGE = f"Docker container returned exit code {[SKIP_ON_EXIT_COD
 
 
 @pytest.mark.parametrize(
-    "failed_msg, log_line, expected_message, skip_on_exit_code",
+    ("failed_msg", "log_line", "expected_message", "skip_on_exit_code"),
     [
         (FAILED_MESSAGE, FAILED_LOGS, EXPECTED_MESSAGE, None),
         (FAILED_SKIP_MESSAGE, FAILED_LOGS, EXPECTED_SKIP_MESSAGE, SKIP_ON_EXIT_CODE),

@@ -22,6 +22,7 @@ import math
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
@@ -84,6 +85,9 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from pydantic.types import JsonValue
 
 DAG_ID = "dag_id_1"
 
@@ -227,7 +231,7 @@ EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
 
 
 def create_outlet_event_accessors(
-    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+    key: Asset | AssetAlias, extra: dict[str, JsonValue], asset_alias_events: list[AssetAliasEvent]
 ) -> OutletEventAccessors:
     o = OutletEventAccessors()
     o[key].extra = extra
@@ -272,7 +276,7 @@ class MockLazySelectSequence(LazySelectSequence):
 
 
 @pytest.mark.parametrize(
-    "input, encoded_type, cmp_func",
+    ("input", "encoded_type", "cmp_func"),
     [
         ("test_str", None, equals),
         (1, None, equals),
@@ -610,7 +614,7 @@ def test_hash_property():
 
 
 @pytest.mark.parametrize(
-    "payload, expected_cls",
+    ("payload", "expected_cls"),
     [
         pytest.param(
             {
@@ -733,6 +737,7 @@ class TestKubernetesImportAvoidance:
             pytest.skip("Kubernetes already imported, cannot test import avoidance")
 
         # Call _has_kubernetes() - should check sys.modules and return False without importing
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is False
@@ -743,6 +748,7 @@ class TestKubernetesImportAvoidance:
         pytest.importorskip("kubernetes")
 
         # Now k8s is imported, should return True
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is True

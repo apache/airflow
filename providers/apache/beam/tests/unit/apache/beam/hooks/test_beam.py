@@ -173,7 +173,7 @@ class TestBeamHook:
         )
 
     @pytest.mark.parametrize(
-        "current_py_requirements, current_py_system_site_packages",
+        ("current_py_requirements", "current_py_system_site_packages"),
         [
             pytest.param("foo-bar", False, id="requirements without system site-packages"),
             pytest.param("foo-bar", True, id="requirements with system site-packages"),
@@ -437,7 +437,7 @@ class TestBeamRunner:
 
 class TestBeamOptionsToArgs:
     @pytest.mark.parametrize(
-        "options, expected_args",
+        ("options", "expected_args"),
         [
             ({"key": "val"}, ["--key=val"]),
             ({"key": None}, []),
@@ -592,7 +592,7 @@ class TestBeamAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "current_py_requirements, current_py_system_site_packages",
+        ("current_py_requirements", "current_py_system_site_packages"),
         [
             pytest.param("foo-bar", False, id="requirements without system site-packages"),
             pytest.param("foo-bar", True, id="requirements with system site-packages"),
@@ -667,7 +667,7 @@ class TestBeamAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "job_class, command_prefix",
+        ("job_class", "command_prefix"),
         [
             (JOB_CLASS, ["java", "-cp", JAR_FILE, JOB_CLASS]),
             (None, ["java", "-jar", JAR_FILE]),
