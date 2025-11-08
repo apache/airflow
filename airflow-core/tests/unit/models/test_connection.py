@@ -178,46 +178,47 @@ class TestConnection:
             assert conn.extra_dejson == expected_extra_dict
 
     @pytest.mark.parametrize(
-        ("connection", "expected_uri"),
+        ("conn_kwargs", "expected_uri"),
         [
             (
-                Connection(
-                    conn_type="type",
-                    login="user",
-                    password="pass",
-                    host="host",
-                    port=100,
-                    schema="schema",
-                    extra={"param1": "val1", "param2": "val2"},
-                ),
+                {
+                    "conn_type": "type",
+                    "login": "user",
+                    "password": "pass",
+                    "host": "host",
+                    "port": 100,
+                    "schema": "schema",
+                    "extra": {"param1": "val1", "param2": "val2"},
+                },
                 "type://user:pass@host:100/schema?param1=val1&param2=val2",
             ),
             (
-                Connection(
-                    conn_type="type",
-                    host="protocol://host",
-                    port=100,
-                    schema="schema",
-                    extra={"param1": "val1", "param2": "val2"},
-                ),
+                {
+                    "conn_type": "type",
+                    "host": "protocol://host",
+                    "port": 100,
+                    "schema": "schema",
+                    "extra": {"param1": "val1", "param2": "val2"},
+                },
                 "type://protocol://host:100/schema?param1=val1&param2=val2",
             ),
             (
-                Connection(
-                    conn_type="type",
-                    login="user",
-                    password="pass",
-                    host="protocol://host",
-                    port=100,
-                    schema="schema",
-                    extra={"param1": "val1", "param2": "val2"},
-                ),
+                {
+                    "conn_type": "type",
+                    "login": "user",
+                    "password": "pass",
+                    "host": "protocol://host",
+                    "port": 100,
+                    "schema": "schema",
+                    "extra": {"param1": "val1", "param2": "val2"},
+                },
                 "type://protocol://user:pass@host:100/schema?param1=val1&param2=val2",
             ),
         ],
     )
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
-    def test_get_uri(self, connection, expected_uri):
+    def test_get_uri(self, conn_kwargs, expected_uri):
+        connection = Connection(**conn_kwargs)
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
