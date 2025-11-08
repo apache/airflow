@@ -38,7 +38,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -241,19 +241,19 @@ class Variable(Base, LoggingMixin):
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
 
-            # Import dialect-specific insert function
-            dialect_name = get_dialect_name(session)
+            # Handle dialect-specific upsert
+            dialect_name = session.get_bind().dialect.name
             stmt: Any
             if dialect_name == "postgresql":
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-                stmt = pg_insert(Variable).values(
+                pg_stmt = pg_insert(Variable).values(
                     key=key,
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
-                stmt = stmt.on_conflict_do_update(
+                stmt = pg_stmt.on_conflict_do_update(
                     index_elements=["key"],
                     set_=dict(
                         val=val,
@@ -264,13 +264,13 @@ class Variable(Base, LoggingMixin):
             elif dialect_name == "mysql":
                 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-                stmt = mysql_insert(Variable).values(
+                mysql_stmt = mysql_insert(Variable).values(
                     key=key,
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
-                stmt = stmt.on_duplicate_key_update(
+                stmt = mysql_stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
@@ -278,13 +278,13 @@ class Variable(Base, LoggingMixin):
             else:
                 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-                stmt = sqlite_insert(Variable).values(
+                sqlite_stmt = sqlite_insert(Variable).values(
                     key=key,
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
-                stmt = stmt.on_conflict_do_update(
+                stmt = sqlite_stmt.on_conflict_do_update(
                     index_elements=["key"],
                     set_=dict(
                         val=val,
@@ -397,7 +397,7 @@ class Variable(Base, LoggingMixin):
 
         with ctx as session:
             result = session.execute(delete(Variable).where(Variable.key == key))
-            rows = result.rowcount if hasattr(result, "rowcount") else 0
+            rows = getattr(result, "rowcount", 0) or 0
             SecretCache.invalidate_variable(key)
             return rows
 

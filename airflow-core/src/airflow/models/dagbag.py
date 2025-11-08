@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.state import InstanceState
 
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
@@ -72,7 +73,7 @@ class DBDagBag:
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info: Any = inspect(dag_run)
+        info: InstanceState = inspect(dag_run)
         if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
             # Relationship is already loaded, safe to access
             return dag_run.created_dag_version

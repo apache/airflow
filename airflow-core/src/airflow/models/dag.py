@@ -518,13 +518,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        result = session.execute(
-            select(DagModel.dag_id)
-            .where(DagModel.is_paused == expression.true())
-            .where(DagModel.dag_id.in_(dag_ids))
+        paused_dag_ids = set(
+            session.scalars(
+                select(DagModel.dag_id)
+                .where(DagModel.is_paused == expression.true())
+                .where(DagModel.dag_id.in_(dag_ids))
+            )
         )
-
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in result}
         return paused_dag_ids
 
     @property

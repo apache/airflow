@@ -36,6 +36,7 @@ from typing import (
     Any,
     Protocol,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -84,7 +85,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement, TextClause
-    from sqlalchemy.sql.selectable import Select
+    from sqlalchemy.sql.selectable import ExecutableReturnsRows, Select
 
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
@@ -1545,8 +1546,8 @@ class LazySelectSequence(Sequence[T]):
     :meta private:
     """
 
-    _select_asc: Select
-    _select_desc: Select
+    _select_asc: Select | ExecutableReturnsRows
+    _select_desc: Select | ExecutableReturnsRows
     _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
     _len: int | None = attrs.field(init=False, default=None)
 
@@ -1567,7 +1568,7 @@ class LazySelectSequence(Sequence[T]):
         return cls(s1, s2, session=session or get_current_task_instance_session())
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
+    def _rebuild_select(stmt: TextClause) -> Select | ExecutableReturnsRows:
         """
         Rebuild a textual statement into an ORM-configured SELECT statement.
 
@@ -1607,7 +1608,7 @@ class LazySelectSequence(Sequence[T]):
         self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
-        return check_query_exists(self._select_asc, session=self._session)
+        return check_query_exists(cast("Select", self._select_asc), session=self._session)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, collections.abc.Sequence):
@@ -1626,7 +1627,7 @@ class LazySelectSequence(Sequence[T]):
 
     def __len__(self) -> int:
         if self._len is None:
-            self._len = get_query_count(self._select_asc, session=self._session)
+            self._len = get_query_count(cast("Select", self._select_asc), session=self._session)
         return self._len
 
     @overload
@@ -1638,9 +1639,9 @@ class LazySelectSequence(Sequence[T]):
     def __getitem__(self, key: int | slice) -> T | Sequence[T]:
         if isinstance(key, int):
             if key >= 0:
-                stmt = self._select_asc.offset(key)
+                stmt = cast("Select", self._select_asc).offset(key)
             else:
-                stmt = self._select_desc.offset(-1 - key)
+                stmt = cast("Select", self._select_desc).offset(-1 - key)
             if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
                 raise IndexError(key)
             return self._process_row(row)
@@ -1652,21 +1653,21 @@ class LazySelectSequence(Sequence[T]):
             start, stop, reverse = _coerce_slice(key)
             if start >= 0:
                 if stop is None:
-                    stmt = self._select_asc.offset(start)
+                    stmt = cast("Select", self._select_asc).offset(start)
                 elif stop >= 0:
-                    stmt = self._select_asc.slice(start, stop)
+                    stmt = cast("Select", self._select_asc).slice(start, stop)
                 else:
-                    stmt = self._select_asc.slice(start, len(self) + stop)
+                    stmt = cast("Select", self._select_asc).slice(start, len(self) + stop)
                 rows = [self._process_row(row) for row in self._session.execute(stmt)]
                 if reverse:
                     rows.reverse()
             else:
                 if stop is None:
-                    stmt = self._select_desc.limit(-start)
+                    stmt = cast("Select", self._select_desc).limit(-start)
                 elif stop < 0:
-                    stmt = self._select_desc.slice(-stop, -start)
+                    stmt = cast("Select", self._select_desc).slice(-stop, -start)
                 else:
-                    stmt = self._select_desc.slice(len(self) - stop, -start)
+                    stmt = cast("Select", self._select_desc).slice(len(self) - stop, -start)
                 rows = [self._process_row(row) for row in self._session.execute(stmt)]
                 if not reverse:
                     rows.reverse()

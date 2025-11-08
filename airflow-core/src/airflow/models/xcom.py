@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
+    from sqlalchemy.sql.selectable import ExecutableReturnsRows
 
 
 XCOM_RETURN_KEY = "return_value"
@@ -401,7 +402,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Any:
+    def _rebuild_select(stmt: TextClause) -> Select | ExecutableReturnsRows:
         return select(XComModel.value).from_statement(stmt)
 
     @staticmethod
