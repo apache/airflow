@@ -20,7 +20,8 @@
       "all": "Tümü",
       "paused": "Duraklatılmış"
     },
-    "runIdPatternFilter": "Dag Çalıştırmalarında Ara"
+    "runIdPatternFilter": "Dag Çalıştırmalarında Ara",
+    "triggeringUserNameFilter": "Tetikleyen Kullanıcıya Göre Ara"
   },
   "ownerLink": "{{owner}} için sahip bağlantısı",
   "runAndTaskActions": {
