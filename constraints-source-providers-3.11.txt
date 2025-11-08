@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-07T14:16:12.832788
+# This constraints file was automatically generated on 2025-11-07T23:45:10.980704
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -159,7 +159,7 @@ colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.1
+confluent-kafka==2.12.2
 connexion==2.14.2
 coverage==7.11.1
 crcmod==1.7
@@ -214,7 +214,7 @@ fsspec==2025.10.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
-gcloud-aio-storage==9.6.0
+gcloud-aio-storage==9.6.1
 gcsfs==2025.10.0
 geomet==1.1.0
 gevent==25.9.1
@@ -487,7 +487,7 @@ pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==18.1.0
 pyasn1==0.6.1
-pyasn1_modules==0.4.1
+pyasn1_modules==0.4.2
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
