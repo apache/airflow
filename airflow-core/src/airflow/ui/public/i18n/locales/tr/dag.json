@@ -10,6 +10,7 @@
     "hourly": "Saatlik",
     "legend": {
       "less": "Az",
+      "mixed": "Karışık",
       "more": "Çok"
     },
     "navigation": {
@@ -20,6 +21,7 @@
     },
     "noData": "Veri yok",
     "noRuns": "Çalıştırma yok",
+    "noFailedRuns": "Başarısız çalışma yok",
     "totalRuns": "Bütün Çalıştırmalar",
     "week": "Hafta {{weekNumber}}",
     "weekdays": {
