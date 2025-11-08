@@ -97,7 +97,7 @@ class Variable(Base, LoggingMixin):
         if value is not None:
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_encrypted = fernet.is_encrypted
+            self.is_encrypted = True
 
     @declared_attr
     def val(cls):

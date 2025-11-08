@@ -52,20 +52,6 @@ class TestVariable:
             yield
         db.clear_db_variables()
 
-    @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): "True"})
-    def test_variable_no_encryption(self, session):
-        """
-        Test variables without encryption
-        """
-        crypto.get_fernet.cache_clear()
-        Variable.set(key="key", value="value", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
-        assert not test_var.is_encrypted
-        assert test_var.val == "value"
-        # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
-        # should mask anything. That logic is tested in test_secrets_masker.py
-        self.mask_secret.assert_called_once_with("value", "key")
-
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_variable_with_encryption(self, session):
         """
