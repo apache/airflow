@@ -1966,7 +1966,6 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
-            print(file)
             if "-source" in file:
                 continue
             versioned_file = split_version_and_suffix(file, suffix)
