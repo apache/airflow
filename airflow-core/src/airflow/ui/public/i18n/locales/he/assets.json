@@ -26,6 +26,5 @@
   "name": "שם",
   "producingTasks": "מייצר משימות",
   "scheduledDags": "Dags מתוזמנים",
-  "searchPlaceholder": "חיפוש נכסים",
-  "static_asset_metadata": "Static Asset Metadata"
+  "searchPlaceholder": "חיפוש נכסים"
 }

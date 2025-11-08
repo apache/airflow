@@ -131,7 +131,7 @@ export const AssetLayout = () => {
            {asset?.extra && Object.keys(asset.extra).length > 0 && (
             <Box mt={3} mb={3} px={3}>
               <Text fontWeight="bold" mb={2}>
-                 {translate("assets:static_asset_metadata")}
+                 {translate("assets:additional_data")}
               </Text>
             <Code
               display="block"
