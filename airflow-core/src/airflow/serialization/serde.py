@@ -368,26 +368,30 @@ def _register():
         for _, module_name, _ in iter_namespace(airflow.serialization.serializers):
             module = import_module(module_name)
             for serializers in getattr(module, "serializers", ()):
-                s = serializers if isinstance(serializers, str) else qualname(serializers)
-                if s in _serializers and _serializers[s] != module:
-                    raise AttributeError(f"duplicate {s} for serialization in {module} and {_serializers[s]}")
-                log.debug("registering %s for serialization", s)
-                _serializers[s] = module
-            for deserializers in getattr(module, "deserializers", ()):
-                d = deserializers if isinstance(deserializers, str) else qualname(deserializers)
-                if d in _deserializers and _deserializers[d] != module:
+                s_qualname = serializers if isinstance(serializers, str) else qualname(serializers)
+                if s_qualname in _serializers and _serializers[s_qualname] != module:
                     raise AttributeError(
-                        f"duplicate {d} for deserialization in {module} and {_deserializers[d]}"
+                        f"duplicate {s_qualname} for serialization in {module} and {_serializers[s_qualname]}"
                     )
-                log.debug("registering %s for deserialization", d)
-                _deserializers[d] = module
-                _extra_allowed.add(d)
+                log.debug("registering %s for serialization", s_qualname)
+                _serializers[s_qualname] = module
+            for deserializers in getattr(module, "deserializers", ()):
+                d_qualname = deserializers if isinstance(deserializers, str) else qualname(deserializers)
+                if d_qualname in _deserializers and _deserializers[d_qualname] != module:
+                    raise AttributeError(
+                        f"duplicate {d_qualname} for deserialization in {module} and {_deserializers[d_qualname]}"
+                    )
+                log.debug("registering %s for deserialization", d_qualname)
+                _deserializers[d_qualname] = module
+                _extra_allowed.add(d_qualname)
             for stringifiers in getattr(module, "stringifiers", ()):
-                c = stringifiers if isinstance(stringifiers, str) else qualname(stringifiers)
-                if c in _deserializers and _deserializers[c] != module:
-                    raise AttributeError(f"duplicate {c} for stringifiers in {module} and {_stringifiers[c]}")
-                log.debug("registering %s for stringifying", c)
-                _stringifiers[c] = module
+                c_qualname = stringifiers if isinstance(stringifiers, str) else qualname(stringifiers)
+                if c_qualname in _deserializers and _deserializers[c_qualname] != module:
+                    raise AttributeError(
+                        f"duplicate {c_qualname} for stringifiers in {module} and {_stringifiers[c_qualname]}"
+                    )
+                log.debug("registering %s for stringifying", c_qualname)
+                _stringifiers[c_qualname] = module
 
     log.debug("loading serializers took %.3f seconds", timer.duration)
 
