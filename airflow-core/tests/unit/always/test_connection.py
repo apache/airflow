@@ -103,12 +103,10 @@ class UriTestCaseConfig:
 
 class TestConnection:
     def setup_method(self):
-        crypto._fernet = None
         self.patcher = mock.patch("airflow.models.connection.mask_secret", autospec=True)
         self.mask_secret = self.patcher.start()
 
     def teardown_method(self):
-        crypto._fernet = None
         self.patcher.stop()
 
     @conf_vars({("core", "fernet_key"): ""})
