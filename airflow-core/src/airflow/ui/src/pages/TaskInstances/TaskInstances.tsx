@@ -21,14 +21,13 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
-import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -57,13 +56,11 @@ const {
 
 const taskInstanceColumns = ({
   dagId,
-  onOpenClear,
   runId,
   taskId,
   translate,
 }: {
   dagId?: string;
-  onOpenClear?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
   runId?: string;
   taskId?: string;
   translate: TFunction;
@@ -200,11 +197,7 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearTaskInstanceButton
-          onOpen={onOpenClear}
-          taskInstance={row.original}
-          withText={false}
-        />
+        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
         <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
         <DeleteTaskInstanceButton taskInstance={row.original} withText={false} />
       </Flex>
@@ -271,17 +264,16 @@ export const TaskInstances = () => {
     },
   );
 
-  // Page-level stable dialog state
-  const [clearOpen, setClearOpen] = useState(false);
-  const [selectedTI, setSelectedTI] = useState<TaskInstanceResponse | undefined>(undefined);
-
-  const handleOpenClear = (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => {
-    if ("task_id" in ti) {
-      // TaskInstanceResponse
-      setSelectedTI(ti as TaskInstanceResponse);
-      setClearOpen(true);
-    }
-  };
+  const columns = useMemo(
+    () =>
+      taskInstanceColumns({
+        dagId,
+        runId,
+        taskId: Boolean(groupId) ? undefined : taskId,
+        translate,
+      }),
+    [dagId, runId, groupId, taskId, translate],
+  );
 
   return (
     <>
@@ -290,13 +282,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          onOpenClear: handleOpenClear,
-          runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
@@ -305,13 +291,6 @@ export const TaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-      {clearOpen && selectedTI ? (
-        <ClearTaskInstanceDialog
-          onClose={() => setClearOpen(false)}
-          open={clearOpen}
-          taskInstance={selectedTI}
-        />
-      ) : undefined}
     </>
   );
 };
