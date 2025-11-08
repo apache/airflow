@@ -40,7 +40,9 @@ from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestRedshiftToS3Transfer:
-    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
+    @pytest.mark.parametrize(
+        ("table_as_file_name", "expected_s3_key"), [[True, "key/table_"], [False, "key"]]
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
@@ -99,7 +101,9 @@ class TestRedshiftToS3Transfer:
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
-    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
+    @pytest.mark.parametrize(
+        ("table_as_file_name", "expected_s3_key"), [[True, "key/table_"], [False, "key"]]
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
@@ -161,7 +165,7 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
     @pytest.mark.parametrize(
-        "table, table_as_file_name, expected_s3_key",
+        ("table", "table_as_file_name", "expected_s3_key"),
         [
             ["table", True, "key/table_"],
             ["table", False, "key"],
@@ -227,7 +231,7 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
     @pytest.mark.parametrize(
-        "table_as_file_name, expected_s3_key, select_query, expected_query",
+        ("table_as_file_name", "expected_s3_key", "select_query", "expected_query"),
         [
             [
                 True,
@@ -428,10 +432,14 @@ class TestRedshiftToS3Transfer:
             dag=None,
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="Please specify either a table or `select_query` to fetch the data."
+        ):
             op.execute(None)
 
-    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
+    @pytest.mark.parametrize(
+        ("table_as_file_name", "expected_s3_key"), [[True, "key/table_"], [False, "key"]]
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
@@ -506,7 +514,9 @@ class TestRedshiftToS3Transfer:
         with pytest.raises(AirflowException):
             redshift_operator.execute(None)
 
-    @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
+    @pytest.mark.parametrize(
+        ("table_as_file_name", "expected_s3_key"), [[True, "key/table_"], [False, "key"]]
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")

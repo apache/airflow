@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-presto``
 
-Release: ``5.9.2``
+Release: ``5.9.3``
 
 
 `Presto <https://prestodb.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``presto`` provider. All classes for this provide
 are in ``airflow.providers.presto`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3/>`_.
 
 Installation
 ------------
@@ -50,15 +50,17 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=======================================  =====================================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  =====================================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``presto-python-client``                 ``>=0.8.4``
-``pandas[postgres]``                     ``>=2.1.2; python_version < "3.13"``
+``pandas``                               ``>=2.1.2; python_version < "3.13"``
 ``pandas``                               ``>=2.2.3; python_version >= "3.13"``
-=======================================  =====================================
+``psycopg2-binary``                      ``>=2.9.9; python_version < "3.13"``
+``psycopg2-binary``                      ``>=2.9.10; python_version >= "3.13"``
+=======================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -80,5 +82,14 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_          ``google``
 ============================================================================================================  ==============
 
+Optional dependencies
+----------------------
+
+==========  ===================================
+Extra       Dependencies
+==========  ===================================
+``google``  ``apache-airflow-providers-google``
+==========  ===================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3/changelog.html>`_.

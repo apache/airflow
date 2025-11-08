@@ -1096,10 +1096,9 @@ class TestAwsEcsExecutor:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor, mock_cmd):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "name" or "command"'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
-        assert raised.match('Executor Config should never override "name" or "command"')
         assert len(mock_executor.pending_tasks) == 0
 
     @mock.patch.object(ecs_executor_config, "build_task_kwargs")
@@ -1159,7 +1158,7 @@ class TestAwsEcsExecutor:
         self.sync_call_count += 1
 
     @pytest.mark.parametrize(
-        "desired_status, last_status, exit_code, expected_status",
+        ("desired_status", "last_status", "exit_code", "expected_status"),
         [
             ("RUNNING", "QUEUED", 0, State.QUEUED),
             ("STOPPED", "RUNNING", 0, State.RUNNING),
@@ -1344,9 +1343,8 @@ class TestEcsExecutorConfig:
             (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
         }
         with conf_vars(conf_overrides):
-            with pytest.raises(ValueError) as raised:
+            with pytest.raises(ValueError, match="At least one subnet is required to run a task"):
                 ecs_executor_config.build_task_kwargs(conf)
-        assert raised.match("At least one subnet is required to run a task.")
 
     # TODO: When merged this needs updating to the actually supported version
     @pytest.mark.skipif(
@@ -1669,7 +1667,7 @@ class TestEcsExecutorConfig:
             assert task_kwargs["launchType"] == "FARGATE"
 
     @pytest.mark.parametrize(
-        "run_task_kwargs, exec_config, expected_result",
+        ("run_task_kwargs", "exec_config", "expected_result"),
         [
             # No input run_task_kwargs or executor overrides
             (

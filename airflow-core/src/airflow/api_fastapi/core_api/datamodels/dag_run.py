@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -26,7 +27,6 @@ from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_vali
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -89,7 +89,7 @@ class DAGRunResponse(BaseModel):
 class DAGRunCollectionResponse(BaseModel):
     """DAG Run Collection serializer for responses."""
 
-    dag_runs: list[DAGRunResponse]
+    dag_runs: Iterable[DAGRunResponse]
     total_entries: int
 
 
@@ -129,10 +129,10 @@ class TriggerDAGRunPostBody(StrictBaseModel):
                 )
                 run_after = data_interval.end
 
-        run_id = self.dag_run_id or DagRun.generate_run_id(
-            run_type=DagRunType.SCHEDULED,
-            logical_date=coerced_logical_date,
-            run_after=run_after,
+        run_id = self.dag_run_id or dag.timetable.generate_run_id(
+            run_type=DagRunType.MANUAL,
+            run_after=timezone.coerce_datetime(run_after),
+            data_interval=data_interval,
         )
         return {
             "run_id": run_id,
@@ -142,14 +142,6 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
         }
-
-    @model_validator(mode="after")
-    def validate_dag_run_id(self):
-        if not self.dag_run_id:
-            self.dag_run_id = DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, logical_date=self.logical_date, run_after=self.run_after
-            )
-        return self
 
 
 class DAGRunsBatchBody(StrictBaseModel):

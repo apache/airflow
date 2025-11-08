@@ -461,7 +461,7 @@ class TestXComClear:
 
 class TestXComRoundTrip:
     @pytest.mark.parametrize(
-        "value, expected_value",
+        ("value", "expected_value"),
         [
             pytest.param(1, 1, id="int"),
             pytest.param(1.0, 1.0, id="float"),
@@ -490,7 +490,7 @@ class TestXComRoundTrip:
         assert deserialized_value == expected_value
 
     @pytest.mark.parametrize(
-        "value, expected_value",
+        ("value", "expected_value"),
         [
             pytest.param(1, 1, id="int"),
             pytest.param(1.0, 1.0, id="float"),

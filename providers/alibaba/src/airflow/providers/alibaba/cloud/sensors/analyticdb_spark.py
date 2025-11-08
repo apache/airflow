@@ -22,7 +22,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook, AppState
-from airflow.providers.alibaba.version_compat import BaseSensorOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

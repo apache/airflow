@@ -209,7 +209,9 @@ export const $AssetEventResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -295,7 +297,9 @@ export const $AssetResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -1290,7 +1294,8 @@ export const $ClearTaskInstancesBody = {
                     type: 'null'
                 }
             ],
-            title: 'Task Ids'
+            title: 'Task Ids',
+            description: 'A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.'
         },
         dag_run_id: {
             anyOf: [
@@ -3324,8 +3329,7 @@ export const $DagVersionResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Bundle Url',
-            readOnly: true
+            title: 'Bundle Url'
         }
     },
     type: 'object',
@@ -3681,9 +3685,143 @@ export const $FastAPIRootMiddlewareResponse = {
 
 export const $HITLDetail = {
     properties: {
+        options: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Options'
+        },
+        subject: {
+            type: 'string',
+            title: 'Subject'
+        },
+        body: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Body'
+        },
+        defaults: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Defaults'
+        },
+        multiple: {
+            type: 'boolean',
+            title: 'Multiple',
+            default: false
+        },
+        params: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params'
+        },
+        assigned_users: {
+            items: {
+                '$ref': '#/components/schemas/HITLUser'
+            },
+            type: 'array',
+            title: 'Assigned Users'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        responded_by_user: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HITLUser'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        responded_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Responded At'
+        },
+        chosen_options: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Chosen Options'
+        },
+        params_input: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Params Input'
+        },
+        response_received: {
+            type: 'boolean',
+            title: 'Response Received',
+            default: false
+        },
         task_instance: {
             '$ref': '#/components/schemas/TaskInstanceResponse'
+        }
+    },
+    type: 'object',
+    required: ['options', 'subject', 'created_at', 'task_instance'],
+    title: 'HITLDetail',
+    description: 'Schema for Human-in-the-loop detail.'
+} as const;
+
+export const $HITLDetailCollection = {
+    properties: {
+        hitl_details: {
+            items: {
+                '$ref': '#/components/schemas/HITLDetail'
+            },
+            type: 'array',
+            title: 'Hitl Details'
         },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['hitl_details', 'total_entries'],
+    title: 'HITLDetailCollection',
+    description: 'Schema for a collection of Human-in-the-loop details.'
+} as const;
+
+export const $HITLDetailHistory = {
+    properties: {
         options: {
             items: {
                 type: 'string'
@@ -3791,29 +3929,9 @@ export const $HITLDetail = {
         }
     },
     type: 'object',
-    required: ['task_instance', 'options', 'subject', 'created_at'],
-    title: 'HITLDetail',
-    description: 'Schema for Human-in-the-loop detail.'
-} as const;
-
-export const $HITLDetailCollection = {
-    properties: {
-        hitl_details: {
-            items: {
-                '$ref': '#/components/schemas/HITLDetail'
-            },
-            type: 'array',
-            title: 'Hitl Details'
-        },
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        }
-    },
-    type: 'object',
-    required: ['hitl_details', 'total_entries'],
-    title: 'HITLDetailCollection',
-    description: 'Schema for a collection of Human-in-the-loop details.'
+    required: ['options', 'subject', 'created_at'],
+    title: 'HITLDetailHistory',
+    description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 
 export const $HITLDetailResponse = {
@@ -5085,10 +5203,20 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        hitl_detail: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HITLDetailHistory'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'hitl_detail'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -7032,10 +7160,22 @@ export const $DAGRunLightResponse = {
         },
         state: {
             '$ref': '#/components/schemas/DagRunState'
+        },
+        duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration',
+            readOnly: true
         }
     },
     type: 'object',
-    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
+    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state', 'duration'],
     title: 'DAGRunLightResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -7336,7 +7476,7 @@ export const $DAGWithLatestDagRunsResponse = {
         },
         latest_dag_runs: {
             items: {
-                '$ref': '#/components/schemas/DAGRunResponse'
+                '$ref': '#/components/schemas/DAGRunLightResponse'
             },
             type: 'array',
             title: 'Latest Dag Runs'
@@ -7963,6 +8103,44 @@ export const $TaskInstanceStateCount = {
     required: ['no_status', 'removed', 'scheduled', 'queued', 'running', 'success', 'restarting', 'failed', 'up_for_retry', 'up_for_reschedule', 'upstream_failed', 'skipped', 'deferred'],
     title: 'TaskInstanceStateCount',
     description: 'TaskInstance serializer for responses.'
+} as const;
+
+export const $TeamCollectionResponse = {
+    properties: {
+        teams: {
+            items: {
+                '$ref': '#/components/schemas/TeamResponse'
+            },
+            type: 'array',
+            title: 'Teams'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['teams', 'total_entries'],
+    title: 'TeamCollectionResponse',
+    description: 'Team collection serializer for responses.'
+} as const;
+
+export const $TeamResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name'],
+    title: 'TeamResponse',
+    description: 'Base serializer for Team.'
 } as const;
 
 export const $UIAlert = {

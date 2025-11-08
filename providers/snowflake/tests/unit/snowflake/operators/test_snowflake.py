@@ -40,12 +40,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -192,7 +187,7 @@ class TestSnowflakeIntervalCheckOperator:
 
 
 @pytest.mark.parametrize(
-    "operator_class, kwargs",
+    ("operator_class", "kwargs"),
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
         (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
@@ -347,7 +342,7 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(context=None)
 
     @pytest.mark.parametrize(
-        "mock_sql, statement_count",
+        ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")

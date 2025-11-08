@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import ast
-import json
+import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from functools import cached_property
@@ -30,8 +30,8 @@ from jenkins import Jenkins, JenkinsException
 from requests import Request
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.version_compat import BaseOperator
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = str | dict | list | None
@@ -143,47 +143,46 @@ class JenkinsJobTriggerOperator(BaseOperator):
         queue without having a build number assigned. We have to wait until the
         job exits the queue to know its build number.
 
-        To do so, we add ``/api/json`` (or ``/api/xml``) to the location
-        returned by the ``build_job`` call, and poll this file. When an
-        ``executable`` block appears in the response, the job execution would
-        have started, and the field ``number`` would contains the build number.
+        To do so, we use get_queue_item to get information about a queued item
+        https://python-jenkins.readthedocs.io/en/latest/api.html#jenkins.Jenkins.get_queue_item
 
         :param location: Location to poll, returned in the header of the build_job call
         :param jenkins_server: The jenkins server to poll
         :return: The build_number corresponding to the triggered job
         """
-        location += "/api/json"
-        # TODO Use get_queue_info instead
-        # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info("Polling jenkins queue at the url %s", location)
+
+        if not (match := re.search(r"/queue/item/(\d+)/?", location)):
+            raise ValueError(f"Invalid queue location format: {location}")
+
+        queue_id = int(match.group(1))
+
+        self.log.info("Polling Jenkins queue item with ID %s", queue_id)
         for attempt in range(self.max_try_before_job_appears):
+            # Initialize it to prevent UnboundLocalError in case of exception raised
+            json_response = None
             if attempt:
                 time.sleep(self.sleep_time)
-
             try:
-                location_answer = jenkins_request_with_headers(
-                    jenkins_server, Request(method="POST", url=location)
-                )
-            # we don't want to fail the operator, this will continue to poll
-            # until max_try_before_job_appears reached
+                json_response = jenkins_server.get_queue_item(queue_id)
             except (HTTPError, JenkinsException):
                 self.log.warning("polling failed, retrying", exc_info=True)
-            else:
-                if location_answer is not None:
-                    json_response = json.loads(location_answer["body"])
-                    if (
-                        "executable" in json_response
-                        and json_response["executable"] is not None
-                        and "number" in json_response["executable"]
-                    ):
-                        build_number = json_response["executable"]["number"]
-                        self.log.info("Job executed on Jenkins side with the build number %s", build_number)
-                        return build_number
-        else:
-            raise AirflowException(
-                f"The job hasn't been executed after polling the queue "
-                f"{self.max_try_before_job_appears} times"
-            )
+
+            if json_response:
+                # The returned dict will have an "executable" key if the queued item is running on an executor,
+                # or has completed running.
+                if (
+                    json_response.get("executable", None) is not None
+                    and "number" in json_response["executable"]
+                ):
+                    build_number = json_response["executable"]["number"]
+                    self.log.info("Job executed on Jenkins side with the build number %s", build_number)
+                    return build_number
+                self.log.debug("Job not yet started. Queue item: %s", json_response)
+
+        raise AirflowException(
+            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
+        )
 
     @cached_property
     def hook(self) -> JenkinsHook:

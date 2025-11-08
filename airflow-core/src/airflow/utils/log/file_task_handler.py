@@ -177,7 +177,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
         algorithm="HS512",
         # We must set an empty private key here as otherwise it can be automatically loaded by JWTGenerator
         # and secret_key and private_key cannot be set together
-        private_key=None,  #  type: ignore[arg-type]
+        private_key=None,  # type: ignore[arg-type]
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
@@ -525,12 +525,14 @@ class FileTaskHandler(logging.Handler):
         dag_run = ti.get_dagrun(session=session)
 
         date = dag_run.logical_date or dag_run.run_after
-        date = date.isoformat()
+        formatted_date = date.isoformat()
 
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
         if jinja_tpl:
-            return render_template(jinja_tpl, {"ti": ti, "ts": date, "try_number": try_number}, native=False)
+            return render_template(
+                jinja_tpl, {"ti": ti, "ts": formatted_date, "try_number": try_number}, native=False
+            )
 
         if str_tpl:
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
@@ -548,7 +550,7 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                logical_date=date,
+                logical_date=formatted_date,
                 try_number=try_number,
             )
         raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
@@ -691,10 +693,11 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
-        pod_override = ti.executor_config.get("pod_override")
+        pod_override = getattr(ti.executor_config, "pod_override", None)
+        metadata = getattr(pod_override, "metadata", None)
         namespace = None
         with suppress(Exception):
-            namespace = pod_override.metadata.namespace
+            namespace = getattr(metadata, "namespace", None)
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(

@@ -98,7 +98,7 @@ def _draw_task(
 def _draw_task_group(
     task_group: TaskGroup | SerializedTaskGroup,
     parent_graph: graphviz.Digraph,
-    states_by_task_id: dict[str, str] | None,
+    states_by_task_id: dict[str, str | None] | None,
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph."""
     # Draw joins
@@ -136,7 +136,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator, SerializedMappedOperator)):

@@ -40,6 +40,14 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
+# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
+RUNNERS_TYPE_CROSS_MAPPING = {
+    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
+    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
+    "windows-2022": '["windows-2022"]',
+    "windows-2025": '["windows-2025"]',
+}
+
 ANSWER = ""
 
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
@@ -86,6 +94,14 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
+]
+DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
+    "kerberos",
+    "drill",
+    "tinkerpop",
+    "pinot",
+    "trino",
+    "ydb",
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -188,7 +204,6 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -202,10 +217,10 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.2"
-UV_VERSION = "0.9.1"
+PIP_VERSION = "25.3"
+UV_VERSION = "0.9.7"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -221,12 +236,12 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-# packages that are distributions of Airflow
-class DistributionType(Enum):
-    AIRFLOW_CORE = "airflow"
-    PROVIDERS = "providers"
-    TASK_SDK = "task-sdk"
-    AIRFLOW_CTL = "airflowctl"
+# Type of the tarball to build
+class TarBallType(Enum):
+    AIRFLOW = "apache_airflow"
+    PROVIDERS = "apache_airflow_providers"
+    TASK_SDK = "apache_airflow_task_sdk"
+    AIRFLOW_CTL = "apache_airflow_ctl"
     HELM_CHART = "helm-chart"
 
 
@@ -279,6 +294,7 @@ class GroupOfTests(Enum):
     TASK_SDK = "task-sdk"
     TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
+    CTL_INTEGRATION = "airflow-ctl-integration"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -316,6 +332,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
+    GroupOfTests.CTL_INTEGRATION: [ALL_TEST_TYPE],
 }
 
 
@@ -373,6 +390,7 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+PR_NUMBER_PATTERN = r"^\d+$"
 
 
 def normalize_platform_machine(platform_machine: str) -> str:
@@ -421,8 +439,11 @@ PRODUCTION_IMAGE = False
 # changes from main to the previous branch.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
+# All versions we can run against (Need to include versions for main branch and the current release branch)
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
+CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
+
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
     CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
@@ -530,6 +551,7 @@ COMMITTERS = [
     "feng-tao",
     "ferruzzi",
     "gopidesupavan",
+    "guan404ming",
     "houqp",
     "hussein-awala",
     "jason810496",
@@ -798,17 +820,16 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.1.0",
-        "remove-providers": "",
+        "remove-providers": "edge3",  # Need to remove edge3 from tests until we have 3.1.1 used here.
         "run-unit-tests": "true",
     },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.9": "3.9.24",
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13.8",
+    "3.13": "3.13.9",
 }
 
 # Number of slices for low dep tests

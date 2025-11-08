@@ -23,6 +23,7 @@ import os
 import re
 import textwrap
 import warnings
+from enum import Enum
 from io import StringIO
 from unittest import mock
 from unittest.mock import patch
@@ -43,7 +44,7 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -349,7 +350,10 @@ sql_alchemy_conn = airflow
         assert asdict["test"]["sql_alchemy_conn"] == "< hidden >"
         # If display_sensitive is false, then include_cmd, include_env,include_secrets must all be True
         # This ensures that cmd and secrets env are hidden at the appropriate method and no surprises
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="If display_sensitive is false, then include_env, include_cmds, include_secret must all be set as True",
+        ):
             test_conf.as_dict(display_sensitive=False, include_cmds=False)
         # Test that one of include_cmds, include_env, include_secret can be false when display_sensitive
         # is True
@@ -529,6 +533,62 @@ key3 = one;two;three
 
         assert test_conf.getjson("test", "json") == expected
 
+    def test_getenum(self):
+        class TestEnum(Enum):
+            option1 = 1
+            option2 = 2
+            option3 = 3
+            fallback = 4
+
+        config = """
+            [test1]
+            option = option1
+            [test2]
+            option = option2
+            [test3]
+            option = option3
+            [test4]
+            option = option4
+            """
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getenum("test1", "option", TestEnum) == TestEnum.option1
+        assert test_conf.getenum("test2", "option", TestEnum) == TestEnum.option2
+        assert test_conf.getenum("test3", "option", TestEnum) == TestEnum.option3
+        assert test_conf.getenum("test4", "option", TestEnum, fallback="fallback") == TestEnum.fallback
+        with pytest.raises(AirflowConfigException, match=re.escape("option1, option2, option3, fallback")):
+            test_conf.getenum("test4", "option", TestEnum)
+
+    def test_getenumlist(self):
+        class TestEnum(Enum):
+            option1 = 1
+            option2 = 2
+            option3 = 3
+            fallback = 4
+
+        config = """
+            [test1]
+            option = option1,option2,option3
+            [test2]
+            option = option1,option3
+            [test3]
+            option = option1,option4
+            [test4]
+            option =
+            """
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getenumlist("test1", "option", TestEnum) == [
+            TestEnum.option1,
+            TestEnum.option2,
+            TestEnum.option3,
+        ]
+        assert test_conf.getenumlist("test2", "option", TestEnum) == [TestEnum.option1, TestEnum.option3]
+        assert test_conf.getenumlist("test3", "option", TestEnum) == [TestEnum.option1]
+        assert test_conf.getenumlist("test4", "option", TestEnum) == []
+
     def test_getjson_empty_with_fallback(self):
         config = textwrap.dedent(
             """
@@ -625,7 +685,7 @@ key3 = value3
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     @pytest.mark.parametrize(
-        "key, type",
+        ("key", "type"),
         [
             ("string_value", int),  # Coercion happens here
             ("only_bool_value", bool),
@@ -659,7 +719,7 @@ key3 = value3
             # the environment variable's echo command
             assert test_cmdenv_conf.get("testcmdenv", "notacommand") == "OK"
 
-    @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
+    @pytest.mark.parametrize(("display_sensitive", "result"), [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -923,8 +983,10 @@ key7 =
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
-        assert len(backends) == 2
+        assert len(backends) == 3
         assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "EnvironmentVariablesBackend" in backend_classes
+        assert "ExecutionAPISecretsBackend" in backend_classes
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
@@ -1062,7 +1124,7 @@ class TestDeprecatedConf:
                 assert conf.getint("celery", "worker_concurrency") == 99
 
     @pytest.mark.parametrize(
-        "deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value",
+        ("deprecated_options_dict", "kwargs", "new_section_expected_value", "old_section_expected_value"),
         [
             pytest.param(
                 {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
@@ -1152,7 +1214,7 @@ sql_alchemy_conn=sqlite://test
         assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
     @pytest.mark.parametrize(
-        "old, new",
+        ("old", "new"),
         [
             (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),

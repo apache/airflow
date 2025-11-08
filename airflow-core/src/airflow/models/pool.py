@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy.orm import Mapped
 from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -28,11 +30,13 @@ from airflow.models.team import Team
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import with_row_locks
+from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
 
 
 class PoolStats(TypedDict):
@@ -51,13 +55,13 @@ class Pool(Base):
 
     __tablename__ = "slot_pool"
 
-    id = Column(Integer, primary_key=True)
-    pool = Column(String(256), unique=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pool: Mapped[str] = mapped_column(String(256), unique=True)
     # -1 for infinite
-    slots = Column(Integer, default=0)
-    description = Column(Text)
-    include_deferred = Column(Boolean, nullable=False)
-    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    slots: Mapped[int] = mapped_column(Integer, default=0)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    include_deferred: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
     DEFAULT_POOL_NAME = "default_pool"
 
@@ -66,7 +70,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
+    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 
@@ -172,7 +176,7 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] | Query[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
@@ -356,13 +360,15 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_team_name(pool_name: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(pool_name: str, session: Session = NEW_SESSION) -> str | None:
         stmt = select(Team.name).join(Pool, Team.id == Pool.team_id).where(Pool.pool == pool_name)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
-    def get_name_to_team_name_mapping(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_name_to_team_name_mapping(
+        pool_names: list[str], session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = (
             select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
         )

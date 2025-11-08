@@ -51,6 +51,7 @@ export const useAutoRefresh = ({
     {
       dagId: dagId ?? "~",
       state: ["running", "queued"],
+      limit: 1,
     },
     undefined,
     // Scale back refetching to 10x longer if there are no pending runs (eg: every 3 secs for active runs, otherwise 30 secs)
@@ -64,7 +65,8 @@ export const useAutoRefresh = ({
     },
   );
 
-  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length > 1 : true;
+  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length >= 1 : true;
+
   const paused = Boolean(dagId) ? dag?.is_paused : false;
 
   const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;

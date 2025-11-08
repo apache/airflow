@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -24,7 +24,6 @@ from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
-from airflow.sdk import Param
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -50,10 +49,8 @@ class HITLUser(BaseModel):
     name: str
 
 
-class HITLDetail(BaseModel):
-    """Schema for Human-in-the-loop detail."""
-
-    task_instance: TaskInstanceResponse
+class BaseHITLDetail(BaseModel):
+    """The common part within HITLDetail and HITLDetailHistory."""
 
     # User Request Detail
     options: list[str] = Field(min_length=1)
@@ -77,11 +74,17 @@ class HITLDetail(BaseModel):
     @classmethod
     def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
         """Convert params attribute to dict representation."""
-        return {k: v.dump() if isinstance(v, Param) else v for k, v in params.items()}
+        return {k: v.dump() if getattr(v, "dump", None) else v for k, v in params.items()}
+
+
+class HITLDetail(BaseHITLDetail):
+    """Schema for Human-in-the-loop detail."""
+
+    task_instance: TaskInstanceResponse
 
 
 class HITLDetailCollection(BaseModel):
     """Schema for a collection of Human-in-the-loop details."""
 
-    hitl_details: list[HITLDetail]
+    hitl_details: Iterable[HITLDetail]
     total_entries: int

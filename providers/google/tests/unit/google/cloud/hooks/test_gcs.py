@@ -96,7 +96,7 @@ class TestGCSHookHelperFunctions:
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
 
     @pytest.mark.parametrize(
-        "json_value, parsed_value",
+        ("json_value", "parsed_value"),
         [
             ("[1, 2, 3]", [1, 2, 3]),
             ('"string value"', "string value"),
@@ -960,7 +960,7 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, blob_names, returned_prefixes, call_args, result",
+        ("prefix", "blob_names", "returned_prefixes", "call_args", "result"),
         (
             (
                 "prefix",
@@ -1736,6 +1736,8 @@ class TestSyncGcsHook:
         bucket: MagicMock | None = None,
         kms_key_name: str | None = None,
         generation: int = 0,
+        size: int = 9,
+        updated: datetime | None = None,
     ):
         blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
@@ -1743,9 +1745,105 @@ class TestSyncGcsHook:
         blob.bucket = bucket
         blob.kms_key_name = kms_key_name
         blob.generation = generation
+        blob.size = size
+        blob.updated = updated or timezone.utcnow()
         return blob
 
     def _create_bucket(self, name: str):
         bucket = mock.MagicMock(name=f"BUCKET:{name}")
         bucket.name = name
         return bucket
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_sync_to_local_dir_behaviour(self, mock_get_conn, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
+
+        test_bucket = "test_bucket"
+        mock_bucket = self._create_bucket(name=test_bucket)
+        mock_get_conn.return_value.bucket.return_value = mock_bucket
+
+        blobs = [
+            self._create_blob("dag_01.py", "C1", mock_bucket),
+            self._create_blob("dag_02.py", "C1", mock_bucket),
+            self._create_blob("subproject1/dag_a.py", "C1", mock_bucket),
+            self._create_blob("subproject1/dag_b.py", "C1", mock_bucket),
+        ]
+        mock_bucket.list_blobs.return_value = blobs
+
+        sync_local_dir = tmp_path / "gcs_sync_dir"
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download = MagicMock()
+
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert f"Downloading data from gs://{test_bucket}/ to {sync_local_dir}" in logs_string
+        assert f"Local file {sync_local_dir}/dag_01.py does not exist." in logs_string
+        assert f"Downloading dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert f"Local file {sync_local_dir}/subproject1/dag_a.py does not exist." in logs_string
+        assert f"Downloading subproject1/dag_a.py to {sync_local_dir}/subproject1/dag_a.py" in logs_string
+        assert self.gcs_hook.download.call_count == 4
+
+        # Create dummy local files to simulate download
+        for blob in blobs:
+            p = sync_local_dir / blob.name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("test data")
+            os.utime(p, (blob.updated.timestamp(), blob.updated.timestamp()))
+
+        # add new file to bucket and sync
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        new_blob = self._create_blob("dag_03.py", "C1", mock_bucket)
+        mock_bucket.list_blobs.return_value = blobs + [new_blob]
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert (
+            f"Local file {sync_local_dir}/subproject1/dag_b.py is up-to-date with GCS object subproject1/dag_b.py. Skipping download."
+            in logs_string
+        )
+        assert f"Local file {sync_local_dir}/dag_03.py does not exist." in logs_string
+        assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        self.gcs_hook.download.assert_called_once()
+        (sync_local_dir / "dag_03.py").write_text("test data")
+        os.utime(
+            sync_local_dir / "dag_03.py",
+            (new_blob.updated.timestamp(), new_blob.updated.timestamp()),
+        )
+
+        # Test deletion of stale files
+        local_file_that_should_be_deleted = sync_local_dir / "file_that_should_be_deleted.py"
+        local_file_that_should_be_deleted.write_text("test dag")
+        local_folder_should_be_deleted = sync_local_dir / "local_folder_should_be_deleted"
+        local_folder_should_be_deleted.mkdir(exist_ok=True)
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert f"Deleting stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleting stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert not self.gcs_hook.download.called
+
+        # Test update of existing file (size change)
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        updated_blob = self._create_blob(
+            "dag_03.py",
+            "C2",
+            mock_bucket,
+            size=15,
+        )
+        mock_bucket.list_blobs.return_value = blobs + [updated_blob]
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert "GCS object size (15) and local file size (9) differ." in logs_string
+        assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        self.gcs_hook.download.assert_called_once()

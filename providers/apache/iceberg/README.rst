@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-iceberg``
 
-Release: ``1.3.2``
+Release: ``1.3.3``
 
 
 `Iceberg <https://iceberg.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.iceberg`` provider. All classes for this
 are in ``airflow.providers.apache.iceberg`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.3.3/>`_.
 
 Installation
 ------------
@@ -56,5 +56,14 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.10.0``
 ==================  ==================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.3.3/changelog.html>`_.
