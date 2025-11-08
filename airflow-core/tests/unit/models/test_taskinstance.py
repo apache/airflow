@@ -1913,7 +1913,7 @@ class TestTaskInstance:
 
         asset_model = session.scalars(asset_model_chheck_stmt).one()
         assert asset_model.uri == asset_uri
-        assert asset_model.active is None, "dynamically created asset should be inactive"
+        assert asset_model.active is not None, "dynamically created asset should be active"
         assert session.scalars(asset_event_check_stmt).one().uri == asset_uri
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
@@ -1980,6 +1980,59 @@ class TestTaskInstance:
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
         assert sorted(a.name for a in asset_alias_obj.assets) == ["asset1", "asset2"]
+
+    def test_dynamic_asset_with_alias_visible_in_ui(self, dag_maker, session):
+        """Test that dynamically created assets with aliases appear in Assets tab (UI visibility)."""
+        from airflow.sdk import Metadata
+
+        first_alias = AssetAlias(name="a.first.data.alias")
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session):
+            
+            @task(outlets=[first_alias])
+            def produce_asset():
+                # This simulates yielding Metadata with AssetAlias as in the bug report
+                from airflow.sdk.definitions.asset import Asset
+                from datetime import datetime, UTC
+                
+                asset = Asset(name="a.first.data.asset", uri="s3://bucket/mydata.csv")
+                yield Metadata(
+                    asset,
+                    {"timestamp": datetime.now(tz=UTC).isoformat()},
+                    first_alias,
+                )
+            
+            produce_asset()
+
+        # Run the task to trigger dynamic asset creation
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.run(session=session)
+        
+        # Verify the asset was created and is active (visible in UI)
+        asset_model = session.scalar(
+            select(AssetModel).where(AssetModel.name == "a.first.data.asset")
+        )
+        assert asset_model is not None, "Asset should be created"
+        assert asset_model.active is not None, "Dynamically created asset should be active for UI visibility"
+        assert asset_model.uri == "s3://bucket/mydata.csv"
+        
+        # Verify the alias is associated with the asset
+        assert len(asset_model.aliases) == 1
+        assert asset_model.aliases[0].name == "a.first.data.alias"
+        
+        # Verify the asset would appear in Assets tab query (using same filter as API)
+        from airflow.api_fastapi.core_api.routes.public.assets import OnlyActiveFilter
+        from sqlalchemy.orm import joinedload
+        
+        # This simulates the query used by the Assets tab
+        assets_query = select(AssetModel).options(joinedload(AssetModel.active))
+        active_filter = OnlyActiveFilter().set_value(True)  # only_active=True by default
+        filtered_query = active_filter.to_orm(assets_query)
+        
+        visible_assets = session.scalars(filtered_query).unique().all()
+        asset_names = [a.name for a in visible_assets]
+        
+        assert "a.first.data.asset" in asset_names, "Dynamically created asset should be visible in Assets tab"
 
     def test_inlet_asset_extra(self, dag_maker, session, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset

@@ -71,7 +71,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 
@@ -1419,7 +1419,9 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel(name=asset_key.name, uri=asset_key.uri))
+                    asset_model = AssetModel(name=asset_key.name, uri=asset_key.uri)
+                    session.add(asset_model)
+                    session.add(AssetActive.for_asset(asset_model))
                     session.flush()  # So event can set up its asset fk.
                     asset_manager.register_asset_change(
                         task_instance=ti,
