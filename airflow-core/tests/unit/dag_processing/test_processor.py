@@ -941,7 +941,7 @@ class TestExecuteDagCallbacks:
             _execute_dag_callbacks(dagbag, request, log)
 
     @pytest.mark.parametrize(
-        "xcom_operation,expected_message_type,expected_message,mock_response",
+        ("xcom_operation", "expected_message_type", "expected_message", "mock_response"),
         [
             (
                 lambda ti, task_ids: ti.xcom_pull(key="report_df", task_ids=task_ids),
@@ -1062,7 +1062,7 @@ class TestExecuteDagCallbacks:
         mock_supervisor_comms.send.assert_called_once_with(msg=expected_message)
 
     @pytest.mark.parametrize(
-        "request_operation,operation_type,mock_response,operation_response",
+        ("request_operation", "operation_type", "mock_response", "operation_response"),
         [
             (
                 lambda context: context["task_instance"].get_ti_count(dag_id="test_dag"),
@@ -1409,7 +1409,7 @@ class TestExecuteTaskCallbacks:
         assert call_count == 2
 
     @pytest.mark.parametrize(
-        "dag_exists,task_exists,expected_error",
+        ("dag_exists", "task_exists", "expected_error"),
         [
             (False, False, "DAG 'missing_dag' not found in DagBag"),
             (True, False, "Task 'missing_task' not found in DAG 'test_dag'"),
@@ -1701,7 +1701,7 @@ class TestExecuteEmailCallbacks:
         assert "Email not sent - task configured with email_on_" in info_call
 
     @pytest.mark.parametrize(
-        "dag_exists,task_exists,expected_error",
+        ("dag_exists", "task_exists", "expected_error"),
         [
             (False, False, "DAG 'missing_dag' not found in DagBag"),
             (True, False, "Task 'missing_task' not found in DAG 'test_dag'"),

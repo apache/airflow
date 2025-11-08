@@ -240,7 +240,7 @@ class TestDag:
         assert dag.timezone == settings.TIMEZONE
 
     @pytest.mark.parametrize(
-        "cls, expected",
+        ("cls", "expected"),
         [
             (StaticTestPriorityWeightStrategy, 99),
             (FactorPriorityWeightStrategy, 3),
@@ -299,7 +299,7 @@ class TestDag:
         assert jinja_env.undefined is jinja2.Undefined
 
     @pytest.mark.parametrize(
-        "use_native_obj, force_sandboxed, expected_env",
+        ("use_native_obj", "force_sandboxed", "expected_env"),
         [
             (False, True, SandboxedEnvironment),
             (False, False, SandboxedEnvironment),
@@ -556,7 +556,7 @@ class TestDag:
                 mock_active_runs_of_dags.assert_not_called()
 
     @pytest.mark.parametrize(
-        "state,catchup,expected_next_dagrun",
+        ("state", "catchup", "expected_next_dagrun"),
         [
             # With catchup=True, next_dagrun is the start date
             (DagRunState.RUNNING, True, DEFAULT_DATE),
@@ -955,7 +955,7 @@ class TestDag:
             dag_run.handle_dag_callback(dag=dag, success=False)
             dag_run.handle_dag_callback(dag=dag, success=True)
 
-    @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
+    @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(
         self, catchup, expected_next_dagrun, testing_dag_bundle
     ):
@@ -1118,7 +1118,7 @@ class TestDag:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
     @pytest.mark.parametrize(
-        "schedule_arg, expected_timetable, interval_description",
+        ("schedule_arg", "expected_timetable", "interval_description"),
         [
             (None, NullTimetable(), "Never, external triggers only"),
             ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1148,7 +1148,7 @@ class TestDag:
         assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
-        "timetable, expected_description",
+        ("timetable", "expected_description"),
         [
             (NullTimetable(), "Never, external triggers only"),
             (cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1424,7 +1424,7 @@ my_postgres_conn:
         dag.test(conn_file_path=os.fspath(path))
 
     @pytest.mark.parametrize(
-        "ti_state_begin, ti_state_end",
+        ("ti_state_begin", "ti_state_end"),
         [
             *((state, None) for state in State.task_states if state != TaskInstanceState.RUNNING),
             (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
@@ -1820,7 +1820,7 @@ my_postgres_conn:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
-        "reference_type, reference_column",
+        ("reference_type", "reference_column"),
         [
             pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, "logical_date", id="logical_date"),
             pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, "queued_at", id="queued_at"),
@@ -2635,7 +2635,7 @@ def test_dag_teardowns_property_lists_all_teardown_tasks():
 
 
 @pytest.mark.parametrize(
-    "start_date, expected_infos",
+    ("start_date", "expected_infos"),
     [
         (
             DEFAULT_DATE,
@@ -2721,7 +2721,7 @@ def test_iter_dagrun_infos_between_error(caplog):
 
 
 @pytest.mark.parametrize(
-    "logical_date, data_interval_start, data_interval_end, expected_data_interval",
+    ("logical_date", "data_interval_start", "data_interval_end", "expected_data_interval"),
     [
         pytest.param(None, None, None, None, id="no-next-run"),
         pytest.param(
@@ -3238,7 +3238,7 @@ class TestTaskClearingSetupTeardownBehavior:
             assert self.cleared_neither(s1) == {s1, t1}
 
     @pytest.mark.parametrize(
-        "upstream, downstream, expected",
+        ("upstream", "downstream", "expected"),
         [
             (False, False, {"my_teardown", "my_setup"}),
             (False, True, {"my_setup", "my_work", "my_teardown"}),
@@ -3414,7 +3414,7 @@ class TestTaskClearingSetupTeardownBehavior:
 
 
 @pytest.mark.parametrize(
-    "disable, bundle_version, expected",
+    ("disable", "bundle_version", "expected"),
     [
         (True, "some-version", None),
         (False, "some-version", "some-version"),
