@@ -43,8 +43,9 @@ const EditableMarkdownArea = ({
   }
 
   return (
-    <Box p={4} width="100%" height="100%">
+    <Box height="100%" p={4} width="100%">
       <Editable.Root
+        height="100%"
         onBlur={onBlur}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           const { value } = event.target;
@@ -53,7 +54,6 @@ const EditableMarkdownArea = ({
           setMdContent(value);
         }}
         value={currentValue}
-        height="100%"
       >
         <Editable.Preview
           _hover={{ backgroundColor: "transparent" }}
