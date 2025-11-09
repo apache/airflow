@@ -8,6 +8,8 @@
   },
   "requiredAction_one": "Szükséges művelet",
   "requiredAction_other": "Szükséges műveletek",
+  "requiredActionCount_one": "Szükséges teendők ({{count}})",
+  "requiredActionCount_other": "Szükséges teendők ({{count}})",
   "requiredActionState": "Szükséges művelet állapota",
   "response": {
     "error": "Válasz sikertelen",
@@ -23,6 +25,7 @@
     "approvalRequired": "Jóváhagyás szükséges",
     "choiceReceived": "Választás megérkezett",
     "choiceRequired": "Választás szükséges",
+    "noResponseReceived": "Nem érkezett válasz",
     "rejectionReceived": "Elutasítás megérkezett",
     "responseReceived": "Válasz megérkezett",
     "responseRequired": "Válasz szükséges"
