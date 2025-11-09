@@ -45,7 +45,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    If you are on Windows, you have to use WSL2 (Linux environment for Windows).
 
-   .. code-block bash
+   .. code-block:: bash
 
       wsl --install
 
@@ -91,7 +91,7 @@ For installation using ``pip`` and ``venv``, carry out following steps:
    pip install --upgrade pip
 
    # Install Airflow with correct Python version constraints
-   pip install apache-airflow[celery]==3.1.0 --constraint httpsraw.githubusercontent.comapacheairflowconstraints-3.1.0constraints-3.12.txt
+   pip install apache-airflow[celery]==3.1.0 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.12.txt
 
    # Verify installation
    airflow version
