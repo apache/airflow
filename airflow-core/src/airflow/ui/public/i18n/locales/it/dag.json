@@ -37,8 +37,8 @@
   "code": {
     "bundleUrl": "URL del Bundle",
     "noCode": "Nessun Codice Trovato",
-    "parsedAt": "Parsato il:",
-    "parseDuration": "Durata del parsing"
+    "parseDuration": "Durata del parsing",
+    "parsedAt": "Parsato il:"
   },
   "extraLinks": "Extra Links",
   "grid": {
