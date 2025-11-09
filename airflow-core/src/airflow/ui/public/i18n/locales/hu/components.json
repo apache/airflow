@@ -87,6 +87,10 @@
     "taskCount_other": "{{count}} feladat",
     "taskGroup": "Feladatcsoport"
   },
+  "limitedList.allTags_one": "Összes címke ({{count}})",
+  "limitedList.allTags_other": "Összes címke ({{count}})",
+  "limitedList.showingItems_one": "{{count}} elem megjelenítve",
+  "limitedList.showingItems_other": "{{count}} elem megjelenítve",
   "limitedList": "+{{count}} további",
   "limitedList.allItems": "Összes {{count}} elem:",
   "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ok szűréséhez",
