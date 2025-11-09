@@ -84,10 +84,10 @@ To add static alert messages that remain constant until the webserver is restart
 
   .. code-block:: python
 
-      from airflow.www.utils import UIAlert
+      from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow"),
+          UIAlert("Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
