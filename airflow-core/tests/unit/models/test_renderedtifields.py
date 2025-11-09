@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
@@ -33,9 +34,9 @@ from airflow import settings
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun, Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskmap import TaskMap
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
@@ -460,6 +461,7 @@ class TestRenderedTaskInstanceFields:
         (e.g., "configuration.query.sql") would not be rendered. After the fix,
         these nested items are properly extracted and rendered.
         """
+
         # Create a custom operator with a dictionary template field
         class MyConfigOperator(BaseOperator):
             template_fields: Sequence[str] = ("configuration",)
