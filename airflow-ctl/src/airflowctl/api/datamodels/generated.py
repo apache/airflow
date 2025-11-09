@@ -1210,6 +1210,8 @@ class BulkTaskInstanceBody(BaseModel):
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
     task_id: Annotated[str, Field(title="Task Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = None
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
 
 
 class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
