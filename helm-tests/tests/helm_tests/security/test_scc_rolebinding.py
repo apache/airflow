@@ -39,6 +39,7 @@ class TestSCCActivation:
                 "multiNamespaceMode": False,
                 "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
                 "dagProcessor": {"enabled": True},
@@ -61,7 +62,8 @@ class TestSCCActivation:
             assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
             assert jmespath.search("subjects[7].name", docs[0]) == "release-name-airflow-create-user-job"
             assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-cleanup"
-            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-dag-processor"
+            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-database-cleanup"
+            assert jmespath.search("subjects[10].name", docs[0]) == "release-name-airflow-dag-processor"
 
     @pytest.mark.parametrize(
         ("rbac_enabled", "scc_enabled", "created", "namespace", "expected_name"),
@@ -77,6 +79,7 @@ class TestSCCActivation:
                 "multiNamespaceMode": True,
                 "webserver": {"defaultUser": {"enabled": False}},
                 "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
@@ -102,6 +105,7 @@ class TestSCCActivation:
                 "multiNamespaceMode": False,
                 "webserver": {"defaultUser": {"enabled": False}},
                 "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
