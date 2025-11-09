@@ -21,7 +21,7 @@
       "paused": "Szüneteltetett"
     },
     "runIdPatternFilter": "Dag futások keresése",
-    "triggeringUserNameFilter": "Keresés aktiváló felhasználó szerint"
+    "triggeringUserNameFilter": "Keresés indító felhasználó szerint"
   },
   "ownerLink": "Tulajdonosi hivatkozás: {{owner}}",
   "runAndTaskActions": {
