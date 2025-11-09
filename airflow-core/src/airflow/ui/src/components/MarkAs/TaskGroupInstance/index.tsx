@@ -17,6 +17,4 @@
  * under the License.
  */
 
-export { default as MarkRunAsButton } from "./Run";
-export { default as MarkTaskInstanceAsButton } from "./TaskInstance";
-export { default as MarkTaskGroupInstanceAsButton } from "./TaskGroupInstance";
+export { default } from "./MarkTaskGroupInstanceAsButton";
