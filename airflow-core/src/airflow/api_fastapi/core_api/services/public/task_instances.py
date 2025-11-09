@@ -180,7 +180,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self.dag_bag = dag_bag
         self.user = user
         self.commit = commit
-
     def categorize_task_instances(
         self, task_keys: set[tuple[str, int]]
     ) -> tuple[dict[tuple[str, int], TaskInstance], set[tuple[str, int]], set[tuple[str, int]]]:
