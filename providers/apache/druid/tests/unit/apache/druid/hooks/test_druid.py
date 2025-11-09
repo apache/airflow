@@ -359,7 +359,7 @@ class TestDruidHook:
         assert self.db_hook.get_auth() is None
 
     @pytest.mark.parametrize(
-        "verify_ssl_arg, ca_bundle_path, expected_return_value",
+        ("verify_ssl_arg", "ca_bundle_path", "expected_return_value"),
         [
             (False, None, False),
             (True, None, True),

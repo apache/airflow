@@ -569,7 +569,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_logout(self) -> str | None:
         """Return the logout page url."""
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/")
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def register_views(self) -> None:
         self.security_manager.register_views()

@@ -43,7 +43,7 @@ class TestBranchExternalPythonDecoratedOperator:
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
     @pytest.mark.execution_timeout(180)
     @pytest.mark.parametrize(
-        ["branch_task_name", "skipped_task_name"], [("task_1", "task_2"), ("task_2", "task_1")]
+        ("branch_task_name", "skipped_task_name"), [("task_1", "task_2"), ("task_2", "task_1")]
     )
     def test_branch_one(self, dag_maker, branch_task_name, skipped_task_name):
         @task

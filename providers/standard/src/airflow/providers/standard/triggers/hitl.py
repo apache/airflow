@@ -109,16 +109,19 @@ class HITLTrigger(BaseTrigger):
                         assert resp.responded_by_user is not None
                         assert resp.responded_at is not None
 
+                    chosen_options_list = (
+                        list(resp.chosen_options) if resp.chosen_options is not None else None
+                    )
                     self.log.info(
                         "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
                         resp.responded_by_user.name,
                         resp.responded_by_user.id,
-                        resp.chosen_options,
+                        chosen_options_list,
                         resp.responded_at,
                     )
                     yield TriggerEvent(
                         HITLTriggerEventSuccessPayload(
-                            chosen_options=resp.chosen_options,
+                            chosen_options=chosen_options_list,
                             params_input=resp.params_input or {},
                             responded_at=resp.responded_at,
                             responded_by_user=HITLUser(
@@ -165,16 +168,17 @@ class HITLTrigger(BaseTrigger):
                 if TYPE_CHECKING:
                     assert resp.responded_by_user is not None
                     assert resp.responded_at is not None
+                chosen_options_list = list(resp.chosen_options) if resp.chosen_options is not None else None
                 self.log.info(
                     "[HITL] responded_by=%s (id=%s) options=%s at %s",
                     resp.responded_by_user.name,
                     resp.responded_by_user.id,
-                    resp.chosen_options,
+                    chosen_options_list,
                     resp.responded_at,
                 )
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
-                        chosen_options=resp.chosen_options,
+                        chosen_options=chosen_options_list,
                         params_input=resp.params_input or {},
                         responded_at=resp.responded_at,
                         responded_by_user=HITLUser(

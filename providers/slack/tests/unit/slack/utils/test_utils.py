@@ -16,12 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 
-from airflow.models.connection import Connection
-from airflow.providers.slack.utils import ConnectionExtraConfig, get_async_connection, parse_filename
+from airflow.providers.slack.utils import ConnectionExtraConfig, parse_filename
 
 
 class TestConnectionExtra:
@@ -105,7 +102,7 @@ class TestParseFilename:
             assert parse_filename("Untitled File", self.SUPPORTED_FORMAT)
 
     @pytest.mark.parametrize(
-        "filename,expected_format",
+        ("filename", "expected_format"),
         [
             ("libc.so", "so"),
             ("kernel32.dll", "dll"),
@@ -122,7 +119,7 @@ class TestParseFilename:
             assert parse_filename(filename, self.SUPPORTED_FORMAT)
 
     @pytest.mark.parametrize(
-        "filename,expected",
+        ("filename", "expected"),
         [
             ("libc.so.6", ("so", "6")),
             ("kernel32.dll.zip", ("dll", "zip")),
@@ -147,41 +144,3 @@ class TestParseFilename:
     def test_wrong_fallback(self, filename):
         with pytest.raises(ValueError, match="Invalid fallback value"):
             assert parse_filename(filename, self.SUPPORTED_FORMAT, "mp4")
-
-
-class MockAgetBaseHook:
-    def __init__(*args, **kargs):
-        pass
-
-    async def aget_connection(self, conn_id: str):
-        return Connection(
-            conn_id="test_conn",
-            conn_type="slack",
-            password="secret_token_aget",
-        )
-
-
-class MockBaseHook:
-    def __init__(*args, **kargs):
-        pass
-
-    def get_connection(self, conn_id: str):
-        return Connection(
-            conn_id="test_conn_sync",
-            conn_type="slack",
-            password="secret_token",
-        )
-
-
-class TestGetAsyncConnection:
-    @mock.patch("airflow.providers.slack.utils.BaseHook", new_callable=MockAgetBaseHook)
-    @pytest.mark.asyncio
-    async def test_get_async_connection_with_aget(self, mock_hook):
-        conn = await get_async_connection("test_conn")
-        assert conn.password == "secret_token_aget"
-
-    @mock.patch("airflow.providers.slack.utils.BaseHook", new_callable=MockBaseHook)
-    @pytest.mark.asyncio
-    async def test_get_async_connection_with_get_connection(self, mock_hook):
-        conn = await get_async_connection("test_conn")
-        assert conn.password == "secret_token"

@@ -38,9 +38,9 @@ There are three different places where callbacks can be defined.
 .. warning::
 
     Callback functions are executed after tasks are completed.
-    Errors in callback functions will show up in scheduler logs rather than task logs.
-    By default, scheduler logs do not show up in the UI and instead can be found in
-    ``$AIRFLOW_HOME/logs/scheduler/latest/DAG_FILE.py.log``
+    Errors in callback functions will show up in dag processor logs rather than task logs.
+    By default, dag processor logs do not show up in the UI and instead can be found in
+    ``$AIRFLOW_HOME/logs/dag_processor/latest/dags-folder/<the_path_for_your_dag>/DAG_FILE.py.log``
 
 .. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions

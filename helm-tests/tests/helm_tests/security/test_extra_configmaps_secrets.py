@@ -153,7 +153,7 @@ class TestExtraConfigMapsSecrets:
             assert k8s_object["metadata"]["labels"] == expected_labels
 
     @pytest.mark.parametrize(
-        "chart_labels, local_labels",
+        ("chart_labels", "local_labels"),
         [
             ({}, {"label3": "value3", "label4": "value4"}),
             ({"label1": "value1", "label2": "value2"}, {}),

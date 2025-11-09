@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from functools import cache
 from typing import Protocol
 
 from airflow.configuration import conf
@@ -29,37 +30,21 @@ log = logging.getLogger(__name__)
 class FernetProtocol(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    def decrypt(self, b):
+    def decrypt(self, msg: bytes | str, ttl: int | None = None) -> bytes:
         """Decrypt with Fernet."""
+        ...
 
-    def encrypt(self, b):
+    def encrypt(self, msg: bytes) -> bytes:
         """Encrypt with Fernet."""
+        ...
+
+    def rotate(self, msg: bytes | str) -> bytes:
+        """Rotate the Fernet key for the given message."""
+        ...
 
 
-class NullFernet:
-    """
-    A "Null" encryptor class that doesn't encrypt or decrypt but that presents a similar interface to Fernet.
-
-    The purpose of this is to make the rest of the code not have to know the
-    difference, and to only display the message once, not 20 times when
-    `airflow db migrate` is run.
-    """
-
-    is_encrypted = False
-
-    def decrypt(self, b):
-        """Decrypt with Fernet."""
-        return b
-
-    def encrypt(self, b):
-        """Encrypt with Fernet."""
-        return b
-
-
-_fernet: FernetProtocol | None = None
-
-
-def get_fernet():
+@cache
+def get_fernet() -> FernetProtocol:
     """
     Deferred load of Fernet key.
 
@@ -71,22 +56,8 @@ def get_fernet():
     """
     from cryptography.fernet import Fernet, MultiFernet
 
-    global _fernet
-
-    if _fernet:
-        return _fernet
-
     try:
-        fernet_key = conf.get("core", "FERNET_KEY")
-        if not fernet_key:
-            log.warning("empty cryptography key - values will not be stored encrypted.")
-            _fernet = NullFernet()
-        else:
-            _fernet = MultiFernet(
-                [Fernet(fernet_part.encode("utf-8")) for fernet_part in fernet_key.split(",")]
-            )
-            _fernet.is_encrypted = True
+        fernet_key = conf.get_mandatory_value("core", "FERNET_KEY")
+        return MultiFernet([Fernet(fernet_part.encode("utf-8")) for fernet_part in fernet_key.split(",")])
     except (ValueError, TypeError) as value_error:
         raise AirflowException(f"Could not create Fernet object: {value_error}")
-
-    return _fernet
