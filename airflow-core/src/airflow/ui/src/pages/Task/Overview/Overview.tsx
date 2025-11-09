@@ -50,7 +50,7 @@ export const Overview = () => {
       runAfterGte: startDate,
       runAfterLte: endDate,
       state: ["failed"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroup: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
@@ -60,7 +60,7 @@ export const Overview = () => {
       dagRunId: "~",
       limit: 14,
       orderBy: ["-run_after"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroup: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,

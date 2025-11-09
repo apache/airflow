@@ -2926,6 +2926,10 @@ export type GetTaskInstancesData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskDisplayNamePattern?: string | null;
+    /**
+     * Filter by exact task group ID. Returns all tasks within the specified task group.
+     */
+    taskGroup?: string | null;
     taskId?: string | null;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;

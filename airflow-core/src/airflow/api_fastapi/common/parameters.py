@@ -185,6 +185,53 @@ class _SearchParam(BaseParam[str]):
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
+class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
+    """Task group filter - returns all tasks in the specified group."""
+
+    def __init__(self, dag=None, skip_none: bool = True):
+        super().__init__(skip_none=skip_none)
+        self._dag: None | Any = dag
+
+    @property
+    def dag(self) -> None | Any:
+        return self._dag
+
+    @dag.setter
+    def dag(self, value: None | Any) -> None:
+        self._dag = value
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if not self.dag:
+            raise ValueError("DAG must be set before calling to_orm")
+
+        if not hasattr(self.dag, "task_group"):
+            return select
+
+        matching_task_ids = []
+
+        # Exact matching on group_id
+        task_groups = self.dag.task_group.get_task_group_dict()
+        task_group = task_groups.get(self.value)
+        if task_group:
+            matching_task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+        return select.where(TaskInstance.task_id.in_(matching_task_ids))
+
+    @classmethod
+    def depends(
+        cls,
+        value: str | None = Query(
+            alias="task_group",
+            default=None,
+            description="Filter by exact task group ID. Returns all tasks within the specified task group.",
+        ),
+    ) -> QueryTaskInstanceTaskGroupFilter:
+        return cls(dag=None).set_value(value)
+
+
 def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
@@ -887,6 +934,9 @@ QueryTIExecutorFilter = Annotated[
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
+QueryTITaskGroupFilter = Annotated[
+    QueryTaskInstanceTaskGroupFilter, Depends(QueryTaskInstanceTaskGroupFilter.depends)
 ]
 QueryTIDagVersionFilter = Annotated[
     FilterParam[list[int]],

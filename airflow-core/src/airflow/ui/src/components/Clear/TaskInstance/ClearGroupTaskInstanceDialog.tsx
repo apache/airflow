@@ -66,7 +66,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     {
       dagId,
       dagRunId: runId,
-      taskDisplayNamePattern: groupId,
+      taskGroup: groupId,
     },
     undefined,
     {
