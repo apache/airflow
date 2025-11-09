@@ -20,29 +20,18 @@ import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 
-import {
-  useTaskInstanceServiceGetTaskInstances,
-  useTaskInstanceServiceBulkTaskInstances,
-  useTaskInstanceServiceGetTaskInstancesKey,
-  UseGridServiceGetGridRunsKeyFn,
-  UseGridServiceGetGridTiSummariesKeyFn,
-  useGridServiceGetGridTiSummariesKey,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type {
   LightGridTaskInstanceSummary,
   TaskInstanceState,
   BulkBody_BulkTaskInstanceBody_,
-  BulkUpdateAction_BulkTaskInstanceBody_,
-  TaskInstanceCollectionResponse,
 } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
-import { Button, Dialog, toaster } from "src/components/ui";
+import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
-import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 import { useBulkTaskInstancesDryRun } from "src/queries/useBulkTaskInstancesDryRun";
 
 type Props = {
@@ -56,7 +45,6 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   const { t: translate } = useTranslation();
   const { dagId = "", runId = "" } = useParams();
   const groupId = groupTaskInstance.task_id;
-  const queryClient = useQueryClient();
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
@@ -114,22 +102,6 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
     },
   });
 
-  // const taskInstances = [
-  //   ...(data?.update?.errors ?? []),
-  //   ...(data?.update?.success ?? [])
-  // ]
-
-  // const affectedTasks = data ? {
-  //     task_instances: taskInstances,
-  //     total_entries: taskInstances.length
-  //   } as TaskInstanceCollectionResponse : {
-  //   task_instances: [],
-  //   total_entries: 0,
-  //   // create: [],
-  //   // delete: [],
-  //   // update: []
-  // };
-
   const affectedTasks = data ?? {
     task_instances: [],
     total_entries: 0,
@@ -172,10 +144,8 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
     });
   };
 
-  console.log(affectedTasks);
-
   return (
-    <Dialog.Root lazyMount open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>

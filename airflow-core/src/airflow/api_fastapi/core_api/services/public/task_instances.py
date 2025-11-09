@@ -28,6 +28,7 @@ from sqlalchemy.orm.session import Session
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
     BulkActionNotOnExistence,
     BulkActionResponse,
     BulkBody,
@@ -35,7 +36,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -99,7 +105,7 @@ def _patch_task_instance_state(
     data: dict,
     session: Session,
     commit: bool
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -121,18 +127,21 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
 
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-        except Exception:
-            log.exception("error calling listener")
+    if commit:
+        for ti in updated_tis:
+            try:
+                if data["new_state"] == TaskInstanceState.SUCCESS:
+                    get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+                elif data["new_state"] == TaskInstanceState.FAILED:
+                    get_listener_manager().hook.on_task_instance_failed(
+                        previous_state=None,
+                        task_instance=ti,
+                        error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    )
+            except Exception:
+                log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
@@ -262,65 +271,92 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             results.errors.append({"error": f"{e.errors()}"})
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
-    
-    def handle_bulk_update_dry_run(
-        self, action: BulkUpdateAction[PatchTaskInstanceBody], results: BulkActionResponse
-    ) -> None:
-        """Bulk Update Task Instances in dry_run mode."""
-        to_update_task_keys = {
-            (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
-            for task_instance in action.entities
-        }
-        _, _, not_found_task_keys = self.categorize_task_instances(to_update_task_keys)
 
-        try:
-            for task_instance_body in action.entities:
-                task_key = (
-                    task_instance_body.task_id,
-                    task_instance_body.map_index if task_instance_body.map_index is not None else -1,
-                )
+    def handle_request_dry_run(self) -> TaskInstanceCollectionResponse:
+        """Handle dry run request and return task instances that would be affected."""
+        all_updated_tis: list[TI] = []
+        results: dict[str, BulkActionResponse] = {}
 
-                if task_key in not_found_task_keys:
-                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found",
+        for action in self.request.actions:
+            if action.action.value not in results:
+                results[action.action.value] = BulkActionResponse()
+
+            if action.action == BulkAction.CREATE:
+                self.handle_bulk_create(action, results[action.action.value])
+            elif action.action == BulkAction.UPDATE:
+                # Collect task instances for update actions
+                to_update_task_keys = {
+                    (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
+                    for task_instance in action.entities
+                }
+                _, _, not_found_task_keys = self.categorize_task_instances(to_update_task_keys)
+
+                try:
+                    for task_instance_body in action.entities:
+                        task_key = (
+                            task_instance_body.task_id,
+                            task_instance_body.map_index if task_instance_body.map_index is not None else -1,
                         )
-                    if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
-                        continue
 
-                dag, tis, data = _patch_ti_validate_request(
-                    dag_id=self.dag_id,
-                    dag_run_id=self.dag_run_id,
-                    task_id=task_instance_body.task_id,
-                    dag_bag=self.dag_bag,
-                    body=task_instance_body,
-                    session=self.session,
-                    map_index=task_instance_body.map_index,
-                    update_mask=None,
-                )
+                        if task_key in not_found_task_keys:
+                            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                                raise HTTPException(
+                                    status_code=status.HTTP_404_NOT_FOUND,
+                                    detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found",
+                                )
+                            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+                                continue
 
-                for key, _ in data.items():
-                    if key == "new_state":
-                        _patch_task_instance_state(
-                            task_id=task_instance_body.task_id,
+                        dag, tis, data = _patch_ti_validate_request(
+                            dag_id=self.dag_id,
                             dag_run_id=self.dag_run_id,
-                            dag=dag,
-                            task_instance_body=task_instance_body,
+                            task_id=task_instance_body.task_id,
+                            dag_bag=self.dag_bag,
+                            body=task_instance_body,
                             session=self.session,
-                            data=data,
-                            commit=False,
+                            map_index=task_instance_body.map_index,
+                            update_mask=None,
                         )
-                    elif key == "note":
-                        _patch_task_instance_note(
-                            task_instance_body=task_instance_body, tis=tis, user=self.user
-                        )
+                        for key, _ in data.items():
+                            if key == "new_state":
+                                updated_tis = _patch_task_instance_state(
+                                    task_id=task_instance_body.task_id,
+                                    dag_run_id=self.dag_run_id,
+                                    dag=dag,
+                                    task_instance_body=task_instance_body,
+                                    session=self.session,
+                                    data=data,
+                                    commit=False
+                                )
+                                if updated_tis:
+                                    all_updated_tis.extend(updated_tis)
+                            elif key == "note":
+                                # For note updates, include the original task instances
+                                all_updated_tis.extend(tis)
 
-                results.success.append(task_instance_body.task_id)
-        except ValidationError as e:
-            results.errors.append({"error": f"{e.errors()}"})
-        except HTTPException as e:
-            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+                        results[action.action.value].success.append(task_instance_body.task_id)
+                except ValidationError as e:
+                    results[action.action.value].errors.append({"error": f"{e.errors()}"})
+                except HTTPException as e:
+                    results[action.action.value].errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+            elif action.action == BulkAction.DELETE:
+                self.handle_bulk_delete(action, results[action.action.value])
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_tis: list[TI] = []
+        for ti in all_updated_tis:
+            ti_key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1)
+            if ti_key not in seen:
+                seen.add(ti_key)
+                unique_tis.append(ti)
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[
+                TaskInstanceResponse.model_validate(ti) for ti in unique_tis
+            ],
+            total_entries=len(unique_tis),
+        )
 
     def handle_bulk_delete(
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
