@@ -934,11 +934,11 @@ def bulk_task_instances_dry_run(
     dag_bag: DagBagDep,
     dag_run_id: str,
     user: GetUserDep,
-) -> BulkResponse:
-    """Bulk update, and delete task instances."""
+) -> TaskInstanceCollectionResponse:
+    """Bulk update, and delete task instances dry run."""
     return BulkTaskInstanceService(
         session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user, commit=False,
-    ).handle_request()
+    ).handle_request_dry_run()
 
 
 @task_instances_router.patch(

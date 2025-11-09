@@ -30,6 +30,7 @@ from sqlalchemy.orm.session import Session
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
     BulkActionNotOnExistence,
     BulkActionResponse,
     BulkBody,
@@ -37,7 +38,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -101,7 +107,7 @@ def _patch_task_instance_state(
     data: dict,
     session: Session,
     commit: bool
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -123,20 +129,23 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
 
-    for ti in updated_tis:
-        try:
-            if data["new_state"] == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif data["new_state"] == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=ti,
-                    error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                )
-            elif data["new_state"] == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
+    if commit:
+        for ti in updated_tis:
+            try:
+                if data["new_state"] == TaskInstanceState.SUCCESS:
+                    get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+                elif data["new_state"] == TaskInstanceState.FAILED:
+                    get_listener_manager().hook.on_task_instance_failed(
+                        previous_state=None,
+                        task_instance=ti,
+                        error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    )
+                elif data["new_state"] == TaskInstanceState.SKIPPED:
+                    get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
+            except Exception:
+                log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
