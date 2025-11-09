@@ -80,14 +80,6 @@ export const useBulkTaskInstances = ({
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
-    // Close dialog and show success
-    toaster.create({
-      title: translate("toaster.update.success", {
-        resourceName: translate("taskGroup"),
-      }),
-      type: "success",
-    });
-
     if (onSuccess) {
       onSuccess();
     }
