@@ -49,8 +49,8 @@
     "fileLocation": "Local do Arquivo",
     "hasTaskConcurrencyLimits": "Tem Limite de Concorrência de Tarefas",
     "lastExpired": "Último Expirado",
-    "lastParseDuration": "Duração do Último Parse",
     "lastParsed": "Último Parseado",
+    "lastParseDuration": "Duração do Último Parse",
     "latestDagVersion": "Última Versão do DAG",
     "latestRun": "Última Execução",
     "maxActiveRuns": "Máximo de Execuções Ativas",
@@ -90,6 +90,11 @@
     "githubRepo": "Repositório GitHub",
     "restApiReference": "Referência da API REST"
   },
+  "download": {
+    "download": "Baixar",
+    "hotkey": "d",
+    "tooltip": "Pressione {{hotkey}} para baixar os logs"
+  },
   "duration": "Duração",
   "endDate": "Data Final",
   "error": {
@@ -113,6 +118,8 @@
   },
   "filter": "Filtro",
   "filters": {
+    "durationFrom": "Duração De",
+    "durationTo": "Duração Até",
     "logicalDateFrom": "Data Lógica De",
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
