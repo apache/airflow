@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,26 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Test DAG for asset operations.
+
+This file contains:
+- asset_producer_dag: A DAG that produces an asset
+- asset_consumer_dag: A DAG that is triggered by the asset
+"""
+
 from __future__ import annotations
 
-import pytest
+from airflow.sdk import DAG, Asset, task
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+test_asset = Asset(uri="test://asset1", name="test_asset")
 
+with DAG(
+    dag_id="asset_producer_dag",
+    description="DAG that produces an asset for testing",
+    schedule=None,
+    catchup=False,
+) as producer_dag:
 
-@pytest.mark.parametrize(
-    ("line", "parsed_statements"),
-    [
-        ("SELECT * FROM table", ["SELECT * FROM table"]),
-        ("SELECT * FROM table;", ["SELECT * FROM table;"]),
-        ("SELECT * FROM table; # comment", ["SELECT * FROM table;"]),
-        ("SELECT * FROM table; # comment;", ["SELECT * FROM table;"]),
-        (" SELECT * FROM table ; # comment;", ["SELECT * FROM table ;"]),
-        (
-            "SELECT * FROM table; SELECT * FROM table2 # comment",
-            ["SELECT * FROM table;", "SELECT * FROM table2"],
-        ),
-    ],
-)
-def test_sqlparse(line, parsed_statements):
-    assert DbApiHook.split_sql_string(line) == parsed_statements
+    @task(outlets=[test_asset])
+    def produce_asset():
+        """Task that produces the test asset."""
+        print("Producing test asset")
+        return "asset_produced"
+
+    produce_asset()

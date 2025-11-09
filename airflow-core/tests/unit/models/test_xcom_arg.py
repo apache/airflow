@@ -181,7 +181,7 @@ class TestXComArgRuntime:
 
 
 @pytest.mark.parametrize(
-    "fillvalue, expected_results",
+    ("fillvalue", "expected_results"),
     [
         (NOTSET, {("a", 1), ("b", 2), ("c", 3)}),
         (None, {("a", 1), ("b", 2), ("c", 3), (None, 4)}),

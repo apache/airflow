@@ -412,7 +412,7 @@ class TestSensorHelper:
 
 
 @pytest.mark.parametrize(
-    "run_id_task_state_map, states, expected_count",
+    ("run_id_task_state_map", "states", "expected_count"),
     [
         pytest.param(
             {
