@@ -613,6 +613,9 @@ extend-select = [
     "PLW1509", # preexec_fn argument is unsafe when using threads
     "PLW1510", # subprocess.run without explicit check argument
     "PLW1641", # Object does not implement __hash__ method
+    "PLW2101", # Threading lock directly created in with statement has no effect
+    "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
+    "PLW3301", # Nested {func} calls can be flattened
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
