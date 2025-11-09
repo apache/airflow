@@ -44,34 +44,10 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    smooth setup experience.
 
    If you are on Windows, you have to use WSL2 (Linux environment for Windows).
-      .. code-block bash
 
-         wsl --install
-         # Restart computer, then in WSL Ubuntu terminal
-         sudo apt update
-         sudo apt install python3-pip python3-venv
+   .. code-block bash
 
-         bash # Go to Linux home directory (not Windows mount)
-         cd ~
-
-         # Create airflow directory
-         mkdir -p ~airflow
-         cd ~airflow
-
-         # Create virtual environment
-         python3 -m venv airflow_venv
-
-         # Activate
-         source airflow_venvbinactivate
-
-         # Upgrade pip
-         pip install --upgrade pip
-
-         # Install Airflow with correct Python version constraints
-         pip install apache-airflow[celery]==3.1.0 --constraint httpsraw.githubusercontent.comapacheairflowconstraints-3.1.0constraints-3.12.txt
-
-         # Verify installation
-         airflow version
+      wsl --install
 
 1. **Set Airflow Home (optional)**:
 
@@ -81,7 +57,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       export AIRFLOW_HOME=~/airflow
 
-2.  Install Airflow Using uv:
+2.  Install Airflow in a virtual environment using ``uv`` since it is faster alternative that creates the ``venv`` automatically implicitly for you. It is efficient alternative to using ``pip`` and ``venv``.
 
     .. rst-class:: centered
 
@@ -91,6 +67,34 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
     For creating virtual environment with ``uv``, refer to the documentation here:
     `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
+For installation using ``pip`` and ``venv``, carry out following steps:
+.. code-block bash
+
+   # For Windows after WSL2 install, restart computer, then in WSL Ubuntu terminal
+   sudo apt update
+   sudo apt install python3-pip python3-venv
+
+   bash # Go to Linux home directory (not Windows mount)
+   cd ~
+
+   # Create airflow directory
+   mkdir -p ~airflow
+   cd ~airflow
+
+   # Create virtual environment
+   python3 -m venv airflow_venv
+
+   # Activate
+   source airflow_venvbinactivate
+
+   # Upgrade pip
+   pip install --upgrade pip
+
+   # Install Airflow with correct Python version constraints
+   pip install apache-airflow[celery]==3.1.0 --constraint httpsraw.githubusercontent.comapacheairflowconstraints-3.1.0constraints-3.12.txt
+
+   # Verify installation
+   airflow version
 
 3. Install Airflow using the constraints file, which is determined based on the URL we pass:
 
@@ -109,7 +113,6 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       uv pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-
 4. Run Airflow Standalone:
 
    The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
@@ -117,7 +120,6 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    .. code-block:: bash
 
       airflow standalone
-
 
 5. Access the Airflow UI:
 
