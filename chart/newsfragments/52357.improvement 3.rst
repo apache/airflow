@@ -1,0 +1,1 @@
+With usage of ``workers.useWorkerDedicatedServiceAccounts`` flag and ``worker.celery.serviceAccountName``/``worker.kubernetes.serviceAccountName`` sections it is now possible to use different Kubernetes Service Accounts for Celery workers and KubernetesExecutor pods.
