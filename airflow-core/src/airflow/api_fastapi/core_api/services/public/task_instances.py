@@ -100,6 +100,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
+    commit: bool
 ) -> None:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
@@ -113,7 +114,7 @@ def _patch_task_instance_state(
         downstream=task_instance_body.include_downstream,
         future=task_instance_body.include_future,
         past=task_instance_body.include_past,
-        commit=True,
+        commit=commit,
         session=session,
     )
     if not updated_tis:
@@ -164,6 +165,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag_run_id: str,
         dag_bag: DagBagDep,
         user: GetUserDep,
+        commit: bool = False,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id

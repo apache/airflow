@@ -920,7 +920,24 @@ def bulk_task_instances(
 ) -> BulkResponse:
     """Bulk update, and delete task instances."""
     return BulkTaskInstanceService(
-        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user, commit=True,
+    ).handle_request()
+
+@task_instances_router.patch(
+    task_instances_prefix + "/dry_run",
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def bulk_task_instances_dry_run(
+    request: BulkBody[BulkTaskInstanceBody],
+    session: SessionDep,
+    dag_id: str,
+    dag_bag: DagBagDep,
+    dag_run_id: str,
+    user: GetUserDep,
+) -> BulkResponse:
+    """Bulk update, and delete task instances."""
+    return BulkTaskInstanceService(
+        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user, commit=False,
     ).handle_request()
 
 
@@ -983,6 +1000,7 @@ def patch_task_instance(
                 task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
+                commit=True
             )
 
         elif key == "note":
