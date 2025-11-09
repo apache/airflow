@@ -68,7 +68,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
     `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
 For installation using ``pip`` and ``venv``, carry out following steps:
-.. code-block bash
+.. code-block:: bash
 
    # For Windows after WSL2 install, restart computer, then in WSL Ubuntu terminal
    sudo apt update
@@ -78,14 +78,14 @@ For installation using ``pip`` and ``venv``, carry out following steps:
    cd ~
 
    # Create airflow directory
-   mkdir -p ~airflow
+   mkdir -p ~/airflow
    cd ~airflow
 
    # Create virtual environment
    python3 -m venv airflow_venv
 
    # Activate
-   source airflow_venvbinactivate
+   source airflow_venv/bin/activate
 
    # Upgrade pip
    pip install --upgrade pip
