@@ -208,7 +208,7 @@ export const useFilterConfigs = () => {
             </Flex>
           ),
         value: option.value === "all" ? (
-          "" 
+          ""
         ) : (
           option.value
         ),
@@ -231,7 +231,7 @@ export const useFilterConfigs = () => {
             <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
           ),
         value: option.value === "all" ? (
-          "" 
+          ""
         ) : (
           option.value
         ),
