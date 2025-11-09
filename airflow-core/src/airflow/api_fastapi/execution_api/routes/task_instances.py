@@ -577,7 +577,7 @@ def ti_skip_downstream(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_410_GONE: {"description": "Task Instance not found, might have moved to the Task Instance History table"},
+        status.HTTP_410_GONE: {"description": "Task Instance no longer exists, it may have moved to the Task Instance History table"},
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
