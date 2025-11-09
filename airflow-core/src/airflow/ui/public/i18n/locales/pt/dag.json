@@ -37,8 +37,8 @@
   "code": {
     "bundleUrl": "URL do Bundle",
     "noCode": "Nenhum Código Encontrado",
-    "parsedAt": "Processado em:",
-    "parseDuration": "Duração do Processamento:"
+    "parseDuration": "Duração do Processamento:",
+    "parsedAt": "Processado em:"
   },
   "extraLinks": "Links Extra",
   "grid": {
