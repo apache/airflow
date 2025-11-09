@@ -42,9 +42,7 @@ export const useBulkTaskInstancesDryRun = <TData = BulkTaskInstancesResponse, TE
       TaskInstanceService.bulkTaskInstancesDryRun({
         dagId,
         dagRunId,
-        // mapIndex,
-        requestBody,
-        // taskId,
+        requestBody
       }) as TData,
     queryKey: [
       usePatchTaskInstanceDryRunKey,
