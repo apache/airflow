@@ -194,6 +194,16 @@ class TestKeda:
 
         docs = render_chart(
             values={
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
                 "workers": {"keda": {"enabled": True}},
                 "executor": "CeleryExecutor",
             },
@@ -229,6 +239,16 @@ class TestKeda:
 
         docs = render_chart(
             values={
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
                 "workers": {"keda": {"enabled": True}},
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},
@@ -265,6 +285,16 @@ class TestKeda:
 
         docs = render_chart(
             values={
+                "data": {
+                    "metadataConnection": {
+                        "protocol": "postgresql",
+                        "host": "release-name-postgresql",
+                        "port": 5432,
+                        "db": "postgres",
+                        "user": "postgres",
+                        "pass": "postgres",
+                    }
+                },
                 "workers": {"keda": {"enabled": True, "usePgbouncer": False}},
                 "executor": "CeleryExecutor",
                 "pgbouncer": {"enabled": True},

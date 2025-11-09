@@ -498,6 +498,12 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
+# WARNING: SQLite is the default database for development and testing only.
+# For production deployments, you MUST configure an external database
+# (PostgreSQL, MySQL, etc.)
+#
+# To configure an external database, update the data.metadataConnection
+# section with your database credentials and deploy it.
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
@@ -522,12 +528,12 @@ data:
 
   # Otherwise pass connection values in
   metadataConnection:
-    user: postgres
-    pass: postgres
-    protocol: postgresql
-    host: ~
-    port: 5432
-    db: postgres
+    user: ""
+    pass: ""
+    protocol: sqlite
+    host: ""
+    port: 0
+    db: /opt/airflow/shared-db/airflow.db
     sslmode: disable
     # Add custom annotations to the metadata connection secret
     secretAnnotations: {}
@@ -548,6 +554,27 @@ data:
   brokerUrl: ~
   # Add custom annotations to the broker url secret
   brokerUrlSecretAnnotations: {}
+
+# SQLite shared file system configuration
+# This enables multiple Airflow pods to share a single SQLite database file
+# through a shared persistent volume. Suitable for development/testing environments.
+# WARNING: Not recommended for production use.
+sqliteShared:
+  # Enable SQLite shared mode
+  enabled: true
+
+  # Shared storage configuration
+  persistence:
+    # Enable persistent volume for SQLite database file
+    enabled: true
+    # Storage class name for the PVC (empty means use default storage class)
+    storageClassName: ""
+    # Size of the persistent volume
+    size: 10Gi
+    # Annotations for the PVC
+    annotations: {}
+    # Existing PVC name (optional, if you want to use an existing PVC)
+    existingClaim: ""
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
@@ -2866,19 +2893,6 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
-# Configuration for postgresql subchart
-# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
-# Not recommended for production - use external database instead
-postgresql:
-  enabled: true
-  image:
-    repository: postgres
-    tag: "13"
-  auth:
-    enablePostgresUser: true
-    postgresPassword: postgres
-    username: ""
-    password: ""
 
 # Config settings to go into the mounted airflow.cfg
 #
@@ -2900,6 +2914,7 @@ config:
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    sql_alchemy_conn: 'sqlite:////opt/airflow/shared-db/airflow.db'
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'

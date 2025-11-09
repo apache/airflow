@@ -173,10 +173,11 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "test-volume-airflow"
+        # The extraVolumes should be the second volume (after global volumes)
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "config"
         assert (
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
-            == "test-volume-airflow"
+            == "sqlite-shared"
         )
         assert (
             jmespath.search("spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0])
@@ -192,9 +193,11 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
+        # The global volumes should be the first volume
         assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "test-volume"
         assert (
-            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0]) == "test-volume"
+            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
+            == "sqlite-shared"
         )
 
     def test_should_add_extraEnvs(self):

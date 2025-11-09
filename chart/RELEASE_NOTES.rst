@@ -707,15 +707,6 @@ If you are upgrading an existing helm release with the built-in postgres databas
 
 As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
 
-This version of the chart uses different variable names for setting usernames and passwords in the postgres database.
-
-- ``postgresql.auth.enablePostgresUser`` is used to determine if the "postgres" admin account will be created.
-- ``postgresql.auth.postgresPassword`` sets the password for the "postgres" user.
-- ``postgresql.auth.username`` and ``postrgesql.auth.password`` are used to set credentials for a non-admin account if desired.
-- ``postgresql.postgresqlUsername`` and ``postgresql.postresqlPassword``, which were used in the previous version of the chart, are no longer used.
-
-Users will need to make those changes in their values files if they are changing the Postgres configuration.
-
 Previously the subchart version was ``10.5.3``.
 
 Default ``dags.gitSync.wait`` reduced to ``5`` seconds (#27625)

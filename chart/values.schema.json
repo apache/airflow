@@ -1318,17 +1318,17 @@
                         "user": {
                             "description": "The database user.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": ""
                         },
                         "pass": {
                             "description": "The user's password.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": ""
                         },
                         "protocol": {
                             "description": "The database protocol.",
                             "type": "string",
-                            "default": "postgresql"
+                            "default": "sqlite"
                         },
                         "host": {
                             "description": "The database host.",
@@ -1336,17 +1336,17 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         },
                         "port": {
                             "description": "The database port.",
                             "type": "integer",
-                            "default": 5432
+                            "default": 0
                         },
                         "db": {
                             "description": "The name of the database.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": "/opt/airflow/shared-db/airflow.db"
                         },
                         "sslmode": {
                             "description": "The database SSL parameter.",
@@ -1444,6 +1444,54 @@
                     "default": {},
                     "additionalProperties": {
                         "type": "string"
+                    }
+                }
+            }
+        },
+        "sqliteShared": {
+            "description": "SQLite shared file system configuration. This enables multiple Airflow pods to share a single SQLite database file through a shared persistent volume. Suitable for development/testing environments. WARNING: Not recommended for production use.",
+            "type": "object",
+            "x-docsSection": "Database",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable SQLite shared mode",
+                    "type": "boolean",
+                    "default": true
+                },
+                "persistence": {
+                    "description": "Shared storage configuration",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volume for SQLite database file",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "storageClassName": {
+                            "description": "Storage class name for the PVC (empty means use default storage class)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "size": {
+                            "description": "Size of the persistent volume",
+                            "type": "string",
+                            "default": "10Gi"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "existingClaim": {
+                            "description": "Existing PVC name (optional, if you want to use an existing PVC)",
+                            "type": "string",
+                            "default": ""
+                        }
                     }
                 }
             }
@@ -8932,54 +8980,6 @@
                     ],
                     "default": null,
                     "x-docsSection": null
-                }
-            }
-        },
-        "postgresql": {
-            "description": "Configuration for PostgreSQL subchart.",
-            "type": "object",
-            "x-docsSection": "Database",
-            "properties": {
-                "enabled": {
-                    "description": "Enable PostgreSQL subchart.",
-                    "type": "boolean",
-                    "default": true
-                },
-                "auth": {
-                    "description": "PostgreSQL authentication values.",
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "enablePostgresUser": {
-                            "description": "Assign a password to the 'postgres' admin user. Otherwise, remote access will be blocked for this user",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "postgresPassword": {
-                            "description": "Password for the 'postgres' admin user.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": "postgres"
-                        },
-                        "username": {
-                            "description": "Name for a custom user to create",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": ""
-                        },
-                        "password": {
-                            "description": "Password for the custom user to create.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": ""
-                        }
-                    }
                 }
             }
         },

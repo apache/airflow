@@ -31,6 +31,10 @@ from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(BaseK8STest):
     @pytest.mark.execution_timeout(300)
+    @pytest.mark.skip(
+        reason="KubernetesExecutor requires PostgreSQL or MySQL backend. "
+        "SQLite cannot be used because worker pods cannot access the database file. "
+    )
     def test_integration_run_dag(self):
         dag_id = "example_kubernetes_executor"
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
@@ -55,6 +59,10 @@ class TestKubernetesExecutor(BaseK8STest):
         )
 
     @pytest.mark.execution_timeout(300)
+    @pytest.mark.skip(
+        reason="KubernetesExecutor requires PostgreSQL or MySQL backend. "
+        "SQLite cannot be used because worker pods cannot access the database file. "
+    )
     def test_integration_run_dag_task_mapping(self):
         dag_id = "example_task_mapping_second_order"
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
@@ -79,6 +87,10 @@ class TestKubernetesExecutor(BaseK8STest):
         )
 
     @pytest.mark.execution_timeout(500)
+    @pytest.mark.skip(
+        reason="KubernetesExecutor requires PostgreSQL or MySQL backend. "
+        "SQLite cannot be used because worker pods cannot access the database file. "
+    )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"
 
