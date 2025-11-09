@@ -65,7 +65,7 @@ export const useEditPool = (
 
   const editPool = (editPoolRequestBody: PoolBody) => {
     const updateMask: Array<string> = [];
-    var parsedDescription = undefined;
+    let parsedDescription = undefined;
 
     if (editPoolRequestBody.slots !== initialPool.slots) {
       updateMask.push("slots");
