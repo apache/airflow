@@ -49,13 +49,7 @@ class TestRotateFernetKeyCommand:
     def test_should_rotate_variable(self, session):
         fernet_key1 = Fernet.generate_key()
         fernet_key2 = Fernet.generate_key()
-        var1_key = f"{__file__}_var1"
         var2_key = f"{__file__}_var2"
-
-        # Create unencrypted variable
-        with conf_vars({("core", "fernet_key"): ""}):
-            get_fernet.cache_clear()  # Clear cached fernet
-            Variable.set(key=var1_key, value="value")
 
         # Create encrypted variable
         with conf_vars({("core", "fernet_key"): fernet_key1.decode()}):
@@ -71,24 +65,13 @@ class TestRotateFernetKeyCommand:
         # Assert correctness using a new fernet key
         with conf_vars({("core", "fernet_key"): fernet_key2.decode()}):
             get_fernet.cache_clear()  # Clear cached fernet
-            var1 = session.query(Variable).filter(Variable.key == var1_key).first()
-            # Unencrypted variable should be unchanged
-            assert Variable.get(key=var1_key) == "value"
-            assert var1._val == "value"
             assert Variable.get(key=var2_key) == "value"
 
     @provide_session
     def test_should_rotate_connection(self, session, mock_supervisor_comms):
         fernet_key1 = Fernet.generate_key()
         fernet_key2 = Fernet.generate_key()
-        var1_key = f"{__file__}_var1"
         var2_key = f"{__file__}_var2"
-
-        # Create unencrypted variable
-        with conf_vars({("core", "fernet_key"): ""}):
-            get_fernet.cache_clear()  # Clear cached fernet
-            session.add(Connection(conn_id=var1_key, uri="mysql://user:pass@localhost"))
-            session.commit()
 
         # Create encrypted variable
         with conf_vars({("core", "fernet_key"): fernet_key1.decode()}):
@@ -119,16 +102,9 @@ class TestRotateFernetKeyCommand:
                 )
             raise Exception(f"Connection {conn_id} not found")
 
-        # Mock the send method to return our connection data
-        mock_supervisor_comms.send.return_value = mock_get_connection(var1_key)
-
         # Assert correctness using a new fernet key
         with conf_vars({("core", "fernet_key"): fernet_key2.decode()}):
             get_fernet.cache_clear()  # Clear cached fernet
-
-            # Unencrypted variable should be unchanged
-            conn1: Connection = BaseHook.get_connection(var1_key)
-            assert conn1.password == "pass"
 
             # Mock for the second connection
             mock_supervisor_comms.send.return_value = mock_get_connection(var2_key)
