@@ -2923,7 +2923,8 @@ export type BulkTaskInstancesData = {
     requestBody: BulkBody_BulkTaskInstanceBody_;
 };
 
-export type BulkTaskInstancesResponse = BulkResponse;
+// export type BulkTaskInstancesResponse = BulkResponse;
+export type BulkTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
     dagId: "~";
@@ -5337,7 +5338,8 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: BulkResponse;
+                // 200: BulkResponse;
+                200: TaskInstanceCollectionResponse;
                 /**
                  * Unauthorized
                  */
