@@ -37,8 +37,8 @@
   "code": {
     "bundleUrl": "Csomag URL",
     "noCode": "Nem található kód",
-    "parsedAt": "Feldolgozás ideje:",
-    "parseDuration": "Feldolgozás időtartama:"
+    "parseDuration": "Feldolgozás időtartama:",
+    "parsedAt": "Feldolgozás ideje:"
   },
   "extraLinks": "Extra hivatkozások",
   "grid": {
