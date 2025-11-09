@@ -98,6 +98,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
+    commit: bool
 ) -> None:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
@@ -111,7 +112,7 @@ def _patch_task_instance_state(
         downstream=task_instance_body.include_downstream,
         future=task_instance_body.include_future,
         past=task_instance_body.include_past,
-        commit=True,
+        commit=commit,
         session=session,
     )
     if not updated_tis:
@@ -160,13 +161,14 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag_run_id: str,
         dag_bag: DagBagDep,
         user: GetUserDep,
+        commit: bool = False,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
         self.dag_run_id = dag_run_id
         self.dag_bag = dag_bag
         self.user = user
-
+        self.commit = commit
     def categorize_task_instances(
         self, task_keys: set[tuple[str, int]]
     ) -> tuple[dict[tuple[str, int], TI], set[tuple[str, int]], set[tuple[str, int]]]:
@@ -239,6 +241,64 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     map_index=task_instance_body.map_index,
                     update_mask=None,
                 )
+                for key, _ in data.items():
+                    if key == "new_state":
+                        _patch_task_instance_state(
+                            task_id=task_instance_body.task_id,
+                            dag_run_id=self.dag_run_id,
+                            dag=dag,
+                            task_instance_body=task_instance_body,
+                            session=self.session,
+                            data=data,
+                            commit=self.commit
+                        )
+                    elif key == "note":
+                        _patch_task_instance_note(
+                            task_instance_body=task_instance_body, tis=tis, user=self.user
+                        )
+
+                results.success.append(task_instance_body.task_id)
+        except ValidationError as e:
+            results.errors.append({"error": f"{e.errors()}"})
+        except HTTPException as e:
+            results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+    
+    def handle_bulk_update_dry_run(
+        self, action: BulkUpdateAction[PatchTaskInstanceBody], results: BulkActionResponse
+    ) -> None:
+        """Bulk Update Task Instances in dry_run mode."""
+        to_update_task_keys = {
+            (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
+            for task_instance in action.entities
+        }
+        _, _, not_found_task_keys = self.categorize_task_instances(to_update_task_keys)
+
+        try:
+            for task_instance_body in action.entities:
+                task_key = (
+                    task_instance_body.task_id,
+                    task_instance_body.map_index if task_instance_body.map_index is not None else -1,
+                )
+
+                if task_key in not_found_task_keys:
+                    if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"The Task Instance with dag_id: `{self.dag_id}`, run_id: `{self.dag_run_id}`, task_id: `{task_instance_body.task_id}` and map_index: `{task_instance_body.map_index}` was not found",
+                        )
+                    if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+                        continue
+
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id=self.dag_id,
+                    dag_run_id=self.dag_run_id,
+                    task_id=task_instance_body.task_id,
+                    dag_bag=self.dag_bag,
+                    body=task_instance_body,
+                    session=self.session,
+                    map_index=task_instance_body.map_index,
+                    update_mask=None,
+                )
 
                 for key, _ in data.items():
                     if key == "new_state":
@@ -249,6 +309,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             task_instance_body=task_instance_body,
                             session=self.session,
                             data=data,
+                            commit=False,
                         )
                     elif key == "note":
                         _patch_task_instance_note(

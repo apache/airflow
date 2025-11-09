@@ -23,6 +23,7 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { MarkTaskGroupInstanceAsButton } from "src/components/MarkAs";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -60,7 +61,12 @@ export const Header = ({
   return (
     <Box>
       <HeaderCard
-        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />}
+        actions={
+          <>
+            <ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />
+            <MarkTaskGroupInstanceAsButton groupTaskInstance={taskInstance} isHotkeyEnabled withText={true} />
+          </>
+        }
         icon={<MdOutlineTask />}
         isRefreshing={isRefreshing}
         state={taskInstance.state}
