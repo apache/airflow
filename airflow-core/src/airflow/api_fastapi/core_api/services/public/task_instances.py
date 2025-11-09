@@ -45,7 +45,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 
@@ -61,21 +61,21 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
-) -> tuple[SerializedDAG, list[TI], dict]:
+) -> tuple[SerializedDAG, list[TaskInstance], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
     query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
+        select(TaskInstance)
+        .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id, TaskInstance.task_id == task_id)
+        .join(TaskInstance.dag_run)
+        .options(joinedload(TaskInstance.rendered_task_instance_fields))
     )
     if map_index is not None:
-        query = query.where(TI.map_index == map_index)
+        query = query.where(TaskInstance.map_index == map_index)
     else:
-        query = query.order_by(TI.map_index)
+        query = query.order_by(TaskInstance.map_index)
 
     tis = session.scalars(query).all()
 
@@ -105,7 +105,7 @@ def _patch_task_instance_state(
     data: dict,
     session: Session,
     commit: bool
-) -> list[TI]:
+) -> list[TaskInstance]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -146,7 +146,7 @@ def _patch_task_instance_state(
 
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
-    tis: list[TI],
+    tis: list[TaskInstance],
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> None:
@@ -180,17 +180,17 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self.commit = commit
     def categorize_task_instances(
         self, task_keys: set[tuple[str, int]]
-    ) -> tuple[dict[tuple[str, int], TI], set[tuple[str, int]], set[tuple[str, int]]]:
+    ) -> tuple[dict[tuple[str, int], TaskInstance], set[tuple[str, int]], set[tuple[str, int]]]:
         """
         Categorize the given task_ids into matched_task_keys and not_found_task_keys based on existing task_ids.
 
         :param task_keys: set of task_keys (tuple of task_id and map_index)
         :return: tuple of (task_instances_map, matched_task_keys, not_found_task_keys)
         """
-        query = select(TI).where(
-            TI.dag_id == self.dag_id,
-            TI.run_id == self.dag_run_id,
-            TI.task_id.in_([task_id for task_id, _ in task_keys]),
+        query = select(TaskInstance).where(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.run_id == self.dag_run_id,
+            TaskInstance.task_id.in_([task_id for task_id, _ in task_keys]),
         )
         task_instances = self.session.scalars(query).all()
         task_instances_map = {
@@ -274,7 +274,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
     def handle_request_dry_run(self) -> TaskInstanceCollectionResponse:
         """Handle dry run request and return task instances that would be affected."""
-        all_updated_tis: list[TI] = []
+        all_updated_tis: list[TaskInstance] = []
         results: dict[str, BulkActionResponse] = {}
 
         for action in self.request.actions:
@@ -344,7 +344,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
         # Remove duplicates while preserving order
         seen = set()
-        unique_tis: list[TI] = []
+        unique_tis: list[TaskInstance] = []
         for ti in all_updated_tis:
             ti_key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1)
             if ti_key not in seen:
@@ -393,11 +393,11 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 for task_id, map_index in matched_task_keys:
                     result = (
                         self.session.execute(
-                            select(TI).where(
-                                TI.task_id == task_id,
-                                TI.dag_id == self.dag_id,
-                                TI.run_id == self.dag_run_id,
-                                TI.map_index == map_index,
+                            select(TaskInstance).where(
+                                TaskInstance.task_id == task_id,
+                                TaskInstance.dag_id == self.dag_id,
+                                TaskInstance.run_id == self.dag_run_id,
+                                TaskInstance.map_index == map_index,
                             )
                         )
                         .scalars()
@@ -412,10 +412,10 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             # Handle deletion of all map indexes for certain task_ids
             for task_id in delete_all_map_indexes:
                 all_task_instances = self.session.scalars(
-                    select(TI).where(
-                        TI.task_id == task_id,
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.dag_run_id,
+                    select(TaskInstance).where(
+                        TaskInstance.task_id == task_id,
+                        TaskInstance.dag_id == self.dag_id,
+                        TaskInstance.run_id == self.dag_run_id,
                     )
                 ).all()
 

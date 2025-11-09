@@ -108,17 +108,6 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   };
 
   const handleConfirm = () => {
-    // if (groupTaskIds.length === 0) {
-    //   toaster.create({
-    //     title: translate("toaster.update.error", {
-    //       resourceName: translate("taskGroup"),
-    //     }),
-    //     description: translate("dags:runAndTaskActions.markAs.noTasks"),
-    //     type: "error",
-    //   });
-    //   return;
-    // }
-
     const bulkBody: BulkBody_BulkTaskInstanceBody_ = {
       actions: [
         {
