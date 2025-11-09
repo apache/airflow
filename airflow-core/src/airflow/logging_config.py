@@ -131,6 +131,8 @@ def configure_logging():
         new_folder_permissions=new_folder_permissions,
     )
 
+    return logging_class_path
+
 
 def validate_logging_config():
     """Validate the provided Logging Config."""

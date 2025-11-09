@@ -484,7 +484,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 Choose the tag you used for release:
 
 ```shell
-git fetch apache --tags --force
+git fetch apache --tags
 git checkout airflow-ctl/${VERSION_RC}
 ```
 
@@ -498,7 +498,6 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
 5) Switch to the folder where you checked out the SVN dev files

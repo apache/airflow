@@ -40,10 +40,11 @@ import shlex
 import subprocess
 import sys
 import time
-from functools import cache
 
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
+
+NEED_KRB181_WORKAROUND: bool | None = None
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +124,10 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
             else:
                 return subp.returncode
 
-    if detect_conf_var():
+    global NEED_KRB181_WORKAROUND
+    if NEED_KRB181_WORKAROUND is None:
+        NEED_KRB181_WORKAROUND = detect_conf_var()
+    if NEED_KRB181_WORKAROUND:
         # (From: HUE-640). Kerberos clock have seconds level granularity. Make sure we
         # renew the ticket after the initial valid time.
         time.sleep(1.5)
@@ -169,7 +173,6 @@ def perform_krb181_workaround(principal: str):
     return ret
 
 
-@cache
 def detect_conf_var() -> bool:
     """
     Autodetect the Kerberos ticket configuration.

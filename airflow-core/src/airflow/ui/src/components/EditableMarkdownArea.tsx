@@ -43,9 +43,8 @@ const EditableMarkdownArea = ({
   }
 
   return (
-    <Box height="100%" p={4} width="100%">
+    <Box mt={4} px={4} width="100%">
       <Editable.Root
-        height="100%"
         onBlur={onBlur}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           const { value } = event.target;
@@ -60,7 +59,7 @@ const EditableMarkdownArea = ({
           alignItems="flex-start"
           as={VStack}
           gap="0"
-          height="100%"
+          height="200px"
           overflowY="auto"
           width="100%"
         >
@@ -72,7 +71,7 @@ const EditableMarkdownArea = ({
         </Editable.Preview>
         <Editable.Textarea
           data-testid="markdown-input"
-          height="100%"
+          height="200px"
           overflowY="auto"
           placeholder={placeholder ?? ""}
           resize="none"
