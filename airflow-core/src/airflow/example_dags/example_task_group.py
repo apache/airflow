@@ -59,7 +59,20 @@ with DAG(
 
     # [END howto_task_group_section_2]
 
+    # [START howto_task_group_section_3_custom_display_name]
+    # Task group with custom display name different from group_id
+    with TaskGroup(
+        "section_3", group_display_name="Custom Section Three", tooltip="Tasks for section_3"
+    ) as section_3:
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = BashOperator(task_id="task_2", bash_command="echo 3")
+        task_3 = EmptyOperator(task_id="task_3")
+        task_4 = EmptyOperator(task_id="task_4")
+
+        task_1 >> [task_2, task_3, task_4]
+    # [END howto_task_group_section_3_custom_display_name]
+
     end = EmptyOperator(task_id="end")
 
-    start >> section_1 >> section_2 >> end
+    start >> section_1 >> section_2 >> section_3 >> end
 # [END howto_task_group]

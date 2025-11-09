@@ -1224,6 +1224,48 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 id="test task_display_name_pattern filter",
             ),
             pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_display_name_pattern": "section_1"},
+                3,  # Should match section_1.task_1, section_1.task_2, section_1.task_3
+                7,
+                id="test task_group_display_name_pattern filter",
+            ),
+            pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_display_name_pattern": "section_3"},
+                4,  # Match by group_id: section_3.task_1, section_3.task_2, section_3.task_3, section_3.task_4
+                7,
+                id="test task_group_display_name_pattern match by group_id with custom display name",
+            ),
+            pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_display_name_pattern": "Custom Section Three"},
+                4,  # Match by display_name: section_3.task_1, section_3.task_2, section_3.task_3, section_3.task_4
+                7,
+                id="test task_group_display_name_pattern match by display name different from group_id",
+            ),
+            pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_display_name_pattern": "section_%"},
+                # Pattern "section_%" matches group_id starting with "section_":
+                # - section_1: 3 tasks (task_1, task_2, task_3)
+                # - section_2: 4 tasks (task_1 + inner_section_2 with task_2, task_3, task_4)
+                # - section_3: 4 tasks (task_1, task_2, task_3, task_4)
+                # Note: inner_section_2 doesn't match pattern, but its tasks are included via section_2
+                # Total: 3 + 4 + 4 = 11 tasks
+                11,
+                7,
+                id="test task_group_display_name_pattern with wildcard",
+            ),
+            pytest.param(
                 [
                     {"task_id": "task_match_id_1"},
                     {"task_id": "task_match_id_2"},
@@ -1396,6 +1438,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             dag2_id = "example_skip_dag"
             self.create_task_instances(session, dag_id=dag1_id)
             self.create_task_instances(session, dag_id=dag2_id)
+        elif task_instances == "task_group_test":
+            # test with task group expansion
+            self.create_task_instances(session, dag_id="example_task_group")
         else:
             self.create_task_instances(
                 session,
