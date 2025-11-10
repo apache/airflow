@@ -78,6 +78,11 @@
     "githubRepo": "GitHub Deposu",
     "restApiReference": "REST API Referansı"
   },
+  "download": {
+    "download": "İndir",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} tuşuna basarak indir"
+  },
   "duration": "Süre",
   "endDate": "Bitiş Tarihi",
   "error": {
