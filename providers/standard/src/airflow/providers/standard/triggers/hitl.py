@@ -135,7 +135,7 @@ class HITLTrigger(BaseTrigger):
             return TriggerEvent(
                 HITLTriggerEventSuccessPayload(
                     chosen_options=chosen_options_list,
-                    params_input=self.params.dump(),
+                    params_input=resp.params_input or {},
                     responded_at=resp.responded_at,
                     responded_by_user=HITLUser(
                         id=resp.responded_by_user.id,
