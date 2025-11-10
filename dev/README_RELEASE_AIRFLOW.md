@@ -361,7 +361,7 @@ uv tool install -e ./dev/breeze
 
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `>=` TASK_SDK_VERSION without RC
+- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
