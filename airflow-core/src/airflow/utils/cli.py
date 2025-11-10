@@ -476,6 +476,6 @@ def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
 
 def should_enable_hot_reload(args) -> bool:
     """Check whether hot-reload should be enabled based on --dev flag or DEV_MODE env var."""
-    if hasattr(args, "dev") and args.dev:
+    if getattr(args, "dev", False):
         return True
     return os.getenv("DEV_MODE", "false").lower() == "true"

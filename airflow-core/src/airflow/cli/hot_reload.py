@@ -37,7 +37,7 @@ log = structlog.getLogger(__name__)
 def run_with_reloader(
     callback: Callable,
     process_name: str = "process",
-):
+) -> None:
     """
     Run a callback function with automatic reloading on file changes.
 
@@ -85,9 +85,9 @@ def _terminate_process_tree(
     """
     import subprocess
 
-    try:
-        import psutil
+    import psutil
 
+    try:
         parent = psutil.Process(process.pid)
         # Get all child processes recursively
         children = parent.children(recursive=True)
