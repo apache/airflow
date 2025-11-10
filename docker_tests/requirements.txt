@@ -1,4 +1,4 @@
-pytest>=8.2,<9
+pytest>=8.2,<10
 pytest-xdist
 # Requests 3 if it will be released, will be heavily breaking.
 requests>=2.27.0,<3
