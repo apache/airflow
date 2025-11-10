@@ -79,6 +79,7 @@ Name                                                  Legacy Name               
 ``dag_processing.last_num_of_db_queries.{dag_file}``  ``-``                                             Number of queries to Airflow database during parsing per ``{dag_file}``
 ``scheduler.tasks.starving``                          ``-``                                             Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                        ``-``                                             Number of tasks that are ready for execution (set to queued) with respect to pool limits, Dag concurrency, executor state, and priority.
+``scheduler.dagruns.running``                         ``-``                                             Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state
 ``executor.open_slots``                               ``executor.open_slots.{executor_class_name}``     Number of open slots on executor. Legacy metric only emitted when multiple executors are configured.
 ``executor.queued_tasks``                             ``executor.queued_tasks.{executor_class_name}``   Number of queued tasks on executor. Legacy metric only emitted when multiple executors are configured.
 ``executor.running_tasks``                            ``executor.running_tasks.{executor_class_name}``  Number of running tasks on executor. Legacy metric only emitted when multiple executors are configured.
