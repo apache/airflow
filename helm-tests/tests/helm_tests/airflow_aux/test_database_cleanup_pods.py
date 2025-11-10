@@ -82,7 +82,7 @@ class TestDatabaseCleanupPods:
 
         assert (
             jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].name", docs[0])
-            == "airflow-database-cleanup-pods"
+            == "airflow-database-cleanup"
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
             "apache/airflow"
@@ -96,8 +96,8 @@ class TestDatabaseCleanupPods:
             "subPath": "airflow.cfg",
             "readOnly": True,
         } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert "successfulJobsHistoryLimit" not in docs[0]["spec"]
-        assert "failedJobsHistoryLimit" not in docs[0]["spec"]
+        assert "successfulJobsHistoryLimit" in docs[0]["spec"]
+        assert "failedJobsHistoryLimit" in docs[0]["spec"]
 
     def test_should_pass_validation_with_v1beta1_api(self):
         render_chart(
@@ -197,7 +197,7 @@ class TestDatabaseCleanupPods:
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            'CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");\necho "Cleaning up metadata DB entries older than ${CLEAN_TS}";\nexec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
+            'CLEAN_TS=$(date -d "-10 days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${CLEAN_TS}"; exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
         ]
 
     def test_default_command_and_args(self):
@@ -209,7 +209,7 @@ class TestDatabaseCleanupPods:
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            'CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");\necho "Cleaning up metadata DB entries older than ${CLEAN_TS}";\nexec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
+            'CLEAN_TS=$(date -d "-90 days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${CLEAN_TS}"; exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
         ]
 
     def test_should_add_extraEnvs(self):
@@ -268,7 +268,7 @@ class TestDatabaseCleanupPods:
 
         assert jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0]) == {
             "tier": "airflow",
-            "component": "airflow-cleanup-pods",
+            "component": "airflow-database-cleanup-pods",
             "release": "release-name",
             "project": "airflow",
         }

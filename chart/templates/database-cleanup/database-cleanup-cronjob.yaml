@@ -60,7 +60,7 @@ spec:
         metadata:
           labels:
             tier: airflow
-            component: airflow-database-cleanup
+            component: airflow-database-cleanup-pods
             release: {{ .Release.Name }}
             {{- if or (.Values.labels) (.Values.databaseCleanup.labels) }}
               {{- mustMerge .Values.databaseCleanup.labels .Values.labels | toYaml | nindent 12 }}
