@@ -99,7 +99,7 @@ if TYPE_CHECKING:
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ScalarResult
-    from sqlalchemy.sql.elements import Case
+    from sqlalchemy.sql.elements import Case, ColumnElement
 
     from airflow.models.dag_version import DagVersion
     from airflow.models.mappedoperator import MappedOperator
