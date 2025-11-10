@@ -31,6 +31,7 @@ from alembic import op
 from sqlalchemy.sql import text
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import disable_sqlite_fkeys, ignore_sqlite_value_error
 
 # revision identifiers, used by Alembic.
 revision = "7582ea3f3dd5"
@@ -42,59 +43,60 @@ airflow_version = "3.1.0"
 
 def upgrade():
     """Make bundle_name not nullable."""
-    dialect_name = op.get_bind().dialect.name
-    if dialect_name == "postgresql":
-        op.execute(
-            text("""
-                INSERT INTO dag_bundle (name) VALUES
-                    ('example_dags'),
-                    ('dags-folder')
-                ON CONFLICT (name) DO NOTHING;
-                """)
-        )
-    if dialect_name == "mysql":
-        op.execute(
-            text("""
-                    INSERT IGNORE INTO dag_bundle (name) VALUES
-                      ('example_dags'),
-                      ('dags-folder');
+    with disable_sqlite_fkeys(op):
+        dialect_name = op.get_bind().dialect.name
+        if dialect_name == "postgresql":
+            op.execute(
+                text("""
+                    INSERT INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder')
+                    ON CONFLICT (name) DO NOTHING;
                     """)
-        )
-    if dialect_name == "sqlite":
-        op.execute(
-            text("""
-                    INSERT OR IGNORE INTO dag_bundle (name) VALUES
-                      ('example_dags'),
-                      ('dags-folder');
-                    """)
-        )
-
-    conn = op.get_bind()
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        conn.execute(
-            text(
-                """
-                UPDATE dag
-                SET bundle_name =
-                    CASE
-                        WHEN fileloc LIKE '%/airflow/example_dags/%' THEN 'example_dags'
-                        ELSE 'dags-folder'
-                    END
-                WHERE bundle_name IS NULL
-                """
             )
-        )
-        # drop the foreign key temporarily and recreate it once both columns are changed
-        batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
-        batch_op.alter_column("bundle_name", nullable=False, existing_type=StringID())
+        if dialect_name == "mysql":
+            op.execute(
+                text("""
+                        INSERT IGNORE INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder');
+                        """)
+            )
+        if dialect_name == "sqlite":
+            op.execute(
+                text("""
+                        INSERT OR IGNORE INTO dag_bundle (name) VALUES
+                        ('example_dags'),
+                        ('dags-folder');
+                        """)
+            )
 
-    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.alter_column("name", nullable=False, existing_type=StringID())
+        conn = op.get_bind()
+        with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
+            conn.execute(
+                text(
+                    """
+                    UPDATE dag
+                    SET bundle_name =
+                        CASE
+                            WHEN fileloc LIKE '%/airflow/example_dags/%' THEN 'example_dags'
+                            ELSE 'dags-folder'
+                        END
+                    WHERE bundle_name IS NULL
+                    """
+                )
+            )
+            # drop the foreign key temporarily and recreate it once both columns are changed
+            batch_op.drop_constraint(batch_op.f("dag_bundle_name_fkey"), type_="foreignkey")
+            batch_op.alter_column("bundle_name", nullable=False, existing_type=StringID())
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.create_foreign_key(
-            batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
-        )
+        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+            batch_op.alter_column("name", nullable=False, existing_type=StringID())
+
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.create_foreign_key(
+                batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
+            )
 
 
 def downgrade():
