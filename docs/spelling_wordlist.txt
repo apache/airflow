@@ -318,6 +318,7 @@ conda
 conf
 Config
 config
+ConfigDict
 configfile
 configMap
 configmap
@@ -791,6 +792,7 @@ gpu
 gpus
 Grafana
 graphviz
+greatexpectations
 greenlet
 Groupalia
 groupId
@@ -802,6 +804,7 @@ GSoD
 gsuite
 Gunicorn
 gunicorn
+gx
 gz
 Gzip
 gzipped
