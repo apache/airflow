@@ -1504,7 +1504,6 @@ class InProcessTestSupervisor(ActivitySubprocess):
         return None
 
     def _handle_socket_comms(self):
-
         while self._open_sockets:
             self._service_subprocess(1.0)
 
@@ -1588,7 +1587,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 state=TaskInstanceState.RUNNING,
             )
 
-            # Create a socketpair pre-emptively, in case the task process runs VirtualEnv operator or run as
+            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run as
             # user.
             with supervisor._setup_subprocess_socket():
                 context = ti.get_template_context()
