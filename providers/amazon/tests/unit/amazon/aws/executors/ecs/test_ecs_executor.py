@@ -1420,7 +1420,7 @@ class TestEcsExecutorConfig:
         task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs(conf))
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
-        for expected_key, expected_value in CONFIG_DEFAULTS.items():
+        for expected_key, expected_value_raw in CONFIG_DEFAULTS.items():
             # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
             # but are not expected to appear in the task_kwargs.
             if expected_key in [
@@ -1432,8 +1432,11 @@ class TestEcsExecutorConfig:
             else:
                 assert expected_key in found_keys.keys()
                 # Make sure to convert "assign_public_ip" from True/False to ENABLE/DISABLE.
-                if expected_key is AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
-                    expected_value = parse_assign_public_ip(expected_value)
+                expected_value = (
+                    parse_assign_public_ip(expected_value_raw)
+                    if expected_key is AllEcsConfigKeys.ASSIGN_PUBLIC_IP
+                    else expected_value_raw
+                )
                 assert expected_value == task_kwargs[found_keys[expected_key]]
 
     def test_provided_values_override_defaults(self, assign_subnets, assign_container_name, monkeypatch):
