@@ -187,7 +187,7 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
 Step 4: Install the Standard Provider
 --------------------------------------
 
-- Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
+- Some of the commonly used Operators, Sensors, and Triggers which were bundled as part of the ``airflow-core`` package (for example ``BashOperator``, ``PythonOperator``, ``ExternalTaskSensor``, ``FileSensor``, etc.)
   have now been split out into a separate package: ``apache-airflow-providers-standard``.
 - For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.

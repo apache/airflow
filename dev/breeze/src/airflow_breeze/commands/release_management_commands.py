@@ -2315,11 +2315,11 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and file.endswith(
+    for filename in dist_files:
+        if filename.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and filename.endswith(
             ".tar.gz"
         ):
-            file = file[: -len(".tar.gz")]
+            file = filename[: -len(".tar.gz")]
             version = file.split("-")[-1]
             match = VERSION_MATCH.match(version)
             if match:

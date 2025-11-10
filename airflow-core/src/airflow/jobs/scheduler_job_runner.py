@@ -376,7 +376,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("All pools are full!")
             return []
 
-        max_tis = min(max_tis, pool_slots_free)
+        max_tis = int(min(max_tis, pool_slots_free))
 
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
@@ -1339,6 +1339,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._emit_running_ti_metrics,
             )
 
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "dagrun_metrics_interval", fallback=30.0),
+                self._emit_running_dags_metric,
+            )
+
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
             self._find_and_purge_task_instances_without_heartbeats,
@@ -2275,6 +2280,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("ti.running", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
 
         self.previous_ti_running_metrics = ti_running_metrics
+
+    @provide_session
+    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+        stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+        running_dags = session.scalar(stmt)
+        Stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
