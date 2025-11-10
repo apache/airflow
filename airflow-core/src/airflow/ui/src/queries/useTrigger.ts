@@ -75,7 +75,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     } else if (isHttpError(_error, 401)) {
       toaster.create({
         description: translate("triggerDag.toaster.error.unauthorized.description", "Please log in to trigger DAGs"),
-        title: translate("triggerDag.toaster.error.unauthorized.title", "Authentication Required"), 
+        title: translate("triggerDag.toaster.error.unauthorized.title", "Authentication Required"),
         type: "error",
       });
     } else {
@@ -116,9 +116,9 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
   };
 
-  return { 
-    error, 
-    isPending, 
+  return {
+    error,
+    isPending,
     triggerDagRun,
     isForbidden: isHttpError(error, 403),
     isUnauthorized: isHttpError(error, 401)
