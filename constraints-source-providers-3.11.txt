@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-09T20:26:36.491047
+# This constraints file was automatically generated on 2025-11-10T13:22:47.474679
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -128,7 +128,7 @@ beartype==0.21.0
 beautifulsoup4==4.14.2
 billiard==4.2.2
 bitarray==3.8.0
-black==25.9.0
+black==25.11.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.40.61
@@ -161,7 +161,7 @@ colorlog==6.10.1
 comm==0.2.3
 confluent-kafka==2.12.2
 connexion==2.14.2
-coverage==7.11.2
+coverage==7.11.3
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -330,7 +330,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.3.0
 jedi==0.19.2
 jeepney==0.9.0
-jiter==0.11.1
+jiter==0.12.0
 jmespath==0.10.0
 joblib==1.5.2
 joserfc==1.4.1
@@ -707,10 +707,10 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.14
-ydb==3.21.13
+ydb==3.21.14
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.1
-zope.interface==8.0.1
+zope.interface==8.1
 zstandard==0.25.0
