@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from starlette import status
+from fastapi import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
