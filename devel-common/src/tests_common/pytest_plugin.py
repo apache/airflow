@@ -36,6 +36,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from _pytest.config.findpaths import ConfigValue
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -494,7 +495,9 @@ def pytest_configure(config: pytest.Config) -> None:
                 f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
             )
             pytest.exit(msg, returncode=6)
-    config.inicfg["airflow_deprecations_ignore"] = _find_all_deprecation_ignore_files()
+    config.inicfg["airflow_deprecations_ignore"] = ConfigValue(
+        value=_find_all_deprecation_ignore_files(), origin="override", mode="ini"
+    )
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system: mark test to run as system test")
