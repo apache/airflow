@@ -20,10 +20,10 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useStructureServiceStructureData } from "openapi/queries";
+import { useDagServiceGetLatestRunInfo, useStructureServiceStructureData } from "openapi/queries";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
@@ -61,8 +61,20 @@ const nodeColor = (
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", runId = "", taskId } = useParams();
+  const navigate = useNavigate();
 
   const selectedVersion = useSelectedVersion();
+
+  // Auto-select latest dag run if no run is selected
+  const { data: latestRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
+    enabled: Boolean(dagId && !runId),
+  });
+
+  useEffect(() => {
+    if (runId === "" && latestRun?.run_id !== undefined) {
+      navigate(`/dags/${dagId}/runs/${latestRun.run_id}`, { replace: true });
+    }
+  }, [dagId, latestRun?.run_id, navigate, runId]);
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
