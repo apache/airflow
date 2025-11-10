@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+
+from .helm_template_generator import render_chart  # noqa: TID252
 
 
 class LogGroomerTestBase:
