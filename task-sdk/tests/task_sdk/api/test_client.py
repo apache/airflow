@@ -913,6 +913,29 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
 
+    def test_connection_get_encodes_slashes(self):
+        # Ensure connection IDs with '/' are percent-encoded before hitting the server
+        observed_path: dict[str, str] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raw_path = request.url.raw_path.decode()
+            observed_path["path"] = raw_path
+            assert raw_path == "/connections/dev-env%2Fproject-name"
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "conn_id": "dev-env/project-name",
+                    "conn_type": "http",
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="dev-env/project-name")
+
+        assert observed_path["path"] == "/connections/dev-env%2Fproject-name"
+        assert isinstance(result, ConnectionResponse)
+        assert result.conn_id == "dev-env/project-name"
+
 
 class TestAssetEventOperations:
     @pytest.mark.parametrize(

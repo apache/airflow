@@ -31,6 +31,14 @@ Connections may be defined in the following ways:
   - in the :ref:`Airflow metadata database <connections-in-database>`
     (using the :ref:`CLI <connection/cli>` or :ref:`web UI <creating_connection_ui>`)
 
+.. important::
+
+   Airflow 3 tasks read connections through the Task Execution API. Every connection must therefore
+   include a ``conn_type`` (even when the definition lives in a JSON secret or environment variable);
+   otherwise the Execution API cannot serialize the record and Task SDK calls such as
+   ``BaseHook.get_connection`` will fail with ``CONNECTION_NOT_FOUND``. Always set ``conn_type`` to one of
+   the values documented for your provider when creating connections outside of the UI/CLI.
+
 .. _environment_variables_connections:
 
 Storing connections in environment variables

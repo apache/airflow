@@ -24,6 +24,7 @@ import uuid
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote
 
 import certifi
 import httpx
@@ -369,7 +370,8 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(f"connections/{conn_id}")
+            encoded_conn_id = quote(conn_id, safe="")
+            resp = self.client.get(f"connections/{encoded_conn_id}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
