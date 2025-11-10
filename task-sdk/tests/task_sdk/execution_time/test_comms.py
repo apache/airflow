@@ -23,8 +23,10 @@ from socket import socketpair
 
 import msgspec
 import pytest
+from airflowctl.api.datamodels.generated import TaskInstanceState
 
 from airflow.sdk import timezone
+from airflow.sdk.exceptions import AirflowException
 from airflow.sdk.execution_time.comms import BundleInfo, MaskSecret, StartupDetails, _ResponseFrame
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 
@@ -147,3 +149,27 @@ class TestCommsDecoder:
         # It actually failed to read at all for large values, but lets just make sure we get it all
         assert len(msg.value) == 10 * 1024 * 1024 + 1
         assert msg.value[-1] == "b"
+
+    def test_send_with_socket_exception_preserves_original_error(self):
+        """Test that the original socket exception is preserved as cause."""
+        from unittest.mock import Mock
+
+        from airflow.sdk.execution_time.comms import TaskState
+
+        # Create a mock socket instead of a real one
+        mock_socket = Mock()
+        decoder = CommsDecoder(socket=mock_socket, log=None)
+
+        # Configure the mock to raise an exception when sendall is called
+        original_error = OSError("Connection reset by peer")
+        mock_socket.sendall.side_effect = original_error
+
+        msg = TaskState(state=TaskInstanceState.SKIPPED, end_date=None)
+
+        with pytest.raises(AirflowException) as exc_info:
+            decoder.send(msg)
+
+        # Verify the original exception is preserved as cause
+        assert exc_info.value.__cause__ is original_error
+        assert "Could not make request:" in str(exc_info.value)
+        assert "TaskState" in str(exc_info.value)

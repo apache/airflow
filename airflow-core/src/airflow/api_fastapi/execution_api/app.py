@@ -218,7 +218,7 @@ def create_task_execution_api_app() -> FastAPI:
     @app.exception_handler(Exception)
     def handle_exceptions(request: Request, exc: Exception):
         logger.exception("Handle died with an error", exc_info=(type(exc), exc, exc.__traceback__))
-        content = {"message": "Internal server error"}
+        content = {"message": "Internal server error", "details": str(exc) or ""}
         if correlation_id := request.headers.get("correlation-id"):
             content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)

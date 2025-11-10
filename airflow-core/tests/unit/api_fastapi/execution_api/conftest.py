@@ -30,7 +30,7 @@ from airflow.api_fastapi.execution_api.app import lifespan
 def client(request: pytest.FixtureRequest):
     app = cached_app(apps="execution")
 
-    with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
+    with TestClient(app, headers={"Authorization": "Bearer fake"}, raise_server_exceptions=False) as client:
         auth = AsyncMock(spec=JWTValidator)
 
         # Create a side_effect function that dynamically extracts the task instance ID from validators

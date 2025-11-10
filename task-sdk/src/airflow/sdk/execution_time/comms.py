@@ -92,7 +92,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowException, ErrorType
 
 try:
     from socket import recv_fds
@@ -190,22 +190,25 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
         frame_bytes = frame.as_bytes()
 
-        self.socket.sendall(frame_bytes)
-        if isinstance(msg, ResendLoggingFD):
-            if recv_fds is None:
-                return None
-            # We need special handling here! The server can't send us the fd number, as the number on the
-            # supervisor will be different to in this process, so we have to mutate the message ourselves here.
-            frame, fds = self._read_frame(maxfds=1)
-            resp = self._from_frame(frame)
-            if TYPE_CHECKING:
-                assert isinstance(resp, SentFDs)
-            resp.fds = fds
-            # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
-            # always be in the return type union
-            return resp  # type: ignore[return-value]
+        try:
+            self.socket.sendall(frame_bytes)
+            if isinstance(msg, ResendLoggingFD):
+                if recv_fds is None:
+                    return None
+                # We need special handling here! The server can't send us the fd number, as the number on the
+                # supervisor will be different to in this process, so we have to mutate the message ourselves here.
+                frame, fds = self._read_frame(maxfds=1)
+                resp = self._from_frame(frame)
+                if TYPE_CHECKING:
+                    assert isinstance(resp, SentFDs)
+                resp.fds = fds
+                # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
+                # always be in the return type union
+                return resp  # type: ignore[return-value]
 
-        return self._get_response()
+            return self._get_response()
+        except Exception as e:
+            raise AirflowException(f"Could not make request: {msg}") from e
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent without blocking."""
