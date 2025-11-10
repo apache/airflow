@@ -330,14 +330,14 @@ USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_lockin
 
 
 def with_row_locks(
-    query: Query[Any] | Select[Any],
+    query: Select[Any],
     session: Session,
     *,
     nowait: bool = False,
     skip_locked: bool = False,
     key_share: bool = True,
     **kwargs,
-) -> Query[Any] | Select[Any]:
+) -> Select[Any]:
     """
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
