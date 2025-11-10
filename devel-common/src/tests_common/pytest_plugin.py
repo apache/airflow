@@ -1825,8 +1825,8 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(autouse=True, scope="session")
-@pytest.mark.usefixture("_ensure_configured_logging")
-def initialize_providers_manager():
+def initialize_providers_manager(request: pytest.FixtureRequest):
+    request.getfixturevalue("_ensure_configured_logging")
     if importlib.util.find_spec("airflow") is None:
         # If airflow is not installed, we should not initialize providers manager
         return
