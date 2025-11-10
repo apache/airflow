@@ -78,6 +78,11 @@
     "githubRepo": "GitHub 倉庫",
     "restApiReference": "REST API 參考"
   },
+  "download": {
+    "download": "下載",
+    "hotkey": "d",
+    "tooltip": "按下 {{hotkey}} 下載日誌"
+  },
   "duration": "執行時間",
   "endDate": "結束日期",
   "error": {
