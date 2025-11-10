@@ -41,6 +41,10 @@ There are several ways to connect to Databricks using Airflow.
    `user inside workspace <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-azure-databricks-workspace-users-and-admins>`_, or `outside of workspace having Owner or Contributor permissions <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-not-workspace-users>`_
 4. Using Azure Active Directory (AAD) token obtained for `Azure managed identity <https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token>`_,
    when Airflow runs on the VM with assigned managed identity (system-assigned or user-assigned)
+5. Using Google-signed OpenID Connect (ID) token for authentication with Databricks
+   (only on Google Cloud Databricks). This method supports service account impersonation and uses
+   Google's IAM Credentials API to generate ID tokens at runtime. Requires `apache-airflow-providers-google`
+   to be installed.
 
 Default Connection IDs
 ----------------------
@@ -90,6 +94,19 @@ Extra (optional)
     * ``use_default_azure_credential``: required boolean flag to specify if the `DefaultAzureCredential` class should be used to retrieve a AAD token. For example, this can be used when authenticating with workload identity within an Azure Kubernetes Service cluster. Note that this option can't be set together with the `use_azure_managed_identity` parameter.
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
+
+    Following parameters are necessary if using authentication with Google ID token:
+
+    * ``use_google_id_token``: required boolean flag to enable Google ID token authentication. When set to ``true``,
+      the hook will use Google's IAM Credentials API to generate ID tokens for Databricks authentication.
+    * ``google_id_token_target_principal``: optional service account email to impersonate. If specified, the hook
+      will use `service account impersonation <https://cloud.google.com/iam/docs/understanding-service-accounts#impersonating_a_service_account>`_
+      to generate ID tokens for the specified service account. The source credentials (from ``GOOGLE_APPLICATION_CREDENTIALS``
+      or metadata server) must have the ``Service Account Token Creator`` IAM role on the target service account.
+      If not specified, the hook will use the default service account from the credentials.
+    * ``google_id_token_target_audience``: optional target audience for the ID token. This should typically be the
+      Databricks workspace URL (e.g., ``https://workspace.cloud.databricks.com``). If not specified, defaults to
+      ``https://{host}`` where ``{host}`` is the Databricks workspace host from the connection.
 
     Following parameters could be set when using
     :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator`:

@@ -910,3 +910,26 @@ class TestBaseDatabricksHook:
             ):
                 await hook._a_check_azure_metadata_service()
             assert mock_get.call_count == 3
+
+    def test_get_connection_form_widgets(self):
+        """Test that connection form widgets are properly defined."""
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        pytest.importorskip("wtforms")
+
+        widgets = BaseDatabricksHook.get_connection_form_widgets()
+
+        # Verify all expected widgets are present
+        assert "use_google_id_token" in widgets
+        assert "google_id_token_target_principal" in widgets
+        assert "google_id_token_target_audience" in widgets
+
+        # Verify widget field types (wtforms returns UnboundField objects)
+        from wtforms import BooleanField, StringField
+
+        assert widgets["use_google_id_token"].field_class == BooleanField
+        assert widgets["google_id_token_target_principal"].field_class == StringField
+        assert widgets["google_id_token_target_audience"].field_class == StringField
+
+        # Verify default value for boolean field
+        assert widgets["use_google_id_token"].kwargs.get("default") is False
