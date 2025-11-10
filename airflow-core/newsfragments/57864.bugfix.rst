@@ -1,3 +1,1 @@
-Fix Task SDK connection lookups when ``conn_id`` contains ``/`` by percent-encoding the path segment and
-raise a descriptive 422 (and document the requirement) when an Execution API connection or secret omits
-``conn_type`` so tasks don't fail with a confusing 404. (#57864)
+Fix Task SDK connection lookups when ``conn_id`` contains ``/`` by percent-encoding the path segment and raise a descriptive 422 (and document the requirement) when an Execution API connection or secret omits ``conn_type`` so tasks don't fail with a confusing 404. (#57864)
