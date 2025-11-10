@@ -702,6 +702,7 @@ class TestExecuteDagCallbacks:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -821,6 +822,7 @@ class TestExecuteDagCallbacks:
             run_type="manual",
             state="success",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -1042,6 +1044,7 @@ class TestExecuteDagCallbacks:
                     run_type="manual",
                     state="success",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 last_ti=TIDataModel(
                     id=uuid.uuid4(),
@@ -1133,6 +1136,7 @@ class TestExecuteDagCallbacks:
                     run_type="manual",
                     state="success",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 last_ti=TIDataModel(
                     id=uuid.uuid4(),
@@ -1504,6 +1508,7 @@ class TestExecuteEmailCallbacks:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
@@ -1565,6 +1570,7 @@ class TestExecuteEmailCallbacks:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
@@ -1623,6 +1629,7 @@ class TestExecuteEmailCallbacks:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
@@ -1681,6 +1688,7 @@ class TestExecuteEmailCallbacks:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
@@ -1757,6 +1765,7 @@ class TestExecuteEmailCallbacks:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
