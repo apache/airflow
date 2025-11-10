@@ -252,12 +252,6 @@ class TestPatchPool(TestPoolsEndpoint):
                         },
                         {
                             "input": {"pool": POOL1_NAME},
-                            "loc": ["description"],
-                            "msg": "Field required",
-                            "type": "missing",
-                        },
-                        {
-                            "input": {"pool": POOL1_NAME},
                             "loc": ["include_deferred"],
                             "msg": "Field required",
                             "type": "missing",
