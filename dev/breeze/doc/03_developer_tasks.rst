@@ -144,7 +144,7 @@ SimpleAuthManager is the default authentication manager and comes pre-configured
 .. code-block::
 
     * admin:admin     (Admin role)
-    * viewer:viewer   (Viewer role) 
+    * viewer:viewer   (Viewer role)
     * user:user       (User role)
     * op:op           (Operator role)
 

@@ -114,12 +114,12 @@ function startairflow_if_requested() {
 
         if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
             airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain || true
-            
+
             # Create all roles for testing if CREATE_ALL_ROLES is set
             if [[ "${CREATE_ALL_ROLES}" == "true" ]]; then
                 echo "Creating all test roles for FabAuthManager..."
                 airflow users create -u viewer -p viewer -f Test -l Viewer -r Viewer -e viewer@email.domain || true
-                airflow users create -u user -p user -f Test -l User -r User -e user@email.domain || true  
+                airflow users create -u user -p user -f Test -l User -r User -e user@email.domain || true
                 airflow users create -u op -p op -f Test -l Op -r Op -e op@email.domain || true
                 airflow users create -u testadmin -p testadmin -f Test -l TestAdmin -r Admin -e testadmin@email.domain || true
                 echo "All test roles created successfully for FabAuthManager."

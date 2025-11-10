@@ -285,10 +285,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "Other options",
-            "options": [
-                "--forward-credentials",
-                "--create-all-roles"
-            ],
+            "options": ["--forward-credentials", "--create-all-roles"],
         },
         {
             "name": "Debugging options",
