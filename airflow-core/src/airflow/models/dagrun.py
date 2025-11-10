@@ -617,11 +617,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-<<<<<<< HEAD
     def get_queued_dag_runs_to_set_running(cls, session: Session) -> ScalarResult[DagRun]:
-=======
-    def get_queued_dag_runs_to_set_running(cls, session: Session) -> ScalarResult:
->>>>>>> 06560f82d6 (remove Query obj from dagrun.py)
         """
         Return the next queued DagRuns that the scheduler should attempt to schedule.
 
