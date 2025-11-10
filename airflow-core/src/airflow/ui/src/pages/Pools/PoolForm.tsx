@@ -89,8 +89,9 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
               min={initialPool.slots}
-              onChange={(e) => {
-                const value = e.target.valueAsNumber;
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+
                 field.onChange(isNaN(value) ? field.value : value);
               }}
               size="sm"
