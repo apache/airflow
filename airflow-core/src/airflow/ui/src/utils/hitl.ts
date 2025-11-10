@@ -19,7 +19,7 @@
 import type { TFunction } from "i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
-import type { ParamsSpec } from "src/queries/useDagParams";
+import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
@@ -108,27 +108,36 @@ export const getHITLParamsDict = (
     const sourceParams = hitlDetail.response_received ? hitlDetail.params_input : hitlDetail.params;
 
     Object.entries(sourceParams ?? {}).forEach(([key, value]) => {
-      const paramData = hitlDetail.params?.[key] ?? {};
+      if (!hitlDetail.params) {
+        return;
+      }
+      const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
+
+      const description: string =
+        paramData && typeof paramData.description === "string" ? paramData.description : "";
+
+      const schema: ParamSchema = {
+        const: undefined,
+        description_md: "",
+        enum: undefined,
+        examples: undefined,
+        format: undefined,
+        items: undefined,
+        maximum: undefined,
+        maxLength: undefined,
+        minimum: undefined,
+        minLength: undefined,
+        section: undefined,
+        title: key,
+        type: typeof value === "number" ? "number" : "string",
+        values_display: undefined,
+        ...(paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : {}),
+      };
 
       paramsDict[key] = {
-        description: paramData?.description ?? "",
-        schema: paramData?.schema ?? {
-          const: undefined,
-          description_md: "",
-          enum: undefined,
-          examples: undefined,
-          format: undefined,
-          items: undefined,
-          maximum: undefined,
-          maxLength: undefined,
-          minimum: undefined,
-          minLength: undefined,
-          section: undefined,
-          title: key,
-          type: typeof value === "number" ? "number" : "string",
-          values_display: undefined,
-        },
-        value: paramData?.value ??  value,
+        description,
+        schema,
+        value: paramData?.value ?? value,
       };
     });
   }
