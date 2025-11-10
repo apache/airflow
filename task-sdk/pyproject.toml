@@ -20,7 +20,8 @@ name = "apache-airflow-task-sdk"
 dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # in all our providers - and usually it will take a while before we can support it for majority of
 # providers, so we proactively limit it to <3.14.
@@ -41,7 +42,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
