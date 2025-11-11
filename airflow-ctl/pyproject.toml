@@ -163,7 +163,7 @@ input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-ge
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",

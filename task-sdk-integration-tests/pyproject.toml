@@ -40,7 +40,7 @@ dependencies = [
     "apache-airflow-devel-common",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
 norecursedirs = [
     ".eggs",

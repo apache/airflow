@@ -39,7 +39,7 @@ dependencies = [
     "apache-airflow-providers-cncf-kubernetes",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
 norecursedirs = [
     ".eggs",
