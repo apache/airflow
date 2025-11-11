@@ -37,6 +37,8 @@ from airflow_e2e_tests.constants import (
     TEST_REPORT_FILE,
 )
 
+from tests_common.test_utils.fernet import update_environment_variable_from_compose_yaml
+
 console = Console(width=400, color_system="standard")
 compose_instance = None
 airflow_logs_path = None
@@ -99,6 +101,8 @@ def spin_up_airflow_environment(tmp_path_factory):
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
 
     try:
+        update_environment_variable_from_compose_yaml(file_path=compose_file_names.pop())
+
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
         compose_instance = DockerCompose(tmp_dir, compose_file_name=compose_file_names, pull=pull)
 

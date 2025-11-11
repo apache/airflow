@@ -60,11 +60,7 @@ x-airflow-common:
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    #
-    # Please Do not use this Fernet key in any deployments! Please generate your own key.
-    # This is specifically generated for tests and not as default. It could fail any static level code checks.
-    #
-    AIRFLOW__CORE__FERNET_KEY: 'dGVzdF9rZXlfdGVzdF9rZXlfdGVzdF9rZXlfdGVzdF8='
+    AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
