@@ -1105,6 +1105,33 @@ key7 =
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
 
+    def test_default_validators(self):
+        """Test that _validators property returns default validators."""
+        test_conf = AirflowConfigParser(default_config="")
+        validators = test_conf._validators
+
+        assert len(validators) == 4
+
+    def test_validate_sets_is_validated_flag(self):
+        """Test that validate() sets is_validated to True."""
+        test_conf = AirflowConfigParser(default_config="")
+        assert test_conf.is_validated is False
+        test_conf.validate()
+        assert test_conf.is_validated is True
+
+    def test_validators_can_be_overridden_in_subclass(self):
+        """Test that subclasses can override _validators to customize validation."""
+
+        class CustomConfigParser(AirflowConfigParser):
+            @property
+            def _validators(self):
+                return [self._validate_enums]
+
+        test_conf = CustomConfigParser(default_config="")
+        validators = test_conf._validators
+        assert len(validators) == 1
+        assert validators[0].__name__ == "_validate_enums"
+
 
 @mock.patch.dict(
     "os.environ",
