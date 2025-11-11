@@ -95,7 +95,7 @@ def get_provider_info():
                     },
                     "push_logs": {
                         "description": "Flag to enable or disable pushing of log files from edge worker to the central site.\nWhen enabled, edge workers will upload task log files in chunks to the central Airflow site.\nWhen disabled, logs will only be available locally on the edge worker.\n",
-                        "version_added": None,
+                        "version_added": "1.5.0",
                         "type": "boolean",
                         "example": "True",
                         "default": "True",
