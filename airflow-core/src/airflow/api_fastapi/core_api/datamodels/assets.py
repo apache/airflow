@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
@@ -107,7 +108,7 @@ class AssetAliasResponse(BaseModel):
 class AssetAliasCollectionResponse(BaseModel):
     """Asset alias collection response."""
 
-    asset_aliases: list[AssetAliasResponse]
+    asset_aliases: Iterable[AssetAliasResponse]
     total_entries: int
 
 
@@ -139,6 +140,7 @@ class AssetEventResponse(BaseModel):
     source_map_index: int
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
+    partition_key: str | None = None
 
     @field_validator("extra", mode="after")
     @classmethod
@@ -149,7 +151,7 @@ class AssetEventResponse(BaseModel):
 class AssetEventCollectionResponse(BaseModel):
     """Asset event collection response."""
 
-    asset_events: list[AssetEventResponse]
+    asset_events: Iterable[AssetEventResponse]
     total_entries: int
 
 
@@ -173,6 +175,7 @@ class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
+    partition_key: str | None = None
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")

@@ -150,7 +150,7 @@ def test_get_transport_information_as_spark_properties_composite_transport_type(
 
 
 @pytest.mark.parametrize(
-    "properties, expected",
+    ("properties", "expected"),
     [
         (
             {"spark.openlineage.parentJobNamespace": "example_namespace"},
@@ -194,7 +194,7 @@ def test_is_parent_job_information_present_in_spark_properties(properties, expec
 
 
 @pytest.mark.parametrize(
-    "properties, expected",
+    ("properties", "expected"),
     [
         (
             {"spark.openlineage.transport": "example_namespace"},
@@ -227,7 +227,7 @@ def test_is_transport_information_present_in_spark_properties(properties, expect
 
 
 @pytest.mark.parametrize(
-    "properties, should_inject",
+    ("properties", "should_inject"),
     [
         (
             {"spark.openlineage.parentJobNamespace": "example_namespace"},
@@ -270,7 +270,7 @@ def test_inject_parent_job_information_into_spark_properties(properties, should_
 
 
 @pytest.mark.parametrize(
-    "properties, should_inject",
+    ("properties", "should_inject"),
     [
         (
             {"spark.openlineage.transport": "example_namespace"},
@@ -309,7 +309,7 @@ def test_inject_transport_information_into_spark_properties(mock_ol_listener, pr
 
 
 @pytest.mark.parametrize(
-    "properties, should_inject",
+    ("properties", "should_inject"),
     [
         (
             {"spark.openlineage.transport": "example_namespace"},

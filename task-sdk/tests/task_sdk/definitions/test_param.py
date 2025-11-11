@@ -237,7 +237,7 @@ class TestParam:
         assert restored_param.schema == param.schema
 
     @pytest.mark.parametrize(
-        "default, should_raise",
+        ("default", "should_raise"),
         [
             pytest.param({0, 1, 2}, True, id="default-non-JSON-serializable"),
             pytest.param(None, False, id="default-None"),  # Param init should not warn

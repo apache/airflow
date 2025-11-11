@@ -82,6 +82,7 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
         "workers": num_workers,
         "timeout_keep_alive": worker_timeout,
         "timeout_graceful_shutdown": worker_timeout,
+        "timeout_worker_healthcheck": worker_timeout,
         "ssl_keyfile": ssl_key,
         "ssl_certfile": ssl_cert,
         "access_log": True,
@@ -138,7 +139,7 @@ def api_server(args: Namespace):
 
     get_signing_args()
 
-    if args.dev:
+    if cli_utils.should_enable_hot_reload(args):
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
         from fastapi_cli.cli import _run

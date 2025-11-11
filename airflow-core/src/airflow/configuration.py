@@ -1062,6 +1062,7 @@ class AirflowConfigParser(ConfigParser):
             section,
             issue_warning=not warning_emitted,
             extra_stacklevel=_extra_stacklevel,
+            team_name=team_name,
         )
         if option is not None:
             return option
@@ -1154,7 +1155,10 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
+        team_name: str | None = None,
     ) -> str | None:
+        if team_name:
+            section = f"{team_name}={section}"
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.

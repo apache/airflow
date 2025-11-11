@@ -121,7 +121,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-07-07 10:54:05")
@@ -147,7 +147,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @pytest.mark.parametrize(
@@ -282,7 +282,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")

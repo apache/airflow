@@ -30,6 +30,7 @@ import pytest
 import structlog
 
 from airflow.sdk import task as task_decorator
+from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
     BaseOperator,
     BaseOperatorMeta,
@@ -921,6 +922,30 @@ def test_render_template_fields_logging(
         assert expected_log in caplog.text
     if not_expected_log:
         assert not_expected_log not in caplog.text
+
+
+@pytest.mark.enable_redact
+def test_render_template_fields_secret_masking(caplog):
+    """Test that sensitive values are masked in Jinja template rendering exceptions."""
+    masker = _secrets_masker()
+    masker.reset_masker()
+
+    masker.sensitive_variables_fields = ["password", "secret", "token"]
+
+    mask_secret("mysecretpassword", "password")
+
+    task = MockOperator(task_id="op1", arg1="{{ password + 1 }}")
+    context = {"password": "mysecretpassword"}
+
+    with (
+        pytest.raises(TypeError),
+        caplog.at_level(logging.ERROR, logger="airflow.sdk.definitions.templater"),
+    ):
+        task.render_template_fields(context=context)
+
+    assert "mysecretpassword" not in caplog.text
+    assert "Template: '{{ password + 1 }}'" in caplog.text
+    assert "Exception rendering Jinja template for task 'op1', field 'arg1'" in caplog.text
 
 
 class HelloWorldOperator(BaseOperator):

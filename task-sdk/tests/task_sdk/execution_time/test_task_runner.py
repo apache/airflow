@@ -126,6 +126,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -182,8 +183,57 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
     assert ti.task
     assert ti.task.dag
-    assert isinstance(ti.task, BaseOperator)
-    assert isinstance(ti.task.dag, DAG)
+
+
+@mock.patch("airflow.dag_processing.dagbag.DagBag")
+def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+    """Test that checks that the dagbag is constructed as expected during parsing"""
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        parse(what, mock.Mock())
+
+    mock_dagbag.assert_called_once_with(
+        dag_folder=mock.ANY,
+        include_examples=False,
+        safe_mode=False,
+        load_op_links=False,
+        bundle_name="my-bundle",
+    )
 
 
 @pytest.mark.parametrize(
@@ -554,6 +604,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.task is ti.get_template_context()["task"], "task in context should be updated too"
     assert ti.state == TaskInstanceState.SUCCESS
 
     mock_supervisor_comms.send.assert_any_call(
@@ -1517,10 +1568,12 @@ class TestRuntimeTaskInstance:
         if not isinstance(map_indexes, Iterable):
             map_indexes = [map_indexes]
 
-        for task_id in task_ids:
+        for task_id_raw in task_ids:
             # Without task_ids (or None) expected behavior is to pull with calling task_id
-            if task_id is None or isinstance(task_id, ArgNotSet):
-                task_id = test_task_id
+            task_id = (
+                test_task_id if task_id_raw is None or isinstance(task_id_raw, ArgNotSet) else task_id_raw
+            )
+
             for map_index in map_indexes:
                 if map_index == NOTSET:
                     mock_supervisor_comms.send.assert_any_call(
@@ -2317,6 +2370,173 @@ class TestXComAfterTaskExecution:
                 include_prior_dates=expected_value,
             ),
         )
+
+
+class TestEmailNotifications:
+    FROM = "from@airflow"
+
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_retry(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task retry."""
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class ZeroDivsionOperator(BaseOperator):
+            def execute(self, context):
+                1 // 0
+
+        task = ZeroDivsionOperator(
+            task_id="divide_by_zero_task",
+            email=emails,
+            email_on_retry=True,
+            retries=2,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_failure(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task failure."""
+        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="failing_task",
+            email=emails,
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
+        """Test email notification respects custom subject and html_content templates."""
+        from airflow.exceptions import AirflowFailException
+
+        subject_template = tmp_path / "custom_subject.jinja2"
+        html_template = tmp_path / "custom_html.html"
+
+        subject_template.write_text("Custom Subject: Task {{ti.task_id}} Failed\n")
+        html_template.write_text(
+            "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+        )
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed for template test")
+
+        task = FailingOperator(
+            task_id="template_test_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "subject_template"): str(subject_template),
+                ("email", "html_content_template"): str(html_template),
+                ("email", "from_email"): self.FROM,
+            }
+        ):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                mock_smtp_notifier.assert_called_once()
+                kwargs = mock_smtp_notifier.call_args.kwargs
+
+                assert kwargs["subject"] == "Custom Subject: Task {{ti.task_id}} Failed\n"
+                assert (
+                    kwargs["html_content"]
+                    == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+                )
+                assert kwargs["from_email"] == self.FROM
 
 
 class TestDagParamRuntime:

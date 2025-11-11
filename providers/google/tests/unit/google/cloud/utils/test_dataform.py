@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.utils.dataform import DataformLocations, def
 
 
 @pytest.mark.parametrize(
-    "region, expected",
+    ("region", "expected"),
     [
         ("us-central1", DataformLocations.US),
         ("europe-west4", DataformLocations.EUROPE),
