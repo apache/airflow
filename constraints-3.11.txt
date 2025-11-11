@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-11T09:50:10.340563
+# This constraints file was automatically generated on 2025-11-11T15:52:58.330512
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -59,7 +59,7 @@ Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.0
 SQLAlchemy==1.4.54
-SecretStorage==3.4.0
+SecretStorage==3.4.1
 WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
