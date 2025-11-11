@@ -59,7 +59,7 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
         self,
         python_callable: Callable,
         op_args: Collection[Any] | None = None,
-        op_kwargs: Mapping[str | Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
