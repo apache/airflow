@@ -1281,7 +1281,7 @@ class KubernetesPodOperator(BaseOperator):
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
-                labels=self.labels,
+                labels=_normalize_labels_dict(self.labels),
                 name=self.name,
                 annotations=self.annotations,
             ),

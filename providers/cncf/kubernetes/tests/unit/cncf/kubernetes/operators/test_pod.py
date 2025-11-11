@@ -407,7 +407,7 @@ class TestKubernetesPodOperator:
             namespace="default",
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
-            labels={"foo": "bar"},
+            labels={"foo": "bar", "none_value": None},
             name="test",
             task_id="task",
             in_cluster=in_cluster,
@@ -424,6 +424,7 @@ class TestKubernetesPodOperator:
             "airflow_version": mock.ANY,
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
+            "none_value": "",  # None converted to empty string
         }
 
     def test_labels_mapped(self):
