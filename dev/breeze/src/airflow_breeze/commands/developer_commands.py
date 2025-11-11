@@ -610,9 +610,6 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
-    if create_all_roles and not dev_mode:
-        get_console().print("[error]--create-all-roles can only be used with --dev-mode!")
-        sys.exit(1)
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
