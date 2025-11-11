@@ -749,10 +749,5 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
         # Delete local branch
         run_command(["git", "branch", "-D", branch_name])
         get_console().print(f"[success]Local branch {branch_name} deleted.[/]")
-
-        # Delete remote branch from origin
-        get_console().print(f"[info]Deleting branch {branch_name} from {push_remote}...[/]")
-        run_command(["git", "push", push_remote, "--delete", branch_name], check=False)
-        get_console().print(f"[success]Remote branch {branch_name} deleted from {push_remote}.[/]")
     else:
         get_console().print("[info]PR creation skipped. Changes are committed locally.[/]")

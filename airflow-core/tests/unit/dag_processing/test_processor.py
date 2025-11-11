@@ -26,7 +26,6 @@ import uuid
 from collections.abc import Callable
 from socket import socketpair
 from typing import TYPE_CHECKING, BinaryIO
-from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -79,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -1468,12 +1468,12 @@ class TestExecuteTaskCallbacks:
 class TestExecuteEmailCallbacks:
     """Test the email callback execution functionality."""
 
-    @patch("airflow.dag_processing.processor._send_task_error_email")
+    @patch("airflow.dag_processing.processor._send_error_email_notification")
     def test_execute_email_callbacks_failure(self, mock_send_email):
         """Test email callback execution for task failure."""
         dagbag = MagicMock(spec=DagBag)
         with DAG(dag_id="test_dag") as dag:
-            BaseOperator(task_id="test_task", email="test@example.com")
+            task = BaseOperator(task_id="test_task", email="test@example.com")
         dagbag.dags = {"test_dag": dag}
 
         # Create TI data
@@ -1517,24 +1517,34 @@ class TestExecuteEmailCallbacks:
         )
 
         log = MagicMock(spec=FilteringBoundLogger)
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=request.context_from_server,
+            max_tries=request.context_from_server.max_tries,
+        )
 
         # Execute email callbacks
         _execute_email_callbacks(dagbag, request, log)
 
         # Verify email was sent
-        mock_send_email.assert_called_once_with(
-            "test@example.com",
-            mock.ANY,  # mocked Runtime TI
-            "Task failed",
-            log,
-        )
+        mock_send_email.assert_called_once()
+        call_args = mock_send_email.call_args[0]
 
-    @patch("airflow.dag_processing.processor._send_task_error_email")
+        assert call_args[0] == task
+        assert call_args[1].task_id == runtime_ti.task_id
+        assert call_args[1].dag_id == runtime_ti.dag_id
+        assert call_args[2] is not None  # context
+        assert isinstance(call_args[3], Exception)
+        assert call_args[3].args[0] == request.msg
+        assert call_args[4] == log
+
+    @patch("airflow.dag_processing.processor._send_error_email_notification")
     def test_execute_email_callbacks_retry(self, mock_send_email):
         """Test email callback execution for task retry."""
         dagbag = MagicMock(spec=DagBag)
         with DAG(dag_id="test_dag") as dag:
-            BaseOperator(task_id="test_task", email=["test@example.com"])
+            task = BaseOperator(task_id="test_task", email=["test@example.com"])
         dagbag.dags = {"test_dag": dag}
 
         ti_data = TIDataModel(
@@ -1578,19 +1588,28 @@ class TestExecuteEmailCallbacks:
         )
 
         log = MagicMock(spec=FilteringBoundLogger)
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=request.context_from_server,
+            max_tries=request.context_from_server.max_tries,
+        )
 
         # Execute email callbacks
         _execute_email_callbacks(dagbag, request, log)
 
-        # Verify email was sent
-        mock_send_email.assert_called_once_with(
-            ["test@example.com"],
-            mock.ANY,  # mocked Runtime TI
-            "Task retry",
-            log,
-        )
+        mock_send_email.assert_called_once()
+        call_args = mock_send_email.call_args[0]
 
-    @patch("airflow.dag_processing.processor._send_task_error_email")
+        assert call_args[0] == task
+        assert call_args[1].task_id == runtime_ti.task_id
+        assert call_args[1].dag_id == runtime_ti.dag_id
+        assert call_args[2] is not None  # context
+        assert isinstance(call_args[3], Exception)
+        assert call_args[3].args[0] == request.msg
+        assert call_args[4] == log
+
+    @patch("airflow.dag_processing.processor._send_error_email_notification")
     def test_execute_email_callbacks_no_email_configured(self, mock_send_email):
         """Test email callback when no email is configured."""
         dagbag = MagicMock(spec=DagBag)
@@ -1647,8 +1666,7 @@ class TestExecuteEmailCallbacks:
         assert "Email callback requested but no email configured" in warning_call
         mock_send_email.assert_not_called()
 
-    @patch("airflow.dag_processing.processor._send_task_error_email")
-    def test_execute_email_callbacks_email_disabled_for_type(self, mock_send_email):
+    def test_execute_email_callbacks_email_disabled_for_type(self):
         """Test email callback when email is disabled for the specific type."""
         dagbag = MagicMock(spec=DagBag)
         with DAG(dag_id="test_dag") as dag:
@@ -1699,9 +1717,6 @@ class TestExecuteEmailCallbacks:
 
         # Execute email callbacks
         _execute_email_callbacks(dagbag, request, log)
-
-        # Verify no email was sent
-        mock_send_email.assert_not_called()
 
         # Verify info log about email being disabled
         log.info.assert_called_once()
