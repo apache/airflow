@@ -20,42 +20,53 @@ import { Input, type InputProps } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import { forwardRef } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 import { useTimezone } from "src/context/timezone";
-import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 dayjs.extend(tz);
 
-type Props = {
-  readonly value: string;
-} & InputProps;
+const CustomInput = forwardRef<HTMLInputElement, InputProps>(({ onClick, value, ...rest }, ref) => (
+  <Input {...rest} onClick={onClick} ref={ref} value={value} w="full" />
+));
 
-export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
+CustomInput.displayName = "CustomInput";
+
+export const DateTimeInput = forwardRef<HTMLInputElement, InputProps>(({ onChange, value, ...rest }, ref) => {
   const { selectedTimezone } = useTimezone();
 
-  // Convert UTC value to local time for display
-  const displayValue =
-    Boolean(value) && dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
+  const selected =
+    Boolean(value) && typeof value === "string" && dayjs(value).isValid() ? dayjs(value).toDate() : undefined;
+
+  const handleChange = (date: Date | null) => {
+    if (!onChange) {
+      return;
+    }
+
+    const localDateTimeString = date ? dayjs(date).format("YYYY-MM-DDTHH:mm:ss") : "";
+    const newValue = localDateTimeString
+      ? dayjs(localDateTimeString).tz(selectedTimezone, true).toISOString()
       : "";
 
+    const event = {
+      target: {
+        value: newValue,
+      },
+    } as React.ChangeEvent<HTMLInputElement>;
+
+    onChange(event);
+  };
+
   return (
-    <Input
-      onChange={(event) =>
-        onChange?.({
-          ...event,
-          target: {
-            ...event.target,
-            value: dayjs(event.target.value).isValid()
-              ? dayjs.tz(event.target.value, selectedTimezone).toISOString() // UI Timezone -> Utc -> yyyy-mm-ddThh:mm
-              : "",
-          },
-        })
-      }
-      ref={ref}
-      type="datetime-local"
-      value={displayValue}
-      {...rest}
+    <DatePicker
+      customInput={<CustomInput {...rest} ref={ref} />}
+      dateFormat="yyyy-MM-dd HH:mm"
+      onChange={handleChange}
+      popperPlacement="bottom-start"
+      selected={selected}
+      showTimeSelect
+      timeFormat="HH:mm"
     />
   );
 });

@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Button } from "src/components/ui";
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
@@ -36,7 +35,7 @@ import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
+import { ReprocessBehaviorForm } from "./ReprocessBehaviorForm";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
@@ -45,10 +44,10 @@ type RunBackfillFormProps = {
 };
 const today = new Date().toISOString().slice(0, 16);
 
-type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
+export type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
-  const { t: translate } = useTranslation(["components", "common"]);
+  const { t: translate } = useTranslation("components");
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
   const [formError, setFormError] = useState(false);
@@ -155,7 +154,15 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.from")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput
+                    {...field}
+                    max={today}
+                    onBlur={() => {
+                      field.onBlur();
+                      resetDateError();
+                    }}
+                    size="sm"
+                  />
                   <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
                 </Field.Root>
               )}
@@ -166,7 +173,15 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.to")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput
+                    {...field}
+                    max={today}
+                    onBlur={() => {
+                      field.onBlur();
+                      resetDateError();
+                    }}
+                    size="sm"
+                  />
                 </Field.Root>
               )}
             />
@@ -177,29 +192,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Controller
           control={control}
           name="reprocess_behavior"
-          render={({ field }) => (
-            <RadioCardRoot
-              defaultValue={field.value}
-              onChange={(event) => {
-                field.onChange(event);
-              }}
-            >
-              <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
-                {translate("backfill.reprocessBehavior")}
-              </RadioCardLabel>
-              <HStack align="stretch">
-                {reprocessBehaviors.map((item) => (
-                  <RadioCardItem
-                    colorPalette="brand"
-                    indicatorPlacement="start"
-                    key={item.value}
-                    label={translate(item.label)}
-                    value={item.value}
-                  />
-                ))}
-              </HStack>
-            </RadioCardRoot>
-          )}
+          render={({ field }) => <ReprocessBehaviorForm field={field} translate={translate} />}
         />
         <Spacer />
         <Controller
