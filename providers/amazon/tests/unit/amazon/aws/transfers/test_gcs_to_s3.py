@@ -387,7 +387,8 @@ class TestGCSToS3Operator:
             _, _ = _create_test_bucket()
 
             # Mock the logging to verify warning is logged
-            with mock.patch.object(operator, "log") as mock_log:
+            mock_path = "airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator.log"
+            with mock.patch(mock_path) as mock_log:
                 uploaded_files = operator.execute(None)
 
                 # Only one of the duplicate files should be uploaded
