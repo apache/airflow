@@ -773,7 +773,7 @@ class AirflowConfigParser(ConfigParser):
             self._upgrade_postgres_metastore_conn,
         ]
 
-    def validate(self):
+    def validate(self) -> None:
         """Run all registered validators."""
         for validator in self._validators:
             validator()
