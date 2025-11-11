@@ -28,11 +28,10 @@ import {
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
-import { isHttpError } from "src/utils";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
-
+import { isHttpError } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -68,13 +67,19 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     // Check if error is a 403 (Forbidden) status
     if (isHttpError(_error, 403)) {
       toaster.create({
-        description: translate("triggerDag.toaster.error.forbidden.description", "You don't have permission to trigger this DAG"),
+        description: translate(
+          "triggerDag.toaster.error.forbidden.description",
+          "You don't have permission to trigger this DAG",
+        ),
         title: translate("triggerDag.toaster.error.forbidden.title", "Permission Denied"),
         type: "error",
       });
     } else if (isHttpError(_error, 401)) {
       toaster.create({
-        description: translate("triggerDag.toaster.error.unauthorized.description", "Please log in to trigger DAGs"),
+        description: translate(
+          "triggerDag.toaster.error.unauthorized.description",
+          "Please log in to trigger DAGs",
+        ),
         title: translate("triggerDag.toaster.error.unauthorized.title", "Authentication Required"),
         type: "error",
       });
@@ -119,9 +124,9 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   return {
     error,
-    isPending,
-    triggerDagRun,
     isForbidden: isHttpError(error, 403),
-    isUnauthorized: isHttpError(error, 401)
+    isPending,
+    isUnauthorized: isHttpError(error, 401),
+    triggerDagRun,
   };
 };

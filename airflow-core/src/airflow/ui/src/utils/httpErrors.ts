@@ -19,31 +19,36 @@
 
 /**
  * Checks if an error object has a specific HTTP status code
- * Handles various error formats including direct status, response.status, and nested error structures
+ * Handles various error formats including direct status and response.status
  *
  * @param error - The error object to check
  * @param status - The HTTP status code to match
  * @returns true if the error has the specified status code, false otherwise
  */
 export const isHttpError = (error: unknown, status: number): boolean => {
-  if (!error || typeof error !== 'object') return false;
+  if (error === null || error === undefined || typeof error !== "object") {
+    return false;
+  }
 
   // Check for direct status property
-  if ('status' in error && error.status === status) return true;
+  if ("status" in error && (error as { status?: unknown }).status === status) {
+    return true;
+  }
 
   // Check for response.status (common in fetch errors)
-  if ('response' in error &&
-      error.response &&
-      typeof error.response === 'object' &&
-      'status' in error.response &&
-      error.response.status === status) return true;
+  if ("response" in error) {
+    const { response } = error as { response?: unknown };
 
-  // Check for nested error structures
-  if ('error' in error &&
-      error.error &&
-      typeof error.error === 'object' &&
-      'status' in error.error &&
-      error.error.status === status) return true;
+    if (
+      response !== null &&
+      response !== undefined &&
+      typeof response === "object" &&
+      "status" in response &&
+      (response as { status?: unknown }).status === status
+    ) {
+      return true;
+    }
+  }
 
   return false;
 };
