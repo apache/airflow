@@ -46,6 +46,20 @@ classifiers = [
   "Framework :: Apache Airflow",
 ]
 
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/apache-airflow-ctl/stable/index.html"
+Downloads = "https://archive.apache.org/dist/airflow/airflow-ctl/"
+Homepage = "https://airflow.apache.org/"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow-ctl/stable/changelog.html"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+
 [project.optional-dependencies]
 "dev" = [
     "keyrings.alt>=5.0.2",
