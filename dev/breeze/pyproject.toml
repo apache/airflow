@@ -90,7 +90,14 @@ line-length = 110
 target-version = ['py310', 'py311', 'py312']
 
 [tool.pytest]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
+
 norecursedirs = [
     ".eggs",
 ]
