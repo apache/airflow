@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, overload, Callable
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import quote_plus, urlencode
 
 import trino
