@@ -482,7 +482,7 @@ def test_create_collection(weaviate_hook):
 
 
 @pytest.mark.parametrize(
-    argnames=["data", "expected_length"],
+    argnames=("data", "expected_length"),
     argvalues=[
         (
             [
@@ -576,7 +576,7 @@ def test_batch_create_links_retry(weaviate_hook):
 
 
 @pytest.mark.parametrize(
-    argnames=["data", "expected_length"],
+    argnames=("data", "expected_length"),
     argvalues=[
         ([{"name": "John"}, {"name": "Jane"}], 2),
         (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
@@ -975,7 +975,7 @@ def test_replace_option_of_create_or_replace_document_objects(
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
 @pytest.mark.parametrize(
-    "http_secure, port, expected",
+    ("http_secure", "port", "expected"),
     [
         (False, None, 80),
         (True, None, 443),

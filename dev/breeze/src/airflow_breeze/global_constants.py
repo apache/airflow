@@ -204,7 +204,6 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -221,7 +220,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.7"
+UV_VERSION = "0.9.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -440,8 +439,11 @@ PRODUCTION_IMAGE = False
 # changes from main to the previous branch.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
+# All versions we can run against (Need to include versions for main branch and the current release branch)
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
+CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
+
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
     CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
@@ -640,9 +642,9 @@ def get_task_sdk_version():
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line in dockerfile.readlines():
-            if "ARG AIRFLOW_EXTRAS=" in line:
-                line = line.split("=")[1].strip()
+        for line_raw in dockerfile.readlines():
+            if "ARG AIRFLOW_EXTRAS=" in line_raw:
+                line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")
 
 

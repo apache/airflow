@@ -157,7 +157,7 @@ class TestDockerDecorator:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),

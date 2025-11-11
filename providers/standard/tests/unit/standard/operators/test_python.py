@@ -338,7 +338,7 @@ class TestPythonOperator(BasePythonTest):
         self.run_as_task(func, op_kwargs={"custom": 1})
 
     @pytest.mark.parametrize(
-        "show_return_value_in_logs, should_shown",
+        ("show_return_value_in_logs", "should_shown"),
         [
             pytest.param(NOTSET, True, id="default"),
             pytest.param(True, True, id="show"),
@@ -580,7 +580,7 @@ class TestBranchOperator(BasePythonTest):
             )
 
     @pytest.mark.parametrize(
-        "choice,expected_states",
+        ("choice", "expected_states"),
         [
             ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
             ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
@@ -1073,7 +1073,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),
@@ -1237,7 +1237,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1289,7 +1289,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1309,7 +1309,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         )
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1380,7 +1380,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         )
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1599,7 +1599,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
     @pytest.mark.parametrize(
-        "requirements, system_site, want_airflow, want_pendulum",
+        ("requirements", "system_site", "want_airflow", "want_pendulum"),
         [
             # nothing → just base keys
             ([], False, False, False),
@@ -2239,7 +2239,7 @@ class TestCurrentContextRuntime:
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
     @pytest.mark.parametrize(
-        "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
+        ("ignore_downstream_trigger_rules", "with_teardown", "should_skip", "expected"),
         [
             (False, True, True, ["op2"]),
             (False, True, False, []),
@@ -2377,7 +2377,7 @@ class TestShortCircuitWithTeardown:
 
 
 @pytest.mark.parametrize(
-    "text_input, expected_tuple",
+    ("text_input", "expected_tuple"),
     [
         pytest.param("   2.7.18.final.0  ", (2, 7, 18, "final", 0), id="py27"),
         pytest.param("3.10.13.final.0\n", (3, 10, 13, "final", 0), id="py310"),

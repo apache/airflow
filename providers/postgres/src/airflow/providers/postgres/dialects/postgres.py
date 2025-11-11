@@ -41,7 +41,7 @@ class PostgresDialect(Dialect):
         """
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        table = self.unescape_word(table)
+        table = self.unescape_word(table) or table
         schema = self.unescape_word(schema) if schema else None
         query = """
             select kcu.column_name
@@ -75,7 +75,7 @@ class PostgresDialect(Dialect):
     ) -> list[str] | None:
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        table = self.unescape_word(table)
+        table = self.unescape_word(table) or table
         schema = self.unescape_word(schema) if schema else None
         query = """
             select column_name,

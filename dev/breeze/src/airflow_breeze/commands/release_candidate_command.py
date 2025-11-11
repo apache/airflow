@@ -24,7 +24,12 @@ from pathlib import Path
 
 import click
 
-from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_dry_run,
+    option_verbose,
+    option_version_suffix,
+)
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     TarBallType,
@@ -305,24 +310,25 @@ def tarball_release(
 def create_tarball_release(
     tarball_type: TarBallType,
     version: str | None,
+    version_suffix: str,
 ):
     if tarball_type == TarBallType.AIRFLOW:
-        tag = version if version else "HEAD"
+        tag = version + version_suffix if version else "HEAD"
         if not version:
             version = get_airflow_version()
             console_print(f"\n[info]Using {version} retrieved from airflow-core as tarball version\n")
     elif tarball_type == TarBallType.TASK_SDK:
-        tag = f"task-sdk/{version}" if version else "HEAD"
+        tag = f"task-sdk/{version + version_suffix}" if version else "HEAD"
         if not version:
             version = get_task_sdk_version()
             console_print(f"\n[info]Using {version} retrieved from task-sdk as tarball version\n")
     elif tarball_type == TarBallType.AIRFLOW_CTL:
-        tag = f"airflow-ctl/{version}" if version else "HEAD"
+        tag = f"airflow-ctl/{version + version_suffix}" if version else "HEAD"
         if not version:
             version = get_airflowctl_version()
             console_print(f"\n[info]Using {version} retrieved from airflow-ctl as tarball version\n")
     elif tarball_type == TarBallType.PROVIDERS:
-        tag = f"providers/{version}" if version else "HEAD"
+        tag = f"providers/{version + version_suffix}" if version else "HEAD"
         if not version:
             version = date.strftime(date.today(), "%Y-%m-%d")
             console_print(f"\n[info]Using current date {version} as tarball version\n")
@@ -610,15 +616,18 @@ def remove_old_releases(version, repo_root):
     "If not specified, the HEAD of current branch will be used and version will be retrieved from there.",
     envvar="VERSION",
 )
+@option_version_suffix
 @option_dry_run
 @option_verbose
 def prepare_tarball(
     tarball_type: str,
     version: str | None,
+    version_suffix: str,
 ):
     enum_tarball_type = TarBallType(tarball_type)
     create_tarball_release(
         version=version,
+        version_suffix=version_suffix,
         tarball_type=enum_tarball_type,
     )
 
@@ -712,9 +721,10 @@ def publish_release_candidate(
     if confirm_action("Create tarball?"):
         # Create the tarball
         tarball_release(
-            version=version,
+            version=version_without_rc,
             source_date_epoch=source_date_epoch,
             tarball_type=TarBallType.AIRFLOW,
+            tag=version,
         )
     # Sign the release
     sign_the_release(airflow_repo_root)

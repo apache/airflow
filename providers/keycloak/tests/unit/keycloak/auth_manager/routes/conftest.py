@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+from typing import TYPE_CHECKING
+
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
@@ -26,8 +30,12 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
 )
+from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 
 
 @pytest.fixture
@@ -44,4 +52,21 @@ def client():
             (CONF_SECTION_NAME, "base_url"): "http://host.docker.internal:48080",
         }
     ):
-        yield TestClient(create_app())
+        app = create_app()
+        auth_manager: KeycloakAuthManager = app.state.auth_manager
+        time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
+        time_after = datetime.datetime.now() + datetime.timedelta(days=1)
+        with time_machine.travel(time_very_before, tick=False):
+            token = auth_manager._get_token_signer(
+                expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
+            ).generate(
+                auth_manager.serialize_user(
+                    KeycloakAuthManagerUser(
+                        user_id="user_id",
+                        name="name",
+                        access_token="access_token",
+                        refresh_token="refresh_token",
+                    )
+                ),
+            )
+        yield TestClient(create_app(), headers={"Authorization": f"Bearer {token}"})
