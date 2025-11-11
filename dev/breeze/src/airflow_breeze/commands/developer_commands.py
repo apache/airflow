@@ -506,7 +506,7 @@ option_executor_start_airflow = click.option(
 @click.option(
     "--create-all-roles",
     help="Creates all user roles for testing with FabAuthManager (viewer, user, op, admin). "
-    "SimpleAuthManager always has all roles available. Only works with --dev-mode.",
+    "SimpleAuthManager always has all roles available.",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
