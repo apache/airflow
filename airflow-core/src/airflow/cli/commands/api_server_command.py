@@ -55,6 +55,7 @@ def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, prox
     log.info(
         textwrap.dedent(
             f"""\
+            Test:
             Running the uvicorn with:
             Apps: {apps}
             Workers: {num_workers}
