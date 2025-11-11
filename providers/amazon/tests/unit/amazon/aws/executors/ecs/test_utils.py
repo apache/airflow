@@ -1,4 +1,4 @@
-# Licensed to the Apache Software Foundation (ASF) under one
+# Licensed to the Apache Software Foundation (ASF) under one 
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -21,8 +21,6 @@ from __future__ import annotations
 
 import datetime
 from unittest import mock
-
-import pytest
 
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -91,7 +89,7 @@ class TestRunTaskKwargsConfigKeys:
     def test_config_keys_values(self):
         """Test that config keys have correct values."""
         assert RunTaskKwargsConfigKeys.ASSIGN_PUBLIC_IP == "assign_public_ip"
-        assert RunTaskKwargsConfigKeys.CAPACITY_PROVIDER_STRATEGY == "capacity_provider_strategy"
+        assert RunTaskKwargsConfigKeys.CAPACITY_PROVIDER_STRATEGY == "capacity_provider_strategy" 
         assert RunTaskKwargsConfigKeys.CLUSTER == "cluster"
         assert RunTaskKwargsConfigKeys.CONTAINER_NAME == "container_name"
         assert RunTaskKwargsConfigKeys.LAUNCH_TYPE == "launch_type"
@@ -182,7 +180,7 @@ class TestEcsExecutorTask:
     def test_get_task_state_removed_timeout(self):
         """Test get_task_state returns REMOVED when task timed out."""
         task = EcsExecutorTask(
-            task_arn="arn:aws:ecs:us-east-1:123456789012:task/test-task",
+            task_arn="arn:aws:ecs:us-east-1:123456789012:task/test-task", 
             last_status="STOPPED",
             desired_status="STOPPED",
             containers=[{"name": "container1", "exit_code": 0}],
@@ -246,7 +244,9 @@ class TestEcsTaskCollection:
     def setup_method(self):
         """Set up test fixtures."""
         self.collection = EcsTaskCollection()
-        self.task_key = TaskInstanceKey(dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1)
+        self.task_key = TaskInstanceKey(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", try_number=1
+        )
         self.task_arn = "arn:aws:ecs:us-east-1:123456789012:task/test-task"
         self.task = EcsExecutorTask(
             task_arn=self.task_arn,
@@ -280,7 +280,7 @@ class TestEcsTaskCollection:
 
         assert self.collection.key_to_arn[self.task_key] == self.task_arn
         assert self.collection.arn_to_key[self.task_arn] == self.task_key
-        assert self.collection.tasks[self.task_arn] == self.task
+        assert self.collection.tasks[self.task_arn] == self.task 
         assert self.collection.key_to_failure_counts[self.task_key] == 1
         assert self.collection.key_to_task_info[self.task_key].cmd == self.cmd
         assert self.collection.key_to_task_info[self.task_key].queue == self.queue
@@ -389,7 +389,7 @@ class TestEcsTaskCollection:
             task=self.task,
             airflow_task_key=self.task_key,
             queue=self.queue,
-            airflow_cmd=self.cmd,
+            airflow_cmd=self.cmd, 
             exec_config=self.exec_config,
             attempt_number=3,
         )
