@@ -26,6 +26,7 @@ import subprocess
 from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
@@ -650,10 +651,6 @@ AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
     AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
 )
 
-UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
-)
-
 ALL_PYPROJECT_TOML_FILES = []
 
 
@@ -677,6 +674,33 @@ def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, Non
                 break
 
 
+_regenerate_provider_deps_lock = Lock()
+_has_regeneration_of_providers_run = False
+
+UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
+)
+
+
+def regenerate_provider_dependencies_once() -> None:
+    """Run provider dependencies regeneration once per interpreter execution.
+
+    This function is safe to call multiple times from different modules; the
+    underlying command will only run once. If the underlying command fails the
+    CalledProcessError is propagated to the caller.
+    """
+    global _has_regeneration_of_providers_run
+    with _regenerate_provider_deps_lock:
+        if _has_regeneration_of_providers_run:
+            return
+        # Run the regeneration command from the repository root to ensure correct
+        # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
+        subprocess.check_call(
+            ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
+        )
+        _has_regeneration_of_providers_run = True
+
+
 def _calculate_provider_deps_hash():
     import hashlib
 
@@ -692,7 +716,7 @@ def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
     AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
     # We use regular print there as rich console might not be initialized yet here
     print("Regenerating provider dependencies file")
-    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+    regenerate_provider_dependencies_once()
     return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
 
 
@@ -720,6 +744,7 @@ def generate_provider_dependencies_if_needed():
 
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
+
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
