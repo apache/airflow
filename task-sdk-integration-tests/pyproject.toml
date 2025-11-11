@@ -21,8 +21,8 @@ requires = [ "hatchling==1.27.0" ]
 build-backend = "hatchling.build"
 
 [project]
-name = "apache-airflow-task-sdk-tests"
-description = "Task SDK tests for Apache Airflow"
+name = "apache-airflow-task-sdk-integration-tests"
+description = "Task SDK integration tests for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
