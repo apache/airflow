@@ -248,9 +248,9 @@ class TestCliUsers:
                 ]
             )
             user_command.users_create(args)
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout_io:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
-            stdout = stdout.getvalue()
+            stdout = stdout_io.getvalue()
         for i in range(3):
             assert f"user{i}" in stdout
 

@@ -2175,9 +2175,9 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
             ti.map_index = 0
             task = ti.task
             for map_index in range(1, 5):
-                ti = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
-                session.add(ti)
-                ti.dag_run = dr
+                ti_new = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
+                session.add(ti_new)
+                ti_new.dag_run = dr
         else:
             # run tasks "do_something" to get XCOMs for correct downstream length
             ti.run()

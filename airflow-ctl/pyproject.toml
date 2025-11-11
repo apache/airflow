@@ -20,6 +20,8 @@ name = "apache-airflow-ctl"
 dynamic = ["version"]
 description = "Apache Airflow command line tool for communicating with an Apache Airflow, using the API."
 readme = { file = "README.md", content-type = "text/markdown" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We do not want to upper-bind Python version, as we do not know if we will support Python 3.14+
 # out-of-the box. Airflow-ctl is a small tool that does not have many dependencies and does not use
 # sophisticated features of Python, so it should work with Python 3.14+ once all it's dependencies are
