@@ -596,13 +596,14 @@ class AwsEcsExecutor(BaseExecutor):
                     if AIRFLOW_V_3_0_PLUS:
                         # In Airflow 3.x, we need to reconstruct the command from workload
                         # For adopted tasks, we construct a basic command list
+                        # Note: execution_date was renamed to logical_date in Airflow 3.x
                         command = [
                             "airflow",
                             "tasks",
                             "run",
                             ti.dag_id,
                             ti.task_id,
-                            ti.execution_date.isoformat(),
+                            ti.logical_date.isoformat(),
                         ]
                         if ti.map_index >= 0:
                             command.extend(["--map-index", str(ti.map_index)])
