@@ -33,7 +33,7 @@ from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, DBAPIError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -2333,24 +2333,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        for attempt in run_with_db_retries(max_retries, logger=self.log):
-            with attempt:
-                num_timed_out_tasks = session.execute(
-                    update(TI)
-                    .where(
-                        TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
-                    )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
-                    )
-                ).rowcount
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+        try:
+            for attempt in run_with_db_retries(max_retries, logger=self.log):
+                with attempt:
+                    try:
+                        num_timed_out_tasks = session.execute(
+                            update(TI)
+                            .where(
+                                TI.state == TaskInstanceState.DEFERRED,
+                                TI.trigger_timeout < timezone.utcnow(),
+                            )
+                            .values(
+                                state=TaskInstanceState.SCHEDULED,
+                                next_method=TRIGGER_FAIL_REPR,
+                                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                                scheduled_dttm=timezone.utcnow(),
+                                trigger_id=None,
+                            )
+                        ).rowcount
+                        if num_timed_out_tasks:
+                            self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                    except OperationalError:
+                        session.rollback()
+                        raise
+        except DBAPIError as e:
+            self.log.exception("DB Error while checking trigger timeouts: %s", e)
+
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:
