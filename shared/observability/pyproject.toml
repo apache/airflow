@@ -47,6 +47,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",
+    "apache-airflow-shared-observability[all]",
 ]
 
 [build-system]
