@@ -309,16 +309,15 @@ class TrinoHook(DbApiHook):
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
-        Overwrite common run. Default split_statements = True
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
-        :param autocommit: What to set the connection's autocommit setting to
-            before executing the query.
-        :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
-        :param split_statements: Whether to split a single SQL string into statements and run separately
-        :param return_last: Whether to return result for only last statement or for all after split
-        :return: if handler provided, returns query results (may be list of results depending on params)
+        Override common run to set split_statements=True by default.
+
+        :param sql: SQL statement or list of statements to execute.
+        :param autocommit: Set autocommit mode before query execution.
+        :param parameters: Parameters to render the SQL query with.
+        :param handler: Optional callable to process each statement result.
+        :param split_statements: Split single SQL string into statements if True.
+        :param return_last: Return only last statement result if True.
+        :return: Query result or list of results.
         """
         return super().run(sql, autocommit, parameters, handler, split_statements, return_last)
 
