@@ -613,20 +613,6 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-   **For WSL users:**
-
-    When running the React TypeScript UI with `breeze start-airflow --development`, you may need to enable polling for file change detection to make hot reloading work properly.
-    Set the following environment variable before starting the UI:
-
-    .. code-block:: bash
-       export CHOKIDAR_USEPOLLING=true
-   
-    Alternatively, you can modify the `dev` script in `ui/package.json` to include it:
-
-    .. code-block:: json
-       "dev": "CHOKIDAR_USEPOLLING=true vite --port 5173 --strictPort"
-  
-
 3. Setup a PostgreSQL database in your database management tool of choice
    (e.g. DBeaver, DataGrip) with host ``localhost``, port ``25433``,
    user ``postgres``,  password ``airflow``, and default schema ``airflow``
