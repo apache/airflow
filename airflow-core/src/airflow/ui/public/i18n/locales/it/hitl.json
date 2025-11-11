@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "Corpo",
+    "createdAtFrom": "Creato da",
+    "createdAtTo": "Creato fino a",
     "response": {
       "all": "Tutte",
       "pending": "In attesa",
@@ -16,11 +19,13 @@
   "requiredActionCount_zero": "Nessuna azione richiesta",
   "requiredActionState": "Stato dell'Azione richiesta",
   "response": {
+    "created": "Risposta creata il ",
     "error": "Errore nella Risposta",
     "optionsDescription": "Scegli le tue opzioni per questa istanza di task",
     "optionsLabel": "Opzioni",
     "received": "Risposta ricevuta il ",
     "respond": "Rispondi",
+    "responded_by_user_name": "Risposto da (Nome utente)",
     "success": "Risposta di {{taskId}} riuscita",
     "title": "Istanza di Task Umana - {{taskId}}"
   },

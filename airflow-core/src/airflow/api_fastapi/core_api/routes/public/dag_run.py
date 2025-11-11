@@ -466,6 +466,7 @@ def trigger_dag_run(
             triggered_by=triggered_by,
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
             session=session,
         )
 
