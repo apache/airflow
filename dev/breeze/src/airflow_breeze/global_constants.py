@@ -220,7 +220,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.7"
+UV_VERSION = "0.9.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -642,9 +642,9 @@ def get_task_sdk_version():
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line in dockerfile.readlines():
-            if "ARG AIRFLOW_EXTRAS=" in line:
-                line = line.split("=")[1].strip()
+        for line_raw in dockerfile.readlines():
+            if "ARG AIRFLOW_EXTRAS=" in line_raw:
+                line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")
 
 

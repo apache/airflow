@@ -1049,7 +1049,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                             self.remove_permission_from_role(role, perm)
 
         # Adding the access control permissions
-        for rolename, resource_actions in access_control.items():
+        for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -1057,9 +1057,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if not isinstance(resource_actions, dict):
-                # Support for old-style access_control where only the actions are specified
-                resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
+            # Support for old-style access_control where only the actions are specified
+            resource_actions = (
+                resource_actions_raw
+                if isinstance(resource_actions_raw, dict)
+                else {permissions.RESOURCE_DAG: set(resource_actions_raw)}
+            )
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:

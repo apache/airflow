@@ -27,7 +27,6 @@ import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui
 import EditableMarkdownArea from "./EditableMarkdownArea";
 import ActionButton from "./ui/ActionButton";
 
-
 const EditableMarkdownButton = ({
   header,
   isPending,

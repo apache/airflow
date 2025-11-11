@@ -158,4 +158,4 @@ def aws_template_fields(*template_fields: str) -> tuple[str, ...]:
             f"{', '.join(map(repr, template_fields))}."
         )
         raise TypeError(msg)
-    return tuple(sorted(list({"aws_conn_id", "region_name", "verify"} | set(template_fields))))
+    return tuple(sorted({"aws_conn_id", "region_name", "verify"} | set(template_fields)))

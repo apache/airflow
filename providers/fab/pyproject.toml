@@ -28,6 +28,8 @@ name = "apache-airflow-providers-fab"
 version = "3.0.1"
 description = "Provider package apache-airflow-providers-fab for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE', '3rd-party-licenses/LICENSES-*']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,14 +45,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10,!=3.13"
-license-files = ["NOTICE", "*/LICENSE*"]
+
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
 # Make sure to run ``prek update-providers-dependencies --all-files``

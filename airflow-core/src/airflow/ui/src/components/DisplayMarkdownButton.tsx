@@ -24,7 +24,6 @@ import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui
 
 import ReactMarkdown from "./ReactMarkdown";
 
-
 const DisplayMarkdownButton = ({
   header,
   icon,

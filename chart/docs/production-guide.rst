@@ -661,12 +661,14 @@ flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling th
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-pgbouncer-certificates``             |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-registry``                           | ``.Values.registry.secretName``          |                                                |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-kerberos-keytab``                    |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-flower``                             | ``.Values.flower.secretName``            | ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``         |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+
+A secret named ``<RELEASE_NAME>-registry`` is also created when ``.Values.registry.connection`` is
+defined and neither ``.Values.registry.secretName`` nor ``.Values.imagePullSecrets`` is set. However,
+this behavior is deprecated in favor of explicitly defining ``.Values.imagePullSecrets``.
 
 You can read more about advanced ways of setting configuration variables in the
 :doc:`apache-airflow:howto/set-config`.

@@ -259,6 +259,7 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
+        "partition_key": None,
     }
 
 
@@ -1392,6 +1393,7 @@ class TestGetDagRunAssetTriggerEvents:
                             "state": "running",
                         }
                     ],
+                    "partition_key": None,
                 }
             ],
             "total_entries": 1,
@@ -1595,6 +1597,7 @@ class TestTriggerDagRun:
             "note": note,
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
+            "partition_key": None,
         }
 
         assert response.json() == expected_response_json
@@ -1788,6 +1791,7 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": note,
+            "partition_key": None,
         }
 
         assert response_2.status_code == 409
@@ -1876,6 +1880,7 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "partition_key": None,
         }
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
