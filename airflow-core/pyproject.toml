@@ -186,11 +186,8 @@ dependencies = [
 "statsd" = [
     "statsd>=3.3.0",
 ]
-"datadog" = [
-    "datadog>=0.50.0",
-]
 "all" = [
-    "apache-airflow-core[async,graphviz,kerberos,memray,otel,statsd,datadog]"
+    "apache-airflow-core[async,graphviz,kerberos,memray,otel,statsd]"
 ]
 
 [project.scripts]

@@ -75,11 +75,6 @@ packages = []
 "async" = [
     "apache-airflow-core[async]"
 ]
-"datadog" = [
-    "apache-airflow-core[datadog]",
-    "apache-airflow-task-sdk[datadog]",
-    "apache-airflow-providers-datadog>=3.8.0"
-]
 "graphviz" = [
     "apache-airflow-core[graphviz]"
 ]
@@ -90,18 +85,13 @@ packages = []
     "apache-airflow-core[memray]"
 ]
 "otel" = [
-    "apache-airflow-core[otel]",
-    "apache-airflow-task-sdk[otel]"
+    "apache-airflow-core[otel]"
 ]
 "statsd" = [
-    "apache-airflow-core[statsd]",
-    "apache-airflow-task-sdk[statsd]"
+    "apache-airflow-core[statsd]"
 ]
 "all-task-sdk" = [
     "apache-airflow-task-sdk[all]"
-]
-"sentry" = [
-    "apache-airflow-task-sdk[sentry]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -198,6 +188,9 @@ packages = []
 ]
 "databricks" = [
     "apache-airflow-providers-databricks>=6.11.0"
+]
+"datadog" = [
+    "apache-airflow-providers-datadog>=3.8.0"
 ]
 "dbt.cloud" = [
     "apache-airflow-providers-dbt-cloud>=3.11.0"
@@ -532,6 +525,9 @@ packages = []
 "rabbitmq" = [
     "amqp>=5.2.0",
 ]
+"sentry" = [
+    "sentry-sdk>=2.30.0",
+]
 "s3fs" = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned in aiobotocore extra
@@ -540,7 +536,6 @@ packages = []
 "uv" = [
     "uv>=0.9.14",
 ]
-
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
