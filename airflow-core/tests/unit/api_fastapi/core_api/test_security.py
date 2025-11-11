@@ -118,7 +118,7 @@ class TestFastApiSecurity:
         mock_resolve_user_from_token.assert_not_called()
 
     @pytest.mark.parametrize(
-        "oauth_token, bearer_credentials_creds, cookies, expected",
+        ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
         [
             ("oauth_token", None, {}, "oauth_token"),
             (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
@@ -177,7 +177,7 @@ class TestFastApiSecurity:
         auth_manager.is_authorized_dag.assert_called_once()
 
     @pytest.mark.parametrize(
-        "url, expected_is_safe",
+        ("url", "expected_is_safe"),
         [
             ("https://server_base_url.com/prefix/some_page?with_param=3", True),
             ("https://server_base_url.com/prefix/", True),
@@ -211,7 +211,7 @@ class TestFastApiSecurity:
         assert is_safe_url(url, request=request) == expected_is_safe
 
     @pytest.mark.parametrize(
-        "url, expected_is_safe",
+        ("url", "expected_is_safe"),
         [
             ("https://server_base_url.com/prefix", False),
             ("https://requesting_server_base_url.com/prefix2", True),

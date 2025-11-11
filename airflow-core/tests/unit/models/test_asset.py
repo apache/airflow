@@ -94,7 +94,7 @@ class TestAssetAliasModel:
 
 
 @pytest.mark.parametrize(
-    "select_stmt, expected_before_clear_1, expected_before_clear_2",
+    ("select_stmt", "expected_before_clear_1", "expected_before_clear_2"),
     [
         pytest.param(
             select(AssetModel.name, AssetModel.uri, DagScheduleAssetReference.dag_id),

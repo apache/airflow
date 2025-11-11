@@ -53,7 +53,7 @@ class TestLambdaHook:
         "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn", new_callable=mock.PropertyMock
     )
     @pytest.mark.parametrize(
-        "payload, invoke_payload",
+        ("payload", "invoke_payload"),
         [(PAYLOAD, BYTES_PAYLOAD), (BYTES_PAYLOAD, BYTES_PAYLOAD)],
     )
     def test_invoke_lambda(self, mock_conn, payload, invoke_payload):
@@ -66,7 +66,7 @@ class TestLambdaHook:
         )
 
     @pytest.mark.parametrize(
-        "hook_params, boto3_params",
+        ("hook_params", "boto3_params"),
         [
             pytest.param(
                 {

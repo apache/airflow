@@ -246,7 +246,7 @@ def get_asset_aliases(
     )
 
     return AssetAliasCollectionResponse(
-        asset_aliases=list(session.scalars(asset_aliases_select)),
+        asset_aliases=session.scalars(asset_aliases_select),
         total_entries=total_entries,
     )
 
@@ -337,7 +337,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
-        asset_events=list(assets_events),
+        asset_events=assets_events,
         total_entries=total_entries,
     )
 
@@ -361,6 +361,7 @@ def create_asset_event(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
+        partition_key=body.partition_key,
         session=session,
     )
 

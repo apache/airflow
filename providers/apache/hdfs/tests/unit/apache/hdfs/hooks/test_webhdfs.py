@@ -83,7 +83,7 @@ class TestWebHDFSHook:
             assert conn == mock_insecure_client.return_value
 
     @pytest.mark.parametrize(
-        "host, user, password",
+        ("host", "user", "password"),
         [
             pytest.param("host_1.com,host_2.com", "user", "without-password", id="without-password"),
             pytest.param("host_1.com,host_2.com", "user", "password", id="with-password"),

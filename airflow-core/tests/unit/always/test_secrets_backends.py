@@ -53,7 +53,7 @@ class TestBaseSecretsBackend:
         clear_db_variables()
 
     @pytest.mark.parametrize(
-        "kwargs, output",
+        ("kwargs", "output"),
         [
             ({"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
             ({"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),
