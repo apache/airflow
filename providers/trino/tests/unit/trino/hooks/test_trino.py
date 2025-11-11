@@ -401,7 +401,7 @@ class TestTrinoHook:
         self.db_hook.run(sql, autocommit, parameters, list)
         mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
 
-    @patch("airflow.hooks.dbapi.DbApiHook.run")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
     def test_run_defaults_no_handler(self, super_run):
         super_run.return_value = None
         sql = "SELECT 1"
@@ -409,7 +409,7 @@ class TestTrinoHook:
         assert result is None
         super_run.assert_called_once_with(sql, False, None, None, True, True)
 
-    @patch("airflow.hooks.dbapi.DbApiHook.run")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
     def test_run_with_handler_and_params(self, super_run):
         super_run.return_value = [("ok",)]
         sql = "SELECT 1"
@@ -427,7 +427,7 @@ class TestTrinoHook:
         assert res == [("ok",)]
         super_run.assert_called_once_with(sql, True, parameters, handler, False, False)
 
-    @patch("airflow.hooks.dbapi.DbApiHook.run")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
     def test_run_multistatement_defaults_to_split(self, super_run):
         sql = "SELECT 1; SELECT 2"
         self.db_hook.run(sql)
