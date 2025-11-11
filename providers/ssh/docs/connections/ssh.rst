@@ -46,6 +46,12 @@ Extra (optional)
 
     * ``key_file`` - Full Path of the private SSH Key file that will be used to connect to the remote_host.
     * ``private_key`` - Content of the private key used to connect to the remote_host.
+
+    .. note::
+       **Supported SSH key types**: RSA, ECDSA, Ed25519
+
+       DSA (DSS) keys are **not supported** as they have been deprecated due to security concerns.
+       If you are still using DSA keys, migrate to Ed25519 (recommended), ECDSA, or RSA keys.
     * ``private_key_passphrase`` - Content of the private key passphrase used to decrypt the private key.
     * ``conn_timeout`` - An optional timeout (in seconds) for the TCP connect. Default is ``10``.
     * ``timeout`` - Deprecated - use conn_timeout instead.
