@@ -132,7 +132,7 @@ CELERY_INTEGRATION = "celery"
 
 def is_wsl() -> bool:
     """Detect if we are running inside WSL."""
-    if platform.system() != "Linux":
+    if platform.system().lower() != "Linux":
         return False
     try:
         with open("/proc/version") as f:
