@@ -592,23 +592,19 @@ class AwsEcsExecutor(BaseExecutor):
                 for task in task_descriptions:
                     ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
 
-                    # Handle Airflow 3.x (Task SDK) vs 2.x differences
                     if AIRFLOW_V_3_0_PLUS:
-                        # In Airflow 3.x, we need to reconstruct the command from workload
-                        # For adopted tasks, we construct a basic command list
-                        # Note: execution_date was renamed to logical_date in Airflow 3.x
+                        from airflow.executors.workloads import ExecuteTask
+
+                        workload = ExecuteTask.make(ti)
+                        ser_input = workload.model_dump_json()
                         command = [
-                            "airflow",
-                            "tasks",
-                            "run",
-                            ti.dag_id,
-                            ti.task_id,
-                            ti.logical_date.isoformat(),
+                            "python",
+                            "-m",
+                            "airflow.sdk.execution_time.execute_workload",
+                            "--json-string",
+                            ser_input,
                         ]
-                        if ti.map_index >= 0:
-                            command.extend(["--map-index", str(ti.map_index)])
                     else:
-                        # In Airflow 2.x, use the existing method
                         command = ti.command_as_list()
 
                     self.active_workers.add_task(
