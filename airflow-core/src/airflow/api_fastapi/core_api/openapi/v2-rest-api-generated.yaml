@@ -11548,7 +11548,6 @@ components:
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots
