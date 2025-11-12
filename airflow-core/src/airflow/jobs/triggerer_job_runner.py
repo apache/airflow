@@ -414,7 +414,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 to_cancel=self.cancelling_triggers,
             )
 
-            # Pull out of these deques in a thread-safe manner
+            # Pull out of these dequeues in a thread-safe manner
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
@@ -600,7 +600,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Request that we update what triggers we're running.
 
         Works out the differences - ones to add, and ones to remove - then
-        adds them to the deques so the subprocess can actually mutate the running
+        adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
@@ -1031,7 +1031,7 @@ class TriggerRunner:
         return finished_ids
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]):
-        # Copy out of our deques in threadsafe manner to sync state with parent
+        # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send = []
         while self.events:
             data = self.events.popleft()

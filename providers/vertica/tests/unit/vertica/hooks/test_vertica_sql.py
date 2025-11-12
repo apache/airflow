@@ -88,7 +88,7 @@ def test_sqlalchemy_url_property(vertica_hook):
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, expected_calls, cursor_results, expected_result",
+    ("return_last", "split_statements", "sql", "expected_calls", "cursor_results", "expected_result"),
     [
         pytest.param(
             True,

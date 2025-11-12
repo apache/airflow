@@ -22,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import (
+    AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_ROOT_PATH,
     run_command,
     temporary_tsc_project,
 )
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     original_files = sys.argv[1:]
     print("Original files:", original_files)
     dir = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
-    relative_dir = Path(dir).relative_to(AIRFLOW_ROOT_PATH)
+    relative_dir = Path(dir).relative_to(AIRFLOW_CORE_ROOT_PATH)
     files = [
         file[len(relative_dir.as_posix()) + 1 :]
         for file in original_files

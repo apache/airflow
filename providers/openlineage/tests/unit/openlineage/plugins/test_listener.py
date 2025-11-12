@@ -858,7 +858,7 @@ class TestOpenLineageListenerAirflow2:
         listener.adapter.complete_task.assert_not_called()
 
     @pytest.mark.parametrize(
-        "max_workers,expected",
+        ("max_workers", "expected"),
         [
             (None, 1),
             ("8", 8),
@@ -1787,7 +1787,7 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter.complete_task.assert_not_called()
 
     @pytest.mark.parametrize(
-        "max_workers,expected",
+        ("max_workers", "expected"),
         [
             (None, 1),
             ("8", 8),
@@ -1897,7 +1897,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
         clear_db_runs()
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_dag, expected_call_count",
+        ("selective_enable", "enable_dag", "expected_call_count"),
         [
             ("True", True, 3),
             ("False", True, 3),
@@ -1921,7 +1921,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             listener.on_dag_run_success(self.dagrun, msg="test success")
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_dag_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_dag_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),
@@ -1978,7 +1978,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),

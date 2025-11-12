@@ -137,7 +137,6 @@ class ParamsDict(MutableMapping[str, Any]):
     if they are not already. This class is to replace param's dictionary implicitly
     and ideally not needed to be used directly.
 
-
     :param dict_obj: A dict or dict like object to init ParamsDict
     :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
     """
