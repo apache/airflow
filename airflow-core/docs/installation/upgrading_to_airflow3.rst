@@ -187,7 +187,7 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
 Step 4: Install the Standard Provider
 --------------------------------------
 
-- Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
+- Some of the commonly used Operators, Sensors, and Triggers which were bundled as part of the ``airflow-core`` package (for example ``BashOperator``, ``PythonOperator``, ``ExternalTaskSensor``, ``FileSensor``, etc.)
   have now been split out into a separate package: ``apache-airflow-providers-standard``.
 - For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
@@ -231,6 +231,9 @@ them to FastAPI apps or ensure you install the FAB provider which provides a bac
 Ideally, you should convert your plugins to the Airflow 3 Plugin interface i.e External Views (``external_views``), Fast API apps (``fastapi_apps``)
 and FastAPI middlewares (``fastapi_root_middlewares``).
 
+If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
+All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+
 Step 7: Changes to your startup scripts
 ---------------------------------------
 
@@ -247,6 +250,15 @@ The Dag processor must now be started independently, even for local or developme
     airflow dag-processor
 
 You should now be able to start up your Airflow 3 instance.
+
+Step 8: Things to check
+-----------------------
+
+Please consider checking the following things after upgrading your Airflow instance:
+
+- If you configured Single-Sign-On (SSO) using OAuth, OIDC, or LDAP, make sure that the authentication is working as expected.
+  If you use a custom ``webserver_config.py`` you need to replace ``from airflow.www.security import AirflowSecurityManager``
+  with ``from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride``.
 
 .. _breaking-changes:
 

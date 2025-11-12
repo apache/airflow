@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -31,6 +32,7 @@ from airflow.api_fastapi.core_api.services.ui.structure import (
     get_upstream_assets,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dag_edges import dag_edges
@@ -70,6 +72,7 @@ def structure_data(
         select(SerializedDagModel)
         .join(DagVersion)
         .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == version_number)
+        .options(joinedload(SerializedDagModel.dag_model).joinedload(DagModel.task_outlet_asset_references)),
     )
     if serialized_dag is None:
         raise HTTPException(

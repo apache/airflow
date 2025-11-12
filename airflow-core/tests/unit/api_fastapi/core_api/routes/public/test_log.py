@@ -180,7 +180,7 @@ class TestTaskInstancesLog:
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
@@ -236,7 +236,7 @@ class TestTaskInstancesLog:
             assert "timestamp" in log
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
@@ -414,7 +414,7 @@ class TestTaskInstancesLog:
         assert response.json()["detail"] == "TaskInstance not found"
 
     @pytest.mark.parametrize(
-        "supports_external_link, task_id, expected_status, expected_response, mock_external_url",
+        ("supports_external_link", "task_id", "expected_status", "expected_response", "mock_external_url"),
         [
             (
                 True,

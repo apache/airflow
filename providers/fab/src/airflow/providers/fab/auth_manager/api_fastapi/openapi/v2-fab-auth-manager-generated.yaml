@@ -82,6 +82,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/logout:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Logout
+      description: Generate a new API token.
+      operationId: logout
+      responses:
+        '307':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /auth/fab/v1/roles:
     post:
       tags:
@@ -239,6 +252,54 @@ paths:
           content:
             application/json:
               schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Role
+      description: Get an existing role.
+      operationId: get_role
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
         '401':
           content:
             application/json:

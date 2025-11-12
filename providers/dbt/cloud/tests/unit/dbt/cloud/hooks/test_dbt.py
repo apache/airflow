@@ -205,7 +205,7 @@ class TestDbtCloudHook:
         create_connection_without_db(proxy_conn)
 
     @pytest.mark.parametrize(
-        argnames="conn_id, url",
+        argnames=("conn_id", "url"),
         argvalues=[(ACCOUNT_ID_CONN, BASE_URL), (SINGLE_TENANT_CONN, SINGLE_TENANT_URL)],
         ids=["multi-tenant", "single-tenant"],
     )
@@ -216,7 +216,7 @@ class TestDbtCloudHook:
         assert hook.dbt_cloud_conn_id == conn_id
 
     @pytest.mark.parametrize(
-        argnames="conn_id, url",
+        argnames=("conn_id", "url"),
         argvalues=[(ACCOUNT_ID_CONN, BASE_URL), (SINGLE_TENANT_CONN, SINGLE_TENANT_URL)],
         ids=["multi-tenant", "single-tenant"],
     )
@@ -226,7 +226,7 @@ class TestDbtCloudHook:
         assert hook.base_url == url
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -249,7 +249,7 @@ class TestDbtCloudHook:
                 fallback_to_default_account(dbt_cloud_func)(hook)
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -264,7 +264,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -283,7 +283,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -304,7 +304,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id, name_contains",
+        argnames=("conn_id", "account_id", "name_contains"),
         argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, PROJECT_NAME)],
         ids=["default_account", "explicit_account"],
     )
@@ -327,7 +327,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -346,7 +346,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -367,7 +367,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id, name_contains",
+        argnames=("conn_id", "account_id", "name_contains"),
         argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, ENVIRONMENT_NAME)],
         ids=["default_account", "explicit_account"],
     )
@@ -390,7 +390,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -411,7 +411,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -432,7 +432,7 @@ class TestDbtCloudHook:
         hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -464,7 +464,7 @@ class TestDbtCloudHook:
         hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -505,7 +505,7 @@ class TestDbtCloudHook:
         assert job_details == DEFAULT_LIST_JOBS_RESPONSE["data"][0]
 
     @pytest.mark.parametrize(
-        argnames="project_name, environment_name, job_name",
+        argnames=("project_name", "environment_name", "job_name"),
         argvalues=[
             ("dummy_name", ENVIRONMENT_NAME, JOB_NAME),
             (PROJECT_NAME, "dummy_name", JOB_NAME),
@@ -595,7 +595,7 @@ class TestDbtCloudHook:
                 )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -617,7 +617,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -649,7 +649,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -684,7 +684,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -714,12 +714,12 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
     @pytest.mark.parametrize(
-        argnames="get_job_runs_data, should_use_rerun",
+        argnames=("get_job_runs_data", "should_use_rerun"),
         argvalues=[
             ([], False),
             ([{"status": DbtCloudJobRunStatus.QUEUED.value}], False),
@@ -773,7 +773,7 @@ class TestDbtCloudHook:
                 )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(PROXY_CONN, ACCOUNT_ID)],
         ids=["proxy_connection"],
     )
@@ -795,7 +795,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -820,7 +820,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -847,7 +847,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -864,7 +864,7 @@ class TestDbtCloudHook:
         )
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -885,7 +885,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -953,7 +953,7 @@ class TestDbtCloudHook:
                     hook.wait_for_job_run_status(**config)
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -972,7 +972,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -993,7 +993,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -1014,7 +1014,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -1036,7 +1036,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
+        argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -1147,7 +1147,7 @@ class TestDbtCloudHook:
         assert extra_options["proxies"] == EXTRA_PROXIES["proxies"]
 
     @pytest.mark.parametrize(
-        argnames="exception, expected",
+        argnames=("exception", "expected"),
         argvalues=[
             (requests_exceptions.ConnectionError(), True),
             (requests_exceptions.Timeout(), True),
@@ -1180,7 +1180,7 @@ class TestDbtCloudHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "error_factory, retry_qty, retry_delay",
+        ("error_factory", "retry_qty", "retry_delay"),
         [
             (
                 lambda: aiohttp.ClientResponseError(
@@ -1230,7 +1230,7 @@ class TestDbtCloudHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "error_factory, expected_exception",
+        ("error_factory", "expected_exception"),
         [
             (
                 lambda: aiohttp.ClientResponseError(
@@ -1268,7 +1268,7 @@ class TestDbtCloudHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        argnames="error_factory, expected_exception",
+        argnames=("error_factory", "expected_exception"),
         argvalues=[
             (
                 lambda: aiohttp.ClientResponseError(

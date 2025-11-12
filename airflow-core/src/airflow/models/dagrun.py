@@ -1449,6 +1449,7 @@ class DagRun(Base, LoggingMixin):
                 state=self.state,
                 conf=self.conf,
                 consumed_asset_events=[],
+                partition_key=self.partition_key,
             )
 
             runtime_ti = RuntimeTaskInstance.model_construct(

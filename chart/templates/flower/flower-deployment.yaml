@@ -85,10 +85,7 @@ spec:
       {{- end }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       containers:
         - name: flower
           image: {{ template "flower_image" . }}

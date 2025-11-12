@@ -134,7 +134,7 @@ class TestAirflowDeprecationAdapter:
             )
 
     @pytest.mark.parametrize(
-        "entity, expected_type",
+        ("entity", "expected_type"),
         [
             (AirflowDeprecationAdapter, "class"),
             (AirflowDeprecationAdapter.get_deprecated_msg, "function (or method)"),
@@ -144,7 +144,7 @@ class TestAirflowDeprecationAdapter:
         assert AirflowDeprecationAdapter.entity_type(entity) == expected_type
 
     @pytest.mark.parametrize(
-        "module_path, qualified_name, _str, expected_path",
+        ("module_path", "qualified_name", "_str", "expected_path"),
         [
             ("test-module", "test-qualified-name", "test-str", "test-module.test-qualified-name"),
             ("test-module", "", "test-str", "test-module"),
@@ -161,7 +161,7 @@ class TestAirflowDeprecationAdapter:
         assert AirflowDeprecationAdapter.entity_path(mock_entity) == expected_path
 
     @pytest.mark.parametrize(
-        "planned_removal_date, planned_removal_release, expected_message",
+        ("planned_removal_date", "planned_removal_release", "expected_message"),
         [
             ("August 22, 2024", None, "after August 22, 2024"),
             (None, "apache-airflow==1.2.3", "since version apache-airflow==1.2.3"),
@@ -181,7 +181,7 @@ class TestAirflowDeprecationAdapter:
         assert adapter.sunset_message() == expected_message
 
     @pytest.mark.parametrize(
-        "use_instead, expected_message",
+        ("use_instead", "expected_message"),
         [
             (None, "There is no replacement."),
             ("replacement", "Please use `replacement` instead."),
@@ -193,7 +193,7 @@ class TestAirflowDeprecationAdapter:
         assert adapter.replacement_message() == expected_message
 
     @pytest.mark.parametrize(
-        "reason, instructions",
+        ("reason", "instructions"),
         [
             ("Test reason", "Test instructions"),
             ("Test reason", None),

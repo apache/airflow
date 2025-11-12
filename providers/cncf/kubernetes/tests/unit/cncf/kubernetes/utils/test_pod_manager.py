@@ -614,7 +614,9 @@ class TestPodManager:
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs["since_seconds"] == 5
 
-    @pytest.mark.parametrize("follow, is_running_calls, exp_running", [(True, 3, False), (False, 3, False)])
+    @pytest.mark.parametrize(
+        ("follow", "is_running_calls", "exp_running"), [(True, 3, False), (False, 3, False)]
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_container_running_follow(
         self, container_running_mock, follow, is_running_calls, exp_running
@@ -878,7 +880,7 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "log_lines, now, expected_log_messages, not_expected_log_messages",
+        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
         [
             # Case 1: No logs
             ([], pendulum.now(), [], []),
@@ -967,7 +969,7 @@ class TestAsyncPodManager:
 
 class TestPodLogsConsumer:
     @pytest.mark.parametrize(
-        "chunks, expected_logs",
+        ("chunks", "expected_logs"),
         [
             ([b"message"], [b"message"]),
             ([b"message1\nmessage2"], [b"message1\n", b"message2"]),
@@ -999,7 +1001,13 @@ class TestPodLogsConsumer:
             assert list(consumer) == []
 
     @pytest.mark.parametrize(
-        "container_run, termination_time, now_time, post_termination_timeout, expected_logs_available",
+        (
+            "container_run",
+            "termination_time",
+            "now_time",
+            "post_termination_timeout",
+            "expected_logs_available",
+        ),
         [
             (
                 False,
@@ -1072,7 +1080,13 @@ class TestPodLogsConsumer:
             assert consumer.logs_available() == expected_logs_available
 
     @pytest.mark.parametrize(
-        "read_pod_cache_timeout, mock_read_pod_at_0, mock_read_pod_at_1, mock_read_pods, expected_read_pods",
+        (
+            "read_pod_cache_timeout",
+            "mock_read_pod_at_0",
+            "mock_read_pod_at_1",
+            "mock_read_pods",
+            "expected_read_pods",
+        ),
         [
             (
                 120,
