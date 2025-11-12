@@ -1710,9 +1710,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_const_fields(cls) -> set[str]:
-        schema_loader = cls._json_schema
-
-        if schema_loader is None:
+        if (schema_loader := cls._json_schema) is None:
             return set()
 
         schema_data = schema_loader.schema
