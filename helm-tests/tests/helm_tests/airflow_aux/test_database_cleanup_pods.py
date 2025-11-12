@@ -236,10 +236,15 @@ class TestDatabaseCleanupPods:
             show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
 
-        assert command == jmespath.search(
-            "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
-        )
-        assert args == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
+        if not command and not args:
+            assert not docs, (
+                "The CronJob should not be created if command and args are null even if enabled is true"
+            )
+        else:
+            assert command == jmespath.search(
+                "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
+            )
+            assert args == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(

@@ -20,7 +20,7 @@
 ################################
 ## Airflow Database Cleanup CronJob
 #################################
-{{- if .Values.databaseCleanup.enabled }}
+{{- if and .Values.databaseCleanup.enabled (or .Values.databaseCleanup.command .Values.databaseCleanup.args) }}
 {{- $nodeSelector := or .Values.databaseCleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.databaseCleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.databaseCleanup.tolerations .Values.tolerations }}
