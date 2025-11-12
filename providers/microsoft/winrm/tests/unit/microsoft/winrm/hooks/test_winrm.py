@@ -23,7 +23,11 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.sdk import Connection
+
+try:
+    from airflow.sdk import Connection
+except ImportError:
+    from airflow.models import Connection
 
 
 class TestWinRMHook:
