@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
 from cryptography.fernet import Fernet
 
 
@@ -29,16 +30,19 @@ def generate_fernet_key_string() -> str:
 
 def update_environment_variable_from_compose_yaml(file_path: str | Path) -> None:
     """Update environment variable AIRFLOW__CORE__FERNET_KEY for a given docker-compose YAML file."""
-    from ruamel.yaml import YAML
-
-    yaml = YAML()
-    file_path = Path(file_path)
+    file_path = Path(file_path) if isinstance(file_path, str) else file_path
     with file_path.open("r") as f:
-        compose_yaml = yaml.load(f)
+        compose_yaml = yaml.safe_load(f)
 
     x_airflow_common = compose_yaml.get("x-airflow-common", {})
+    if x_airflow_common == {}:
+        raise ValueError(
+            "x-airflow-common was not found in a docker-compose file, please either add it or update here."
+        )
     environment = x_airflow_common.get("environment", {})
     environment["AIRFLOW__CORE__FERNET_KEY"] = generate_fernet_key_string()
+    x_airflow_common["environment"] = environment
+    compose_yaml["x-airflow-common"] = x_airflow_common
 
     with file_path.open("w") as f:
-        yaml.dump(compose_yaml, f)
+        yaml.safe_dump(compose_yaml, f)
