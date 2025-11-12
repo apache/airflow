@@ -141,7 +141,7 @@ changes via (this will exclude already merged changes):
 
 ```shell
 git fetch apache
-git log --oneline apache/v2-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
 ```
 
@@ -154,7 +154,7 @@ explanations added to the documentation. Usually you can see the list of such ch
 
 ```shell
 git fetch apache
-git log --oneline apache/v2-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
@@ -170,7 +170,7 @@ To see cherry picking candidates (unmerged PR with the appropriate milestone), f
 branch you can run:
 
 ```shell
-./dev/airflow-github compare 2.1.2 --unmerged
+./dev/airflow-github compare 3.1.3 --unmerged
 ```
 
 You can start cherry picking from the bottom of the list. (older commits first)
@@ -242,13 +242,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -325,7 +325,7 @@ uv tool install -e ./dev/breeze
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
-- Add entry for default python version to `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py`
+- Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
@@ -708,22 +708,19 @@ The following files should be present (9 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC member, you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository
+or update it if you already checked it out:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow
-```
-
-Or update it if you already checked it out:
-
-```shell script
-svn update .
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
 Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
 
 ```shell scrupt
-cd dist/dev/airflow
+cd asf-dist/dev/airflow
 export PATH_TO_SVN=$(pwd -P)
 ```
 
@@ -756,7 +753,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
@@ -828,7 +825,15 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
-Once you have the keys, the signatures can be verified by running this:
+Once you have the keys, the signatures can be verified after switching to the directory where you have the
+release packages:
+
+```shell script
+cd ${PATH_TO_SVN}/${VERSION_RC}
+```
+
+And running this:
+
 
 ```shell script
 for i in *.asc
@@ -888,9 +893,9 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-3.0.5rc4.tar.gz.sha512
-Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.sha512
-Checking apache-airflow-3.0.5rc4-source.tar.gz.sha512
+Checking apache-airflow-3.1.3rc4.tar.gz.sha512
+Checking apache_airflow-3.1.3rc4-py2.py3-none-any.whl.sha512
+Checking apache_airflow-3.1.3rc4-source.tar.gz.sha512
 ```
 
 
@@ -926,7 +931,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres
+breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.10 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -934,7 +939,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.10 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -955,7 +960,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Release Airflow 3.0.5 from 3.0.5rc1 & Task SDK 1.0.5 from 1.0.5rc1
+[RESULT][VOTE] Release Airflow 3.1.3 from 3.1.3rc1 & Task SDK 1.1.3 from 1.1.3rc1
 ```
 
 Message:
@@ -963,7 +968,7 @@ Message:
 ```
 Hello,
 
-The vote to release Apache Airflow version 3.0.5 based on 3.0.5rc3 & Task SDK 1.0.5 from 1.0.5rc3 is now closed.
+The vote to release Apache Airflow version 3.1.3 based on 3.1.3rc3 & Task SDK 1.1.3 from 1.1.3rc3 is now closed.
 
 The vote PASSED with 6 binding "+1", 4 non-binding "+1" and 0 "-1" votes:
 
@@ -1257,6 +1262,8 @@ This includes:
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `1-airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` so that latest
+  compatibility check uses the latest released version of Airflow.
 
 ## Update default Airflow version in the helm chart
 
