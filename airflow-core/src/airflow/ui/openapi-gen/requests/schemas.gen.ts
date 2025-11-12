@@ -4393,7 +4393,7 @@ export const $PoolResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'slots', 'description', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
+    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
     title: 'PoolResponse',
     description: 'Pool serializer for responses.'
 } as const;
