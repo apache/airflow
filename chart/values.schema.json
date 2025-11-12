@@ -8954,7 +8954,7 @@
                 "retentionDays": {
                     "description": "Number of days to retain records in the metadata database.",
                     "type": "integer",
-                    "default": "90"
+                    "default": 90
                 },
                 "command": {
                     "description": "Command to use when running the database cleanup cronjob (templated).",
