@@ -377,7 +377,7 @@ class TriggerRuleDep(BaseTIDep):
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
                     .group_by(TaskInstance.task_id)
-                )
+                ).all()
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
