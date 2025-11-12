@@ -22,8 +22,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+
+try:
+    from airflow.sdk import Connection  # type: ignore
+except ImportError:
+    from airflow.models import Connection  # type: ignore
 
 
 class TestWinRMHook:
