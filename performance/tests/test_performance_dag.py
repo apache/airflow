@@ -121,7 +121,11 @@ def get_import_errors():
         return os.path.relpath(path, DAGS_DIR)
 
     # prepend "(None,None)" to ensure that a test object is always created even if it's a no op.
-    return [(None, None)] + [(strip_path_prefix(k), v.strip()) for k, v in dag_bag.import_errors.items()]
+    errors = []
+    for k, v_list in dag_bag.import_errors.items():
+        for v in v_list:
+            errors.append((strip_path_prefix(k), v.strip()))
+    return [(None, None)] + errors
 
 
 @pytest.mark.parametrize(("rel_path", "rv"), get_import_errors(), ids=[x[0] for x in get_import_errors()])

@@ -23,10 +23,12 @@ import itertools
 import logging
 import os
 import sys
+import traceback
 import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
@@ -78,11 +80,15 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Module attribute name for storing DAG parsing errors from safe_dag context manager
+DAG_PARSING_ERRORS_ATTR = "__airflow_dag_parsing_errors"
+
 TAG_MAX_LEN = 100
 
 __all__ = [
     "DAG",
     "dag",
+    "safe_dag",
 ]
 
 FINISHED_STATES = frozenset(
@@ -1576,3 +1582,79 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
         return wrapper(dag_id_or_func)
 
     return wrapper
+
+
+@contextmanager
+def safe_dag():
+    """
+    Context manager that provides safe DAG creation with individual error handling.
+
+    Wraps an entire DAG creation block (DAG + tasks) to catch exceptions and
+    record them for later display. This allows other DAG blocks in the same
+    file to still be processed even if some fail, enabling partial DAG file
+    loading instead of failing the entire file.
+
+    When an exception occurs within the context manager, the error is captured
+    and made available in the Airflow UI for debugging and troubleshooting.
+
+    .. note::
+        This context manager should wrap individual DAG creation blocks, not the
+        entire file. Each DAG should be wrapped separately to isolate failures.
+
+    Example::
+
+        with safe_dag():
+            dag1 = DAG("dag1", start_date=datetime(2024, 1, 1))
+            task1 = BashOperator(task_id="task1", bash_command="echo hello", dag=dag1)
+
+        # Safely handle dynamic DAG creation that might fail
+        for i in range(10):
+            with safe_dag():
+                dag_name = f"dynamic_dag_{some_complex_function(i)}"
+                dag = DAG(dag_name, start_date=datetime(2024, 1, 1))
+                task = BashOperator(task_id="task", bash_command=f"echo {i}", dag=dag)
+    """
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+    module_name = DagContext.current_autoregister_module_name
+
+    if module_name is None:
+        warnings.warn(
+            "safe_dag() can only be used during DAG file processing by DagBag. "
+            "Using safe_dag() outside of DAG file processing will have no effect.",
+            UserWarning,
+            stacklevel=2,
+        )
+        yield
+        return
+
+    module = sys.modules[module_name]
+    pre_existing_dags = {id(o): o for o in module.__dict__.values() if isinstance(o, DAG)}
+
+    try:
+        yield
+    except Exception as e:
+        from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+        # In case DAG was already created, mark it as failed to prevent it from being processed
+        if current_dag := DagContext.get_latest_popped():
+            current_dag._safe_dag_failed = True
+        # DAG created using standard constructor don't pop DagContext
+        else:
+            new_dags = [
+                o for o in module.__dict__.values() if isinstance(o, DAG) and id(o) not in pre_existing_dags
+            ]
+
+            for dag in new_dags:
+                dag._safe_dag_failed = True
+
+        if not hasattr(module, DAG_PARSING_ERRORS_ATTR):
+            setattr(module, DAG_PARSING_ERRORS_ATTR, [])
+
+        # Get the line number where the error occurred
+        tb = traceback.extract_tb(e.__traceback__)
+        error_line = tb[-1].lineno if tb else "unknown"
+        error_msg = f"Failed to create DAG at line {error_line}: {str(e)}\n{traceback.format_exc()}"
+        getattr(module, DAG_PARSING_ERRORS_ATTR).append(error_msg)
+    finally:
+        DagContext.clear_latest_popped()

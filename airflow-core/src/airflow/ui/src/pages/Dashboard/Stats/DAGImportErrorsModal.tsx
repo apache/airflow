@@ -84,7 +84,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
         <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
             {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
+              <Accordion.Item
+                key={importError.import_error_id}
+                value={importError.import_error_id.toString()}
+              >
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
                     {translate("components:versionDetails.bundleName")}
@@ -93,6 +96,14 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
                   </Text>
                   <PiFilePy />
                   {importError.filename}
+                  <Text as="span" color="fg.muted" fontSize="sm" style={{ marginLeft: "0.5rem" }}>
+                    {(() => {
+                      const firstLine = importError.stack_trace.split("\n")[0] ?? "";
+                      const isFileFailed = firstLine.startsWith("Traceback (most recent call last)");
+
+                      return isFileFailed ? "Failed to parse DAG file" : firstLine.split(":")[0];
+                    })()}
+                  </Text>
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <Text color="fg.muted" fontSize="sm" mb={1}>
