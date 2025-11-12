@@ -292,7 +292,7 @@ def test_validate_dag_bundle_arg():
 
 
 @pytest.mark.parametrize(
-    ["dev_flag", "env_var", "expected"],
+    ("dev_flag", "env_var", "expected"),
     [
         # --dev flag tests
         (True, None, True),

@@ -660,7 +660,6 @@ ignore = [
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
     "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead

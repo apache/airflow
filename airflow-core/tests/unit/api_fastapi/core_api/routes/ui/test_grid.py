@@ -369,7 +369,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        ("params, expected, expected_queries_count"),
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {
