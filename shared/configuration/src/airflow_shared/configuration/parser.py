@@ -223,6 +223,7 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError):
             return fallback
 
+    # TODO: Remove this from shared, after https://github.com/apache/airflow/pull/57970 is merged
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """
         Get provider config fallback default values.
