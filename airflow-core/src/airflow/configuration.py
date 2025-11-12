@@ -779,7 +779,7 @@ class AirflowConfigParser(ConfigParser):
             validator()
         self.is_validated = True
 
-    def _validate_deprecated_values(self):
+    def _validate_deprecated_values(self) -> None:
         """Validate and upgrade deprecated default values."""
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():

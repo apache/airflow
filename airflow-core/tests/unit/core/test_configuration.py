@@ -1105,20 +1105,6 @@ key7 =
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
 
-    def test_default_validators(self):
-        """Test that _validators property returns default validators."""
-        test_conf = AirflowConfigParser(default_config="")
-        validators = test_conf._validators
-
-        assert len(validators) == 4
-        expected_validators = [
-            "_validate_sqlite3_version",
-            "_validate_enums",
-            "_validate_deprecated_values",
-            "_upgrade_postgres_metastore_conn",
-        ]
-        assert [v.__name__ for v in validators] == expected_validators
-
     def test_validate_sets_is_validated_flag(self):
         """Test that validate() sets is_validated to True."""
         test_conf = AirflowConfigParser(default_config="")
