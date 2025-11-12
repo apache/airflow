@@ -102,9 +102,14 @@ include = [
     "/airflow_client",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 # make sure that pytest.ini is not read from pyproject.toml in paraent directories
-addopts = "--color=yes --cov-config=pyproject.toml --cov=airflow_client"
+addopts = [
+    "--color=yes",
+    "--cov-config=pyproject.toml",
+    "--cov=airflow_client",
+]
+
 norecursedirs = [
 ]
 log_level = "INFO"

@@ -897,7 +897,7 @@ mark-parentheses = false
 fixture-parentheses = false
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
