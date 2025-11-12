@@ -115,42 +115,28 @@ def operator_defaults(overrides):
     """
     import airflow.sdk.definitions._internal.abstractoperator as abstract_op_module
     from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     original_values = {}
-    original_module_constants = {}
-    try:
-        # Store original values and apply overrides
-        for key, value in overrides.items():
-            original_values[key] = OPERATOR_DEFAULTS.get(key)
-            OPERATOR_DEFAULTS[key] = value
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        try:
+            # Patch OPERATOR_DEFAULTS
+            for key, value in overrides.items():
+                original_values[key] = OPERATOR_DEFAULTS.get(key)
+                monkeypatch.setitem(OPERATOR_DEFAULTS, key, value)
 
-            # Also patch module-level constants like DEFAULT_RETRIES
-            # These are frozen at import time and used as default parameter values
-            const_name = f"DEFAULT_{key.upper()}"
-            if hasattr(abstract_op_module, const_name):
-                original_module_constants[const_name] = getattr(abstract_op_module, const_name)
-                setattr(abstract_op_module, const_name, value)
+                # Patch module-level constants
+                const_name = f"DEFAULT_{key.upper()}"
+                if hasattr(abstract_op_module, const_name):
+                    monkeypatch.setattr(abstract_op_module, const_name, value)
 
-        # Clear the cache to ensure fresh generation
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+            # Clear the cache to ensure fresh generation
+            SerializedBaseOperator.generate_client_defaults.cache_clear()
 
-        yield
-    finally:
-        # Cleanup: restore original values
-        for key, original_value in original_values.items():
-            if original_value is None and key in OPERATOR_DEFAULTS:
-                # Key didn't exist originally, remove it
-                del OPERATOR_DEFAULTS[key]
-            else:
-                # Restore original value
-                OPERATOR_DEFAULTS[key] = original_value
-
-        # Restore module constants
-        for const_name, original_value in original_module_constants.items():
-            setattr(abstract_op_module, const_name, original_value)
-
-        # Clear cache again to restore normal behavior
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+            yield
+        finally:
+            # Clear cache again to restore normal behavior
+            SerializedBaseOperator.generate_client_defaults.cache_clear()
 
 
 AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
