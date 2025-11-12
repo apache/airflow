@@ -774,6 +774,56 @@ class TestUpdateDagParsingResults:
         )
         assert dag_model.has_import_errors is False
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_clear_import_error_for_file_without_dags(self, testing_dag_bundle, session):
+        """
+        Test that import errors are cleared for files that were parsed but no longer contain DAGs.
+
+        This tests the fix for the issue where import errors persisted for files that were
+        successfully parsed but no longer contained any DAGs.
+        """
+        bundle_name = "testing"
+        filename = "no_dags.py"
+
+        prev_error = ParseImportError(
+            filename=filename,
+            bundle_name=bundle_name,
+            timestamp=tz.utcnow(),
+            stacktrace="Previous import error",
+        )
+        session.add(prev_error)
+
+        # And import error for another file we haven't parsed (this shouldn't be deleted)
+        other_file_error = ParseImportError(
+            filename="other.py",
+            bundle_name=bundle_name,
+            timestamp=tz.utcnow(),
+            stacktrace="Some error",
+        )
+        session.add(other_file_error)
+        session.flush()
+
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        assert import_errors == {("no_dags.py", bundle_name), ("other.py", bundle_name)}
+
+        # Simulate parsing the file: it was parsed successfully (no import errors),
+        # but it no longer contains any DAGs. By passing files_parsed, we ensure
+        # the import error is cleared even though there are no DAGs.
+        files_parsed = {(bundle_name, filename)}
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[],  # No DAGs in this file
+            import_errors={},  # No import errors
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            files_parsed=files_parsed,
+        )
+
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        assert import_errors == {("other.py", bundle_name)}, "Import error for parsed file should be cleared"
+
     @pytest.mark.need_serialized_dag(False)
     @pytest.mark.parametrize(
         ("attrs", "expected"),
