@@ -1006,7 +1006,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         """Get config option from default values."""
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
@@ -1021,7 +1021,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         """Get config option from provider fallback defaults."""
         if self.get_provider_config_fallback_defaults(section, key) is not None:
             # no expansion needed
@@ -1165,7 +1165,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         option = self._get_secret_option(section, key)
         if option:
             return option
@@ -1187,7 +1187,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -1209,7 +1209,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         """Get config option from config file."""
         if team_name := kwargs.get("team_name", None):
             section = f"{team_name}={section}"
@@ -1234,7 +1234,7 @@ class AirflowConfigParser(ConfigParser):
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
         **kwargs,
-    ) -> str | VALUE_NOT_FOUND_SENTINEL:
+    ) -> str | ValueNotFound:
         """Get config option from environment variables."""
         team_name = kwargs.get("team_name", None)
         option = self._get_env_var_option(section, key, team_name=team_name)
