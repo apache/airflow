@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-12T07:53:10.889650
+# This constraints file was automatically generated on 2025-11-12T19:31:48.314431
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -186,7 +186,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
 docutils==0.21.2
-duckdb==1.4.1
+duckdb==1.4.2
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
@@ -196,7 +196,7 @@ entrypoints==0.4
 eralchemy==1.6.0
 et_xmlfile==2.0.0
 eventlet==0.40.3
-execnet==2.1.1
+execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.0
 fastapi-cli==0.0.16
@@ -226,7 +226,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.126.1
+google-cloud-aiplatform==1.127.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -360,7 +360,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.76.3
+litellm==1.79.3
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -521,7 +521,7 @@ pytest-rerunfailures==16.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
-pytest==9.0.0
+pytest==9.0.1
 python-arango==8.2.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -630,7 +630,7 @@ sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.44
+teradatasql==20.0.0.46
 teradatasqlalchemy==20.0.0.8
 termcolor==3.2.0
 testcontainers==4.13.2
