@@ -202,7 +202,8 @@ class TestDatabaseCleanupPods:
 
     def test_default_command_and_args(self):
         docs = render_chart(
-            values={"databaseCleanup": {"enabled": True}}, show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"]
+            values={"databaseCleanup": {"enabled": True}},
+            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) is None
@@ -448,7 +449,10 @@ class TestDatabaseCleanupServiceAccount:
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "databaseCleanup": {"enabled": True, "serviceAccount": {"automountServiceAccountToken": False}},
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {"automountServiceAccountToken": False},
+                },
             },
             show_only=["templates/database-cleanup/database-cleanup-serviceaccount.yaml"],
         )
