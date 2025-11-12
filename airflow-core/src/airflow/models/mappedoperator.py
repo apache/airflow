@@ -279,7 +279,6 @@ class MappedOperator(DAGNode):
     @property
     def retry_exponential_backoff(self) -> float:
         value = self.partial_kwargs.get("retry_exponential_backoff", 0)
-        # Backwards compatibility: True -> 2.0 (old default), False -> 0.0
         if value is True:
             return 2.0
         if value is False:

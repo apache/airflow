@@ -536,7 +536,12 @@ class MappedOperator(AbstractOperator):
 
     @property
     def retry_exponential_backoff(self) -> float:
-        return float(self.partial_kwargs.get("retry_exponential_backoff", 0))
+        value = self.partial_kwargs.get("retry_exponential_backoff", 0)
+        if value is True:
+            return 2.0
+        if value is False:
+            return 0.0
+        return float(value)
 
     @retry_exponential_backoff.setter
     def retry_exponential_backoff(self, value: float) -> None:
