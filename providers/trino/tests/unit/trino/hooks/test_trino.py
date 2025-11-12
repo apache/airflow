@@ -418,11 +418,11 @@ class TestTrinoHook:
         handler = list
         res = self.db_hook.run(
             sql,
-            autocommit = autocommit,
-            parameters = parameters,
-            handler = handler,
-            split_statements = False,
-            return_last = False,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=False,
+            return_last=False,
         )
         assert res == [("ok",)]
         super_run.assert_called_once_with(sql, True, parameters, handler, False, False)
