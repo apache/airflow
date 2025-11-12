@@ -199,19 +199,13 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.runType"),
       options: dagRunTypeOptions.items.map((option) => ({
         label:
-          option.value === "all" ? (
-            translate(option.label)
-          ) : (
+          option.value === "all" ? (translate(option.label)) : (
             <Flex alignItems="center" gap={1}>
               <RunTypeIcon runType={option.value as DagRunType} />
               {translate(option.label)}
             </Flex>
           ),
-        value: option.value === "all" ? (
-          ""
-        ) : (
-          option.value
-        ),
+        value: option.value === "all" ? ("") : (option.value),
       })),
       type: FilterTypes.SELECT,
     },
@@ -230,11 +224,7 @@ export const useFilterConfigs = () => {
           ) : (
             <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
           ),
-        value: option.value === "all" ? (
-          ""
-        ) : (
-          option.value
-        ),
+        value: option.value === "all" ? ("") : (option.value),
       })),
       type: FilterTypes.SELECT,
     },
