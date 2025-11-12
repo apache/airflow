@@ -8996,7 +8996,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\");\necho \"Cleaning up metadata DB entries older than ${CLEAN_TS}\";\nexec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes --verbose"
+                        "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes --verbose"
                     ]
                 },
                 "jobAnnotations": {
