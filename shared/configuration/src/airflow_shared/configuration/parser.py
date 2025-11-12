@@ -416,6 +416,54 @@ class AirflowConfigParser(ConfigParser):
             key = key.lower()
             config_sources.setdefault(section, {}).update({key: opt})
 
+    def _filter_by_source(
+        self,
+        config_sources: ConfigSourcesType,
+        display_source: bool,
+        getter_func,
+    ):
+        """
+        Delete default configs from current configuration.
+
+        An OrderedDict of OrderedDicts, if it would conflict with special sensitive_config_values.
+
+        This is necessary because bare configs take precedence over the command
+        or secret key equivalents so if the current running config is
+        materialized with Airflow defaults they in turn override user set
+        command or secret key configs.
+
+        :param config_sources: The current configuration to operate on
+        :param display_source: If False, configuration options contain raw
+            values. If True, options are a tuple of (option_value, source).
+            Source is either 'airflow.cfg', 'default', 'env var', or 'cmd'.
+        :param getter_func: A callback function that gets the user configured
+            override value for a particular sensitive_config_values config.
+        :return: None, the given config_sources is filtered if necessary,
+            otherwise untouched.
+        """
+        for section, key in self.sensitive_config_values:
+            # Don't bother if we don't have section / key
+            if section not in config_sources or key not in config_sources[section]:
+                continue
+            # Check that there is something to override defaults
+            try:
+                getter_opt = getter_func(section, key)
+            except ValueError:
+                continue
+            if not getter_opt:
+                continue
+            # Check to see that there is a default value
+            if self.get_default_value(section, key) is None:
+                continue
+            # Check to see if bare setting is the same as defaults
+            if display_source:
+                # when display_source = true, we know that the config_sources contains tuple
+                opt, source = config_sources[section][key]  # type: ignore
+            else:
+                opt = config_sources[section][key]
+            if opt == self.get_default_value(section, key):
+                del config_sources[section][key]
+
     def _warn_deprecate(
         self, section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
     ):
