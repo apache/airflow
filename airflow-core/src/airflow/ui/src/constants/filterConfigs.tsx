@@ -200,7 +200,9 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.runType"),
       options: dagRunTypeOptions.items.map((option) => ({
         label:
-          option.value === "all" ? (translate(option.label)) : (
+          option.value === "all" ? (
+            translate(option.label)
+          ) : (
             <Flex alignItems="center" gap={1}>
               <RunTypeIcon runType={option.value as DagRunType} />
               {translate(option.label)}
