@@ -1499,8 +1499,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def _check_subprocess_exit(
         self, raise_on_timeout: bool = False, expect_signal: None | int = None
     ) -> int | None:
-        # In process has no subprocess, so we don't need to poll anything. This is called from
-        # _service_subprocess, so we need to override it
+        # InProcessSupervisor has no subprocess, so we don't need to poll anything. This is called from
+        # _handle_socket_comms, so we need to override it
         return None
 
     def _handle_socket_comms(self):
@@ -1587,8 +1587,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 state=TaskInstanceState.RUNNING,
             )
 
-            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run as
-            # user.
+            # Create a socketpair pre-emptively, in case the task process runs VirtualEnv operator or run_as_user
             with supervisor._setup_subprocess_socket():
                 context = ti.get_template_context()
                 log = structlog.get_logger(logger_name="task")
