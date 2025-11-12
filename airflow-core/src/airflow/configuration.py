@@ -139,22 +139,6 @@ def run_command(command: str) -> str:
     return output
 
 
-def _get_config_value_from_secret_backend(config_key: str) -> str | None:
-    """Get Config option values from Secret Backend."""
-    try:
-        secrets_client = get_custom_secret_backend()
-        if not secrets_client:
-            return None
-        return secrets_client.get_config(config_key)
-    except Exception as e:
-        raise AirflowConfigException(
-            "Cannot retrieve config from alternative secrets backend. "
-            "Make sure it is configured properly and that the Backend "
-            "is accessible.\n"
-            f"{e}"
-        )
-
-
 def _is_template(configuration_description: dict[str, dict[str, Any]], section: str, key: str) -> bool:
     """
     Check if the config is a template.
@@ -328,21 +312,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
-
-    def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
-        """Get Config option values from Secret Backend."""
-        try:
-            secrets_client = get_custom_secret_backend()
-            if not secrets_client:
-                return None
-            return secrets_client.get_config(config_key)
-        except Exception as e:
-            raise AirflowConfigException(
-                "Cannot retrieve config from alternative secrets backend. "
-                "Make sure it is configured properly and that the Backend "
-                "is accessible.\n"
-                f"{e}"
-            )
 
     # Deprecated options and sections are now defined in the shared base class.
     # sensitive_config_values is also provided by the shared base class as a cached property.
@@ -1574,39 +1543,10 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
     Get Secret Backend if defined in airflow.cfg.
 
     Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+
+    This is a convenience function that calls conf._get_custom_secret_backend().
     """
-    section = "workers" if worker_mode else "secrets"
-    key = "secrets_backend" if worker_mode else "backend"
-    kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
-
-    secrets_backend_cls = conf.getimport(section=section, key=key)
-
-    if not secrets_backend_cls:
-        if worker_mode:
-            # if we find no secrets backend for worker, return that of secrets backend
-            secrets_backend_cls = conf.getimport(section="secrets", key="backend")
-            if not secrets_backend_cls:
-                return None
-            # When falling back to secrets backend, use its kwargs
-            kwargs_key = "backend_kwargs"
-            section = "secrets"
-        else:
-            return None
-
-    try:
-        backend_kwargs = conf.getjson(section=section, key=kwargs_key)
-        if not backend_kwargs:
-            backend_kwargs = {}
-        elif not isinstance(backend_kwargs, dict):
-            raise ValueError("not a dict")
-    except AirflowConfigException:
-        log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
-        backend_kwargs = {}
-    except ValueError:
-        log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
-        backend_kwargs = {}
-
-    return secrets_backend_cls(**backend_kwargs)
+    return conf._get_custom_secret_backend(worker_mode=worker_mode)
 
 
 def initialize_secrets_backends(

@@ -239,18 +239,67 @@ class AirflowConfigParser(ConfigParser):
         """
         return None
 
+    def _get_custom_secret_backend(self, worker_mode: bool = False) -> Any | None:
+        """
+        Get Secret Backend if defined in airflow.cfg.
+
+        Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+        """
+        section = "workers" if worker_mode else "secrets"
+        key = "secrets_backend" if worker_mode else "backend"
+        kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
+
+        secrets_backend_cls = self.getimport(section=section, key=key)
+
+        if not secrets_backend_cls:
+            if worker_mode:
+                # if we find no secrets backend for worker, return that of secrets backend
+                secrets_backend_cls = self.getimport(section="secrets", key="backend")
+                if not secrets_backend_cls:
+                    return None
+                # When falling back to secrets backend, use its kwargs
+                kwargs_key = "backend_kwargs"
+                section = "secrets"
+            else:
+                return None
+
+        try:
+            backend_kwargs = self.getjson(section=section, key=kwargs_key)
+            if not backend_kwargs:
+                backend_kwargs = {}
+            elif not isinstance(backend_kwargs, dict):
+                raise ValueError("not a dict")
+        except AirflowConfigException:
+            log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
+            backend_kwargs = {}
+        except ValueError:
+            log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
+            backend_kwargs = {}
+
+        return secrets_backend_cls(**backend_kwargs)
+
     def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
         """
         Get Config option values from Secret Backend.
 
-        This is a stub called by the shared parser's _get_secret_option() method as part of the lookup chain.
-        Subclasses can override this to integrate with their secrets backend system.
-        Default implementation returns None (no secrets backend).
+        Called by the shared parser's _get_secret_option() method as part of the lookup chain.
+        Uses _get_custom_secret_backend() to get the backend instance.
 
         :param config_key: the config key to retrieve
         :return: config value or None
         """
-        return None
+        try:
+            secrets_client = self._get_custom_secret_backend()
+            if not secrets_client:
+                return None
+            return secrets_client.get_config(config_key)
+        except Exception as e:
+            raise self._raise_config_exception(
+                "Cannot retrieve config from alternative secrets backend. "
+                "Make sure it is configured properly and that the Backend "
+                "is accessible.\n"
+                f"{e}"
+            )
 
     def _warn_deprecate(
         self, section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
