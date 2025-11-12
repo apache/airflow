@@ -40,6 +40,11 @@ from .exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
 
+
+ConfigType = str | int | float | bool
+ConfigOptionsDictType = dict[str, ConfigType]
+ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
+ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
 
 
@@ -300,6 +305,40 @@ class AirflowConfigParser(ConfigParser):
                 "is accessible.\n"
                 f"{e}"
             )
+
+    def _get_cmd_option_from_config_sources(
+        self, config_sources: ConfigSourcesType, section: str, key: str
+    ) -> str | None:
+        fallback_key = key + "_cmd"
+        if (section, key) in self.sensitive_config_values:
+            section_dict = config_sources.get(section)
+            if section_dict is not None:
+                command_value = section_dict.get(fallback_key)
+                if command_value is not None:
+                    if isinstance(command_value, str):
+                        command = command_value
+                    else:
+                        command = command_value[0]
+                    return run_command(command)
+        return None
+
+    # _get_secret_option is now provided by the shared base class.
+
+    def _get_secret_option_from_config_sources(
+        self, config_sources: ConfigSourcesType, section: str, key: str
+    ) -> str | None:
+        fallback_key = key + "_secret"
+        if (section, key) in self.sensitive_config_values:
+            section_dict = config_sources.get(section)
+            if section_dict is not None:
+                secrets_path_value = section_dict.get(fallback_key)
+                if secrets_path_value is not None:
+                    if isinstance(secrets_path_value, str):
+                        secrets_path = secrets_path_value
+                    else:
+                        secrets_path = secrets_path_value[0]
+                    return self._get_config_value_from_secret_backend(secrets_path)
+        return None
 
     def _warn_deprecate(
         self, section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
