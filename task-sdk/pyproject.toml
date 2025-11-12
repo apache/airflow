@@ -199,7 +199,7 @@ url = 'http://0.0.0.0:8080/execution/openapi.json'
 output = 'src/airflow/sdk/api/datamodels/_generated.py'
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -230,7 +230,7 @@ testpaths = [
 ]
 asyncio_default_fixture_loop_scope = "function"
 
-pythonpath = "tests"
+pythonpath = ["tests"]
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
