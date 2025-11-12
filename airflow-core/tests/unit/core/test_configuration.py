@@ -23,6 +23,7 @@ import os
 import re
 import textwrap
 import warnings
+from collections.abc import Callable
 from enum import Enum
 from io import StringIO
 from unittest import mock
@@ -1104,6 +1105,23 @@ key7 =
             # Verify kwargs are properly applied to the backend instance
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
+
+    def test_lookup_sequence_override_excludes_env_vars(self, monkeypatch):
+        """Test that overriding lookup sequence to exclude env vars means env vars are not respected."""
+
+        class CustomConfigParser(AirflowConfigParser):
+            @property
+            def _lookup_sequence(self) -> list[Callable]:
+                return [
+                    self._get_option_from_config_file,
+                    self._get_option_from_defaults,
+                ]
+
+        test_conf = CustomConfigParser()
+        monkeypatch.setenv("AIRFLOW__TEST__KEY", "env_value")
+        # Even though env var is set, it will NOT be used because _get_environment_variables is not in the lookup sequence
+        result = test_conf.get("test", "key", fallback="default_value")
+        assert result == "default_value"
 
     def test_validate_sets_is_validated_flag(self):
         """Test that validate() sets is_validated to True."""
