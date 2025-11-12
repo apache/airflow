@@ -24,7 +24,6 @@ import { FilterBar, type FilterValue } from "src/components/FilterBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
@@ -44,10 +43,8 @@ const {
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-
-
 export const TaskInstancesFilter = () => {
-  const {dagId, runId } = useParams();
+  const { dagId, runId } = useParams();
   const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
@@ -67,11 +64,11 @@ export const TaskInstancesFilter = () => {
     ];
 
     if (runId === undefined) {
-       keys.unshift(RUN_ID_PARAM as FilterableSearchParamsKeys);
+      keys.unshift(RUN_ID_PARAM as FilterableSearchParamsKeys);
     }
 
     if (dagId === undefined) {
-       keys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
+      keys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
     }
 
     return keys;
@@ -79,12 +76,7 @@ export const TaskInstancesFilter = () => {
 
   const [searchParams] = useSearchParams();
 
-
-
-
   const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
-
-
 
   const initialValues = useMemo(() => {
     const values: Record<string, FilterValue> = {};
@@ -106,10 +98,8 @@ export const TaskInstancesFilter = () => {
     return values;
   }, [searchParams, filterConfigs]);
 
-
   return (
     <VStack align="start" justifyContent="space-between">
-
       <VStack alignItems="flex-start" gap={1}>
         <FilterBar
           configs={filterConfigs}

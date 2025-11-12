@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /* eslint-disable max-lines */
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { BiTargetLock } from "react-icons/bi";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
-import { PiQueue } from "react-icons/pi";
-import { BiTargetLock } from "react-icons/bi";
 import {
   MdDateRange,
   MdSearch,
@@ -33,6 +33,7 @@ import {
   MdCheckCircle,
   MdBuild,
 } from "react-icons/md";
+import { PiQueue } from "react-icons/pi";
 
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -269,13 +270,9 @@ export const useFilterConfigs = () => {
           option.value === "all" ? (
             translate(option.label)
           ) : (
-            <StateBadge state={option.value as TaskInstanceState }>{translate(option.label)}</StateBadge>
+            <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
           ),
-        value: option.value === "all" ? (
-          ""
-        ):(
-          option.value
-        ),
+        value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
     },
