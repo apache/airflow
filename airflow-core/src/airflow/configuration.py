@@ -1211,6 +1211,8 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | VALUE_NOT_FOUND_SENTINEL:
         """Get config option from config file."""
+        if team_name := kwargs.get("team_name", None):
+            section = f"{team_name}={section}"
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.

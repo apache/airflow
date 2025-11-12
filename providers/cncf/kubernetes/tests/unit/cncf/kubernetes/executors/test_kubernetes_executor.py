@@ -261,7 +261,7 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
     @pytest.mark.parametrize(
-        "response, task_publish_max_retries, should_requeue, task_expected_state",
+        ("response", "task_publish_max_retries", "should_requeue", "task_expected_state"),
         [
             pytest.param(
                 HTTPResponse(body='{"message": "any message"}', status=400),
@@ -840,7 +840,7 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.parametrize(
-        "multi_namespace_mode_namespace_list, watchers_keys",
+        ("multi_namespace_mode_namespace_list", "watchers_keys"),
         [
             pytest.param(["A", "B", "C"], ["A", "B", "C"]),
             pytest.param(None, ["ALL_NAMESPACES"]),
@@ -1363,7 +1363,7 @@ class TestKubernetesExecutor:
         assert executor.running == set()
 
     @pytest.mark.parametrize(
-        "raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config",
+        ("raw_multi_namespace_mode", "raw_value_namespace_list", "expected_value_in_kube_config"),
         [
             pytest.param("true", "A,B,C", ["A", "B", "C"]),
             pytest.param("true", "", None),
@@ -1540,7 +1540,7 @@ class TestKubernetesJobWatcher:
         )
 
     @pytest.mark.parametrize(
-        "raw_object, is_watcher_queue_called",
+        ("raw_object", "is_watcher_queue_called"),
         [
             pytest.param(
                 {
@@ -1853,7 +1853,7 @@ class TestKubernetesJobWatcher:
             mock_underscore_run.assert_called_once_with(mock.ANY, "0", mock.ANY, mock.ANY)
 
     @pytest.mark.parametrize(
-        "state_reasons, expected_result",
+        ("state_reasons", "expected_result"),
         [
             pytest.param("e1,e2,e3", ["e1", "e2", "e3"]),
             pytest.param("e1, e2,e3", ["e1", "e2", "e3"]),

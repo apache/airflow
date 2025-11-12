@@ -96,7 +96,7 @@ class TestWorkerApiRoutes:
             assert worker[0].queues is None
 
     @pytest.mark.parametrize(
-        "worker_state, body_state, expected_state",
+        ("worker_state", "body_state", "expected_state"),
         [
             pytest.param(
                 EdgeWorkerState.MAINTENANCE_REQUEST,
@@ -197,7 +197,7 @@ class TestWorkerApiRoutes:
         assert return_queues == ["default", "default2"]
 
     @pytest.mark.parametrize(
-        "add_queues, remove_queues, expected_queues",
+        ("add_queues", "remove_queues", "expected_queues"),
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(

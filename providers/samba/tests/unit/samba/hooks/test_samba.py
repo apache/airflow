@@ -148,7 +148,7 @@ class TestSambaHook:
             assert dict(kwargs, **connection_settings) == p_kwargs
 
     @pytest.mark.parametrize(
-        "path, path_type, full_path",
+        ("path", "path_type", "full_path"),
         [
             # Linux path -> Linux path, no path_type (default)
             ("/start/path/with/slash", None, "//ip/share/start/path/with/slash"),
