@@ -1889,22 +1889,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             if schema_defaults[attrname] == var:
                 # If it also matches client_defaults, exclude (optimization)
                 client_defaults = cls.generate_client_defaults()
-                if attrname in client_defaults and client_defaults[attrname] == var:
-                    return True
-
-                # If client_defaults differs, preserve explicit override from user
-                # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
-                if attrname in client_defaults and client_defaults[attrname] != var:
-                    if op.has_dag():
-                        dag = op.dag
-                        if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
                             return False
-                    if (
-                        hasattr(op, "_BaseOperator__init_kwargs")
-                        and attrname in op._BaseOperator__init_kwargs
-                        and op._BaseOperator__init_kwargs[attrname] == var
-                    ):
-                        return False
 
                 # If client_defaults doesn't have this field (matches schema default),
                 # exclude for optimization even if in default_args
