@@ -22,14 +22,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Container, Iterable, Mapping
 from datetime import timedelta
-from typing import Any, TypeVar, overload
+from typing import Any, Literal, TypeVar, overload
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
-from airflow.sdk.definitions._internal.typing_compat import Literal
 from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import AnyConditionFunc
 from airflow.sdk.definitions.decorators.task_group import task_group

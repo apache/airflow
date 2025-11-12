@@ -44,13 +44,13 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
+    from typing import Self
     from uuid import UUID
 
     from pydantic.types import JsonValue
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions._internal.typing_compat import Self
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
