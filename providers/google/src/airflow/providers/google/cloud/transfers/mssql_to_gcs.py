@@ -67,7 +67,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     ui_color = "#e0a98c"
 
-    type_map = {2: "BOOLEAN", 3: "INTEGER", 4: "TIMESTAMP", 5: "NUMERIC"}
+    type_map = {2: "BOOL", 3: "INTEGER", 4: "TIMESTAMP", 5: "NUMERIC"}
 
     def __init__(
         self,
