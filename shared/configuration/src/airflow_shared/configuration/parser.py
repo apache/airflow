@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import itertools
 import json
 import logging
 import os
@@ -28,6 +29,7 @@ import shlex
 import subprocess
 import sys
 import warnings
+from collections.abc import Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from enum import Enum
@@ -756,6 +758,104 @@ class AirflowConfigParser(ConfigParser):
         if value is None:
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
+
+    def read(
+        self,
+        filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
+        encoding: str | None = None,
+    ) -> list[str]:
+        """
+        Read configuration from file(s).
+
+        Override ConfigParser.read() to provide better type hints.
+        Reads .ini/.cfg format files (not config.yml).
+
+        :param filenames: filename or list of filenames to read
+        :param encoding: encoding to use when reading files
+        :return: list of successfully read filenames
+        """
+        return super().read(filenames=filenames, encoding=encoding)
+
+    def read_dict(  # type: ignore[override]
+        self, dictionary: dict[str, dict[str, Any]], source: str = "<dict>"
+    ) -> None:
+        """
+        Read configuration from a dictionary.
+
+        Override ConfigParser.read_dict() to provide better type hints and checking.
+
+        :param dictionary: dictionary to read from
+        :param source: source identifier to be used in error messages
+        """
+        super().read_dict(dictionary=dictionary, source=source)
+
+    def has_section(self, section: str) -> bool:
+        """
+        Check if section exists in config or configuration_description.
+
+        Override ConfigParser.has_section() to also check configuration_description,
+        so sections defined in config.yml are considered valid even if not in the actual config file.
+
+        :param section: section name to check
+        :return: True if section exists in config or configuration_description
+        """
+        if super().has_section(section):
+            return True
+        if self.configuration_description and section in self.configuration_description:
+            return True
+        return False
+
+    def _update_defaults_from_string(self, config_string: str) -> None:
+        """
+        Update the defaults in _default_values based on values in config_string ("ini" format).
+
+        Note that those values are not validated and cannot contain variables because we are using
+        regular config parser to load them. This method is used to test the config parser in unit tests.
+
+        Subclasses can override this to add validation (e.g., checking for template variables).
+
+        :param config_string: ini-formatted config string
+        """
+        parser = ConfigParser()
+        parser.read_string(config_string)
+        for section in parser.sections():
+            if self._default_values is None:
+                raise AirflowConfigException(
+                    "_default_values must be set before calling _update_defaults_from_string"
+                )
+            if section not in self._default_values.sections():
+                self._default_values.add_section(section)
+            for key, value in parser.items(section):
+                self._default_values.set(section, key, value)
+
+    def get_sections_including_defaults(self) -> list[str]:
+        """
+        Retrieve all sections from the configuration parser, including sections defined by built-in defaults.
+
+        :return: list of section names
+        """
+        sections_from_config = self.sections()
+        sections_from_description = (
+            list(self.configuration_description.keys()) if self.configuration_description else []
+        )
+        return list(dict.fromkeys(itertools.chain(sections_from_description, sections_from_config)))
+
+    def get_options_including_defaults(self, section: str) -> list[str]:
+        """
+        Retrieve all possible options from the configuration parser for the section given.
+
+        Includes options defined by built-in defaults.
+
+        :param section: section name
+        :return: list of option names for the section given
+        """
+        my_own_options = self.options(section) if self.has_section(section) else []
+        all_options_from_defaults = (
+            list(self.configuration_description.get(section, {}).get("options", {}).keys())
+            if self.configuration_description
+            else []
+        )
+        return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
     def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
         """

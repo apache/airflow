@@ -126,20 +126,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
-    def _update_defaults_from_string(self, config_string: str):
-        """
-        Update the defaults in _default_values based on values in config_string ("ini" format).
-
-        Used for testing purposes.
-        """
-        parser = ConfigParser()
-        parser.read_string(config_string)
-        for section in parser.sections():
-            if section not in self._default_values.sections():
-                self._default_values.add_section(section)
-            for key, value in parser.items(section):
-                self._default_values.set(section, key, value)
-
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """
         Get provider config fallback default values.

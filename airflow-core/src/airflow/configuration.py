@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import itertools
 import logging
 import multiprocessing
 import os
@@ -273,10 +272,11 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             return False
         return _is_template(self.configuration_description, section, key)
 
-    def _update_defaults_from_string(self, config_string: str):
+    def _update_defaults_from_string(self, config_string: str) -> None:
         """
         Update the defaults in _default_values based on values in config_string ("ini" format).
 
+        Override shared parser's method to add validation for template variables.
         Note that those values are not validated and cannot contain variables because we are using
         regular config parser to load them. This method is used to test the config parser in unit tests.
 
@@ -388,26 +388,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     upgraded_values: dict[tuple[str, str], str]
     """Mapping of (section,option) to the old value that was upgraded"""
-
-    def get_sections_including_defaults(self) -> list[str]:
-        """
-        Retrieve all sections from the configuration parser, including sections defined by built-in defaults.
-
-        :return: list of section names
-        """
-        return list(dict.fromkeys(itertools.chain(self.configuration_description, self.sections())))
-
-    def get_options_including_defaults(self, section: str) -> list[str]:
-        """
-        Retrieve all possible option from the configuration parser for the section given.
-
-        Includes options defined by built-in defaults.
-
-        :return: list of option names for the section given
-        """
-        my_own_options = self.options(section) if self.has_section(section) else []
-        all_options_from_defaults = self.configuration_description.get(section, {}).get("options", {})
-        return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
     @contextmanager
     def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
@@ -865,25 +845,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     # getjson, gettimedelta, getimport, get_mandatory_value, get_mandatory_list_value,
     # has_option, set, remove_option, and helper methods like _get_option_from_*.
     # The shared base class's getimport() correctly uses self.get() instead of conf.get().
-
-    def read(
-        self,
-        filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
-        encoding=None,
-    ):
-        super().read(filenames=filenames, encoding=encoding)
-
-    def read_dict(  # type: ignore[override]
-        self, dictionary: dict[str, dict[str, Any]], source: str = "<dict>"
-    ):
-        """
-        We define a different signature here to add better type hints and checking.
-
-        :param dictionary: dictionary to read from
-        :param source: source to be used to store the configuration
-        :return:
-        """
-        super().read_dict(dictionary=dictionary, source=source)
 
     # has_option, set, and remove_option are now provided by the shared base class.
 
