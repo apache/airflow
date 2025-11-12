@@ -64,6 +64,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
@@ -1262,11 +1263,15 @@ class DagRun(Base, LoggingMixin):
                     msg="success",
                 )
 
-            if dag.deadline:
+            if dag.deadline and isinstance(dag.deadline[0], str):
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
+                deadline_alerts = [
+                    DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
+                ]
+
                 if any(
-                    isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
-                    for d in cast("list", dag.deadline)
+                    deadline_alert.reference_class in DeadlineReference.TYPES.DAGRUN
+                    for deadline_alert in deadline_alerts
                 ):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 

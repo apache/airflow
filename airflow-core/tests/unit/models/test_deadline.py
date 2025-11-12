@@ -104,14 +104,16 @@ def dagrun(session, dag_maker):
 
 @pytest.fixture
 def deadline_orm(dagrun, session):
-    deadline = Deadline(
-        deadline_time=DEFAULT_DATE,
-        callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
-        dagrun_id=dagrun.id,
-    )
-    session.add(deadline)
-    session.flush()
-    return deadline
+    with time_machine.travel(DEFAULT_DATE, tick=False):
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+        return deadline
 
 
 @pytest.mark.db_test
@@ -165,11 +167,31 @@ class TestDeadline:
         else:
             mock_session.query.assert_not_called()
 
-    def test_repr(self, deadline_orm, dagrun):
+    def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
         assert (
-            repr(deadline_orm) == f"[DagRun Deadline] Dag: {DAG_ID} Run: {dagrun.id} needed by "
-            f"{DEFAULT_DATE} or run: {deadline_orm.callback}"
+            repr(deadline_orm)
+            == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
+            f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
         )
+
+    def test_repr_without_callback_kwargs(self, dagrun, session):
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            # Create a new Deadline without callback kwargs.
+            deadline = Deadline(
+                deadline_time=DEFAULT_DATE,
+                callback=AsyncCallback(TEST_CALLBACK_PATH),
+                dagrun_id=dagrun.id,
+                deadline_alert_id=None,
+            )
+            session.add(deadline)
+            session.flush()
+
+            assert deadline.callback.kwargs is None
+            assert (
+                repr(deadline)
+                == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
+                f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
+            )
 
     @pytest.mark.db_test
     def test_handle_miss(self, dagrun, session):
@@ -178,6 +200,7 @@ class TestDeadline:
             callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
             dagrun_id=dagrun.id,
             dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
         )
         session.add(deadline_orm)
         session.flush()
