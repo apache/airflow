@@ -43,8 +43,11 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.sdk.definitions.asset import AssetUniqueKey
+from airflow.sdk.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
@@ -374,6 +377,111 @@ class SerializedDagModel(Base):
         return serialized_dag
 
     @classmethod
+    def _process_deadline_alerts(
+        cls,
+        serialized_dag_id: str,
+        dag_data: dict[str, Any],
+        session: Session,
+    ) -> bool:
+        """
+        Process DeadlineAlerts for a Dag during serialization.
+
+        Creates or finds deadline_alert records in the database and replaces
+        the deadline field in dag_data with UUID references.
+
+        :param serialized_dag_id: The serialized_dag id
+        :param dag_data: The serialized Dag data dictionary (will be modified in place)
+        :param session: Database session
+        """
+        dag_deadline_data = dag_data.get("dag", {}).get("deadline")
+        if not dag_deadline_data:
+            return False
+
+        log.debug("Processing DeadlineAlerts for Dag: %s", serialized_dag_id)
+
+        deadline_alerts = dag_deadline_data if isinstance(dag_deadline_data, list) else [dag_deadline_data]
+        deadline_alert_ids = []
+        new_alerts = []
+
+        for deadline_alert in deadline_alerts:
+            deadline_data = deadline_alert.get(Encoding.VAR, deadline_alert)
+
+            reference = deadline_data[DeadlineAlertFields.REFERENCE]
+            interval = deadline_data[DeadlineAlertFields.INTERVAL]
+            callback = deadline_data[DeadlineAlertFields.CALLBACK]
+
+            # This looks odd, but I had issues comparing the serialized data directly
+            # while doing manual testing. To avoid them, we fetch by dag_id and interval,
+            # then use python's dict comparison instead of trying to match strings in SQL.
+            candidates = (
+                session.execute(
+                    select(DeadlineAlertModel).filter(
+                        DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
+                        DeadlineAlertModel.interval == interval,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            existing_alert = None
+            for alert in candidates:
+                if alert.reference == reference and alert.callback == callback:
+                    existing_alert = alert
+                    break
+
+            if existing_alert:
+                log.debug("Found existing DeadlineAlert: %s", existing_alert.id)
+                deadline_alert_ids.append(str(existing_alert.id))
+            else:
+                log.warning("No existing alert found, creating... ")
+                new_alerts.append(
+                    DeadlineAlertModel(
+                        serialized_dag_id=serialized_dag_id,
+                        reference=reference,
+                        interval=interval,
+                        callback=callback,
+                    )
+                )
+
+            if new_alerts:
+                session.add_all(new_alerts)
+                session.flush()  # Have to flush here to generate the deadline_alert_id.
+                new_ids = [str(alert.id) for alert in new_alerts]
+                log.debug("Created new DeadlineAlerts: %s", new_ids)
+                deadline_alert_ids.extend(new_ids)
+
+        # Replace the deadline field with UUID strings
+        dag_data["dag"]["deadline"] = deadline_alert_ids
+        log.debug("Replaced %d deadline alerts with %d UUIDs", len(deadline_alerts), len(deadline_alert_ids))
+
+        return True
+
+    @classmethod
+    def _update_serialized_dag_data(
+        cls,
+        serialized_dag: SerializedDagModel,
+        dag_data: dict[str, Any],
+    ) -> None:
+        """
+        Update a SerializedDagModel's dag_data, handling both compressed and uncompressed storage formats.
+
+        :param serialized_dag: The SerializedDagModel instance to update
+        :param dag_data: The modified dag_data dictionary
+        """
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+
+        if COMPRESS_SERIALIZED_DAGS:
+            serialized_dag._data = None
+            serialized_dag._data_compressed = zlib.compress(dag_data_json)
+        else:
+            serialized_dag._data = dag_data
+            serialized_dag._data_compressed = None
+
+        serialized_dag._SerializedDagModel__data_cache = dag_data
+        serialized_dag.dag_hash = cls.hash(dag_data)
+
+    @classmethod
     @provide_session
     def write_dag(
         cls,
@@ -472,6 +580,14 @@ class SerializedDagModel(Base):
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
+        session.flush()
+
+        dag_data = new_serialized_dag.data.copy()
+        deadlines_processed = cls._process_deadline_alerts(new_serialized_dag.id, dag_data, session)
+
+        if deadlines_processed:
+            cls._update_serialized_dag_data(new_serialized_dag, dag_data)
+
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
         return True
@@ -565,6 +681,65 @@ class SerializedDagModel(Base):
 
         return self.__data_cache
 
+    @classmethod
+    def _reconstruct_deadline_alerts(
+        cls,
+        dag_data: dict[str, Any],
+        serialized_dag_id: str,
+        session: Session,
+    ) -> dict[str, Any]:
+        """
+        Reconstruct DeadlineAlert objects from UUID references during deserialization.
+
+        Queries the deadline_alert table to fetch full DeadlineAlert definitions
+        and reconstructs them in the serialized format expected by SerializedDAG.
+
+        :param dag_data: The serialized Dag data dictionary
+        :param serialized_dag_id: The serialized_dag ID
+        """
+        dag_deadline_data = dag_data.get("dag", {}).get("deadline")
+        if not dag_deadline_data:
+            return dag_data
+
+        deadline_list = dag_deadline_data if isinstance(dag_deadline_data, list) else [dag_deadline_data]
+        deadline_alerts_by_id = {
+            str(alert.id): alert
+            for alert in session.execute(
+                select(DeadlineAlertModel).filter(
+                    DeadlineAlertModel.id.in_(deadline_list),
+                    DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
+                )
+            )
+            .scalars()
+            .all()
+        }
+
+        reconstructed_deadlines = []
+        for deadline_alert_id in deadline_list:
+            deadline_alert = deadline_alerts_by_id.get(deadline_alert_id)
+
+            if not deadline_alert:
+                log.warning(
+                    "Could not find deadline_alert %s for serialized_dag %s",
+                    deadline_alert_id,
+                    serialized_dag_id,
+                )
+                continue
+
+            reconstructed_deadlines.append(
+                {
+                    Encoding.TYPE: DAT.DEADLINE_ALERT,
+                    Encoding.VAR: {
+                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback,
+                    },
+                }
+            )
+
+        dag_data["dag"]["deadline"] = reconstructed_deadlines
+        return dag_data
+
     @property
     def dag(self) -> SerializedDAG:
         """The DAG deserialized from the ``data`` column."""
@@ -575,6 +750,16 @@ class SerializedDagModel(Base):
             data = json.loads(self.data)
         else:
             raise ValueError("invalid or missing serialized DAG data")
+
+        dag_deadline_data = data.get("dag", {}).get("deadline")
+        if dag_deadline_data and isinstance(dag_deadline_data, list) and dag_deadline_data:
+            if isinstance(dag_deadline_data[0], str):
+
+                @provide_session
+                def _reconstruct(session: Session = NEW_SESSION):
+                    return self._reconstruct_deadline_alerts(data, self.id, session)
+
+                data = _reconstruct()
         return SerializedDAG.from_dict(data)
 
     @classmethod

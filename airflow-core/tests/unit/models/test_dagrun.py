@@ -37,6 +37,7 @@ from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
@@ -1293,6 +1294,91 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_success_prunes_dagrun_deadlines(self, mock_get_by_id, mock_prune, dag_maker, session):
+        mock_deadline_alert = mock.MagicMock()
+        mock_deadline_alert.reference_class = DeadlineReference.TYPES.DAGRUN
+        mock_get_by_id.return_value = mock_deadline_alert
+
+        deadline_id_1 = "deadline_alert_uuid1"
+        deadline_id_2 = "deadline_alert_uuid2"
+
+        with dag_maker(
+            dag_id="test_dagrun_prune_deadlines",
+            schedule=datetime.timedelta(days=1),
+        ) as dag:
+            dag_task1 = EmptyOperator(task_id="task_1")
+            dag_task2 = EmptyOperator(task_id="task_2")
+            dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "task_1": TaskInstanceState.SUCCESS,
+            "task_2": TaskInstanceState.SUCCESS,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag.deadline = [deadline_id_1, deadline_id_2]
+        dag_run.dag = dag
+
+        dag_run.update_state(session=session)
+
+        assert mock_get_by_id.call_count == 2
+        mock_get_by_id.assert_any_call(deadline_id_1, session)
+        mock_get_by_id.assert_any_call(deadline_id_2, session)
+        mock_prune.assert_called_once_with(session=session, conditions={DagRun.run_id: dag_run.run_id})
+        assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_success_skips_pruning_non_dagrun_deadlines(
+        self, mock_get_by_id, mock_prune, dag_maker, session
+    ):
+        mock_deadline_alert = mock.MagicMock()
+        mock_deadline_alert.reference_class = "TASK"  # Not DAGRUN
+        mock_get_by_id.return_value = mock_deadline_alert
+
+        deadline_id = "deadline_alert_uuid"
+
+        with dag_maker(
+            dag_id="test_dagrun_no_prune",
+            schedule=datetime.timedelta(days=1),
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+
+        initial_task_states = {"task_1": TaskInstanceState.SUCCESS}
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag.deadline = [deadline_id]
+        dag_run.dag = dag
+
+        dag_run.update_state(session=session)
+
+        mock_get_by_id.assert_called_once_with(deadline_id, session)
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_success_handles_empty_deadline_list(self, mock_prune, dag_maker, session):
+        with dag_maker(
+            dag_id="test_dagrun_empty_deadlines",
+            schedule=datetime.timedelta(days=1),
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+
+        initial_task_states = {"task_1": TaskInstanceState.SUCCESS}
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run = session.merge(dag_run)
+        dag.deadline = []
+        dag_run.dag = dag
+
+        dag_run.update_state(session=session)
+
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_success_deadline_prune(self, dag_maker, session):
         """Ensure only the deadline associated with dagrun marked as success is deleted."""
