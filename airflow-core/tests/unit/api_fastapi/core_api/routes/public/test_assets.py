@@ -817,6 +817,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -844,6 +845,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
             ],
             "total_entries": 2,
@@ -998,6 +1000,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -1025,6 +1028,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
             ],
             "total_entries": 2,
@@ -1270,6 +1274,7 @@ class TestPostAssetEvents(TestAssets):
             "source_map_index": -1,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+            "partition_key": None,
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
@@ -1308,6 +1313,7 @@ class TestPostAssetEvents(TestAssets):
             "source_map_index": -1,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+            "partition_key": None,
         }
 
     def test_should_update_asset_endpoint(self, test_client, session):
@@ -1378,6 +1384,7 @@ class TestPostAssetMaterialize(TestAssets):
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,
             "logical_date": None,
+            "partition_key": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
             "start_date": None,

@@ -7165,6 +7165,29 @@ class TestSchedulerJob:
         # The handler should not be called, but no exceptions should be raised either.`
         mock_handle_miss.assert_not_called()
 
+    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
+        """Test that the running_dags metric is emitted correctly."""
+        with dag_maker("metric_dag") as dag:
+            _ = dag
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
+        dag_maker.create_dagrun(
+            run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
+        )
+
+        recorded: list[tuple[str, int]] = []
+
+        def _fake_gauge(metric: str, value: int, *_, **__):
+            recorded.append((metric, value))
+
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.Stats.gauge", _fake_gauge, raising=True)
+
+        with conf_vars({("metrics", "statsd_on"): "True"}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner._emit_running_dags_metric()
+
+        assert recorded == [("scheduler.dagruns.running", 2)]
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):

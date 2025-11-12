@@ -591,18 +591,20 @@ class DagModel(Base):
         This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
+
+        :meta private:
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
         evaluator = AssetEvaluator(session)
 
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
-            # if dag was serialized before 2.9 and we *just* upgraded,
-            # we may be dealing with old version.  In that case,
-            # just wait for the dag to be reserialized.
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
+                # if dag was serialized before 2.9 and we *just* upgraded,
+                # we may be dealing with old version.  In that case,
+                # just wait for the dag to be reserialized.
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None
 

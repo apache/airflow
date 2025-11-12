@@ -248,5 +248,3 @@ config:
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-
-extra-project-metadata: license-files = ["NOTICE", "*/LICENSE*"]
