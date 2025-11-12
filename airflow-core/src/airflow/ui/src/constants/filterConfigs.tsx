@@ -208,11 +208,7 @@ export const useFilterConfigs = () => {
               {translate(option.label)}
             </Flex>
           ),
-        value: option.value === "all" ? (
-          ""
-        ) : (
-          option.value
-        ),
+        value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
     },
@@ -231,11 +227,7 @@ export const useFilterConfigs = () => {
           ) : (
             <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
           ),
-        value: option.value === "all" ? (
-          ""
-        ) : (
-          option.value
-        ),
+        value: option.value === "all" ? "" : option.value,
       })),
       type: FilterTypes.SELECT,
     },
