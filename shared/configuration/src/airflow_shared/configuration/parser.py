@@ -34,7 +34,7 @@ from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from enum import Enum
 from json.decoder import JSONDecodeError
-from typing import Any, TypeVar, overload
+from typing import IO, Any, TypeVar, overload
 
 from .exceptions import AirflowConfigException
 
@@ -907,3 +907,57 @@ class AirflowConfigParser(ConfigParser):
         :return:
         """
         return optionstr
+
+    @staticmethod
+    def _write_section_header(
+        file: IO[str],
+        include_descriptions: bool,
+        section_config_description: dict[str, str],
+        section_to_write: str,
+    ) -> None:
+        """Write header for configuration section."""
+        file.write(f"[{section_to_write}]\n")
+        section_description = section_config_description.get("description")
+        if section_description and include_descriptions:
+            for line in section_description.splitlines():
+                file.write(f"# {line}\n")
+            file.write("\n")
+
+    def _write_value(
+        self,
+        file: IO[str],
+        option: str,
+        comment_out_everything: bool,
+        needs_separation: bool,
+        only_defaults: bool,
+        section_to_write: str,
+    ) -> None:
+        """
+        Write configuration value to file.
+
+        :param file: File to write to
+        :param option: Option name
+        :param comment_out_everything: If True, comment out the value
+        :param needs_separation: If True, add blank line after value
+        :param only_defaults: If True, write only default value, not actual value
+        :param section_to_write: Section name
+        """
+        if self._default_values is None:
+            default_value = None
+        else:
+            default_value = self.get_default_value(section_to_write, option, raw=True)
+        if only_defaults:
+            value = default_value
+        else:
+            value = self.get(section_to_write, option, fallback=default_value, raw=True)
+        if value is None:
+            file.write(f"# {option} = \n")
+        else:
+            if comment_out_everything:
+                value_lines = value.splitlines()
+                value = "\n# ".join(value_lines)
+                file.write(f"# {option} = {value}\n")
+            else:
+                file.write(f"{option} = {value}\n")
+        if needs_separation:
+            file.write("\n")

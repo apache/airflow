@@ -414,21 +414,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         if reload_providers_when_leaving:
             self.load_providers_configuration()
 
-    @staticmethod
-    def _write_section_header(
-        file: IO[str],
-        include_descriptions: bool,
-        section_config_description: dict[str, str],
-        section_to_write: str,
-    ) -> None:
-        """Write header for configuration section."""
-        file.write(f"[{section_to_write}]\n")
-        section_description = section_config_description.get("description")
-        if section_description and include_descriptions:
-            for line in section_description.splitlines():
-                file.write(f"# {line}\n")
-            file.write("\n")
-
     def _write_option_header(
         self,
         file: IO[str],
@@ -489,35 +474,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 file.write("#\n")
             needs_separation = True
         return True, needs_separation
-
-    def _write_value(
-        self,
-        file: IO[str],
-        option: str,
-        comment_out_everything: bool,
-        needs_separation: bool,
-        only_defaults: bool,
-        section_to_write: str,
-    ):
-        if self._default_values is None:
-            default_value = None
-        else:
-            default_value = self.get_default_value(section_to_write, option, raw=True)
-        if only_defaults:
-            value = default_value
-        else:
-            value = self.get(section_to_write, option, fallback=default_value, raw=True)
-        if value is None:
-            file.write(f"# {option} = \n")
-        else:
-            if comment_out_everything:
-                value_lines = value.splitlines()
-                value = "\n# ".join(value_lines)
-                file.write(f"# {option} = {value}\n")
-            else:
-                file.write(f"{option} = {value}\n")
-        if needs_separation:
-            file.write("\n")
 
     def write_custom_config(
         self,
