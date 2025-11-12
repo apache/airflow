@@ -38,6 +38,7 @@
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
+- [Set variables and](#set-variables-and)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
@@ -46,9 +47,10 @@
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
+  - [Announce about the release in Apache Airflow Slack](#announce-about-the-release-in-apache-airflow-slack)
+  - [Add Blog post about the release](#add-blog-post-about-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
-  - [Remove Airflow-ctl distributions scheduled for removal](#remove-airflow-ctl-distributions-scheduled-for-removal)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -687,10 +689,12 @@ that the Airflow works as you expected.
 
 # Publish release
 
-Replace the DAYS_BACK with how many days ago you prepared the release.
-Normally it's 3 but in case it's longer change it. The output should match the prepare date.
+# Set variables and
 
-```
+```shell
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export RELEASE_MANAGER_NAME="Buğra Öztürk"
 ```
 
@@ -770,7 +774,7 @@ cd airflow-ctl
 # Copy your airflow-ctl with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
-for file in "${SOURCE_DIR}"/*
+for file in "${SOURCE_DIR}"/${VERSION_RC}/*
 do
  base_file=$(basename ${file})
  cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
@@ -782,7 +786,7 @@ done
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
 # Commit to SVN
-svn commit -m "Release Airflow Ctl ${VERSION} "
+svn commit -m "Release Airflow Ctl ${VERSION}"
 ```
 
 Verify that the packages appear in
@@ -797,7 +801,7 @@ By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_AIRFLOW_CTL>
+git checkout airflow-ctl/${VERSION_RC}
 ```
 
 example `git checkout airflow-ctl/1.0.0rc1`
@@ -811,6 +815,13 @@ This is expected, the RC tag is most likely behind the main branch.
 twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
+* Remove the source tarball from dist folder as we do not upload it to PyPI
+
+```shell script
+rm -f ${AIRFLOW_REPO_ROOT}/dist/*-source.tar.gz*
+```
+
+
 * Upload the package to PyPi:
 
 ```shell script
@@ -819,7 +830,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Verify that the packages are available under the links printed.
 
-Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
+Copy links to updated package and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -835,7 +846,8 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
-git tag -s airflow-ctl/1.0.0
+git tag -s airflow-ctl/${VERSION}
+git push apache airflow-ctl/${VERSION}
 ```
 
 ## Publish documentation
@@ -861,7 +873,7 @@ The command does the following:
 
 ```shell script
   unset GITHUB_TOKEN
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> airflow-ctl
+  breeze workflow-run publish-docs --ref airflow-ctl/${VERSION}  apache-airflow-ctl
 ```
 
 The `--ref` parameter should be the tag of the final candidate you are publishing.
@@ -887,29 +899,6 @@ The release manager publishes the documentation using GitHub Actions workflow
 After that step, the documentation should be available under the http://airflow.apache.org URL
 (also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
 
-2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
-
-Before doing it - review the state of removed, suspended, new packages in
-[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
-Make sure to use `main` branch to run the workflow.
-
-```shell script
-cd airflow-site
-export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
-cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
-git checkout -b "${branch}"
-git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
-git push --set-upstream origin "${branch}"
-```
-
-Merging the PR with the index changes to `main` will trigger site publishing.
-
-If you do not need to merge a PR, you should manually run the
-[Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository to refresh indexes and drop-downs.
-
 After that build from PR or workflow completes, the new version should be available in the drop-down
 list and stable links should be updated, also Fastly cache will be invalidated.
 
@@ -932,13 +921,13 @@ Body:
 cat <<EOF
 Dear Airflow community,
 
-I'm happy to announce that new versions of Airflow Ctl packages prepared: ${VERSION} from ${VERSION_RC} were just released.
+I'm happy to announce that new version of the Airflow Ctl package prepared: ${VERSION} from ${VERSION_RC} were just released.
 
 The source release, as well as the binary releases, are available here:
 
-https://airflow.apache.org/docs/apache-airflow-ctl/installing-from-sources
+https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-sources.html
 
-You can install the ctl via PyPI: https://airflow.apache.org/docs/apache-airflow-ctl/installing-from-pypi
+You can install the ctl via PyPI: https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-pypi.html
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
@@ -972,12 +961,24 @@ few seconds to be published after the CVE tool sends them.
 
 The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
 
+
 ## Announce about the release in social media
+
+```
+📣 We've just released Apache Airflow CTL 0.1.0 🎉
+
+This is the first official release of the `airflowctl` - new tool to remotely interact with your Airflow 3
+
+📦 PyPI: https://lnkd.in/dXaiFa2H
+📚 Docs: https://lnkd.in/dYEaSkuT
+🛠 Release Notes: https://lnkd.in/dzibW7W8
+
+Thanks to all the contributors who made this possible.
+```
 
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
@@ -986,6 +987,15 @@ Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
+
+## Announce about the release in Apache Airflow Slack
+
+Post the same announcement in the `#announcements` channel of the Apache Airflow Slack workspace.
+
+## Add Blog post about the release
+
+Add a blog post about the release in https://apache.airflow.org/ by modifying the
+`landing-pages/site/content/en/announcements/_index.md` in the `apache/airflow-site` repository.
 
 ## Add release data to Apache Committee Report Helper
 
@@ -996,9 +1006,5 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
 
 ```
-Thank you everyone. Airflow-ctl are released.
+Thank you everyone. Airflow-ctl is released.
 ```
-
-## Remove Airflow-ctl distributions scheduled for removal
-
-If there are Airflow-ctl distributions scheduler for removal, create PR and merge it to remove them.
