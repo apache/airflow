@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
     from airflow.sdk.bases.decorator import _TaskDecorator
+    from airflow.sdk.definitions._internal.typing_compat import Self
     from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
-    from airflow.typing_compat import Self
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:

@@ -67,12 +67,12 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk.definitions._internal.typing_compat import Self
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.supervisor import TaskRunResult
-    from airflow.typing_compat import Self
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 

@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions._internal.typing_compat import Self
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -64,7 +65,6 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
-    from airflow.typing_compat import Self
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."

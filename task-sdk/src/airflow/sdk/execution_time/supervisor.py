@@ -134,10 +134,10 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.definitions._internal.typing_compat import Self
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
-    from airflow.typing_compat import Self
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]

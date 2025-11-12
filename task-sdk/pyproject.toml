@@ -114,6 +114,9 @@ extend = "../pyproject.toml"
 src = ["src"]
 namespace-packages = ["src/airflow"]
 
+[tool.ruff.lint]
+typing-modules = ["airflow.sdk.definitions._internal.typing_compat"]
+
 [tool.ruff.lint.per-file-ignores]
 
 # Ignore Doc rules et al for anything outside of tests
