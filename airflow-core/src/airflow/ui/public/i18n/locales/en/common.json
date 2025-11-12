@@ -240,7 +240,6 @@
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
     "maxTries": "Max Tries",
-    "operator": "Operator",
     "pid": "PID",
     "pool": "Pool",
     "poolSlots": "Pool Slots",

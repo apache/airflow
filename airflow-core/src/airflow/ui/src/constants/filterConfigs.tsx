@@ -156,7 +156,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.OPERATOR_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdBuild />,
-      label: translate("common:taskInstance.operator"),
+      label: translate("common:task.operator"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
