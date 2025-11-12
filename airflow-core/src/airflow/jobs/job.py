@@ -247,9 +247,11 @@ class Job(Base, LoggingMixin):
                     session.merge(self)
                     self.latest_heartbeat = timezone.utcnow()
                     session.commit()
-                    time_since_last_heartbeat: float = 0
-                    if previous_heartbeat is not None:
-                        time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    time_since_last_heartbeat: float = (
+                        0
+                        if previous_heartbeat is None
+                        else (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    )
                     health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
                     if time_since_last_heartbeat > health_check_threshold_value:
                         self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
