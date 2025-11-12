@@ -1257,11 +1257,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
-        for k, v in self.__dict__.items():
+        for k, v_org in self.__dict__.items():
             if k not in shallow_copy:
-                v = copy.deepcopy(v, memo)
+                v = copy.deepcopy(v_org, memo)
             else:
-                v = copy.copy(v)
+                v = copy.copy(v_org)
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine

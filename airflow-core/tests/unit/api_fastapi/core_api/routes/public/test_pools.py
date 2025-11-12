@@ -166,7 +166,7 @@ class TestGetPool(TestPoolsEndpoint):
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
@@ -219,7 +219,7 @@ class TestGetPools(TestPoolsEndpoint):
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "pool_name, query_params, body, expected_status_code, expected_response",
+        ("pool_name", "query_params", "body", "expected_status_code", "expected_response"),
         [
             # Error
             (
@@ -261,12 +261,6 @@ class TestPatchPool(TestPoolsEndpoint):
                         {
                             "input": {"pool": POOL1_NAME},
                             "loc": ["slots"],
-                            "msg": "Field required",
-                            "type": "missing",
-                        },
-                        {
-                            "input": {"pool": POOL1_NAME},
-                            "loc": ["description"],
                             "msg": "Field required",
                             "type": "missing",
                         },
@@ -398,7 +392,7 @@ class TestPatchPool(TestPoolsEndpoint):
 
 class TestPostPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        ("body", "expected_status_code", "expected_response"),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -453,7 +447,13 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        (
+            "body",
+            "first_expected_status_code",
+            "first_expected_response",
+            "second_expected_status_code",
+            "second_expected_response",
+        ),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -506,7 +506,7 @@ class TestPostPool(TestPoolsEndpoint):
 class TestBulkPools(TestPoolsEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {

@@ -132,11 +132,47 @@ You can connect to these ports/databases using:
 
 If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
 You may need to create a user prior to running the API server in order to log in.
-This can be done with the following command:
+
+**Authentication and User Management**
+
+The authentication method depends on which auth manager is configured:
+
+**SimpleAuthManager (Default in Airflow 3.x)**
+
+SimpleAuthManager is the default authentication manager and comes pre-configured with test username and passwords for development:
+
+.. code-block::
+
+    * admin:admin     (Admin role)
+    * viewer:viewer   (Viewer role)
+    * user:user       (User role)
+    * op:op           (Operator role)
+
+These users are automatically available when using SimpleAuthManager and require no additional setup.
+
+**FabAuthManager**
+
+When using FabAuthManager, you can create users manually:
 
 .. code-block:: bash
 
     airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
+
+Or use the ``--create-all-roles`` flag with ``start-airflow`` in dev mode to automatically create test users:
+
+.. code-block:: bash
+
+    breeze start-airflow --dev-mode --create-all-roles --auth-manager FabAuthManager
+
+This will create the following test users:
+
+.. code-block::
+
+    * admin:admin         (Admin role)
+    * viewer:viewer       (Viewer role)
+    * user:user           (User role)
+    * op:op               (Op role)
+    * testadmin:testadmin (Admin role)
 
 .. note::
     ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
@@ -274,6 +310,17 @@ For example, this following command:
      prek mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
+.. _breeze-dev:running-prek-in-breeze:
+
+A note on running ``prek`` inside the Breeze container
+-----------------------------------------------------
+
+While ``prek`` (pre-commit) is intended to be run on your host machine, it can
+also be run from within the Breeze shell for debugging or manual checks.
+
+If you choose to do this, you may need to mount all sources by running
+``breeze shell --mount-sources all``.
+
 
 Selecting files to run static checks on
 ---------------------------------------

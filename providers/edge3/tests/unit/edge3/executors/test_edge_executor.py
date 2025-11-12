@@ -67,7 +67,7 @@ class TestEdgeExecutor:
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
     @pytest.mark.parametrize(
-        "pool_slots, expected_concurrency",
+        ("pool_slots", "expected_concurrency"),
         [
             pytest.param(1, 1, id="default_pool_size"),
             pytest.param(5, 5, id="increased_pool_size"),

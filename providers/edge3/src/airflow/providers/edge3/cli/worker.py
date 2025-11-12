@@ -348,7 +348,11 @@ class EdgeWorker:
             else:
                 used_concurrency += job.edge_job.concurrency_slots
 
-            if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+            if (
+                conf.getboolean("edge", "push_logs")
+                and job.logfile.exists()
+                and job.logfile.stat().st_size > job.logsize
+            ):
                 with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)

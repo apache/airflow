@@ -472,3 +472,10 @@ def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
     unknown_bundles: set[str] = set(bundle_names) - known_bundles
     if unknown_bundles:
         raise SystemExit(f"Bundles not found: {', '.join(unknown_bundles)}")
+
+
+def should_enable_hot_reload(args) -> bool:
+    """Check whether hot-reload should be enabled based on --dev flag or DEV_MODE env var."""
+    if getattr(args, "dev", False):
+        return True
+    return os.getenv("DEV_MODE", "false").lower() == "true"
