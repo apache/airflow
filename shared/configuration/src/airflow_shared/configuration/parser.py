@@ -764,37 +764,23 @@ class AirflowConfigParser(ConfigParser):
         filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
         encoding: str | None = None,
     ) -> list[str]:
-        """
-        Read configuration from file(s).
-
-        Override ConfigParser.read() to provide better type hints.
-        Reads .ini/.cfg format files (not config.yml).
-
-        :param filenames: filename or list of filenames to read
-        :param encoding: encoding to use when reading files
-        :return: list of successfully read filenames
-        """
         return super().read(filenames=filenames, encoding=encoding)
 
     def read_dict(  # type: ignore[override]
         self, dictionary: dict[str, dict[str, Any]], source: str = "<dict>"
     ) -> None:
         """
-        Read configuration from a dictionary.
-
-        Override ConfigParser.read_dict() to provide better type hints and checking.
+        We define a different signature here to add better type hints and checking.
 
         :param dictionary: dictionary to read from
-        :param source: source identifier to be used in error messages
+        :param source: source to be used to store the configuration
+        :return:
         """
         super().read_dict(dictionary=dictionary, source=source)
 
     def has_section(self, section: str) -> bool:
         """
         Check if section exists in config or configuration_description.
-
-        Override ConfigParser.has_section() to also check configuration_description,
-        so sections defined in config.yml are considered valid even if not in the actual config file.
 
         :param section: section name to check
         :return: True if section exists in config or configuration_description
@@ -809,12 +795,7 @@ class AirflowConfigParser(ConfigParser):
         """
         Update the defaults in _default_values based on values in config_string ("ini" format).
 
-        Note that those values are not validated and cannot contain variables because we are using
-        regular config parser to load them. This method is used to test the config parser in unit tests.
-
-        Subclasses can override this to add validation (e.g., checking for template variables).
-
-        :param config_string: ini-formatted config string
+        Used for testing purposes.
         """
         parser = ConfigParser()
         parser.read_string(config_string)
