@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import functools
 import itertools
@@ -463,6 +464,157 @@ class AirflowConfigParser(ConfigParser):
                 opt = config_sources[section][key]
             if opt == self.get_default_value(section, key):
                 del config_sources[section][key]
+
+    @staticmethod
+    def _deprecated_value_is_set_in_config(
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
+    ) -> bool:
+        for config_type, config in configs:
+            if config_type != "default":
+                with contextlib.suppress(NoSectionError):
+                    deprecated_section_array = config.items(section=deprecated_section, raw=True)
+                    if any(key == deprecated_key for key, _ in deprecated_section_array):
+                        return True
+        return False
+
+    @staticmethod
+    def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
+        return (
+            os.environ.get(f"{ENV_VAR_PREFIX}{deprecated_section.upper()}__{deprecated_key.upper()}")
+            is not None
+        )
+
+    @staticmethod
+    def _deprecated_command_is_set_in_config(
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
+    ) -> bool:
+        return AirflowConfigParser._deprecated_value_is_set_in_config(
+            deprecated_section=deprecated_section, deprecated_key=deprecated_key + "_cmd", configs=configs
+        )
+
+    @staticmethod
+    def _deprecated_variable_command_is_set(deprecated_section: str, deprecated_key: str) -> bool:
+        return (
+            os.environ.get(f"{ENV_VAR_PREFIX}{deprecated_section.upper()}__{deprecated_key.upper()}_CMD")
+            is not None
+        )
+
+    @staticmethod
+    def _deprecated_secret_is_set_in_config(
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
+    ) -> bool:
+        return AirflowConfigParser._deprecated_value_is_set_in_config(
+            deprecated_section=deprecated_section, deprecated_key=deprecated_key + "_secret", configs=configs
+        )
+
+    @staticmethod
+    def _deprecated_variable_secret_is_set(deprecated_section: str, deprecated_key: str) -> bool:
+        return (
+            os.environ.get(f"{ENV_VAR_PREFIX}{deprecated_section.upper()}__{deprecated_key.upper()}_SECRET")
+            is not None
+        )
+
+    @staticmethod
+    def _replace_config_with_display_sources(
+        config_sources: ConfigSourcesType,
+        configs: Iterable[tuple[str, ConfigParser]],
+        configuration_description: dict[str, dict[str, Any]],
+        display_source: bool,
+        raw: bool,
+        deprecated_options: dict[tuple[str, str], tuple[str, str, str]],
+        include_env: bool,
+        include_cmds: bool,
+        include_secret: bool,
+    ):
+        for source_name, config in configs:
+            sections = config.sections()
+            for section in sections:
+                AirflowConfigParser._replace_section_config_with_display_sources(
+                    config,
+                    config_sources,
+                    configuration_description,
+                    display_source,
+                    raw,
+                    section,
+                    source_name,
+                    deprecated_options,
+                    configs,
+                    include_env=include_env,
+                    include_cmds=include_cmds,
+                    include_secret=include_secret,
+                )
+
+    @staticmethod
+    def _replace_section_config_with_display_sources(
+        config: ConfigParser,
+        config_sources: ConfigSourcesType,
+        configuration_description: dict[str, dict[str, Any]],
+        display_source: bool,
+        raw: bool,
+        section: str,
+        source_name: str,
+        deprecated_options: dict[tuple[str, str], tuple[str, str, str]],
+        configs: Iterable[tuple[str, ConfigParser]],
+        include_env: bool,
+        include_cmds: bool,
+        include_secret: bool,
+    ):
+        sect = config_sources.setdefault(section, {})
+        if isinstance(config, AirflowConfigParser):
+            with config.suppress_future_warnings():
+                items: Iterable[tuple[str, Any]] = config.items(section=section, raw=raw)
+        else:
+            items = config.items(section=section, raw=raw)
+        for k, val in items:
+            deprecated_section, deprecated_key, _ = deprecated_options.get((section, k), (None, None, None))
+            if deprecated_section and deprecated_key:
+                if source_name == "default":
+                    # If deprecated entry has some non-default value set for any of the sources requested,
+                    # We should NOT set default for the new entry (because it will override anything
+                    # coming from the deprecated ones)
+                    if AirflowConfigParser._deprecated_value_is_set_in_config(
+                        deprecated_section, deprecated_key, configs
+                    ):
+                        continue
+                    if include_env and AirflowConfigParser._deprecated_variable_is_set(
+                        deprecated_section, deprecated_key
+                    ):
+                        continue
+                    if include_cmds and (
+                        AirflowConfigParser._deprecated_variable_command_is_set(
+                            deprecated_section, deprecated_key
+                        )
+                        or AirflowConfigParser._deprecated_command_is_set_in_config(
+                            deprecated_section, deprecated_key, configs
+                        )
+                    ):
+                        continue
+                    if include_secret and (
+                        AirflowConfigParser._deprecated_variable_secret_is_set(
+                            deprecated_section, deprecated_key
+                        )
+                        or AirflowConfigParser._deprecated_secret_is_set_in_config(
+                            deprecated_section, deprecated_key, configs
+                        )
+                    ):
+                        continue
+            if display_source:
+                updated_source_name = source_name
+                if source_name == "default":
+                    # defaults can come from other sources (default-<PROVIDER>) that should be used here
+                    source_description_section = configuration_description.get(section, {})
+                    source_description_key = source_description_section.get("options", {}).get(k, {})
+                    if source_description_key is not None:
+                        updated_source_name = source_description_key.get("source", source_name)
+                sect[k] = (val, updated_source_name)
+            else:
+                sect[k] = val
 
     def _warn_deprecate(
         self, section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
