@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-11T21:50:02.247688
+# This constraints file was automatically generated on 2025-11-12T03:56:47.831145
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -140,7 +140,7 @@ cadwyn==5.4.5
 cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.5.3
-certifi==2025.10.5
+certifi==2025.11.12
 cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.40.4
@@ -435,7 +435,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.4.0
+oracledb==3.4.1
 ordered-set==4.1.0
 orjson==3.11.4
 oss2==2.19.1
