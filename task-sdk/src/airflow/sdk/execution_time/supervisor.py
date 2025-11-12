@@ -131,9 +131,8 @@ except ImportError:
     send_fds = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    from typing import Self
-
     from structlog.typing import FilteringBoundLogger, WrappedLogger
+    from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.definitions.connection import Connection

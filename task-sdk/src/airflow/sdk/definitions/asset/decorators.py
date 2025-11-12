@@ -28,9 +28,9 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
-    from typing import Self
 
     from pydantic.types import JsonValue
+    from typing_extensions import Self
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
     from airflow.sdk.bases.decorator import _TaskDecorator

@@ -62,9 +62,10 @@ from airflow.timetables.simple import (
 
 if TYPE_CHECKING:
     from re import Pattern
-    from typing import Self, TypeAlias
+    from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
+    from typing_extensions import Self
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection

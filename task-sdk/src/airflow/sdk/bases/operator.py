@@ -85,9 +85,9 @@ T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
-    from typing import Self
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
