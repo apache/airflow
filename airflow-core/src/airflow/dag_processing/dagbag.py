@@ -698,12 +698,12 @@ def sync_bag_to_db(
 
     # Build the set of all files that were parsed and include files with import errors
     # in case they are not in file_last_changed
-    files_parsed: set[tuple[str, str]] = set()
+    files_parsed = set(import_errors)
     if dagbag.bundle_path:
-        for abs_filepath in dagbag.file_last_changed:
-            rel_fileloc = dagbag._get_relative_fileloc(abs_filepath)
-            files_parsed.add((bundle_name, rel_fileloc))
-    files_parsed.update(import_errors.keys())
+        files_parsed.update(
+            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
+            for abs_filepath in dagbag.file_last_changed
+        )
 
     update_dag_parsing_results_in_db(
         bundle_name,

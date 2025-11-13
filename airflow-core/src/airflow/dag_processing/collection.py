@@ -292,7 +292,7 @@ def _update_import_errors(
 
     # Delete errors for files that were parsed but don't have errors in import_errors
     # (i.e., files that were successfully parsed without errors)
-    files_to_clear = files_parsed - set(import_errors.keys())
+    files_to_clear = files_parsed.difference(import_errors)
     if files_to_clear:
         session.execute(
             delete(ParseImportError).where(
