@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console
@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -211,7 +212,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -627,7 +628,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql google "
                     "microsoft.azure openlineage pgvector postgres",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -650,7 +651,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.sql,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -670,7 +671,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira dbt.cloud dingding discord google http pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http pagerduty",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -691,7 +692,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -702,18 +703,21 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy]",
                             },
                             {
-                                "description": "atlassian.jir...dbt.cloud",
-                                "test_types": "Providers[atlassian.jira] Providers[dbt.cloud]",
+                                "description": "atlassian.jir...common.compat",
+                                "test_types": "Providers[atlassian.jira] Providers[common.compat]",
                             },
                             {
-                                "description": "dingding...discord",
-                                "test_types": "Providers[dingding] Providers[discord]",
+                                "description": "dbt.cloud...dingding",
+                                "test_types": "Providers[dbt.cloud] Providers[dingding]",
                             },
                             {
-                                "description": "google...http",
-                                "test_types": "Providers[google] Providers[http]",
+                                "description": "discord...google",
+                                "test_types": "Providers[discord] Providers[google]",
                             },
-                            {"description": "pagerduty", "test_types": "Providers[pagerduty]"},
+                            {
+                                "description": "http...pagerduty",
+                                "test_types": "Providers[http] Providers[pagerduty]",
+                            },
                         ]
                     ),
                     "run-mypy": "true",
@@ -731,7 +735,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/airbyte/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "airbyte",
+                    "selected-providers-list-as-string": "airbyte common.compat",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -749,7 +753,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [{"description": "Always", "test_types": "Always"}]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                        [
+                            {
+                                "description": "airbyte,common.compat",
+                                "test_types": "Providers[airbyte,common.compat]",
+                            }
+                        ]
                     ),
                 },
                 id="Helm tests, airbyte providers, kubernetes tests and "
@@ -857,7 +866,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/airbyte/tests/airbyte/__init__.py",),
             {
-                "selected-providers-list-as-string": "airbyte",
+                "selected-providers-list-as-string": "airbyte common.compat",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -875,7 +884,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [{"description": "Always", "test_types": "Always"}]
                 ),
                 "providers-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                    [
+                        {
+                            "description": "airbyte,common.compat",
+                            "test_types": "Providers[airbyte,common.compat]",
+                        }
+                    ]
                 ),
                 "run-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
@@ -1167,7 +1181,7 @@ def test_expected_output_pull_request_main(
     reason="This test should not run if .git folder is missing (for example by default in breeze container)",
 )
 @pytest.mark.parametrize(
-    "files, commit_ref, expected_outputs",
+    ("files", "commit_ref", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1232,7 +1246,7 @@ def test_excluded_providers():
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1283,7 +1297,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1296,7 +1310,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['13']",
+                    "postgres-versions": "['14']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -1331,7 +1345,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
-                    "postgres-versions": "['13', '14', '15', '16', '17']",
+                    "postgres-versions": "['14', '15', '16', '17', '18']",
                     "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
@@ -1366,7 +1380,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['13']",
+                    "postgres-versions": "['14']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -1401,7 +1415,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['13']",
+                    "postgres-versions": "['14']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -1437,7 +1451,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "default-python-version": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "mysql-versions": "['8.4']",
-                    "postgres-versions": "['17']",
+                    "postgres-versions": "['18']",
                     "python-versions": f"['{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}']",
                     "python-versions-list-as-string": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "kubernetes-versions": f"['{ALLOWED_KUBERNETES_VERSIONS[-1]}']",
@@ -1578,7 +1592,7 @@ def test_expected_output_full_tests_needed(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1696,7 +1710,7 @@ def test_expected_output_pull_request_v2_7(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1783,7 +1797,7 @@ def test_expected_output_push(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -2052,7 +2066,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels, commit_ref",
+    ("files", "expected_outputs", "pr_labels", "commit_ref"),
     [
         pytest.param(
             ("airflow-core/src/airflow/models/dag.py",),
@@ -2100,7 +2114,7 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/google/docs/some_file.rst",),
@@ -2116,7 +2130,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
-                "apache.impala apache.pinot common.sql databricks elasticsearch "
+                "apache.impala apache.pinot common.compat common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
@@ -2125,14 +2139,14 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/airbyte/docs/some_file.rst",),
             {
-                "docs-list-as-string": "airbyte",
+                "docs-list-as-string": "airbyte common.compat",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte",
+                "docs-list-as-string": "apache-airflow airbyte common.compat",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -2143,7 +2157,7 @@ def test_upgrade_to_newer_dependencies(
                 "providers-summary-docs/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte common.compat",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
@@ -2156,7 +2170,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "celery cncf.kubernetes"},
+            {"docs-list-as-string": "celery cncf.kubernetes common.compat"},
             id="Celery python files changed",
         ),
         pytest.param(
@@ -2213,7 +2227,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("helm-tests/tests/helm_tests/random_helm_test.py",),
@@ -2238,7 +2252,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/amazon/provider.yaml",),
@@ -2292,7 +2306,7 @@ def test_provider_yaml_or_pyproject_toml_changes_trigger_ci_build(
 
 
 @pytest.mark.parametrize(
-    "files, has_migrations",
+    ("files", "has_migrations"),
     [
         pytest.param(
             ("airflow-core/src/airflow/test.py",),
@@ -2319,7 +2333,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
-    "labels, expected_outputs,",
+    ("labels", "expected_outputs"),
     [
         pytest.param(
             (),
@@ -2353,7 +2367,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, default_branch, pr_labels",
+    ("files", "expected_outputs", "default_branch", "pr_labels"),
     [
         pytest.param(
             ("README.md",),
@@ -2465,3 +2479,303 @@ def test_ui_english_translation_changed_allowed_with_label():
         default_branch="main",
     )
     assert selective_checks.ui_english_translation_changed is True
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == "ubuntu-22.04"
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_not_found(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result is None
+
+
+def test_runner_type_pr():
+    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
+
+    result = selective_checks.runner_type
+
+    assert result == PUBLIC_AMD_RUNNERS
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_runner_type_schedule(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.SCHEDULE,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.runner_type
+
+    assert result == '["ubuntu-22.04-arm"]'
+
+
+@pytest.mark.parametrize(
+    ("integration", "runner_type", "expected_result"),
+    [
+        # Test integrations disabled for all CI environments
+        pytest.param(
+            "elasticsearch",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="elasticsearch_disabled_on_amd",
+        ),
+        pytest.param(
+            "mssql",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="mssql_disabled_on_amd",
+        ),
+        pytest.param(
+            "localstack",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="localstack_disabled_on_arm",
+        ),
+        # Test integrations disabled only for ARM runners
+        pytest.param(
+            "kerberos",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="kerberos_disabled_on_arm",
+        ),
+        pytest.param(
+            "drill",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="drill_disabled_on_arm",
+        ),
+        pytest.param(
+            "tinkerpop",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="tinkerpop_disabled_on_arm",
+        ),
+        pytest.param(
+            "pinot",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="pinot_disabled_on_arm",
+        ),
+        pytest.param(
+            "trino",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="trino_disabled_on_arm",
+        ),
+        pytest.param(
+            "ydb",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="ydb_disabled_on_arm",
+        ),
+        # Test integrations that are NOT disabled on AMD runners
+        pytest.param(
+            "kerberos",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="kerberos_enabled_on_amd",
+        ),
+        pytest.param(
+            "drill",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="drill_enabled_on_amd",
+        ),
+        pytest.param(
+            "tinkerpop",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="tinkerpop_enabled_on_amd",
+        ),
+        # Test an integration that is not in any disabled list
+        pytest.param(
+            "postgres",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="postgres_enabled_on_amd",
+        ),
+        pytest.param(
+            "postgres",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="postgres_enabled_on_arm",
+        ),
+        pytest.param(
+            "redis",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="redis_enabled_on_amd",
+        ),
+        pytest.param(
+            "redis",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="redis_enabled_on_arm",
+        ),
+    ],
+)
+def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+    """Test that _is_disabled_integration correctly identifies disabled integrations."""
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    # Mock the runner_type property
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
+    ):
+        result = selective_checks._is_disabled_integration(integration)
+        assert result == expected_result
+
+
+def test_testable_core_integrations_excludes_disabled():
+    """Test that testable_core_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
+        ["postgres", "elasticsearch", "kerberos"],
+    ):
+        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" in result
+            assert "elasticsearch" not in result
+
+
+def test_testable_core_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_core_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS", ["postgres", "kerberos", "drill"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" not in result
+            assert "drill" not in result
+
+
+def test_testable_providers_integrations_excludes_disabled():
+    """Test that testable_providers_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS",
+        ["postgres", "mssql", "trino"],
+    ):
+        # Test with AMD runner - should exclude mssql (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" in result
+            assert "mssql" not in result
+
+
+def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_providers_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS", ["postgres", "trino", "ydb"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" not in result
+            assert "ydb" not in result

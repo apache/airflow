@@ -33,6 +33,7 @@ from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -207,7 +208,7 @@ def asset3_id(make_dags, asset3, session) -> str:
 
 class TestStructureDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {"dag_id": DAG_ID},
@@ -264,6 +265,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                3,
             ),
             (
                 {
@@ -271,6 +273,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
+                3,
             ),
             (
                 {
@@ -295,6 +298,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                3,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -333,12 +337,14 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                10,
             ),
         ],
     )
     @pytest.mark.usefixtures("make_dags")
-    def test_should_return_200(self, test_client, params, expected):
-        response = test_client.get("/structure/structure_data", params=params)
+    def test_should_return_200(self, test_client, params, expected, expected_queries_count):
+        with assert_queries_count(expected_queries_count):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -528,7 +534,8 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        response = test_client.get("/structure/structure_data", params=params)
+        with assert_queries_count(10):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -602,7 +609,7 @@ class TestStructureDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             pytest.param(
                 {"dag_id": DAG_ID},

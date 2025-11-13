@@ -81,7 +81,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
@@ -867,6 +868,7 @@ class KubernetesPodOperator(BaseOperator):
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
                 startup_check_interval=self.startup_check_interval_seconds,
+                schedule_timeout=self.schedule_timeout_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
                 last_log_time=last_log_time,
@@ -896,17 +898,6 @@ class KubernetesPodOperator(BaseOperator):
 
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
-
-            if event["status"] != "running":
-                for callback in self.callbacks:
-                    callback.on_operator_resuming(
-                        pod=self.pod,
-                        event=event,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
-                    )
 
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
@@ -940,33 +931,15 @@ class KubernetesPodOperator(BaseOperator):
                     )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
-
-                return xcom_sidecar_output
-
-            if event["status"] == "running":
-                if self.get_logs:
-                    self.log.info("Resuming logs read from time %r", last_log_time)
-
-                    pod_log_status = self.pod_manager.fetch_container_logs(
-                        pod=self.pod,
-                        container_name=self.base_container_name,
-                        follow=follow,
-                        since_time=last_log_time,
-                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
-                        log_formatter=self.log_formatter,
-                    )
-
-                    self.invoke_defer_method(pod_log_status.last_log_time)
-                else:
-                    self.invoke_defer_method()
         except TaskDeferred:
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
-        if event["status"] == "running":
+        if self.pod is None:
             return
+
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
@@ -1207,6 +1180,7 @@ class KubernetesPodOperator(BaseOperator):
             **self.labels,
             **self._get_ti_pod_labels(context, include_try_number=False),
         }
+        labels = _normalize_labels_dict(labels)
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
@@ -1279,7 +1253,7 @@ class KubernetesPodOperator(BaseOperator):
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
-                labels=self.labels,
+                labels=_normalize_labels_dict(self.labels),
                 name=self.name,
                 annotations=self.annotations,
             ),
@@ -1436,3 +1410,8 @@ class _optionally_suppress(AbstractContextManager):
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
         return True
+
+
+def _normalize_labels_dict(labels: dict) -> dict:
+    """Return a copy of the labels dict with all None values replaced by empty strings."""
+    return {k: ("" if v is None else v) for k, v in labels.items()}

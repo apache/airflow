@@ -28,7 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
@@ -60,7 +60,7 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
-from airflow.utils.sqlalchemy import with_row_locks
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ class _RunInfo(NamedTuple):
     @classmethod
     def calculate(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> Self:
         """
-        Query the the run counts from the db.
+        Query the run counts from the db.
 
         :param dags: dict of dags to query
         """
@@ -159,10 +159,32 @@ class _RunInfo(NamedTuple):
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
     orm_tags = {t.name: t for t in dm.tags}
+    tags_to_delete = []
     for name, orm_tag in orm_tags.items():
         if name not in tag_names:
             session.delete(orm_tag)
-    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in tag_names.difference(orm_tags))
+            tags_to_delete.append(orm_tag)
+
+    tags_to_add = tag_names.difference(orm_tags)
+    if tags_to_delete:
+        # Remove deleted tags from the collection to keep it in sync
+        for tag in tags_to_delete:
+            dm.tags.remove(tag)
+
+        # Check if there's a potential case-only rename on MySQL (e.g., 'tag' -> 'TAG').
+        # MySQL uses case-insensitive collation for the (name, dag_id) primary key by default,
+        # which can cause duplicate key errors when renaming tags with only case changes.
+        if get_dialect_name(session) == "mysql":
+            orm_tags_lower = {name.lower(): name for name in orm_tags}
+            has_case_only_change = any(tag.lower() in orm_tags_lower for tag in tags_to_add)
+
+            if has_case_only_change:
+                # Force DELETE operations to execute before INSERT operations.
+                session.flush()
+                # Refresh the tags relationship from the database to reflect the deletions.
+                session.expire(dm, ["tags"])
+
+    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in tags_to_add)
 
 
 def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, session: Session) -> None:
@@ -444,7 +466,7 @@ class DagModelOperation(NamedTuple):
             .options(joinedload(DagModel.schedule_asset_alias_references))
             .options(joinedload(DagModel.task_outlet_asset_references))
         )
-        stmt = with_row_locks(stmt, of=DagModel, session=session)
+        stmt = cast("Select[tuple[DagModel]]", with_row_locks(stmt, of=DagModel, session=session))
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
@@ -615,8 +637,8 @@ def _get_dag_assets(
     inlets: bool = True,
     outlets: bool = True,
 ) -> Iterable[tuple[str, AssetT]]:
-    for task in dag.data["dag"]["tasks"]:
-        task = task[Encoding.VAR]
+    for raw_task in dag.data["dag"]["tasks"]:
+        task = raw_task[Encoding.VAR]
         ports = _get_task_ports(task["partial_kwargs"] if task.get("_is_mapped") else task, inlets, outlets)
         for port in ports:
             if isinstance(obj := BaseSerialization.deserialize(port), of):
@@ -756,7 +778,7 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
-        if session.bind is not None and (dialect_name := session.bind.dialect.name) == "postgresql":
+        if (dialect_name := get_dialect_name(session)) == "postgresql":
             from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
             stmt: Any = postgresql_insert(AssetActive).on_conflict_do_nothing()

@@ -51,6 +51,10 @@ INVALID_SESSION_ID_TEST_CASES = [
     pytest.param({"a": "b"}, id="dictionary"),
 ]
 
+INVALID_JAVA_SIZE_STRINGS = "Invalid java size format for string"
+CONF_MUST_BE_DICT = "'conf' argument must be a dict"
+CONF_VALUES_MUST_BE_STR_OR_INT = "'conf' values must be either strings or ints"
+
 
 @pytest.mark.db_test
 class TestLivyDbHook:
@@ -92,7 +96,7 @@ class TestLivyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         [
             pytest.param("default_port", "http://host", id="default-port"),
             pytest.param("default_protocol", "http://host", id="default-protocol"),
@@ -154,7 +158,7 @@ class TestLivyDbHook:
         }
 
     def test_parameters_validation(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             LivyHook.build_post_batch_body(file="appname", executor_memory="xxx")
 
         assert LivyHook.build_post_batch_body(file="appname", args=["a", 1, 0.1])["args"] == ["a", "1", "0.1"]
@@ -226,13 +230,22 @@ class TestLivyDbHook:
         [
             pytest.param("k1=v1", id="string"),
             pytest.param([("k1", "v1"), ("k2", 0)], id="list of tuples"),
+        ],
+    )
+    def test_validate_extra_conf_failed_non_dict(self, config):
+        with pytest.raises(ValueError, match=CONF_MUST_BE_DICT):
+            LivyHook._validate_extra_conf(config)
+
+    @pytest.mark.parametrize(
+        "config",
+        [
             pytest.param({"outer": {"inner": "val"}}, id="nested dictionary"),
             pytest.param({"has_val": "val", "no_val": None}, id="none values in dictionary"),
             pytest.param({"has_val": "val", "no_val": ""}, id="empty values in dictionary"),
         ],
     )
-    def test_validate_extra_conf_failed(self, config):
-        with pytest.raises(ValueError):
+    def test_validate_extra_conf_failed_dict(self, config):
+        with pytest.raises(ValueError, match=CONF_VALUES_MUST_BE_STR_OR_INT):
             LivyHook._validate_extra_conf(config)
 
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
@@ -813,7 +826,7 @@ class TestLivyAsyncHook:
         }
 
     def test_parameters_validation(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             LivyAsyncHook.build_post_batch_body(file="appname", executor_memory="xxx")
 
         assert LivyAsyncHook.build_post_batch_body(file="appname", args=["a", 1, 0.1])["args"] == [
@@ -833,7 +846,7 @@ class TestLivyAsyncHook:
 
     @pytest.mark.parametrize("invalid_size", ["1Gb foo", "10", 1])
     def test_validate_size_format_failure(self, invalid_size):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             assert LivyAsyncHook._validate_size_format(invalid_size)
 
     @pytest.mark.parametrize(
@@ -849,7 +862,7 @@ class TestLivyAsyncHook:
 
     @pytest.mark.parametrize("invalid_string", [{"a": "a"}, [1, {}], [1, None], None, 1, "string"])
     def test_validate_list_of_stringables_failure(self, invalid_string):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="List of strings expected"):
             LivyAsyncHook._validate_list_of_stringables(invalid_string)
 
     @pytest.mark.parametrize(
@@ -868,13 +881,22 @@ class TestLivyAsyncHook:
         [
             "k1=v1",
             [("k1", "v1"), ("k2", 0)],
+        ],
+    )
+    def test_validate_extra_conf_failure_non_dict(self, conf):
+        with pytest.raises(ValueError, match=CONF_MUST_BE_DICT):
+            LivyAsyncHook._validate_extra_conf(conf)
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
             {"outer": {"inner": "val"}},
             {"has_val": "val", "no_val": None},
             {"has_val": "val", "no_val": ""},
         ],
     )
-    def test_validate_extra_conf_failure(self, conf):
-        with pytest.raises(ValueError):
+    def test_validate_extra_conf_failure_dict(self, conf):
+        with pytest.raises(ValueError, match=CONF_VALUES_MUST_BE_STR_OR_INT):
             LivyAsyncHook._validate_extra_conf(conf)
 
     def test_parse_request_response(self):

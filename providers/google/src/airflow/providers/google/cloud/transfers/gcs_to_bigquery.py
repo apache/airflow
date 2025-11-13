@@ -49,7 +49,7 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 ALLOWED_FORMATS = [
     "CSV",
@@ -593,6 +593,8 @@ class GCSToBigQueryOperator(BaseOperator):
         self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
+            dataset_id=table.dataset_id,
+            table_id=table.table_id,
             location=self.location,
             exists_ok=True,
         )

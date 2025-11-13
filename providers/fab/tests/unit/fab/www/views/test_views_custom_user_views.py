@@ -96,7 +96,7 @@ class TestSecurity:
             delete_user(app, "no_access")
             delete_user(app, "has_access")
 
-    @pytest.mark.parametrize("url, _, expected_text", PERMISSIONS_TESTS_PARAMS)
+    @pytest.mark.parametrize(("url", "_", "expected_text"), PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, expected_text, _, app, client):
         user_without_access = create_user(
             app,
@@ -115,7 +115,7 @@ class TestSecurity:
         assert response.status_code == 302
         assert response.location.startswith("/login/")
 
-    @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
+    @pytest.mark.parametrize(("url", "permission", "expected_text"), PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_with_access(self, url, permission, expected_text, app, client):
         user_with_access = create_user(
             app,
@@ -225,7 +225,7 @@ class TestResetUserSessions:
         )
 
     @pytest.mark.parametrize(
-        "time_delta, user_sessions_deleted",
+        ("time_delta", "user_sessions_deleted"),
         [
             pytest.param(timedelta(days=-1), True, id="Both expired"),
             pytest.param(timedelta(hours=1), True, id="Both fresh"),

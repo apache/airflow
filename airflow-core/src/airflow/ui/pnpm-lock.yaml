@@ -194,7 +194,7 @@ importers:
         version: 4.0.1(vite@7.1.11(@types/node@22.15.14)(jiti@1.21.7)(yaml@2.8.0))
       '@vitest/coverage-v8':
         specifier: ^3.2.4
-        version: 3.2.4(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@17.4.6)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0))
+        version: 3.2.4(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@20.0.2)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0))
       eslint:
         specifier: ^9.25.1
         version: 9.26.0(jiti@1.21.7)
@@ -232,8 +232,8 @@ importers:
         specifier: ^15.15.0
         version: 15.15.0
       happy-dom:
-        specifier: ^17.4.6
-        version: 17.4.6
+        specifier: ^20.0.2
+        version: 20.0.2
       jsonc-eslint-parser:
         specifier: ^2.4.0
         version: 2.4.0
@@ -260,7 +260,7 @@ importers:
         version: 3.5.2(vite@7.1.11(@types/node@22.15.14)(jiti@1.21.7)(yaml@2.8.0))
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@17.4.6)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0)
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@20.0.2)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0)
       web-worker:
         specifier: ^1.5.0
         version: 1.5.0
@@ -1243,6 +1243,9 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
+  '@types/node@20.19.23':
+    resolution: {integrity: sha512-yIdlVVVHXpmqRhtyovZAcSy0MiPcYWGkoO4CGe/+jpP0hmNuihm4XhHbADpK++MsiLHP5MVlv+bcgdF99kSiFQ==}
+
   '@types/node@22.15.14':
     resolution: {integrity: sha512-BL1eyu/XWsFGTtDWOYULQEs4KR0qdtYfCxYAUYRoB7JP7h9ETYLgQTww6kH8Sj2C0pFGgrpM0XKv6/kbIzYJ1g==}
 
@@ -1288,6 +1291,9 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
 
   '@typescript-eslint/eslint-plugin@8.32.0':
     resolution: {integrity: sha512-/jU9ettcntkBFmWUzzGgsClEi2ZFiikMX5eEQsmxIAWMOn4H3D4rvHssstmAHGVvrYnaMqdWWWg0b5M6IN/MTQ==}
@@ -2842,9 +2848,9 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@17.4.6:
-    resolution: {integrity: sha512-OEV1hDe9i2rFr66+WZNiwy1S8rAJy6bRXmXql68YJDjdfHBRbN76om+qVh68vQACf6y5Bcr90e/oK53RQxsDdg==}
-    engines: {node: '>=18.0.0'}
+  happy-dom@20.0.2:
+    resolution: {integrity: sha512-pYOyu624+6HDbY+qkjILpQGnpvZOusItCk+rvF5/V+6NkcgTKnbOldpIy22tBnxoaLtlM9nXgoqAcW29/B7CIw==}
+    engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -4618,10 +4624,6 @@ packages:
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
-  webidl-conversions@7.0.0:
-    resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
-    engines: {node: '>=12'}
-
   whatwg-fetch@3.6.20:
     resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
 
@@ -5766,6 +5768,10 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node@20.19.23':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/node@22.15.14':
     dependencies:
       undici-types: 6.21.0
@@ -5806,6 +5812,8 @@ snapshots:
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
+
+  '@types/whatwg-mimetype@3.0.2': {}
 
   '@typescript-eslint/eslint-plugin@8.32.0(@typescript-eslint/parser@8.32.0(eslint@9.26.0(jiti@1.21.7))(typescript@5.8.3))(eslint@9.26.0(jiti@1.21.7))(typescript@5.8.3)':
     dependencies:
@@ -6378,7 +6386,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@17.4.6)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0))':
+  '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@20.0.2)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
@@ -6393,7 +6401,7 @@ snapshots:
       std-env: 3.9.0
       test-exclude: 7.0.1
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@17.4.6)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@20.0.2)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -8198,9 +8206,10 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@17.4.6:
+  happy-dom@20.0.2:
     dependencies:
-      webidl-conversions: 7.0.0
+      '@types/node': 20.19.23
+      '@types/whatwg-mimetype': 3.0.2
       whatwg-mimetype: 3.0.0
 
   has-bigints@1.1.0: {}
@@ -10277,7 +10286,7 @@ snapshots:
       jiti: 1.21.7
       yaml: 2.8.0
 
-  vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@17.4.6)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0):
+  vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.14)(happy-dom@20.0.2)(jiti@1.21.7)(msw@2.7.6(@types/node@22.15.14)(typescript@5.8.3))(yaml@2.8.0):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
@@ -10305,7 +10314,7 @@ snapshots:
     optionalDependencies:
       '@types/debug': 4.1.12
       '@types/node': 22.15.14
-      happy-dom: 17.4.6
+      happy-dom: 20.0.2
     transitivePeerDependencies:
       - jiti
       - less
@@ -10327,8 +10336,6 @@ snapshots:
   web-worker@1.5.0: {}
 
   webidl-conversions@3.0.1: {}
-
-  webidl-conversions@7.0.0: {}
 
   whatwg-fetch@3.6.20: {}
 

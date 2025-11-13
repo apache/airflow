@@ -37,18 +37,19 @@ from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import V1Job, V1Pod
+    from kubernetes.client.models import CoreV1EventList, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -721,8 +722,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             try:
                 deployment = self.get_deployment_status(name=name, namespace=namespace)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
+                msg = "Exception occurred while checking for Deployment status."
+                self.log.exception(msg)
+                raise ValueError(msg) from e
 
             deployment_status = V1Deployment.to_dict(deployment)["status"]
             replicas = deployment_status["replicas"]
@@ -878,12 +880,17 @@ class AsyncKubernetesHook(KubernetesHook):
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
-            v1_api = async_client.CoreV1Api(connection)
-            pod: V1Pod = await v1_api.read_namespaced_pod(
-                name=name,
-                namespace=namespace,
-            )
-        return pod
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                pod: V1Pod = await v1_api.read_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                )
+                return pod
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
 
     async def delete_pod(self, name: str, namespace: str):
         """
@@ -903,7 +910,9 @@ class AsyncKubernetesHook(KubernetesHook):
                 if str(e.status) != "404":
                     raise
 
-    async def read_logs(self, name: str, namespace: str):
+    async def read_logs(
+        self, name: str, namespace: str, container_name: str | None = None, since_seconds: int | None = None
+    ) -> list[str]:
         """
         Read logs inside the pod while starting containers inside.
 
@@ -914,6 +923,8 @@ class AsyncKubernetesHook(KubernetesHook):
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param container_name: Name of the container inside the pod.
+        :param since_seconds: Only return logs newer than a relative duration in seconds.
         """
         async with self.get_conn() as connection:
             try:
@@ -921,16 +932,30 @@ class AsyncKubernetesHook(KubernetesHook):
                 logs = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
+                    container_name=container_name,
                     follow=False,
                     timestamps=True,
+                    since_seconds=since_seconds,
                 )
                 logs = logs.splitlines()
-                for line in logs:
-                    self.log.info("Container logs from %s", line)
                 return logs
-            except HTTPError:
-                self.log.exception("There was an error reading the kubernetes API.")
-                raise
+            except HTTPError as e:
+                raise KubernetesApiError from e
+
+    async def get_pod_events(self, name: str, namespace: str) -> CoreV1EventList:
+        """Get pod's events."""
+        async with self.get_conn() as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                events: CoreV1EventList = await v1_api.list_namespaced_event(
+                    field_selector=f"involvedObject.name={name}",
+                    namespace=namespace,
+                )
+                return events
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
 
     async def get_job_status(self, name: str, namespace: str) -> V1Job:
         """

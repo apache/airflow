@@ -209,7 +209,9 @@ export const $AssetEventResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -266,6 +268,17 @@ export const $AssetEventResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Timestamp'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     type: 'object',
@@ -295,7 +308,9 @@ export const $AssetResponse = {
         extra: {
             anyOf: [
                 {
-                    additionalProperties: true,
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
                     type: 'object'
                 },
                 {
@@ -1644,6 +1659,17 @@ export const $CreateAssetEventsBody = {
             type: 'integer',
             title: 'Asset Id'
         },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
+        },
         extra: {
             additionalProperties: true,
             type: 'object',
@@ -2584,10 +2610,21 @@ export const $DAGRunResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     type: 'object',
-    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name'],
+    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name', 'partition_key'],
     title: 'DAGRunResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -3325,8 +3362,7 @@ export const $DagVersionResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Bundle Url',
-            readOnly: true
+            title: 'Bundle Url'
         }
     },
     type: 'object',
@@ -3817,7 +3853,7 @@ export const $HITLDetailCollection = {
     description: 'Schema for a collection of Human-in-the-loop details.'
 } as const;
 
-export const $HITLDetailHisotry = {
+export const $HITLDetailHistory = {
     properties: {
         options: {
             items: {
@@ -3927,7 +3963,7 @@ export const $HITLDetailHisotry = {
     },
     type: 'object',
     required: ['options', 'subject', 'created_at'],
-    title: 'HITLDetailHisotry',
+    title: 'HITLDetailHistory',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 
@@ -4648,7 +4684,7 @@ export const $PoolResponse = {
         }
     },
     type: 'object',
-    required: ['name', 'slots', 'description', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
+    required: ['name', 'slots', 'include_deferred', 'occupied_slots', 'running_slots', 'queued_slots', 'scheduled_slots', 'open_slots', 'deferred_slots'],
     title: 'PoolResponse',
     description: 'Pool serializer for responses.'
 } as const;
@@ -5204,7 +5240,7 @@ export const $TaskInstanceHistoryResponse = {
         hitl_detail: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/HITLDetailHisotry'
+                    '$ref': '#/components/schemas/HITLDetailHistory'
                 },
                 {
                     type: 'null'
@@ -6353,6 +6389,17 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Note'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
         }
     },
     additionalProperties: false,
@@ -7157,10 +7204,22 @@ export const $DAGRunLightResponse = {
         },
         state: {
             '$ref': '#/components/schemas/DagRunState'
+        },
+        duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration',
+            readOnly: true
         }
     },
     type: 'object',
-    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state'],
+    required: ['id', 'dag_id', 'run_id', 'logical_date', 'run_after', 'start_date', 'end_date', 'state', 'duration'],
     title: 'DAGRunLightResponse',
     description: 'DAG Run serializer for responses.'
 } as const;
@@ -7461,7 +7520,7 @@ export const $DAGWithLatestDagRunsResponse = {
         },
         latest_dag_runs: {
             items: {
-                '$ref': '#/components/schemas/DAGRunResponse'
+                '$ref': '#/components/schemas/DAGRunLightResponse'
             },
             type: 'array',
             title: 'Latest Dag Runs'
@@ -8088,6 +8147,44 @@ export const $TaskInstanceStateCount = {
     required: ['no_status', 'removed', 'scheduled', 'queued', 'running', 'success', 'restarting', 'failed', 'up_for_retry', 'up_for_reschedule', 'upstream_failed', 'skipped', 'deferred'],
     title: 'TaskInstanceStateCount',
     description: 'TaskInstance serializer for responses.'
+} as const;
+
+export const $TeamCollectionResponse = {
+    properties: {
+        teams: {
+            items: {
+                '$ref': '#/components/schemas/TeamResponse'
+            },
+            type: 'array',
+            title: 'Teams'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['teams', 'total_entries'],
+    title: 'TeamCollectionResponse',
+    description: 'Team collection serializer for responses.'
+} as const;
+
+export const $TeamResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'name'],
+    title: 'TeamResponse',
+    description: 'Base serializer for Team.'
 } as const;
 
 export const $UIAlert = {

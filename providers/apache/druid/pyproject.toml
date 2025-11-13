@@ -28,6 +28,8 @@ name = "apache-airflow-providers-apache-druid"
 version = "4.3.0"
 description = "Provider package apache-airflow-providers-apache-druid for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -59,6 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.26.0",
+    "apache-airflow-providers-common-compat>=1.8.0",
     "pydruid>=0.6.6",
 ]
 
@@ -68,6 +70,9 @@ dependencies = [
 "apache.hive" = [
     "apache-airflow-providers-apache-hive"
 ]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
 
 [dependency-groups]
 dev = [
@@ -75,6 +80,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-apache-hive",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas,polars]",

@@ -21,6 +21,7 @@ import datetime
 import json
 import time
 from collections.abc import Sequence
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
@@ -189,6 +190,9 @@ class TriggerDagRunOperator(BaseOperator):
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
+        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
+            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
             # If no logical_date is provided we will set utcnow()
@@ -199,9 +203,11 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
+            if self.conf and isinstance(self.conf, str):
+                self.conf = json.loads(self.conf)
             json.dumps(self.conf)
-        except TypeError:
-            raise ValueError("conf parameter should be JSON Serializable")
+        except (TypeError, JSONDecodeError):
+            raise ValueError("conf parameter should be JSON Serializable %s", self.conf)
 
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
@@ -217,9 +223,12 @@ class TriggerDagRunOperator(BaseOperator):
 
         if self.fail_when_dag_is_paused:
             dag_model = DagModel.get_current(self.trigger_dag_id)
+            if not dag_model:
+                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
             if dag_model.is_paused:
-                if AIRFLOW_V_3_0_PLUS:
-                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                # TODO: enable this when dag state endpoint available from task sdk
+                # if AIRFLOW_V_3_0_PLUS:
+                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
                 raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:

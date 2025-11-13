@@ -185,8 +185,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
             for providers_root_candidate in parent.parents:
                 if providers_root_candidate.name == "providers":
                     return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
-            else:
-                return None
+            return None
     return None
 
 
@@ -661,6 +660,12 @@ def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     return PROVIDER_DEPENDENCIES[provider_id]["cross-providers-deps"]
 
 
+def get_license_files(provider_id: str) -> str:
+    if provider_id == "fab":
+        return str(["LICENSE", "NOTICE", "3rd-party-licenses/LICENSES-*"]).replace('"', "'")
+    return str(["LICENSE", "NOTICE"]).replace('"', "'")
+
+
 def get_provider_jinja_context(
     provider_id: str,
     current_release_version: str,
@@ -693,6 +698,7 @@ def get_provider_jinja_context(
             provider_details.root_provider_path,
             provider_details.documentation_provider_distribution_path,
         ),
+        "LICENSE_FILES": get_license_files(provider_details.provider_id),
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PLUGINS": provider_details.plugins,

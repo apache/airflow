@@ -30,6 +30,10 @@ updates:
       - /
     schedule:
       interval: daily
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directories:
@@ -48,6 +52,16 @@ updates:
       interval: daily
     groups:
       core-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directories:
+      - /dev/react-plugin-tools/react_plugin_template
+    schedule:
+      interval: daily
+    groups:
+      ui-plugin-template-package-updates:
         patterns:
           - "*"
 
@@ -86,6 +100,10 @@ updates:
     schedule:
       interval: daily
     target-branch: v3-1-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directories:
@@ -108,6 +126,10 @@ updates:
     schedule:
       interval: daily
     target-branch: v2-11-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directories:
@@ -124,3 +146,7 @@ updates:
     directory: "/dev/breeze"
     schedule:
       interval: "weekly"
+    groups:
+      uv-dependency-updates:
+        patterns:
+          - "*"

@@ -26,6 +26,7 @@ from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
@@ -44,11 +45,21 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     )
 
 
+@enable_memray_trace(component=MemrayTraceComponents.dag_processor)
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_processor(args):
     """Start Airflow Dag Processor Job."""
     job_runner = _create_dag_processor_job_runner(args)
+
+    if cli_utils.should_enable_hot_reload(args):
+        from airflow.cli.hot_reload import run_with_reloader
+
+        run_with_reloader(
+            lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+            process_name="dag-processor",
+        )
+        return
 
     run_command_with_daemon_option(
         args=args,

@@ -37,7 +37,7 @@ from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -250,6 +250,16 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             user=user,
         )
 
+    def is_authorized_team(
+        self,
+        *,
+        method: ResourceMethod,
+        user: SimpleAuthManagerUser,
+        details: TeamDetails | None = None,
+    ) -> bool:
+        # Simple auth manager is not multi-team mode compatible but to ease development, allow all users to see all teams
+        return True
+
     def is_authorized_variable(
         self,
         *,
@@ -280,7 +290,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         """
         from airflow.api_fastapi.auth.managers.simple.routes.login import login_router
 
-        dev_mode = os.environ.get("DEV_MODE", False) == "true"
+        dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
         directory = Path(__file__).parent.joinpath("ui", "dev" if dev_mode else "dist")
         directory.mkdir(exist_ok=True)
 

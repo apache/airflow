@@ -39,8 +39,9 @@ from slack_sdk.web.async_client import AsyncWebClient
 from typing_extensions import NotRequired
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.slack.utils import ConnectionExtraConfig, get_async_connection
-from airflow.providers.slack.version_compat import BaseHook
+from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
@@ -48,7 +49,7 @@ if TYPE_CHECKING:
     from slack_sdk.web.async_client import AsyncSlackResponse
     from slack_sdk.web.slack_response import SlackResponse
 
-    from airflow.providers.slack.version_compat import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class FileUploadTypeDef(TypedDict):

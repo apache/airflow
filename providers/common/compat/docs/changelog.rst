@@ -25,6 +25,32 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Simplify version-specific imports in the Standard provider (#56867)``
+* ``Add SQLA's 'mapped_column' to common-compat (#56880)``
+* ``Add comprehensive compatibility imports for Airflow 2 to 3 migration (#56790)``
+
+Misc
+~~~~
+
+* ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
+* ``Simplify version-specific imports in the Google provider (#56793)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56495)``
+
 1.7.4
 .....
 

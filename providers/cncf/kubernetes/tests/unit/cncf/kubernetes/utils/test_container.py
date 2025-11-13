@@ -29,7 +29,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
 
 
 @pytest.mark.parametrize(
-    "container_state, expected_is_terminated",
+    ("container_state", "expected_is_terminated"),
     [("waiting", False), ("running", False), ("terminated", True)],
 )
 def test_container_is_terminated_with_waiting_state(container_state, expected_is_terminated):
@@ -98,7 +98,7 @@ def params_for_test_container_is_running():
     return pod_mock_list
 
 
-@pytest.mark.parametrize("remote_pod, result", params_for_test_container_is_running())
+@pytest.mark.parametrize(("remote_pod", "result"), params_for_test_container_is_running())
 def test_container_is_running(remote_pod, result):
     """The `container_is_running` function is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,
@@ -163,7 +163,7 @@ def params_for_test_container_is_succeeded():
     return pod_mock_list
 
 
-@pytest.mark.parametrize("remote_pod, result", params_for_test_container_is_succeeded())
+@pytest.mark.parametrize(("remote_pod", "result"), params_for_test_container_is_succeeded())
 def test_container_is_succeeded(remote_pod, result):
     """The `container_is_succeeded` function is designed to handle an assortment of bad objects
     returned from `read_pod`.  E.g. a None object, an object `e` such that `e.status` is None,

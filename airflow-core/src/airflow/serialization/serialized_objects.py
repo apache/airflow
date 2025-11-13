@@ -31,7 +31,7 @@ import re
 import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from functools import cached_property, lru_cache
+from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
 from typing import (
@@ -140,7 +140,6 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseEventTrigger
 
-    HAS_KUBERNETES: bool
     try:
         from kubernetes.client import models as k8s  # noqa: TC004
 
@@ -1070,10 +1069,9 @@ class BaseSerialization:
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
         """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
         serialized_params = []
-        for k, v in params.items():
-            if isinstance(params, ParamsDict):
-                # Use native param object, not resolved value if possible
-                v = params.get_param(k)
+        for k, raw_v in params.items():
+            # Use native param object, not resolved value if possible
+            v = params.get_param(k) if isinstance(params, ParamsDict) else raw_v
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
@@ -1342,6 +1340,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
 
+    def __hash__(self):
+        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
+
     def __repr__(self) -> str:
         return f"<SerializedTask({self.task_type}): {self.task_id}>"
 
@@ -1587,7 +1588,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         deserialized_partial_kwarg_defaults = {}
 
-        for k, v in encoded_op.items():
+        for k_in, v_in in encoded_op.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
                 pass  # Template fields are handled separately
@@ -2309,6 +2312,7 @@ def _create_orm_dagrun(
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
+    partition_key: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -2335,9 +2339,11 @@ def _create_orm_dagrun(
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
+        partition_key=partition_key,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
-    run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))
+    run.log_template_id = int(max_log_template_id) if max_log_template_id is not None else 0
     run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
@@ -2506,6 +2512,23 @@ class SerializedDAG(BaseSerialization):
                 serialized_dag["has_on_success_callback"] = True
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
+
+            # TODO: Move this logic to a better place -- ideally before serializing contents of default_args.
+            #   There is some duplication with this and SerializedBaseOperator.partial_kwargs serialization.
+            #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
+            if serialized_dag.get("default_args", {}):
+                default_args_dict = serialized_dag["default_args"][Encoding.VAR]
+                callbacks_to_remove = []
+                for k, v in list(default_args_dict.items()):
+                    if k in [
+                        f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
+                    ]:
+                        if bool(v):
+                            default_args_dict[f"has_{k}"] = True
+                        callbacks_to_remove.append(k)
+                for k in callbacks_to_remove:
+                    del default_args_dict[k]
+
             return serialized_dag
         except SerializationError:
             raise
@@ -2544,7 +2567,9 @@ class SerializedDAG(BaseSerialization):
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
 
-        for k, v in encoded_dag.items():
+        for k_in, v_in in encoded_dag.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
@@ -3202,6 +3227,7 @@ class SerializedDAG(BaseSerialization):
         start_date: datetime.datetime | None = None,
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
+        partition_key: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -3274,6 +3300,7 @@ class SerializedDAG(BaseSerialization):
             backfill_id=backfill_id,
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
+            partition_key=partition_key,
             session=session,
         )
 
@@ -3292,6 +3319,7 @@ class SerializedDAG(BaseSerialization):
                                 deadline_time=deadline_time,
                                 callback=deadline.callback,
                                 dagrun_id=orm_dagrun.id,
+                                dag_id=orm_dagrun.dag_id,
                             )
                         )
                         Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
@@ -3449,57 +3477,76 @@ class SerializedDAG(BaseSerialization):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = select(
+            tis_pk = select(
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.run_id,
                 TaskInstance.map_index,
             )
+            tis_pk = tis_pk.join(TaskInstance.dag_run)
         else:
-            tis = select(TaskInstance)
-        tis = tis.join(TaskInstance.dag_run)
+            tis_full = select(TaskInstance)
+            tis_full = tis_full.join(TaskInstance.dag_run)
 
-        if self.partial:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
-        else:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id)
-        if run_id:
-            tis = tis.where(TaskInstance.run_id == run_id)
-        if start_date:
-            tis = tis.where(DagRun.logical_date >= start_date)
-        if task_ids is not None:
-            tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
-        if end_date:
-            tis = tis.where(DagRun.logical_date <= end_date)
-
-        if state:
-            if isinstance(state, (str, TaskInstanceState)):
-                tis = tis.where(TaskInstance.state == state)
-            elif len(state) == 1:
-                tis = tis.where(TaskInstance.state == state[0])
+        # Apply common filters
+        def apply_filters(query):
+            if self.partial:
+                query = query.where(
+                    TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids)
+                )
             else:
-                # this is required to deal with NULL values
-                if None in state:
-                    if all(x is None for x in state):
-                        tis = tis.where(TaskInstance.state.is_(None))
-                    else:
-                        not_none_state = [s for s in state if s]
-                        tis = tis.where(
-                            or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
-                        )
-                else:
-                    tis = tis.where(TaskInstance.state.in_(state))
+                query = query.where(TaskInstance.dag_id == self.dag_id)
+            if run_id:
+                query = query.where(TaskInstance.run_id == run_id)
+            if start_date:
+                query = query.where(DagRun.logical_date >= start_date)
+            if task_ids is not None:
+                # Use the selector condition directly without intermediate variable
+                query = query.where(TaskInstance.ti_selector_condition(task_ids))
+            if end_date:
+                query = query.where(DagRun.logical_date <= end_date)
+            return query
 
-        if exclude_run_ids:
-            tis = tis.where(TaskInstance.run_id.not_in(exclude_run_ids))
+        if as_pk_tuple:
+            tis_pk = apply_filters(tis_pk)
+        else:
+            tis_full = apply_filters(tis_full)
+
+        def apply_state_filter(query):
+            if state:
+                if isinstance(state, (str, TaskInstanceState)):
+                    query = query.where(TaskInstance.state == state)
+                elif len(state) == 1:
+                    query = query.where(TaskInstance.state == state[0])
+                else:
+                    # this is required to deal with NULL values
+                    if None in state:
+                        if all(x is None for x in state):
+                            query = query.where(TaskInstance.state.is_(None))
+                        else:
+                            not_none_state = [s for s in state if s]
+                            query = query.where(
+                                or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
+                            )
+                    else:
+                        query = query.where(TaskInstance.state.in_(state))
+
+            if exclude_run_ids:
+                query = query.where(TaskInstance.run_id.not_in(exclude_run_ids))
+            return query
+
+        if as_pk_tuple:
+            tis_pk = apply_state_filter(tis_pk)
+        else:
+            tis_full = apply_state_filter(tis_full)
 
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results
             if as_pk_tuple:
-                tis_query = session.execute(tis).all()
+                tis_query = session.execute(tis_pk).all()
                 result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
             else:
-                result.update(ti.key for ti in session.scalars(tis))
+                result.update(ti.key for ti in session.scalars(tis_full))
 
             if exclude_task_ids is not None:
                 result = {
@@ -3515,15 +3562,18 @@ class SerializedDAG(BaseSerialization):
             # We've been asked for objects, lets combine it all back in to a result set
             ti_filters = TaskInstance.filter_for_tis(result)
             if ti_filters is not None:
-                tis = select(TaskInstance).where(ti_filters)
+                tis_final = select(TaskInstance).where(ti_filters)
+                return session.scalars(tis_final)
         elif exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
-            tis = tis.where(TaskInstance.task_id.notin_(exclude_task_ids))
+            tis_full = tis_full.where(TaskInstance.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.where(tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids))
+            tis_full = tis_full.where(
+                tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids)
+            )
 
-        return tis
+        return session.scalars(tis_full)
 
     @overload
     def clear(
@@ -3635,7 +3685,7 @@ class SerializedDAG(BaseSerialization):
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
 
-        tis = self._get_task_instances(
+        tis_result = self._get_task_instances(
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
@@ -3647,11 +3697,11 @@ class SerializedDAG(BaseSerialization):
         )
 
         if dry_run:
-            return session.scalars(tis).all()
+            return list(tis_result)
 
-        tis = session.scalars(tis).all()
+        tis = list(tis_result)
 
-        count = len(list(tis))
+        count = len(tis)
         if count == 0:
             return 0
 
@@ -3807,6 +3857,7 @@ class SerializedAssetWatcher(AssetWatcher):
     trigger: dict
 
 
+@cache
 def _has_kubernetes(attempt_import: bool = False) -> bool:
     """
     Check if kubernetes libraries are available.
@@ -3815,17 +3866,11 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
         False, only check if already in sys.modules (avoids expensive import).
     :return: True if kubernetes libraries are available, False otherwise.
     """
-    global HAS_KUBERNETES
-    if "HAS_KUBERNETES" in globals():
-        return HAS_KUBERNETES
-
     # Check if kubernetes is already imported before triggering expensive import
     if "kubernetes.client" not in sys.modules and not attempt_import:
-        HAS_KUBERNETES = False
         return False
 
     # Loading kube modules is expensive, so delay it until the last moment
-
     try:
         from kubernetes.client import models as k8s
 
@@ -3833,10 +3878,9 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
-        HAS_KUBERNETES = True
+        return True
     except ImportError:
-        HAS_KUBERNETES = False
-    return HAS_KUBERNETES
+        return False
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset, covariant=True)
