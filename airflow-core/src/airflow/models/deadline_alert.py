@@ -50,7 +50,7 @@ class DeadlineAlert(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[dict] = mapped_column(JSON, nullable=False)
     interval: Mapped[float] = mapped_column(Float, nullable=False)
-    callback: Mapped[dict] = mapped_column(JSON, nullable=False)
+    callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     def __repr__(self):
         interval_seconds = int(self.interval)
@@ -69,7 +69,7 @@ class DeadlineAlert(Base):
             f"name={self.name or 'Unnamed'}, "
             f"reference={self.reference}, "
             f"interval={interval_display}, "
-            f"callback={self.callback}"
+            f"callback={self.callback_def}"
         )
 
     def __eq__(self, other):
@@ -78,11 +78,11 @@ class DeadlineAlert(Base):
         return (
             self.reference == other.reference
             and self.interval == other.interval
-            and self.callback == other.callback
+            and self.callback_def == other.callback_def
         )
 
     def __hash__(self):
-        return hash((str(self.reference), self.interval, str(self.callback)))
+        return hash((str(self.reference), self.interval, str(self.callback_def)))
 
     @property
     def reference_class(self) -> type[ReferenceModels.BaseDeadlineReference]:

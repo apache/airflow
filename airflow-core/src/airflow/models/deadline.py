@@ -118,7 +118,6 @@ class Deadline(Base):
         callback: CallbackDefinitionProtocol,
         dagrun_id: int,
         deadline_alert_id: str | None,
-        # TODO: can't we drop this and use self.dagrun.dag_id??
         dag_id: str | None = None,
     ):
         super().__init__()
@@ -146,7 +145,7 @@ class Deadline(Base):
             f"created at {self.created_at}, "
             f"{resource_details}, "
             f"needed by {self.deadline_time} "
-            f"or run: {self.callback.path}({self.callback.kwargs or ''})"
+            f"or run: {self.callback}"
         )
 
     @classmethod

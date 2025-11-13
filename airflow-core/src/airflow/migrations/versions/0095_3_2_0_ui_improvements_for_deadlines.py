@@ -88,7 +88,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("reference", sa.JSON(), nullable=False),
         sa.Column("interval", sa.Float(), nullable=False),
-        sa.Column("callback", sa.JSON(), nullable=False),
+        sa.Column("callback_def", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
     )
 
@@ -250,7 +250,7 @@ def validate_written_data(
 
     validation_result = conn.execute(
         sa.text("""
-                SELECT reference, interval, callback
+                SELECT reference, interval, callback_def
                 FROM deadline_alert
                 WHERE id = :alert_id
                 """),
@@ -264,7 +264,7 @@ def validate_written_data(
     checks = [
         (REFERENCE_KEY, json.dumps(validation_result.reference, sort_keys=True), expected_reference),
         (INTERVAL_KEY, validation_result.interval, expected_interval),
-        (CALLBACK_KEY, json.dumps(validation_result.callback, sort_keys=True), expected_callback),
+        (CALLBACK_KEY, json.dumps(validation_result.callback_def, sort_keys=True), expected_callback),
     ]
 
     for name, actual, expected in checks:
@@ -370,7 +370,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                                 serialized_dag_id,
                                                 reference,
                                                 interval,
-                                                callback,
+                                                callback_def,
                                                 name,
                                                 description)
                                             VALUES (
@@ -379,7 +379,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                                 :serialized_dag_id,
                                                 :reference,
                                                 :interval,
-                                                :callback,
+                                                :callback_def,
                                                 NULL,
                                                 NULL)
                                             """),
@@ -389,7 +389,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                         "serialized_dag_id": serialized_dag_id,
                                         "reference": reference_data,
                                         "interval": interval_data,
-                                        "callback": callback_data,
+                                        "callback_def": callback_data,
                                     },
                                 )
 
@@ -517,7 +517,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
 
                 alert_result = conn.execute(
                     sa.text("""
-                            SELECT reference, interval, callback
+                            SELECT reference, interval, callback_def
                             FROM deadline_alert
                             WHERE serialized_dag_id = :serialized_dag_id
                             """),
@@ -536,7 +536,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                         Encoding.VAR: {
                             REFERENCE_KEY: alert.reference,
                             INTERVAL_KEY: float(alert.interval),
-                            CALLBACK_KEY: alert.callback,
+                            CALLBACK_KEY: alert.callback_def,
                         },
                     }
                     restored_deadline_objects.append(deadline_object)

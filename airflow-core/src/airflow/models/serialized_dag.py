@@ -426,7 +426,7 @@ class SerializedDagModel(Base):
 
             existing_alert = None
             for alert in candidates:
-                if alert.reference == reference and alert.callback == callback:
+                if alert.reference == reference and alert.callback_def == callback:
                     existing_alert = alert
                     break
 
@@ -440,7 +440,7 @@ class SerializedDagModel(Base):
                         serialized_dag_id=serialized_dag_id,
                         reference=reference,
                         interval=interval,
-                        callback=callback,
+                        callback_def=callback,
                     )
                 )
 
@@ -732,7 +732,7 @@ class SerializedDagModel(Base):
                     Encoding.VAR: {
                         DeadlineAlertFields.REFERENCE: deadline_alert.reference,
                         DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
                     },
                 }
             )
