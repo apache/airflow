@@ -49,12 +49,12 @@ class KeyedHeadQueue(Generic[K, V]):
     """
 
     def __init__(self) -> None:
-        self.__map: OrderedDict[K, deque[tuple[K, V]]] = OrderedDict()  # key -> deque of values
+        self.__map: OrderedDict[K, deque[V]] = OrderedDict()  # key -> deque of values
         self.__popped_keys: set[K] = set()  # keys whose first value has been consumed
         self._lock = Lock()
 
     @property
-    def _map(self) -> OrderedDict[K, list[tuple[K, V]]]:
+    def _map(self) -> OrderedDict[K, list[V]]:
         with self._lock:
             return OrderedDict((key, list(value)) for key, value in self.__map.items())
 
@@ -63,14 +63,14 @@ class KeyedHeadQueue(Generic[K, V]):
         with self._lock:
             return set(self.__popped_keys)
 
-    def get(self, key: K, default_value: list[tuple[K, V]] | None = None) -> list[tuple[K, V]] | None:
+    def get(self, key: K, default_value: list[V] | None = None) -> list[V] | None:
         return list(self._map.get(key, default_value or []))
 
-    def extend(self, elements: Iterable[tuple[K, V]]) -> None:
+    def extend(self, elements: Iterable[V]) -> None:
         for element in elements:
             self.append(element)
 
-    def append(self, element: tuple[K, V]) -> None:
+    def append(self, element: V) -> None:
         """Append a (key, value) pair unless key already consumed."""
         key = element[0]
         with self._lock:
@@ -78,7 +78,7 @@ class KeyedHeadQueue(Generic[K, V]):
                 self.__map[key] = deque()
             self.__map[key].append(element)
 
-    def popleft(self) -> tuple[K, V]:
+    def popleft(self) -> V:
         """
         Pop the *first inserted value* for the next key in order.
 
@@ -94,7 +94,7 @@ class KeyedHeadQueue(Generic[K, V]):
                     return value
         raise IndexError("pop from empty KeyedHeadQueue")
 
-    def popall(self) -> tuple[K, list[tuple[K, V]]]:
+    def popall(self) -> tuple[K, list[V]]:
         """
         Pop all values for the first unconsumed key (in insertion order).
 
@@ -113,7 +113,7 @@ class KeyedHeadQueue(Generic[K, V]):
     def __contains__(self, key: K) -> bool:
         return key in self._map
 
-    def __iter__(self) -> Iterable[tuple[K, tuple[K, V]]]:
+    def __iter__(self) -> Iterable[tuple[K, V]]:
         """Iterate over leftover (key, value) pairs in a snapshot, so concurrent appends during iteration are not visible."""
         for key, values in self._map.items():
             for value in values:

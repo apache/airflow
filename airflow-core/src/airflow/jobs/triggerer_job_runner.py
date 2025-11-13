@@ -356,10 +356,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: KeyedHeadQueue = attrs.field(factory=KeyedHeadQueue, init=False)
+    events: KeyedHeadQueue[int, tuple[int, events.TriggerEvent]] = attrs.field(factory=KeyedHeadQueue, init=False)
 
     # Outbound queue of failed triggers
-    failed_triggers: KeyedHeadQueue = attrs.field(factory=KeyedHeadQueue, init=False)
+    failed_triggers: KeyedHeadQueue[int, tuple[int, list[str] | None]] = attrs.field(factory=KeyedHeadQueue, init=False)
 
     # Outbound queue of finished triggers
     finished_triggers: set = attrs.field(factory=set, init=False)
@@ -646,7 +646,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname = log_filename_template_renderer()
 
         known_trigger_ids = (
-            self.running_triggers.union(x[0] for x in self.events)
+            self.running_triggers.union({x[0] for x in self.events})
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
             .union(trigger.id for trigger in self.creating_triggers)
@@ -785,6 +785,7 @@ class TriggerDetails(TypedDict):
     task: asyncio.Task
     name: str
     events: int
+    trigger: BaseTrigger | None
 
 
 @attrs.define(kw_only=True)
@@ -847,7 +848,7 @@ class TriggerRunner:
     """
 
     # Maps trigger IDs to their running tasks and other info
-    triggers: dict[int, dict[str, TriggerDetails]]
+    triggers: dict[int, TriggerDetails]
 
     # Cache for looking up triggers by classpath
     trigger_cache: dict[str, type[BaseTrigger]]
@@ -862,7 +863,7 @@ class TriggerRunner:
     events: PartitionedQueue[int, events.TriggerEvent]
 
     # Outbound queue of failed triggers
-    failed_triggers: KeyedHeadQueue[int, BaseException | None]
+    failed_triggers: KeyedHeadQueue[int, tuple[int, TriggerDetails | None, BaseException | None]]
 
     # Should-we-stop flag
     # TODO: set this in a sig-int handler
@@ -969,7 +970,7 @@ class TriggerRunner:
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.log.error("Trigger failed to load code", error=e, classpath=workload.classpath)
-                self.failed_triggers.append((trigger_id, e))
+                self.failed_triggers.append((trigger_id, None, e))
                 continue
 
             # Loading the trigger class could have been expensive. Lets give other things a chance to run!
@@ -988,7 +989,7 @@ class TriggerRunner:
                 trigger_instance = trigger_class(**deserialised_kwargs)
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
-                self.failed_triggers.append((trigger_id, err))
+                self.failed_triggers.append((trigger_id, None, err))
                 continue
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
