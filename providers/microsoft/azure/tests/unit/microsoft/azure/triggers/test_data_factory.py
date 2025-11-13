@@ -128,7 +128,7 @@ class TestADFPipelineRunStatusSensorTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_status, mock_message",
+        ("mock_status", "mock_message"),
         [
             ("Failed", f"Pipeline run {RUN_ID} has Failed."),
         ],
@@ -146,7 +146,7 @@ class TestADFPipelineRunStatusSensorTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_status, mock_message",
+        ("mock_status", "mock_message"),
         [
             ("Cancelled", f"Pipeline run {RUN_ID} has been Cancelled."),
         ],

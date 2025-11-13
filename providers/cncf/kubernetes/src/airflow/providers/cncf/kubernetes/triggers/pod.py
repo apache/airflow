@@ -287,16 +287,14 @@ class KubernetesPodTrigger(BaseTrigger):
                     }
                 )
             self.log.debug("Container is not completed and still working.")
-            if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
-                return TriggerEvent(
-                    {
-                        "status": "running",
-                        "last_log_time": self.last_log_time,
-                        "namespace": self.pod_namespace,
-                        "name": self.pod_name,
-                        **self.trigger_kwargs,
-                    }
-                )
+            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            if time_get_more_logs and now >= time_get_more_logs:
+                if self.get_logs and self.logging_interval:
+                    self.last_log_time = await self.pod_manager.fetch_container_logs_before_current_sec(
+                        pod, container_name=self.base_container_name, since_time=self.last_log_time
+                    )
+                    time_get_more_logs = now + datetime.timedelta(seconds=self.logging_interval)
+
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
 

@@ -46,7 +46,7 @@
 !docker-tests
 !helm-tests
 !kubernetes-tests
-!task-sdk-tests
+!task-sdk-integration-tests
 !airflow-ctl-tests
 !shared/
 !airflow-e2e-tests

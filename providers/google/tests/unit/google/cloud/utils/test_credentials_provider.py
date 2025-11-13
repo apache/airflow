@@ -523,7 +523,7 @@ class TestGetScopes:
         assert _get_scopes() == _DEFAULT_SCOPES
 
     @pytest.mark.parametrize(
-        "scopes_str, scopes",
+        ("scopes_str", "scopes"),
         [
             pytest.param("scope1", ["scope1"], id="single-scope"),
             pytest.param("scope1,scope2", ["scope1", "scope2"], id="multiple-scopes"),
@@ -538,7 +538,7 @@ class TestGetTargetPrincipalAndDelegates:
         assert _get_target_principal_and_delegates() == (None, None)
 
     @pytest.mark.parametrize(
-        "impersonation_chain, target_principal_and_delegates",
+        ("impersonation_chain", "target_principal_and_delegates"),
         [
             pytest.param(ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None), id="string"),
             pytest.param([], (None, None), id="empty-list"),

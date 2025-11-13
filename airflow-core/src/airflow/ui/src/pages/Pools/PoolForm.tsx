@@ -87,7 +87,17 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
-            <Input {...field} min={initialPool.slots} size="sm" type="number" />
+            <Input
+              min={initialPool.slots}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+
+                field.onChange(isNaN(value) ? field.value : value);
+              }}
+              size="sm"
+              type="number"
+              value={field.value}
+            />
           </Field.Root>
         )}
       />
@@ -128,7 +138,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={!isValid || isPending}
+            disabled={!isValid || isPending || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

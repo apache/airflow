@@ -66,6 +66,15 @@ def triggerer(args):
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
+    if cli_utils.should_enable_hot_reload(args):
+        from airflow.cli.hot_reload import run_with_reloader
+
+        run_with_reloader(
+            lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+            process_name="triggerer",
+        )
+        return
+
     run_command_with_daemon_option(
         args=args,
         process_name="triggerer",

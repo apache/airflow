@@ -36,7 +36,7 @@ DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 class TestDag:
     @pytest.mark.parametrize(
-        "dag_id, exc_type, exc_value",
+        ("dag_id", "exc_type", "exc_value"),
         [
             pytest.param(
                 123,
@@ -397,7 +397,7 @@ class TestDag:
 
 # Test some of the arg validation. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
-    ["attr", "value"],
+    ("attr", "value"),
     [
         pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
         pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
@@ -410,7 +410,7 @@ def test_invalid_type_for_args(attr: str, value: Any):
 
 
 @pytest.mark.parametrize(
-    "tags, should_pass",
+    ("tags", "should_pass"),
     [
         pytest.param([], True, id="empty tags"),
         pytest.param(["a normal tag"], True, id="one tag"),
@@ -428,7 +428,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
 
 
 @pytest.mark.parametrize(
-    "input_tags, expected_result",
+    ("input_tags", "expected_result"),
     [
         pytest.param([], set(), id="empty tags"),
         pytest.param(
@@ -535,8 +535,8 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
 
     @pytest.mark.parametrize(
-        argnames=["dag_doc_md", "expected_doc_md"],
-        argvalues=[
+        ("dag_doc_md", "expected_doc_md"),
+        [
             pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
             pytest.param(None, "Regular Dag documentation", id="use_dag_docstring"),
         ],

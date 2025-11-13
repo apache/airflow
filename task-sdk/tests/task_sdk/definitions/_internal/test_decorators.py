@@ -25,7 +25,7 @@ from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 
 class TestExternalPythonDecorator:
     @pytest.mark.parametrize(
-        "decorators, expected_decorators",
+        ("decorators", "expected_decorators"),
         [
             (["@task.external_python"], []),
             (["@task.external_python()"], []),

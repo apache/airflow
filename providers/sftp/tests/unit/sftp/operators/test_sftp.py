@@ -593,7 +593,7 @@ class TestSFTPOperator:
             ).execute(None)
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
@@ -624,7 +624,7 @@ class TestSFTPOperator:
         assert lineage.outputs == expected[1]
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)

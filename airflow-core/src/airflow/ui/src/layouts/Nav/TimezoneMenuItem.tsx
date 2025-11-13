@@ -50,7 +50,9 @@ export const TimezoneMenuItem = ({ onOpen }: { readonly onOpen: () => void }) =>
   return (
     <Menu.Item onClick={onOpen} value="timezone">
       <Icon as={FiClock} boxSize={4} />
-      <Box flex="1">{translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}</Box>
+      <Box flex="1">
+        {translate("timezone")}: {dayjs(time).tz(selectedTimezone).format("HH:mm z (Z)")}
+      </Box>
     </Menu.Item>
   );
 };

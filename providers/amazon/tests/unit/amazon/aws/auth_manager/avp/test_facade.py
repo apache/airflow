@@ -61,7 +61,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         assert hasattr(facade, "avp_policy_store_id")
 
     @pytest.mark.parametrize(
-        "entity_id, context, user, expected_entities, expected_context, avp_response, expected",
+        ("entity_id", "context", "user", "expected_entities", "expected_context", "avp_response", "expected"),
         [
             # User with groups with no permissions
             (
@@ -196,7 +196,7 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             facade.is_authorized(method="GET", entity_type=AvpEntities.VARIABLE, user=test_user)
 
     @pytest.mark.parametrize(
-        "user, avp_response, expected",
+        ("user", "avp_response", "expected"),
         [
             (
                 test_user,

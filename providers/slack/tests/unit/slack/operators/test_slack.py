@@ -35,7 +35,7 @@ DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "r
 class TestSlackAPIOperator:
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
             pytest.param(

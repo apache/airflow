@@ -78,7 +78,7 @@ class TestPowerBIHook:
                 await powerbi_hook.get_refresh_history(DATASET_ID, GROUP_ID)
 
     @pytest.mark.parametrize(
-        "input_data, expected_output",
+        ("input_data", "expected_output"),
         [
             (
                 {"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""},

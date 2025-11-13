@@ -222,7 +222,7 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
 
 
 @pytest.mark.parametrize(
-    "reprocess_behavior, num_in_b, exc_reasons",
+    ("reprocess_behavior", "num_in_b", "exc_reasons"),
     [
         (
             ReprocessBehavior.NONE,

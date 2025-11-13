@@ -92,7 +92,7 @@ def test_optional_hook_attributes(hook_attr, hook_kwargs):
 
 
 @pytest.mark.parametrize(
-    "conn_id, hook_conn",
+    ("conn_id", "hook_conn"),
     [
         pytest.param(TEST_CONN_ID, None, id="conn-specified"),
         pytest.param(None, MOCK_CONNECTION_NOT_EXISTS_EX, id="conn-not-specified"),
@@ -133,7 +133,7 @@ def test_failed_create_api_client(docker_api_client_patcher):
 
 
 @pytest.mark.parametrize(
-    "hook_conn, expected",
+    ("hook_conn", "expected"),
     [
         pytest.param(
             TEST_CONN,
@@ -204,7 +204,7 @@ def test_failed_login_to_registry(hook_conn, docker_api_client_patcher, caplog):
 
 
 @pytest.mark.parametrize(
-    "hook_conn, ex, error_message",
+    ("hook_conn", "ex", "error_message"),
     [
         pytest.param(
             {k: v for k, v in TEST_CONN.items() if k != "login"},

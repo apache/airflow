@@ -353,7 +353,7 @@ a local venv. You can build the prod image with breeze and that will be used by 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
 ``breeze testing task-sdk-integration-tests`` command.
 
-The task-sdk tests are in ``task-sdk-tests/`` folder in the main repo.
+The task-sdk integration tests are in ``task-sdk-integration-tests/`` folder in the main repo.
 
 Running Airflow E2E tests
 .........................

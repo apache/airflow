@@ -585,7 +585,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert "add_2" in self.dag_non_serialized.task_ids
 
     @pytest.mark.parametrize(
-        argnames=["op_doc_attr", "op_doc_value", "expected_doc_md"],
+        argnames=("op_doc_attr", "op_doc_value", "expected_doc_md"),
         argvalues=[
             pytest.param("doc", "task docs.", None, id="set_doc"),
             pytest.param("doc_json", '{"task": "docs."}', None, id="set_doc_json"),

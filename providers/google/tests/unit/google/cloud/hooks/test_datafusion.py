@@ -519,7 +519,7 @@ class TestDataFusionHook:
         )
 
     @pytest.mark.parametrize(
-        "pipeline_type, expected_program_type",
+        ("pipeline_type", "expected_program_type"),
         [
             (DataFusionPipelineType.BATCH, "workflow"),
             (DataFusionPipelineType.STREAM, "spark"),
@@ -530,7 +530,7 @@ class TestDataFusionHook:
         assert DataFusionHook.cdap_program_type(pipeline_type) == expected_program_type
 
     @pytest.mark.parametrize(
-        "pipeline_type, expected_program_id",
+        ("pipeline_type", "expected_program_id"),
         [
             (DataFusionPipelineType.BATCH, "DataPipelineWorkflow"),
             (DataFusionPipelineType.STREAM, "DataStreamsSparkStreaming"),
@@ -556,7 +556,7 @@ class TestDataFusionHookAsynch:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "pipeline_type, constructed_url",
+        ("pipeline_type", "constructed_url"),
         [
             (DataFusionPipelineType.BATCH, CONSTRUCTED_PIPELINE_URL_GET),
             (DataFusionPipelineType.STREAM, CONSTRUCTED_PIPELINE_STREAM_URL_GET),
@@ -593,7 +593,7 @@ class TestDataFusionHookAsynch:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "pipeline_type, constructed_url",
+        ("pipeline_type", "constructed_url"),
         [
             (DataFusionPipelineType.BATCH, CONSTRUCTED_PIPELINE_URL_GET),
             (DataFusionPipelineType.STREAM, CONSTRUCTED_PIPELINE_STREAM_URL_GET),

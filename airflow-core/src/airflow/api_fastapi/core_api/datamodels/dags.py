@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from collections import abc
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -154,12 +153,12 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    params: abc.Mapping | None
+    params: Mapping | None
     render_template_as_native_obj: bool
     template_search_path: list[str] | None
     timezone: str | None
     last_parsed: datetime | None
-    default_args: abc.Mapping | None
+    default_args: Mapping | None
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
 

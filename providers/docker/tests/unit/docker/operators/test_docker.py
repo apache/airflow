@@ -97,7 +97,7 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
 
 
 @pytest.mark.parametrize(
-    "env_str, expected",
+    ("env_str", "expected"),
     [
         pytest.param("FOO=BAR\nSPAM=EGG", {"FOO": "BAR", "SPAM": "EGG"}, id="parsable-string"),
         pytest.param("", {}, id="empty-string"),
@@ -531,7 +531,7 @@ class TestDockerOperator:
             print_exception_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_exc",
+        ("kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),
@@ -758,7 +758,7 @@ class TestDockerOperator:
         assert operator.docker_url == "unix://var/run/docker.sock"
 
     @pytest.mark.parametrize(
-        "log_lines, expected_lines",
+        ("log_lines", "expected_lines"),
         [
             pytest.param(
                 [

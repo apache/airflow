@@ -97,16 +97,16 @@ directly:
 
 .. code-block:: bash
 
-   # Navigate to task-sdk-tests directory and run tests
-   cd task-sdk-tests/
+   # Navigate to task-sdk-integration-tests directory and run tests
+   cd task-sdk-integration-tests/
    uv run pytest -s
 
    # Run specific test file
-   cd task-sdk-tests/
+   cd task-sdk-integration-tests/
    uv run pytest tests/task_sdk_tests/test_task_sdk_health.py -s
 
    # Keep containers running for debugging
-   cd task-sdk-tests/
+   cd task-sdk-integration-tests/
    SKIP_DOCKER_COMPOSE_DELETION=1 uv run pytest -s
 
 **Optional: Set Custom Docker Image**
@@ -114,7 +114,7 @@ directly:
 .. code-block:: bash
 
    # Use a different Airflow image for testing
-   cd task-sdk-tests/
+   cd task-sdk-integration-tests/
    DOCKER_IMAGE=my-custom-airflow:latest uv run pytest -s
 
 
@@ -127,18 +127,18 @@ and the Docker Compose deployment is shut down. To debug issues more effectively
 .. code-block:: bash
 
    # Run with maximum verbosity
-   cd task-sdk-tests/
+   cd task-sdk-integration-tests/
    uv run pytest tests/task_sdk_tests/ -vvv -s --tb=long
 
    # Keep containers running for inspection (local environment)
-   cd task-sdk-tests/
+   cd task-sdk-integration-tests/
    SKIP_DOCKER_COMPOSE_DELETION=1 uv run pytest tests/task_sdk_tests/test_task_sdk_health.py::test_task_sdk_health
 
    # Keep containers running for inspection (using Breeze)
    breeze testing task-sdk-integration-tests --skip-docker-compose-deletion
 
    # Inspect container logs (when containers are still running)
-   cd task-sdk-tests/docker
+   cd task-sdk-integration-tests/docker
    docker-compose logs airflow-apiserver
    docker-compose logs airflow-scheduler
    docker-compose logs postgres
@@ -153,7 +153,7 @@ and the Docker Compose deployment is shut down. To debug issues more effectively
    - **Local environment**: Export ``SKIP_DOCKER_COMPOSE_DELETION=1`` before running tests
    - **Breeze environment**: Use the ``--skip-docker-compose-deletion`` flag
 
-   Remember to manually clean up containers when done: ``cd task-sdk-tests/docker && docker-compose down -v``
+   Remember to manually clean up containers when done: ``cd task-sdk-integration-tests/docker && docker-compose down -v``
 
 Testing Custom Airflow Images
 ..............................
@@ -168,7 +168,7 @@ To test the Task SDK against custom Airflow builds:
 
    # Use custom image for integration tests
    export DOCKER_IMAGE=my-custom-airflow:latest
-   cd task-sdk-tests
+   cd task-sdk-integration-tests
    uv run pytest tests/task_sdk_tests/
 
 Common Issues and Solutions
@@ -192,7 +192,7 @@ The Task SDK Integration Tests are organized as follows:
 
 .. code-block::
 
-   task-sdk-tests/
+   task-sdk-integration-tests/
    ├── pyproject.toml                    # Test package configuration and dependencies
    ├── docker/
    │   └── docker-compose.yaml           # Airflow services configuration

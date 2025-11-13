@@ -35,7 +35,7 @@ def evaluator(session):
 
 
 @pytest.mark.parametrize(
-    "statuses, result",
+    ("statuses", "result"),
     [
         ({AssetUniqueKey.from_asset(asset1): True}, True),
         ({AssetUniqueKey.from_asset(asset1): False}, False),
@@ -47,7 +47,7 @@ def test_asset_evaluate(evaluator, statuses, result):
 
 
 @pytest.mark.parametrize(
-    "condition, statuses, result",
+    ("condition", "statuses", "result"),
     [
         (
             AssetAny(asset1, asset2),
@@ -76,7 +76,7 @@ def test_assset_boolean_condition_evaluate_iter(evaluator, condition, statuses, 
 
 
 @pytest.mark.parametrize(
-    "inputs, scenario, expected",
+    ("inputs", "scenario", "expected"),
     [
         # Scenarios for AssetAny
         ((True, True, True), "any", True),
@@ -115,7 +115,7 @@ def test_asset_logical_conditions_evaluation_and_serialization(evaluator, inputs
 
 
 @pytest.mark.parametrize(
-    "status_values, expected_evaluation",
+    ("status_values", "expected_evaluation"),
     [
         pytest.param(
             (False, True, True),

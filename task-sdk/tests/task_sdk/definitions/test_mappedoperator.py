@@ -536,7 +536,7 @@ def test_find_mapped_dependants_in_another_group():
 
 
 @pytest.mark.parametrize(
-    "partial_params, mapped_params, expected",
+    ("partial_params", "mapped_params", "expected"),
     [
         pytest.param(None, [{"a": 1}], [{"a": 1}], id="simple"),
         pytest.param({"b": 2}, [{"a": 1}], [{"a": 1, "b": 2}], id="merge"),

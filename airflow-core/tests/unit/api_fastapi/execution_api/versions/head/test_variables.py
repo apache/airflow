@@ -66,7 +66,7 @@ def access_denied(client):
 
 class TestGetVariable:
     @pytest.mark.parametrize(
-        "key, value",
+        ("key", "value"),
         [
             ("var1", "value"),
             ("var2/with_slash", "slash_value"),
@@ -131,7 +131,7 @@ class TestGetVariable:
 
 class TestPutVariable:
     @pytest.mark.parametrize(
-        "key, payload",
+        ("key", "payload"),
         [
             pytest.param("var_create", {"value": "{}", "description": "description"}, id="valid-payload"),
             pytest.param("var_create", {"value": "{}"}, id="missing-description"),
@@ -158,7 +158,7 @@ class TestPutVariable:
             assert var_from_db.description == payload["description"]
 
     @pytest.mark.parametrize(
-        "key, status_code, payload",
+        ("key", "status_code", "payload"),
         [
             pytest.param("", 404, {"value": "{}", "description": "description"}, id="missing-key"),
             pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
@@ -175,7 +175,7 @@ class TestPutVariable:
             assert response.json()["detail"][0]["msg"] == "Field required"
 
     @pytest.mark.parametrize(
-        "key, payload",
+        ("key", "payload"),
         [
             pytest.param("key", {"key": "key", "value": "{}", "description": "description"}, id="adding-key"),
             pytest.param(
@@ -243,7 +243,7 @@ class TestPutVariable:
 
 class TestDeleteVariable:
     @pytest.mark.parametrize(
-        "keys_to_create, key_to_delete",
+        ("keys_to_create", "key_to_delete"),
         [
             (["key1", "key2"], "key1"),
             (["key3/with_slash", "key4"], "key3/with_slash"),

@@ -138,7 +138,7 @@ class TestHelpers:
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
 
     @pytest.mark.parametrize(
-        "key_id, message, exception",
+        ("key_id", "message", "exception"),
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
             (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
@@ -222,7 +222,7 @@ class TestHelpers:
             assert_at_most_one(*row)
 
     @pytest.mark.parametrize(
-        "mode, expected",
+        ("mode", "expected"),
         [
             (
                 "strict",

@@ -60,7 +60,7 @@
     "owner": "Proprietario",
     "params": "Parametri",
     "schedule": "Programmazione",
-    "tags": "Tag"
+    "tags": "Etichette"
   },
   "dagId": "ID del Dag",
   "dagRun": {
@@ -90,6 +90,11 @@
     "githubRepo": "Repository GitHub",
     "restApiReference": "Riferimento API REST"
   },
+  "download": {
+    "download": "Scarica",
+    "hotkey": "d",
+    "tooltip": "Premi {{hotkey}} per scaricare i log"
+  },
   "duration": "Durata",
   "endDate": "Data di Fine",
   "error": {
@@ -113,6 +118,8 @@
   },
   "filter": "Filtro",
   "filters": {
+    "durationFrom": "Durata da",
+    "durationTo": "Durata a",
     "logicalDateFrom": "Data Logica Da",
     "logicalDateTo": "Data Logica A",
     "runAfterFrom": "Esegui Dopo Da",
@@ -215,7 +222,7 @@
   "table": {
     "completedAt": "Completato il",
     "createdAt": "Creato il",
-    "filterByTag": "Filtra Dag per tag",
+    "filterByTag": "Filtra Dag per etichetta",
     "filterColumns": "Filtra le colonne della tabella",
     "filterReset_many": "Resetta filtri",
     "filterReset_one": "Resetta filtro",
@@ -223,12 +230,12 @@
     "filterReset_zero": "Nessun filtro da resettare",
     "from": "Da",
     "maxActiveRuns": "Numero massimo di Runs attive",
-    "noTagsFound": "Nessun tag trovato",
+    "noTagsFound": "Nessuna etichetta trovata",
     "tagMode": {
       "all": "Tutti",
       "any": "Qualunque"
     },
-    "tagPlaceholder": "Filtra per tag",
+    "tagPlaceholder": "Filtra per etichetta",
     "to": "A"
   },
   "task": {

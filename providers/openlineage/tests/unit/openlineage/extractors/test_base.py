@@ -314,7 +314,7 @@ def test_extraction_without_on_start():
 
 
 @pytest.mark.parametrize(
-    "operator_class, task_state, expected_job_facets",
+    ("operator_class", "task_state", "expected_job_facets"),
     (
         (OperatorWithAllOlMethods, TaskInstanceState.FAILED, FAILED_FACETS),
         (OperatorWithAllOlMethods, TaskInstanceState.RUNNING, JOB_FACETS),

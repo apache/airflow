@@ -153,7 +153,7 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ("state", "last_scheduling"), [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """
@@ -243,7 +243,7 @@ class TestClearTasks:
         assert dr.last_scheduling_decision == DEFAULT_DATE
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"],
+        ("state", "last_scheduling"),
         [
             (DagRunState.SUCCESS, None),
             (DagRunState.SUCCESS, DEFAULT_DATE),
@@ -491,7 +491,7 @@ class TestClearTasks:
             assert count_task_reschedule(ti1) == 1
 
     @pytest.mark.parametrize(
-        ["state", "state_recorded"],
+        ("state", "state_recorded"),
         [
             (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
             (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
@@ -659,8 +659,8 @@ class TestClearTasks:
 
         SerializedDAG.clear_dags(dags, only_failed=True)
 
-        for ti in tis:
-            ti = _get_ti(ti)
+        for ti_in in tis:
+            ti = _get_ti(ti_in)
             if ti.dag_id == ti_fail.dag_id:
                 assert ti.state == State.NONE
                 assert ti.try_number == 2

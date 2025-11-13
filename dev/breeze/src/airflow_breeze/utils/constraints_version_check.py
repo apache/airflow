@@ -244,8 +244,8 @@ def constraints_version_check(
 def parse_packages_from_lines(lines: list[str], selected_packages: set[str] | None) -> list[tuple[str, str]]:
     remaining_packages: set[str] = selected_packages.copy() if selected_packages else set()
     packages = []
-    for line in lines:
-        line = line.strip()
+    for line_raw in lines:
+        line = line_raw.strip()
         if line and not line.startswith("#") and "@" not in line:
             match = re.match(r"^([a-zA-Z0-9_.\-]+)==([\w.\-]+)$", line)
             if match:

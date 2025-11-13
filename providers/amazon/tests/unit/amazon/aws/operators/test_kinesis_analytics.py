@@ -259,7 +259,7 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -427,7 +427,7 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

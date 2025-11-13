@@ -39,6 +39,11 @@ class GCSToS3Operator(BaseOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
+    .. note::
+        When flatten_structure=True, it takes precedence over keep_directory_structure.
+        For example, with flatten_structure=True, "folder/subfolder/file.txt" becomes "file.txt"
+        regardless of the keep_directory_structure setting.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToS3Operator`
@@ -79,6 +84,9 @@ class GCSToS3Operator(BaseOperator):
         object to be uploaded in S3
     :param keep_directory_structure: (Optional) When set to False the path of the file
          on the bucket is recreated within path passed in dest_s3_key.
+    :param flatten_structure: (Optional) When set to True, places all files directly
+        in the dest_s3_key directory without preserving subdirectory structure.
+        Takes precedence over keep_directory_structure when enabled.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
         (e.g, ``'**/*/.json'``)
     :param gcp_user_project: (Optional) The identifier of the Google Cloud project to bill for this request.
@@ -108,6 +116,7 @@ class GCSToS3Operator(BaseOperator):
         dest_s3_extra_args: dict | None = None,
         s3_acl_policy: str | None = None,
         keep_directory_structure: bool = True,
+        flatten_structure: bool = False,
         match_glob: str | None = None,
         gcp_user_project: str | None = None,
         **kwargs,
@@ -124,6 +133,10 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
+        self.flatten_structure = flatten_structure
+
+        if self.flatten_structure and self.keep_directory_structure:
+            self.log.warning("flatten_structure=True takes precedence over keep_directory_structure=True")
         try:
             from airflow.providers.google import __version__ as _GOOGLE_PROVIDER_VERSION
 
@@ -139,6 +152,17 @@ class GCSToS3Operator(BaseOperator):
             )
         self.match_glob = match_glob
         self.gcp_user_project = gcp_user_project
+
+    def _transform_file_path(self, file_path: str) -> str:
+        """
+        Transform the GCS file path according to the specified options.
+
+        :param file_path: The original GCS file path
+        :return: The transformed file path for S3 destination
+        """
+        if self.flatten_structure:
+            return os.path.basename(file_path)
+        return file_path
 
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
@@ -167,7 +191,7 @@ class GCSToS3Operator(BaseOperator):
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
         )
 
-        if not self.keep_directory_structure and self.prefix:
+        if not self.keep_directory_structure and self.prefix and not self.flatten_structure:
             self.dest_s3_key = os.path.join(self.dest_s3_key, self.prefix)
 
         if not self.replace:
@@ -187,15 +211,34 @@ class GCSToS3Operator(BaseOperator):
             existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(prefix, "", 1) for file in existing_files]
-            gcs_files = list(set(gcs_files) - set(existing_files))
+
+            # Transform GCS files for comparison and filter out existing ones
+            existing_files_set = set(existing_files)
+            filtered_files = []
+            seen_transformed = set()
+
+            for file in gcs_files:
+                transformed = self._transform_file_path(file)
+                if transformed not in existing_files_set and transformed not in seen_transformed:
+                    filtered_files.append(file)
+                    seen_transformed.add(transformed)
+                elif transformed in seen_transformed:
+                    self.log.warning(
+                        "Skipping duplicate file %s (transforms to %s)",
+                        file,
+                        transformed,
+                    )
+
+            gcs_files = filtered_files
 
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
                     object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
                 ) as local_tmp_file:
-                    dest_key = os.path.join(self.dest_s3_key, file)
-                    self.log.info("Saving file to %s", dest_key)
+                    transformed_path = self._transform_file_path(file)
+                    dest_key = os.path.join(self.dest_s3_key, transformed_path)
+                    self.log.info("Saving file from %s to %s", file, dest_key)
                     s3_hook.load_file(
                         filename=local_tmp_file.name,
                         key=dest_key,

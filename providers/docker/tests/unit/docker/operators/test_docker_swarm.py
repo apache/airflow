@@ -155,7 +155,7 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     @pytest.mark.parametrize(
-        "auto_remove,expected_remove_call", [("success", False), ("force", True), ("never", False)]
+        ("auto_remove", "expected_remove_call"), [("success", False), ("force", True), ("never", False)]
     )
     def test_auto_remove_failed(
         self, types_mock, docker_api_client_patcher, auto_remove, expected_remove_call
@@ -430,7 +430,7 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     @pytest.mark.parametrize(
-        "service_prefix,expected_prefix",
+        ("service_prefix", "expected_prefix"),
         [
             (None, "airflow-"),  # Default case
             ("airflow", "airflow-"),

@@ -344,7 +344,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -385,7 +385,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -431,7 +431,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("task_id_yml", "spark/application_test_with_no_name_from_config.yaml"),
             ("task_id_json", "spark/application_test_with_no_name_from_config.json"),

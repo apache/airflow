@@ -52,7 +52,7 @@ class TestCallbackTrigger:
             yield m
 
     @pytest.mark.parametrize(
-        "callback_init_kwargs,expected_serialized_kwargs",
+        ("callback_init_kwargs", "expected_serialized_kwargs"),
         [
             pytest.param(None, {}, id="no kwargs"),
             pytest.param(TEST_CALLBACK_KWARGS, TEST_CALLBACK_KWARGS, id="non-empty kwargs"),

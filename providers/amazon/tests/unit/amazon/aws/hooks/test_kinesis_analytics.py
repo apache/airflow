@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalytic
 
 class TestKinesisAnalyticsV2Hook:
     @pytest.mark.parametrize(
-        "test_hook, service_name",
+        ("test_hook", "service_name"),
         [pytest.param(KinesisAnalyticsV2Hook(), "kinesisanalyticsv2", id="kinesisanalyticsv2")],
     )
     def test_kinesis_analytics_v2_hook(self, test_hook, service_name):

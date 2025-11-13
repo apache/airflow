@@ -279,7 +279,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
 
 
 @pytest.mark.parametrize(
-    "trigger, watcher_count, trigger_count",
+    ("trigger", "watcher_count", "trigger_count"),
     [
         (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
         (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),

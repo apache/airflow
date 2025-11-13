@@ -25,6 +25,7 @@ from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,8 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        response = test_client.get("/next_run_assets/upstream")
+        with assert_queries_count(4):
+            response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
         assert response.json() == {

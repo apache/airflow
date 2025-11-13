@@ -603,7 +603,7 @@ class TestHttpHook:
             http_send.assert_called()
 
     @pytest.mark.parametrize(
-        "base_url, endpoint, expected_url",
+        ("base_url", "endpoint", "expected_url"),
         [
             pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
             pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),

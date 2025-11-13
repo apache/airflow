@@ -147,25 +147,173 @@ def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_task_parent_run_facet(
-    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+def _get_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Retrieve the parent run facet for task-level events.
-
-    This facet currently always points to the DAG-level run ID and name,
-    as external events for DAG runs are not yet handled.
-    """
+    """Create the parent run facet from identifiers."""
+    root_parent_run_id = root_parent_run_id or parent_run_id
+    root_parent_job_name = root_parent_job_name or parent_job_name
+    root_parent_job_namespace = root_parent_job_namespace or parent_job_namespace
     return {
         "parent": parent_run.ParentRunFacet(
             run=parent_run.Run(runId=parent_run_id),
             job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
             root=parent_run.Root(
-                run=parent_run.RootRun(runId=parent_run_id),
-                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+                run=parent_run.RootRun(runId=root_parent_run_id),
+                job=parent_run.RootJob(namespace=root_parent_job_namespace, name=root_parent_job_name),
             ),
         )
     }
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
+) -> dict[str, Any]:
+    """Retrieve the parent run facet."""
+    return _get_parent_run_facet(
+        parent_run_id=parent_run_id,
+        parent_job_namespace=parent_job_namespace,
+        parent_job_name=parent_job_name,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
+
+
+def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
+    """Return the 'openlineage' section from a DAG run config if valid, otherwise an empty dict."""
+    if not dr_conf or not isinstance(dr_conf, dict):
+        return {}
+    ol_data = dr_conf.get("openlineage")
+    return ol_data if isinstance(ol_data, dict) else {}
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+    """Extract root parent run and job information from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    root_run_id = ol_data.get("rootParentRunId", "")
+    root_namespace = ol_data.get("rootParentJobNamespace", "")
+    root_name = ol_data.get("rootParentJobName", "")
+
+    all_root_info = (root_run_id, root_namespace, root_name)
+    if not all(all_root_info):
+        if any(all_root_info):
+            log.warning(
+                "Incomplete root OpenLineage information in DAG run config. "
+                "No root information will be used. Found values: "
+                "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+                root_run_id,
+                root_namespace,
+                root_name,
+            )
+        else:
+            log.debug("No 'openlineage' root information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=root_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage rootParentRunId '%s' in DAG run config - expected a valid UUID.",
+            root_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid root OpenLineage identifiers from DAG run config: "
+        "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+        root_run_id,
+        root_namespace,
+        root_name,
+    )
+    return {
+        "root_parent_run_id": root_run_id,
+        "root_parent_job_namespace": root_namespace,
+        "root_parent_job_name": root_name,
+    }
+
+
+def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
+    """Build the OpenLineage parent run facet from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    parent_run_id = ol_data.get("parentRunId", "")
+    parent_job_namespace = ol_data.get("parentJobNamespace", "")
+    parent_job_name = ol_data.get("parentJobName", "")
+
+    all_parent_info = (parent_run_id, parent_job_namespace, parent_job_name)
+    if not all(all_parent_info):
+        if any(all_parent_info):
+            log.warning(
+                "Incomplete parent OpenLineage information in DAG run config. "
+                "ParentRunFacet will NOT be created. Found values: "
+                "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+                parent_run_id,
+                parent_job_namespace,
+                parent_job_name,
+            )
+        else:
+            log.debug("No 'openlineage' parent information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=parent_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage parentRunId '%s' in DAG run config - expected a valid UUID.",
+            parent_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid parent OpenLineage identifiers from DAG run config: "
+        "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+        parent_run_id,
+        parent_job_namespace,
+        parent_job_name,
+    )
+
+    root_info = get_root_information_from_dagrun_conf(dr_conf)
+    if root_info and all(root_info.values()):
+        root_parent_run_id = root_info["root_parent_run_id"]
+        root_parent_job_namespace = root_info["root_parent_job_namespace"]
+        root_parent_job_name = root_info["root_parent_job_name"]
+    else:
+        log.debug(
+            "Missing OpenLineage root identifiers in DAG run config, "
+            "parent identifiers will be used as root instead."
+        )
+        root_parent_run_id, root_parent_job_namespace, root_parent_job_name = (
+            parent_run_id,
+            parent_job_namespace,
+            parent_job_name,
+        )
+
+    return _get_parent_run_facet(
+        parent_run_id=parent_run_id,
+        parent_job_namespace=parent_job_namespace,
+        parent_job_name=parent_job_name,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
 
 
 def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str:

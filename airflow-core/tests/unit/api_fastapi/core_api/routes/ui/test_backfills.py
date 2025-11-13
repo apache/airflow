@@ -78,7 +78,7 @@ class TestBackfillEndpoint:
 
 class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "test_params, response_params, total_entries",
+        ("test_params", "response_params", "total_entries"),
         [
             ({}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"active": True}, ["backfill2", "backfill3"], 2),

@@ -90,10 +90,7 @@ spec:
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       containers:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}

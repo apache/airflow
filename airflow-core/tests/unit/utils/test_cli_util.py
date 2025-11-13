@@ -289,3 +289,31 @@ def test_validate_dag_bundle_arg():
 
     # doesn't raise
     cli.validate_dag_bundle_arg(["dags-folder"])
+
+
+@pytest.mark.parametrize(
+    ("dev_flag", "env_var", "expected"),
+    [
+        # --dev flag tests
+        (True, None, True),
+        (False, None, False),
+        (None, None, False),  # no dev flag attribute
+        # DEV_MODE env var tests
+        (False, "true", True),
+        (False, "false", False),
+        (False, "TRUE", True),
+        (False, "True", True),
+        # --dev flag takes precedence
+        (True, "false", True),
+        # Invalid env var values
+        (False, "yes", False),
+        (False, "1", False),
+    ],
+)
+def test_should_enable_hot_reload(dev_flag, env_var, expected):
+    """Test should_enable_hot_reload with various --dev flag and DEV_MODE env var combinations."""
+    args = Namespace() if dev_flag is None else Namespace(dev=dev_flag)
+    env = {} if env_var is None else {"DEV_MODE": env_var}
+
+    with mock.patch.dict(os.environ, env, clear=True):
+        assert cli.should_enable_hot_reload(args) is expected

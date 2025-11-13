@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import atexit
-import functools
 import json as json_lib
 import logging
 import os
 import sys
 import warnings
 from collections.abc import Callable
+from functools import cache, partial
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -110,7 +110,6 @@ SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 SQL_ALCHEMY_CONN: str | None = None
 SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
-LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
@@ -163,7 +162,7 @@ json = json_lib
 DASHBOARD_UIALERTS: list[UIAlert] = []
 
 
-@functools.cache
+@cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
@@ -199,44 +198,42 @@ def replace_showwarning(replacement):
 
 
 original_show_warning = replace_showwarning(custom_show_warning)
-atexit.register(functools.partial(replace_showwarning, original_show_warning))
-
-POLICY_PLUGIN_MANAGER: Any = None
+atexit.register(partial(replace_showwarning, original_show_warning))
 
 
 def task_policy(task):
-    return POLICY_PLUGIN_MANAGER.hook.task_policy(task=task)
+    return get_policy_plugin_manager().hook.task_policy(task=task)
 
 
 def dag_policy(dag):
-    return POLICY_PLUGIN_MANAGER.hook.dag_policy(dag=dag)
+    return get_policy_plugin_manager().hook.dag_policy(dag=dag)
 
 
 def task_instance_mutation_hook(task_instance):
-    return POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook(task_instance=task_instance)
+    return get_policy_plugin_manager().hook.task_instance_mutation_hook(task_instance=task_instance)
 
 
 task_instance_mutation_hook.is_noop = True  # type: ignore
 
 
 def pod_mutation_hook(pod):
-    return POLICY_PLUGIN_MANAGER.hook.pod_mutation_hook(pod=pod)
+    return get_policy_plugin_manager().hook.pod_mutation_hook(pod=pod)
 
 
 def get_airflow_context_vars(context):
-    return POLICY_PLUGIN_MANAGER.hook.get_airflow_context_vars(context=context)
+    return get_policy_plugin_manager().hook.get_airflow_context_vars(context=context)
 
 
 def get_dagbag_import_timeout(dag_file_path: str):
-    return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
+    return get_policy_plugin_manager().hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
 
-def configure_policy_plugin_manager():
-    global POLICY_PLUGIN_MANAGER
-
-    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
-    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
-    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
+@cache
+def get_policy_plugin_manager() -> pluggy.PluginManager:
+    plugin_mgr = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    plugin_mgr.add_hookspecs(policies)
+    plugin_mgr.register(policies.DefaultPolicy)
+    return plugin_mgr
 
 
 def load_policy_plugins(pm: pluggy.PluginManager):
@@ -442,7 +439,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     if conf.has_option("database", "sql_alchemy_session_maker"):
         _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
     else:
-        _session_maker = functools.partial(
+        _session_maker = partial(
             sessionmaker,
             autocommit=False,
             autoflush=False,
@@ -701,7 +698,7 @@ def import_local_settings():
             names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         plugin_functions = policies.make_plugin_from_local_settings(
-            POLICY_PLUGIN_MANAGER, airflow_local_settings, names
+            get_policy_plugin_manager(), airflow_local_settings, names
         )
 
         # If we have already handled a function by adding it to the plugin,
@@ -709,7 +706,7 @@ def import_local_settings():
         for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
-        if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
+        if get_policy_plugin_manager().hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
@@ -719,13 +716,12 @@ def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath_for_config_and_plugins()
-    configure_policy_plugin_manager()
+    policy_mgr = get_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
-    load_policy_plugins(POLICY_PLUGIN_MANAGER)
+    load_policy_plugins(policy_mgr)
     import_local_settings()
-    global LOGGING_CLASS_PATH
-    LOGGING_CLASS_PATH = configure_logging()
+    configure_logging()
 
     configure_adapters()
     # The webservers import this file from models.py with the default settings.

@@ -84,6 +84,11 @@
     "githubRepo": "מאגר GitHub",
     "restApiReference": "תיעוד REST API"
   },
+  "download": {
+    "download": "הורד",
+    "hotkey": "d",
+    "tooltip": "לחץ {{hotkey}} להורדת רישומים"
+  },
   "duration": "משך זמן",
   "endDate": "תאריך סיום",
   "error": {
@@ -107,6 +112,8 @@
   },
   "filter": "מסנן",
   "filters": {
+    "durationFrom": "משך זמן מ-",
+    "durationTo": "משך זמן עד",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",

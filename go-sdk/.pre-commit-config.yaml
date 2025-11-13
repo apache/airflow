@@ -78,7 +78,7 @@ repos:
         language: docker_image
         types: [file, proto]
         entry: >-
-          rvolosatovs/protoc
+          rvolosatovs/protoc:v7.0.0
           --go_out=.
           --go_opt=paths=source_relative
           --go-grpc_out=.

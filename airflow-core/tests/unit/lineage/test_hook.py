@@ -206,7 +206,7 @@ class FakePlugin(plugins_manager.AirflowPlugin):
 
 
 @pytest.mark.parametrize(
-    "has_readers, expected_class",
+    ("has_readers", "expected_class"),
     [
         (True, HookLineageCollector),
         (False, NoOpCollector),

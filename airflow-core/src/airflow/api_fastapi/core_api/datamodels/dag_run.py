@@ -84,6 +84,7 @@ class DAGRunResponse(BaseModel):
     dag_versions: list[DagVersionResponse]
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    partition_key: str | None
 
 
 class DAGRunCollectionResponse(BaseModel):
@@ -104,6 +105,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
 
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None
+    partition_key: str | None = None
 
     @model_validator(mode="after")
     def check_data_intervals(self):
@@ -141,6 +143,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "run_after": run_after,
             "conf": self.conf,
             "note": self.note,
+            "partition_key": self.partition_key,
         }
 
 

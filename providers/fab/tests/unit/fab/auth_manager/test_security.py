@@ -893,7 +893,7 @@ def test_access_control_is_set_on_init(
 
 
 @pytest.mark.parametrize(
-    "access_control_before, access_control_after",
+    ("access_control_before", "access_control_after"),
     [
         (READ_WRITE, READ_ONLY),
         # old access control format

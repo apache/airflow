@@ -224,7 +224,16 @@ class TestWorkflowTrigger:
         assert mock_sleep.await_count == 1
 
     @pytest.mark.parametrize(
-        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_task_states, mock_dag_count, expected",
+        (
+            "task_ids",
+            "task_group_id",
+            "states",
+            "logical_dates",
+            "mock_ti_count",
+            "mock_task_states",
+            "mock_dag_count",
+            "expected",
+        ),
         [
             (
                 ["task_id_one", "task_id_two"],

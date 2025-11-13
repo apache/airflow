@@ -102,7 +102,7 @@ def test_plugin_is_airflow_plugin(plugin):
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Plugin endpoint is not used in Airflow 3.0+")
 @pytest.mark.parametrize(
-    "initial_comment, expected_comment",
+    ("initial_comment", "expected_comment"),
     [
         pytest.param(
             "comment", "[2020-01-01 00:00] - user updated maintenance mode\nComment: comment", id="no user"

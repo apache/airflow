@@ -27,7 +27,7 @@ pytestmark = pytest.mark.db_test
 
 class TestXComsGetEndpoint:
     @pytest.mark.parametrize(
-        "offset, expected_status, expected_json",
+        ("offset", "expected_status", "expected_json"),
         [
             pytest.param(
                 -4,

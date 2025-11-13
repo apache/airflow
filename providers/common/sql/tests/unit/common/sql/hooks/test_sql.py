@@ -69,8 +69,16 @@ index = 0
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -309,7 +317,7 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("test_default_df_type", pd.DataFrame),
             ("pandas", pd.DataFrame),

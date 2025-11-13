@@ -300,8 +300,8 @@ def _render_deprecations_content(*, header_separator: str):
     for provider_yaml_path in get_all_provider_yaml_paths():
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "deprecations": []}
-        for root, _, file_names in os.walk(provider_parent_path):
-            file_names = [f for f in file_names if f.endswith(".py") and f != "__init__.py"]
+        for root, _, file_names_raw in os.walk(provider_parent_path):
+            file_names = [f for f in file_names_raw if f.endswith(".py") and f != "__init__.py"]
             for file_name in file_names:
                 file_path = f"{os.path.relpath(root)}/{file_name}"
                 with open(file_path) as file:

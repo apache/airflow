@@ -262,7 +262,7 @@ class TestListPyFilesPath:
 
 
 @pytest.mark.parametrize(
-    "edge_filename, expected_modification",
+    ("edge_filename", "expected_modification"),
     [
         ("test_dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),
         ("test-dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),

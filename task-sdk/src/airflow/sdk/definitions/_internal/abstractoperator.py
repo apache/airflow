@@ -304,12 +304,15 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     rendered_content = self.render_template(value, context, jinja_env, seen_oids)
             except Exception:
-                # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
+                masked_value = redact(value)
                 log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    masked_value,
                 )
                 raise
             else:

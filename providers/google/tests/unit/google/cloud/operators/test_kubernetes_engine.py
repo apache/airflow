@@ -104,7 +104,14 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        "use_dns_endpoint, use_internal_ip, endpoint, private_endpoint, dns_endpoint, expected_cluster_url",
+        (
+            "use_dns_endpoint",
+            "use_internal_ip",
+            "endpoint",
+            "private_endpoint",
+            "dns_endpoint",
+            "expected_cluster_url",
+        ),
         [
             (
                 False,
@@ -457,7 +464,7 @@ class TestGKECreateClusterOperator:
                 )
 
     @pytest.mark.parametrize(
-        "deprecated_field_name, deprecated_field_value",
+        ("deprecated_field_name", "deprecated_field_value"),
         [
             ("initial_node_count", 1),
             ("node_config", mock.MagicMock()),
@@ -687,7 +694,7 @@ class TestGKEStartPodOperator:
             )
 
     @pytest.mark.parametrize(
-        "kwargs, expected_attributes",
+        ("kwargs", "expected_attributes"),
         [
             (
                 {"on_finish_action": "delete_succeeded_pod"},

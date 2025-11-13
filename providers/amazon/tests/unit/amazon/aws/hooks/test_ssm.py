@@ -57,7 +57,7 @@ class TestSsmHook:
         assert self.hook.region_name == REGION
 
     @pytest.mark.parametrize(
-        "param_name, default_value, expected_result",
+        ("param_name", "default_value", "expected_result"),
         [
             pytest.param(EXISTING_PARAM_NAME, None, PARAM_VALUE, id="param_exists_no_default_provided"),
             pytest.param(EXISTING_PARAM_NAME, DEFAULT_VALUE, PARAM_VALUE, id="param_exists_with_default"),

@@ -114,7 +114,7 @@ class TestAwsS3Hook:
             S3Hook(transfer_config_args=transfer_config_args)
 
     @pytest.mark.parametrize(
-        "url, expected",
+        ("url", "expected"),
         [
             pytest.param(
                 "s3://test/this/is/not/a-real-key.txt", ("test", "this/is/not/a-real-key.txt"), id="s3 style"
@@ -758,7 +758,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_bucket_keys, mock_response_bucket_keys",
+        ("mock_bucket_keys", "mock_response_bucket_keys"),
         [
             (["test.txt"], ["test.txt"]),
             (["test_key"], ["test_key", "test_key2"]),
@@ -828,7 +828,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "test_first_prefix, test_second_prefix, requester_pays",
+        ("test_first_prefix", "test_second_prefix", "requester_pays"),
         [
             ("async-prefix1/", "async-prefix2/", False),
             ("async-prefix1/", "async-prefix2/", True),
@@ -869,7 +869,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_prefix, mock_bucket",
+        ("mock_prefix", "mock_bucket"),
         [
             ("async-prefix1", "test_bucket"),
         ],
@@ -931,7 +931,7 @@ class TestAwsS3Hook:
     # @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "contents, result",
+        ("contents", "result"),
         [
             (
                 [
@@ -985,7 +985,7 @@ class TestAwsS3Hook:
         assert response is result
 
     @pytest.mark.parametrize(
-        "key, pattern, expected",
+        ("key", "pattern", "expected"),
         [
             ("test.csv", r"[a-z]+\.csv", True),
             ("test.txt", r"test/[a-z]+\.csv", False),
@@ -1855,7 +1855,7 @@ class TestAwsS3Hook:
 
 
 @pytest.mark.parametrize(
-    "key_kind, has_conn, has_bucket, precedence, expected",
+    ("key_kind", "has_conn", "has_bucket", "precedence", "expected"),
     [
         ("full_key", "no_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
         ("full_key", "no_conn", "no_bucket", "provide", ["key_bucket", "key.txt"]),
@@ -1926,7 +1926,7 @@ def test_unify_and_provide_bucket_name_combination(
 
 
 @pytest.mark.parametrize(
-    "key_kind, has_conn, has_bucket, expected",
+    ("key_kind", "has_conn", "has_bucket", "expected"),
     [
         ("full_key", "no_conn", "no_bucket", ["key_bucket", "key.txt"]),
         ("full_key", "no_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),

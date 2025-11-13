@@ -512,7 +512,7 @@ class TestCloudLoggingListSinksOperator:
 
 
 class TestCloudLoggingUpdateSinksOperator:
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_template_fields(self, sink_config, update_mask):
         operator = CloudLoggingUpdateSinkOperator(
             task_id=TASK_ID,
@@ -536,7 +536,7 @@ class TestCloudLoggingUpdateSinksOperator:
         assert "Required parameters are missing" in str(excinfo.value)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_update_sink_success(self, hook_mock, sink_config, update_mask):
         hook_instance = hook_mock.return_value
 
@@ -559,7 +559,7 @@ class TestCloudLoggingUpdateSinksOperator:
         assert result == LogSink.to_dict(sink_)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_update_sink_raises_not_found(self, hook_mock, sink_config, update_mask):
         hook_instance = hook_mock.return_value
 
@@ -580,7 +580,7 @@ class TestCloudLoggingUpdateSinksOperator:
         hook_instance.update_sink.assert_not_called()
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_update_sink_raises_generic_error(self, hook_mock, sink_config, update_mask):
         hook_instance = hook_mock.return_value
         hook_instance.get_sink.side_effect = GoogleAPICallError("something went wrong")
@@ -664,7 +664,7 @@ class TestCloudLoggingUpdateSinksOperator:
             operator.execute(context)
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_template_rendering(self, hook_mock, sink_config, update_mask):
         with DAG(
             dag_id="test_render_native",
@@ -718,7 +718,7 @@ class TestCloudLoggingUpdateSinksOperator:
         )
 
     @mock.patch(CLOUD_LOGGING_HOOK_PATH)
-    @pytest.mark.parametrize("sink_config, update_mask", update_test_cases, ids=update_test_ids)
+    @pytest.mark.parametrize(("sink_config", "update_mask"), update_test_cases, ids=update_test_ids)
     def test_template_rendering_with_proto(self, hook_mock, sink_config, update_mask):
         sink_obj = LogSink(**sink_config)
         mask_obj = FieldMask(paths=update_mask["paths"])

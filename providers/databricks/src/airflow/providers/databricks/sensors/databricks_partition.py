@@ -189,9 +189,10 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         formatted_opts = ""
         if opts:
             output_list = []
-            for partition_col, partition_value in opts.items():
-                if escape_key:
-                    partition_col = self.escaper.escape_item(partition_col)
+            for partition_col_raw, partition_value in opts.items():
+                partition_col = (
+                    self.escaper.escape_item(partition_col_raw) if escape_key else partition_col_raw
+                )
                 if partition_col in partition_columns:
                     if isinstance(partition_value, list):
                         output_list.append(f"""{partition_col} in {tuple(partition_value)}""")

@@ -133,7 +133,7 @@ class TestXComsGetEndpoint:
         assert any(msg.startswith("Checking read XCom access") for msg in caplog.messages)
 
     @pytest.mark.parametrize(
-        "offset, expected_status, expected_json",
+        ("offset", "expected_status", "expected_json"),
         [
             pytest.param(
                 -4,
@@ -275,7 +275,7 @@ class TestXComsGetEndpoint:
         assert response.json() == ["f", "o", "b"][key]
 
     @pytest.mark.parametrize(
-        "include_prior_dates, expected_xcoms",
+        ("include_prior_dates", "expected_xcoms"),
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],
     )
     def test_xcom_get_slice_accepts_include_prior_dates(
@@ -360,7 +360,7 @@ class TestXComsSetEndpoint:
         assert task_map is None, "Should not be mapped"
 
     @pytest.mark.parametrize(
-        "orig_value, ser_value, deser_value",
+        ("orig_value", "ser_value", "deser_value"),
         [
             pytest.param(1, 1, 1, id="int"),
             pytest.param(1.0, 1.0, 1.0, id="float"),

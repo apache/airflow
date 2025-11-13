@@ -788,7 +788,7 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),
@@ -824,7 +824,7 @@ class TestS3DeleteObjectsOperator:
             )
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),

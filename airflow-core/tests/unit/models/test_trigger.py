@@ -239,7 +239,7 @@ def test_submit_failure(session, create_task_instance):
 
 
 @pytest.mark.parametrize(
-    "event_cls, expected",
+    ("event_cls", "expected"),
     [
         (TaskSuccessEvent, "success"),
         (TaskFailedEvent, "failed"),

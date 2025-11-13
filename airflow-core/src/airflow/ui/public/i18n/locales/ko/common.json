@@ -59,6 +59,7 @@
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
+    "partitionKey": "파티션 키",
     "queuedAt": "대기열에 추가된 시간",
     "runAfter": "다음 실행",
     "runType": "실행 유형",

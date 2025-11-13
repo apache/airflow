@@ -475,7 +475,7 @@ class TestSerializedDagModel:
         db.clear_db_assets()
 
     @pytest.mark.parametrize(
-        "provide_interval, new_task, should_write",
+        ("provide_interval", "new_task", "should_write"),
         [
             (True, True, False),
             (True, False, False),

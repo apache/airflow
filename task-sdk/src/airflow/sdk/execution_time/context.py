@@ -869,18 +869,18 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     ]
 
     context_params = settings.get_airflow_context_vars(context)
-    for key, value in context_params.items():
-        if not isinstance(key, str):
-            raise TypeError(f"key <{key}> must be string")
+    for key_raw, value in context_params.items():
+        if not isinstance(key_raw, str):
+            raise TypeError(f"key <{key_raw}> must be string")
         if not isinstance(value, str):
-            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+            raise TypeError(f"value of key <{key_raw}> must be string, not {type(value)}")
 
-        if in_env_var_format:
-            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
-                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        if in_env_var_format and not key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
+            key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
+        elif not key_raw.startswith(DEFAULT_FORMAT_PREFIX):
+            key = DEFAULT_FORMAT_PREFIX + key_raw
         else:
-            if not key.startswith(DEFAULT_FORMAT_PREFIX):
-                key = DEFAULT_FORMAT_PREFIX + key
+            key = key_raw
         params[key] = value
 
     for subject, attr, mapping_key in ops:

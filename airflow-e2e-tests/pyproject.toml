@@ -41,8 +41,15 @@ dependencies = [
     "boto3>=1.37.2",
 ]
 
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+[tool.pytest]
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
+
 norecursedirs = [
     ".eggs",
 ]

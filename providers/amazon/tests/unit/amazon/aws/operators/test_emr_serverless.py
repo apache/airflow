@@ -328,7 +328,7 @@ class TestEmrServerlessCreateApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, expected",
+        ("waiter_delay", "waiter_max_attempts", "expected"),
         [
             (NOTSET, NOTSET, [60, 25]),
             (30, 10, [30, 10]),
@@ -765,7 +765,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, expected",
+        ("waiter_delay", "waiter_max_attempts", "expected"),
         [
             (NOTSET, NOTSET, [60, 25]),
             (30, 10, [30, 10]),
@@ -1213,7 +1213,7 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, expected",
+        ("waiter_delay", "waiter_max_attempts", "expected"),
         [
             (NOTSET, NOTSET, [60, 25]),
             (30, 10, [30, 10]),

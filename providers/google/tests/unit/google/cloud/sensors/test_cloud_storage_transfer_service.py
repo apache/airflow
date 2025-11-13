@@ -180,7 +180,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         )
 
     @pytest.mark.parametrize(
-        "expected_status, received_status",
+        ("expected_status", "received_status"),
         [
             (GcpTransferOperationStatus.SUCCESS, {GcpTransferOperationStatus.SUCCESS}),
             ({GcpTransferOperationStatus.SUCCESS}, {GcpTransferOperationStatus.SUCCESS}),

@@ -87,7 +87,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   test-e2e-integration-tests:
     timeout-minutes: 60
-    name: ${{ inputs.name }}
+    name: ${{ inputs.workflow-name }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"

@@ -62,7 +62,7 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 class TestDeadlineAlert:
     @pytest.mark.parametrize(
-        "test_alert, should_equal",
+        ("test_alert", "should_equal"),
         [
             pytest.param(
                 DeadlineAlert(
@@ -170,7 +170,7 @@ class TestDeadlineAlert:
 
 class TestCallback:
     @pytest.mark.parametrize(
-        "subclass, callable",
+        ("subclass", "callable"),
         [
             pytest.param(AsyncCallback, empty_async_callback_for_deadline_tests, id="async"),
             pytest.param(SyncCallback, empty_sync_callback_for_deadline_tests, id="sync"),
@@ -181,7 +181,7 @@ class TestCallback:
             subclass(callable, {"context": None})
 
     @pytest.mark.parametrize(
-        "callback_callable, expected_path",
+        ("callback_callable", "expected_path"),
         [
             pytest.param(
                 empty_sync_callback_for_deadline_tests,
@@ -207,7 +207,7 @@ class TestCallback:
             assert path == expected_path
 
     @pytest.mark.parametrize(
-        "callback_callable, error_type",
+        ("callback_callable", "error_type"),
         [
             pytest.param(42, ImportError, id="not_a_string"),
             pytest.param("", ImportError, id="empty_string"),
@@ -225,7 +225,7 @@ class TestCallback:
             Callback.get_callback_path(callback_callable)
 
     @pytest.mark.parametrize(
-        "callback1_args, callback2_args, should_equal",
+        ("callback1_args", "callback2_args", "should_equal"),
         [
             pytest.param(
                 (TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
@@ -254,7 +254,7 @@ class TestCallback:
         assert (callback1 == callback2) == should_equal
 
     @pytest.mark.parametrize(
-        "callback_class, args1, args2, should_be_same_hash",
+        ("callback_class", "args1", "args2", "should_be_same_hash"),
         [
             pytest.param(
                 AsyncCallback,
@@ -301,7 +301,7 @@ class TestCallback:
 
 class TestAsyncCallback:
     @pytest.mark.parametrize(
-        "callback_callable, kwargs, expected_path",
+        ("callback_callable", "kwargs", "expected_path"),
         [
             pytest.param(
                 empty_async_callback_for_deadline_tests,
@@ -334,7 +334,7 @@ class TestAsyncCallback:
 
 class TestSyncCallback:
     @pytest.mark.parametrize(
-        "callback_callable, executor",
+        ("callback_callable", "executor"),
         [
             pytest.param(empty_sync_callback_for_deadline_tests, "remote", id="with_executor"),
             pytest.param(empty_sync_callback_for_deadline_tests, None, id="without_executor"),

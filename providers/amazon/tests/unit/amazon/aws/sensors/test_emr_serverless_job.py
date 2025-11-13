@@ -49,7 +49,7 @@ class TestEmrServerlessJobSensor:
 
 class TestPokeReturnValue(TestEmrServerlessJobSensor):
     @pytest.mark.parametrize(
-        "state, expected_result",
+        ("state", "expected_result"),
         [
             ("PENDING", False),
             ("RUNNING", False),

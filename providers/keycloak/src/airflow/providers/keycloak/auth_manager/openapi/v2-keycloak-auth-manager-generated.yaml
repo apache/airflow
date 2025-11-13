@@ -32,6 +32,39 @@ paths:
           content:
             application/json:
               schema: {}
+  /auth/logout:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Logout
+      description: Log out the user from Keycloak.
+      operationId: logout
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+  /auth/logout_callback:
+    get:
+      tags:
+      - KeycloakAuthManagerLogin
+      summary: Logout Callback
+      description: 'Complete the log-out.
+
+
+        This callback is redirected by Keycloak after the user has been logged out
+        from Keycloak.'
+      operationId: logout_callback
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /auth/refresh:
     get:
       tags:

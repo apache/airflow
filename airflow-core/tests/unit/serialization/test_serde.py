@@ -452,7 +452,7 @@ class TestSerDe:
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 
-    @pytest.mark.parametrize("name, s", SERIALIZER_TESTS)
+    @pytest.mark.parametrize(("name", "s"), SERIALIZER_TESTS)
     def test_serializers_importable_and_str(self, name, s):
         """Test if all distributed serializers are lazy loading and can be imported"""
         if not isinstance(s, str):
@@ -478,7 +478,7 @@ class TestSerDe:
         s = deserialize(e, full=False)
 
     @pytest.mark.parametrize(
-        "obj, expected",
+        ("obj", "expected"),
         [
             (
                 Z(10),
