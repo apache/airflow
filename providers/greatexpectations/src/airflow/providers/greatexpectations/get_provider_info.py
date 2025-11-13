@@ -31,7 +31,9 @@ def get_provider_info():
                 "integration-name": "Great Expectations",
                 "external-doc-url": "https://greatexpectations.io/",
                 "how-to-guide": [
-                    "/docs/apache-airflow-providers-greatexpectations/operators/great_expectations.rst"
+                    "/docs/apache-airflow-providers-greatexpectations/operators/gx_validate_checkpoint_operator.rst",
+                    "/docs/apache-airflow-providers-greatexpectations/operators/gx_validate_data_frame_operator.rst",
+                    "/docs/apache-airflow-providers-greatexpectations/operators/gx_validate_batch_operator.rst",
                 ],
                 "tags": ["software"],
             }
