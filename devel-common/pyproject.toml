@@ -137,7 +137,7 @@ dependencies = [
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=8.3.3",
+    "pytest>=9.0.0",
 ]
 "sentry" = [
     "blinker>=1.7.0",

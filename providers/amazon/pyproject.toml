@@ -28,6 +28,8 @@ name = "apache-airflow-providers-amazon"
 version = "9.16.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -76,7 +77,10 @@ dependencies = [
     "asgiref>=2.3.0",
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
-    "sagemaker-studio>=1.0.9",
+    "sagemaker-studio>=1.0.9; python_version < \"3.13\"",
+    # The sagemaker studio 1.1.0+ uses pydynamodb that pins sqlean in version 3.45.1 that is not
+    # Supporting Python 3.13 https://github.com/passren/PyDynamoDB/issues/72
+    "sagemaker-studio>=1.0.9,<1.1.0; python_version >= \"3.13\"",
     "marshmallow>=3",
 ]
 

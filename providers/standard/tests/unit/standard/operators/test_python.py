@@ -645,10 +645,14 @@ class TestShortCircuitOperator(BasePythonTest):
     all_success_skipped_tasks: set[str] = set()
 
     @pytest.mark.parametrize(
-        argnames=(
-            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_skipped_tasks, expected_task_states"
+        (
+            "callable_return",
+            "test_ignore_downstream_trigger_rules",
+            "test_trigger_rule",
+            "expected_skipped_tasks",
+            "expected_task_states",
         ),
-        argvalues=[
+        [
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
             (

@@ -42,11 +42,11 @@ if TYPE_CHECKING:
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
-    total: int
+    total: int | float  # Note: float("inf") is used to mark infinite slots
     running: int
     deferred: int
     queued: int
-    open: int
+    open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
 
 
@@ -182,9 +182,8 @@ class Pool(Base):
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
-        for pool_name, total_slots, include_deferred in pool_rows:
-            if total_slots == -1:
-                total_slots = float("inf")
+        for pool_name, total_slots_in, include_deferred in pool_rows:
+            total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
@@ -201,9 +200,9 @@ class Pool(Base):
         )
 
         # calculate queued and running metrics
-        for pool_name, state, count in state_count_by_pool:
+        for pool_name, state, decimal_count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
-            count = int(count)
+            count = int(decimal_count)
 
             stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:

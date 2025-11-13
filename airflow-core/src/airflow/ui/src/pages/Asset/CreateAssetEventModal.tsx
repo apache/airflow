@@ -57,6 +57,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const [extraError, setExtraError] = useState<string | undefined>();
   const [unpause, setUnpause] = useState(true);
   const [extra, setExtra] = useState("{}");
+  const [partitionKey, setPartitionKey] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const { data } = useDependenciesServiceGetDependencies({ nodeId: `asset:${asset.id}` }, undefined, {
@@ -154,7 +155,11 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       materializeAsset({ assetId: asset.id });
     } else {
       createAssetEvent({
-        requestBody: { asset_id: asset.id, extra: JSON.parse(extra) as Record<string, unknown> },
+        requestBody: {
+          asset_id: asset.id,
+          extra: JSON.parse(extra) as Record<string, unknown>,
+          partition_key: partitionKey ?? null,
+        },
       });
     }
   };
@@ -199,11 +204,18 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
             </HStack>
           </RadioCardRoot>
           {eventType === "manual" ? (
-            <Field.Root mt={6}>
-              <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
-              <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
-              <Text color="fg.error">{extraError}</Text>
-            </Field.Root>
+            <>
+              <Field.Root mt={6}>
+                <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
+                <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
+                <Text color="fg.error">{extraError}</Text>
+              </Field.Root>
+              <Field.Root mt={6}>
+                <Field.Label fontSize="md">{translate("dagRun.partitionKey")}</Field.Label>
+                <JsonEditor onChange={setPartitionKey} value={partitionKey} />
+                <Text color="fg.error">{extraError}</Text>
+              </Field.Root>
+            </>
           ) : undefined}
           {eventType === "materialize" && dag?.is_paused ? (
             <Checkbox checked={unpause} colorPalette="brand" onChange={() => setUnpause(!unpause)}>
