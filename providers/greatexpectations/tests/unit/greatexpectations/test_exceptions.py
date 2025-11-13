@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.greatexpectations.common.errors import (
+from airflow.providers.greatexpectations.exceptions import (
     GXValidationFailed,
     extract_validation_failure_context,
 )
