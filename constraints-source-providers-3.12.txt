@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-12T21:47:46.238200
+# This constraints file was automatically generated on 2025-11-13T03:57:19.816723
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -270,7 +270,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.49.0
+google-genai==1.50.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -689,7 +689,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.8
+uv==0.9.9
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
