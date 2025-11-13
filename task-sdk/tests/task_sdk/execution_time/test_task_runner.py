@@ -126,6 +126,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -2369,6 +2370,173 @@ class TestXComAfterTaskExecution:
                 include_prior_dates=expected_value,
             ),
         )
+
+
+class TestEmailNotifications:
+    FROM = "from@airflow"
+
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_retry(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task retry."""
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class ZeroDivsionOperator(BaseOperator):
+            def execute(self, context):
+                1 // 0
+
+        task = ZeroDivsionOperator(
+            task_id="divide_by_zero_task",
+            email=emails,
+            email_on_retry=True,
+            retries=2,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    @pytest.mark.parametrize(
+        "emails, sent",
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_failure(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task failure."""
+        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="failing_task",
+            email=emails,
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
+        """Test email notification respects custom subject and html_content templates."""
+        from airflow.exceptions import AirflowFailException
+
+        subject_template = tmp_path / "custom_subject.jinja2"
+        html_template = tmp_path / "custom_html.html"
+
+        subject_template.write_text("Custom Subject: Task {{ti.task_id}} Failed\n")
+        html_template.write_text(
+            "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+        )
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed for template test")
+
+        task = FailingOperator(
+            task_id="template_test_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "subject_template"): str(subject_template),
+                ("email", "html_content_template"): str(html_template),
+                ("email", "from_email"): self.FROM,
+            }
+        ):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                mock_smtp_notifier.assert_called_once()
+                kwargs = mock_smtp_notifier.call_args.kwargs
+
+                assert kwargs["subject"] == "Custom Subject: Task {{ti.task_id}} Failed\n"
+                assert (
+                    kwargs["html_content"]
+                    == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+                )
+                assert kwargs["from_email"] == self.FROM
 
 
 class TestDagParamRuntime:

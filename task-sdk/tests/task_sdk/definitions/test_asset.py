@@ -46,7 +46,7 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.mark.parametrize(
-    "sql_conn_value, name, should_raise",
+    ("sql_conn_value", "name", "should_raise"),
     [
         pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
         pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
@@ -72,7 +72,7 @@ def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "sql_conn_value, uri, should_raise",
+    ("sql_conn_value", "uri", "should_raise"),
     [
         pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
         pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
@@ -128,7 +128,7 @@ def test_both_name_and_uri():
 
 
 @pytest.mark.parametrize(
-    "uri, normalized",
+    ("uri", "normalized"),
     [
         pytest.param("foobar", "foobar", id="scheme-less"),
         pytest.param("foo:bar", "foo:bar", id="scheme-less-colon"),
@@ -319,14 +319,14 @@ test_cases = [
 ]
 
 
-@pytest.mark.parametrize("expression, expected", test_cases)
+@pytest.mark.parametrize(("expression", "expected"), test_cases)
 def test_evaluate_assets_expression(expression, expected):
     expr = expression()
     assert assets_equal(expr, expected)
 
 
 @pytest.mark.parametrize(
-    "expression, error",
+    ("expression", "error"),
     [
         pytest.param(
             lambda: asset1 & 1,  # type: ignore[operator]
@@ -433,7 +433,7 @@ class TestAssetUniqueKey:
         )
 
     @pytest.mark.parametrize(
-        "name, uri, expected_asset_unique_key",
+        ("name", "uri", "expected_asset_unique_key"),
         [
             ("test", None, AssetUniqueKey(name="test", uri="test")),
             (None, "test://test/", AssetUniqueKey(name="test://test/", uri="test://test/")),
@@ -452,21 +452,21 @@ class TestAssetAlias:
 
 
 class TestAssetSubclasses:
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_name(self, subcls, group):
         obj = subcls(name="foobar")
         assert obj.name == "foobar"
         assert obj.uri == "foobar"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_uri(self, subcls, group):
         obj = subcls(uri="s3://bucket/key/path")
         assert obj.name == "s3://bucket/key/path"
         assert obj.uri == "s3://bucket/key/path"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_both_name_and_uri(self, subcls, group):
         obj = subcls("foobar", "s3://bucket/key/path")
         assert obj.name == "foobar"
@@ -474,7 +474,7 @@ class TestAssetSubclasses:
         assert obj.group == group
 
     @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_posarg(self, subcls, group, arg):
         obj = subcls(arg)
         assert obj.name == arg
