@@ -30,17 +30,15 @@ from typing import (
 
 from sqlalchemy import select
 
-from airflow.models.asset import (
-    AssetModel,
-)
+from airflow.models.asset import AssetModel
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
+from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.session import create_session
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset
@@ -100,9 +98,9 @@ class VariableAccessor(VariableAccessorSDK):
     def get(self, key, default: Any = NOTSET) -> Any:
         from airflow.models.variable import Variable
 
-        if default is NOTSET:
-            return Variable.get(key, deserialize_json=self._deserialize_json)
-        return Variable.get(key, default, deserialize_json=self._deserialize_json)
+        if is_arg_set(default):
+            return Variable.get(key, default, deserialize_json=self._deserialize_json)
+        return Variable.get(key, deserialize_json=self._deserialize_json)
 
 
 class ConnectionAccessor(ConnectionAccessorSDK):
