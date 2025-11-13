@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 import sys
 from typing import TYPE_CHECKING
 from unittest import mock
+from urllib.parse import parse_qsl, urlsplit
 
 import pytest
 
@@ -55,11 +57,14 @@ class TestConnection:
             },
         )
         url = conn.get_uri()
-        assert "tds_version=7.3" in url
-        assert "as_dict=true" in url
-        assert "retries=3" in url
-        assert "nested=%7B%22a%22%3A+1%7D" in url
-        assert "trust_server_certificate=false" in url
+        query = dict(parse_qsl(urlsplit(url).query))
+
+        assert "__extra__" not in query
+        assert query["tds_version"] == "7.3"
+        assert query["as_dict"] == "true"
+        assert query["retries"] == "3"
+        assert query["trust_server_certificate"] == "false"
+        assert json.loads(query["nested"]) == {"a": 1}
 
     @pytest.mark.parametrize(
         "uri, expected_conn_type, expected_host, expected_login, expected_password,"

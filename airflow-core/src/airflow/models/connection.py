@@ -223,6 +223,13 @@ class Connection(Base, LoggingMixin):
             conn_type = conn_type.replace("-", "_")
         return conn_type
 
+    @staticmethod
+    def _maybe_json_load(val):
+        try:
+            return json.loads(val)
+        except Exception:
+            return val
+
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
@@ -250,7 +257,8 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
-                self.extra = json.dumps(query)
+                decoded = {k: self._maybe_json_load(v) for k, v in query.items()}
+                self.extra = json.dumps(decoded)
 
     @staticmethod
     def _create_host(protocol, host) -> str | None:
@@ -262,8 +270,7 @@ class Connection(Base, LoggingMixin):
         return host
 
     @staticmethod
-    def _stringify_extra_values(v):
-        """Convert extras to string-safe form for URI encoding."""
+    def _stringify(v):
         if isinstance(v, (dict, list)):
             return json.dumps(v)
         if isinstance(v, bool):
@@ -340,27 +347,15 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                safe_extras = {k: self._stringify_extra_values(v) for k, v in self.extra_dejson.items()}
-
-                query = urlencode(safe_extras)
-
-                parsed_query_dict = dict(parse_qsl(query, keep_blank_values=True))
-
-                has_complex_values = any(isinstance(v, (dict, list)) for v in self.extra_dejson.values())
-
-                if not has_complex_values:
-                    if self.extra_dejson == parsed_query_dict:
-                        uri += ("?" if self.schema else "/?") + query
-                    else:
-                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-                else:
-                    if not has_complex_values or all(k in parsed_query_dict for k in self.extra_dejson):
-                        uri += ("?" if self.schema else "/?") + query
-                    else:
-                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
-            except Exception:
+                safe = {k: self._stringify(v) for k, v in self.extra_dejson.items()}
+                query: str | None = urlencode(safe)
+            except TypeError:
+                query = None
+            if query and safe == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += ("?" if self.schema else "/?") + query
+            else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+
         return uri
 
     def get_password(self) -> str | None:
