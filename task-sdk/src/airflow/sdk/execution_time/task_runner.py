@@ -694,20 +694,15 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
         # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
         os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
-        msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
-        logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
-        if isinstance(logs, SentFDs):
-            from airflow.sdk.log import configure_logging
-
-            log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
-        else:
-            print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
+        reinit_supervisor_comms()
 
         # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
         # on stdout
@@ -716,8 +711,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # normal entry point
         msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
 
-    if not isinstance(msg, StartupDetails):
-        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+        if not isinstance(msg, StartupDetails):
+            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -1443,7 +1439,6 @@ def finalize(
 
 
 def main():
-    # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
@@ -1470,6 +1465,30 @@ def main():
         if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
             with suppress(Exception):
                 SUPERVISOR_COMMS.socket.close()
+
+
+def reinit_supervisor_comms() -> None:
+    """
+    Re-initialize supervisor comms and logging channel in subprocess.
+
+    This is not needed for most cases, but is used when either we re-launch the process via sudo for
+    run_as_user, or from inside the python code in a virtualenv (et al.) operator to re-connect so those tasks
+    can continue to access variables etc.
+    """
+    if "SUPERVISOR_COMMS" not in globals():
+        global SUPERVISOR_COMMS
+        log = structlog.get_logger(logger_name="task")
+
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+
+    logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+    if isinstance(logs, SentFDs):
+        from airflow.sdk.log import configure_logging
+
+        log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
+        configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
+    else:
+        print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
 
 if __name__ == "__main__":
