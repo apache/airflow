@@ -82,7 +82,7 @@ reproducibility:
    breeze testing task-sdk-integration-tests
 
    # Run specific test files
-   breeze testing task-sdk-integration-tests task_sdk_tests/test_task_sdk_health.py
+   breeze testing task-sdk-integration-tests tests/task_sdk_tests/test_task_sdk_health.py
 
    # Run with custom Docker image
    DOCKER_IMAGE=my-custom-airflow-image:latest breeze testing task-sdk-integration-tests
