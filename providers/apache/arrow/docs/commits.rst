@@ -23,7 +23,7 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-arrow
+Package apache-airflow-providers-apache-arrow
 ------------------------------------------------------
 
 `ADBC: Arrow Database Connectivity <https://github.com/apache/arrow-adbc/>`__

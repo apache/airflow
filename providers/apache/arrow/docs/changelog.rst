@@ -21,7 +21,7 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-``apache-airflow-providers-arrow``
+``apache-airflow-providers-apache-arrow``
 
 Changelog
 ---------

@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -32,33 +31,30 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Guides
-
-    Configuration <configurations-ref>
-    Connection types <connections/adbc>
-    Operators <operators>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/arrow/index>
+    Python API <_api/airflow/providers/apache/arrow/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/arrow/index>
+    System Tests <_api/tests/system/apache/arrow/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-arrow/|version|/providers/arrow/tests/system/arrow>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-arrow/>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/providers/apache/arrow/tests/system/apache/beam>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Guides
+
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -72,7 +68,7 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-arrow package
+apache-airflow-providers-apache-arrow package
 ------------------------------------------------------
 
 `ADBC: Arrow Database Connectivity <https://arrow.apache.org/adbc/current/index.html>`__
@@ -83,14 +79,14 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This package is for the ``arrow`` provider.
-All classes for this package are included in the ``airflow.providers.arrow`` python package.
+This package is for the ``apache.arrow`` provider.
+All classes for this package are included in the ``airflow.providers.apache.arrow`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
-``pip install apache-airflow-providers-arrow``.
+You can install this package on top of an existing Airflow installation via
+``pip install apache-airflow-providers-apache-arrow``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
@@ -116,7 +112,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-arrow[common.sql]
+    pip install apache-airflow-providers-apache-arrow[common.sql]
 
 
 ============================================================================================================  ==============
@@ -131,5 +127,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-arrow 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_arrow-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_arrow-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-arrow 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_arrow-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_arrow-1.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-arrow 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-arrow 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_arrow-1.0.0-py3-none-any.whl.sha512>`__)
