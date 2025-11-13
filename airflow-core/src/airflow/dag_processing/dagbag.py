@@ -713,5 +713,5 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
-        files_parsed=files_parsed if files_parsed else None,
+        files_parsed=files_parsed,
     )
