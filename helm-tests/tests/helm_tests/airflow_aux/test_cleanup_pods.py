@@ -50,7 +50,7 @@ class TestCleanupDeployment:
     ]
 
     @pytest.mark.parametrize(
-        "release_name,schedule_value,schedule_result",
+        ("release_name", "schedule_value", "schedule_result"),
         cron_tests,
         ids=[x[0] for x in cron_tests],
     )

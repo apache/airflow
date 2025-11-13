@@ -195,7 +195,7 @@ class TestTriggerRuleDep:
         assert dep_statuses[0].passed
         assert dep_statuses[0].reason == "The task had a always trigger rule set."
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_one_success_tr_success(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -219,7 +219,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_one_success_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -244,7 +244,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_one_success_tr_failure_all_skipped(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -268,7 +268,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_one_failure_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -356,7 +356,7 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_one_done_tr_skip(self, session, get_task_instance, flag_upstream_failed, expected_ti_state):
         """
         One-done trigger rule skip
@@ -378,7 +378,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_one_done_tr_upstream_failed(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -420,7 +420,7 @@ class TestTriggerRuleDep:
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_all_success_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -446,7 +446,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_success_tr_skip(self, session, get_task_instance, flag_upstream_failed, expected_ti_state):
         """
         All-success trigger rule fails when some upstream tasks are skipped.
@@ -502,7 +502,7 @@ class TestTriggerRuleDep:
                 ),
             )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_success_tr_skip_wait_for_past_depends_before_skipping_past_depends_met(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -550,7 +550,7 @@ class TestTriggerRuleDep:
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_none_failed_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -577,7 +577,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_none_failed_tr_failure_with_upstream_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -620,7 +620,7 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_none_failed_min_one_success_tr_skipped(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -645,7 +645,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_none_failed_min_one_success_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -672,7 +672,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_none_failed_min_one_success_tr_upstream_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -715,7 +715,7 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_failed_tr_failure(self, session, get_task_instance, flag_upstream_failed, expected_ti_state):
         """
         All-failed trigger rule failure
@@ -756,7 +756,7 @@ class TestTriggerRuleDep:
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
     @pytest.mark.parametrize(
-        "task_cfg, states, exp_reason, exp_state",
+        ("task_cfg", "states", "exp_reason", "exp_state"),
         [
             pytest.param(
                 dict(work=2, setup=0),
@@ -858,7 +858,7 @@ class TestTriggerRuleDep:
             expected_ti_state=exp_state if exp_state and flag_upstream_failed else None,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_skipped_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -883,7 +883,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_skipped_tr_failure_upstream_failed(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -966,7 +966,7 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_none_skipped_tr_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -1037,7 +1037,7 @@ class TestTriggerRuleDep:
             expected_reason="No strategy to evaluate trigger rule 'Unknown Trigger Rule'.",
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, None), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, None), (False, None)])
     def test_all_done_min_one_success_with_mixed_success_and_failure(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -1064,7 +1064,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, None), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, None), (False, None)])
     def test_all_done_min_one_success_with_all_successful_upstreams(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -1091,7 +1091,7 @@ class TestTriggerRuleDep:
             expected_ti_state=expected_ti_state,
         )
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_done_min_one_success_with_success_and_skipped_upstream(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
     ):
@@ -1121,7 +1121,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_all_done_min_one_success_with_all_failed_upstreams(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -1152,7 +1152,7 @@ class TestTriggerRuleDep:
         )
 
     @pytest.mark.parametrize(
-        "flag_upstream_failed, expected_ti_state", [(True, UPSTREAM_FAILED), (False, None)]
+        ("flag_upstream_failed", "expected_ti_state"), [(True, UPSTREAM_FAILED), (False, None)]
     )
     def test_all_done_min_one_success_with_upstream_failed_cascade(
         self, session, get_task_instance, flag_upstream_failed, expected_ti_state
@@ -1217,7 +1217,7 @@ class TestTriggerRuleDep:
         dr.update_state(session=session)
         assert dr.state == DagRunState.SUCCESS
 
-    @pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, REMOVED), (False, None)])
+    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, REMOVED), (False, None)])
     def test_mapped_task_upstream_removed_with_all_success_trigger_rules(
         self,
         monkeypatch,
@@ -1451,7 +1451,7 @@ def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_faile
     )
 
 
-@pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+@pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
 @pytest.mark.need_serialized_dag
 def test_mapped_task_group_finished_upstream_before_expand(
     dag_maker, session, flag_upstream_failed, expected_ti_state
@@ -1541,7 +1541,7 @@ class TestTriggerRuleDepSetupConstraint:
         assert statuses[1].reason.startswith("Task's trigger rule 'all_success' requires all upstream tasks")
 
     @pytest.mark.parametrize(
-        "setup_state, expected", [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
+        ("setup_state", "expected"), [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
     )
     def test_setup_constraint_changes_state_appropriately(self, dag_maker, session, setup_state, expected):
         with dag_maker(session=session):
@@ -1590,7 +1590,7 @@ class TestTriggerRuleDepSetupConstraint:
         assert self.get_ti(dr, "t3").state == expected
 
     @pytest.mark.parametrize(
-        "setup_state, expected", [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
+        ("setup_state", "expected"), [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
     )
     def test_setup_constraint_will_fail_or_skip_fast(self, dag_maker, session, setup_state, expected):
         """
@@ -1653,7 +1653,7 @@ class TestTriggerRuleDepSetupConstraint:
 
 @pytest.mark.flaky(reruns=5)
 @pytest.mark.parametrize(
-    "map_index, flag_upstream_failed, expected_ti_state",
+    ("map_index", "flag_upstream_failed", "expected_ti_state"),
     [(2, True, None), (3, True, REMOVED), (4, True, REMOVED), (3, False, None)],
 )
 def test_setup_constraint_mapped_task_upstream_removed_and_success(
@@ -1682,7 +1682,13 @@ def test_setup_constraint_mapped_task_upstream_removed_and_success(
 
 
 @pytest.mark.parametrize(
-    "flag_upstream_failed, wait_for_past_depends_before_skipping, past_depends_met, expected_ti_state, expect_failure",
+    (
+        "flag_upstream_failed",
+        "wait_for_past_depends_before_skipping",
+        "past_depends_met",
+        "expected_ti_state",
+        "expect_failure",
+    ),
     [
         (False, True, True, None, False),
         (False, True, False, None, False),
@@ -1739,7 +1745,7 @@ def test_setup_constraint_wait_for_past_depends_before_skipping(
         )
 
 
-@pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+@pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
 @pytest.mark.need_serialized_dag
 def test_setup_mapped_task_group_finished_upstream_before_expand(
     dag_maker, session, flag_upstream_failed, expected_ti_state

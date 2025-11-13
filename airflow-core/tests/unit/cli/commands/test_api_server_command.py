@@ -134,7 +134,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
     @pytest.mark.parametrize(
-        "cli_args, expected_additional_kwargs",
+        ("cli_args", "expected_additional_kwargs"),
         [
             pytest.param(
                 [
@@ -192,6 +192,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "workers": args.workers,
                     "timeout_keep_alive": args.worker_timeout,
                     "timeout_graceful_shutdown": args.worker_timeout,
+                    "timeout_worker_healthcheck": args.worker_timeout,
                     "access_log": True,
                     "proxy_headers": args.proxy_headers,
                     **expected_additional_kwargs,
@@ -241,6 +242,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             workers=2,
             timeout_keep_alive=60,
             timeout_graceful_shutdown=60,
+            timeout_worker_healthcheck=60,
             ssl_keyfile=None,
             ssl_certfile=None,
             access_log=True,
@@ -301,7 +303,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             mock_open.assert_not_called()
 
     @pytest.mark.parametrize(
-        "ssl_arguments, error_pattern",
+        ("ssl_arguments", "error_pattern"),
         [
             (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], "does not exist _.crt"),
             (["--ssl-cert", "_.crt"], "Need both.*certificate.*key"),

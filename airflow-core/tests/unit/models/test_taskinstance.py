@@ -891,7 +891,14 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, removed, done
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_setups, upstream_states, flag_upstream_failed, expect_state, expect_passed",
+        (
+            "trigger_rule",
+            "upstream_setups",
+            "upstream_states",
+            "flag_upstream_failed",
+            "expect_state",
+            "expect_passed",
+        ),
         [
             #
             # Tests for all_success
@@ -1165,7 +1172,7 @@ class TestTaskInstance:
     # Does not work for database isolation mode because there is local test monkeypatching of upstream_failed
     # That never gets propagated to internal_api
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
+        ("trigger_rule", "upstream_states", "flag_upstream_failed", "expect_state", "expect_completed"),
         [
             #
             # Tests for all_success
@@ -1304,7 +1311,7 @@ class TestTaskInstance:
             assert ti.are_dependencies_met()
 
     @pytest.mark.parametrize(
-        "downstream_ti_state, expected_are_dependents_done",
+        ("downstream_ti_state", "expected_are_dependents_done"),
         [
             (State.SUCCESS, True),
             (State.SKIPPED, True),
@@ -1655,14 +1662,19 @@ class TestTaskInstance:
         ti.set_duration()
         assert ti.duration is None
 
-    def test_outlet_asset_extra(self, dag_maker, session):
+    def test_outlet_asset_extra(self, dag_maker: DagMaker, session: Session):
         from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
             @task(outlets=Asset("test_outlet_asset_extra_1"))
-            def write1(*, outlet_events):
-                outlet_events[Asset("test_outlet_asset_extra_1")].extra = {"foo": "bar"}
+            def write1(*, outlet_events=None):
+                if TYPE_CHECKING:
+                    assert isinstance(outlet_events, dict)
+                outlet_events[Asset("test_outlet_asset_extra_1")].extra = {
+                    "foo": "bar",
+                    "this": {"is": "nested", "value": 1},
+                }
 
             write1()
 
@@ -1680,14 +1692,14 @@ class TestTaskInstance:
         for ti in dr.get_task_instances(session=session):
             ti.run(session=session)
 
-        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
+        events = dict((tuple(row)) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent)))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
         assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
-        assert events["write1"].extra == {"foo": "bar"}
+        assert events["write1"].extra == {"foo": "bar", "this": {"is": "nested", "value": 1}}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
@@ -2150,7 +2162,7 @@ class TestTaskInstance:
         pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
     ]
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -2162,7 +2174,7 @@ class TestTaskInstance:
 
         assert ti_list[2].get_previous_ti().run_id != ti_list[0].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -2259,7 +2271,7 @@ class TestTaskInstance:
         assert result == "Task: test_template_render -> test_template_render_task"
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ('{{ conn.get("a_connection").host }}', "hostvalue"),
             ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
@@ -2302,7 +2314,7 @@ class TestTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", "a test value"),
             ('{{ var.value.get("a_variable") }}', "a test value"),
@@ -2335,7 +2347,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.value.get("missing_variable") }}', context)
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", '{\n  "a": {\n    "test": "value"\n  }\n}'),
             ('{{ var.json.a_variable["a"]["test"] }}', "value"),
@@ -2938,7 +2950,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
 class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
-        "literal, expected_outputs",
+        ("literal", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
@@ -2970,7 +2982,7 @@ class TestMappedTaskInstanceReceiveValue:
         assert outputs == expected_outputs
 
     @pytest.mark.parametrize(
-        "upstream_return, expected_outputs",
+        ("upstream_return", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),

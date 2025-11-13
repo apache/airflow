@@ -180,7 +180,7 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         job = Job()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -279,7 +279,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
 
 
 @pytest.mark.parametrize(
-    "trigger, watcher_count, trigger_count",
+    ("trigger", "watcher_count", "trigger_count"),
     [
         (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
         (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),
@@ -1199,6 +1199,7 @@ class TestTriggererMessageTypes:
             "GetAssetEventByAssetAlias",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
+            "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
             "GetXComCount",
             "GetXComSequenceItem",
@@ -1221,6 +1222,7 @@ class TestTriggererMessageTypes:
             "AssetEventsResult",
             "SentFDs",
             "StartupDetails",
+            "TaskBreadcrumbsResult",
             "TaskRescheduleStartDate",
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",

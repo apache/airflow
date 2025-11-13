@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 
 from pydantic import Field, JsonValue, model_validator
 
@@ -61,7 +62,7 @@ class VariableBody(StrictBaseModel):
 class VariableCollectionResponse(BaseModel):
     """Variable Collection serializer for responses."""
 
-    variables: list[VariableResponse]
+    variables: Iterable[VariableResponse]
     total_entries: int
 
 

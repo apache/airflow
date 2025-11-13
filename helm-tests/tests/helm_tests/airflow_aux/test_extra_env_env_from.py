@@ -103,7 +103,7 @@ class TestExtraEnvEnvFrom:
         cls.k8s_objects = render_chart(RELEASE_NAME, values=values)
         cls.k8s_objects_by_key = prepare_k8s_lookup_dict(cls.k8s_objects)
 
-    @pytest.mark.parametrize("k8s_obj_key, env_paths", PARAMS)
+    @pytest.mark.parametrize(("k8s_obj_key", "env_paths"), PARAMS)
     def test_extra_env(self, k8s_obj_key, env_paths):
         expected_env_as_str = textwrap.dedent(
             f"""
@@ -121,7 +121,7 @@ class TestExtraEnvEnvFrom:
             env = jmespath.search(f"{path}.env", k8s_object)
             assert expected_env_as_str in yaml.dump(env)
 
-    @pytest.mark.parametrize("k8s_obj_key, env_from_paths", PARAMS)
+    @pytest.mark.parametrize(("k8s_obj_key", "env_from_paths"), PARAMS)
     def test_extra_env_from(self, k8s_obj_key, env_from_paths):
         expected_env_from_as_str = textwrap.dedent(
             f"""

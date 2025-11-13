@@ -39,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     TerminalTIState,
@@ -49,7 +50,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     RescheduleTask,
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 
 class TestClient:
     @pytest.mark.parametrize(
-        ["path", "json_response"],
+        ("path", "json_response"),
         [
             (
                 "/task-instances/1/run",
@@ -249,7 +249,7 @@ class TestClient:
         assert response.request.headers["Authorization"] == "Bearer abc"
 
     @pytest.mark.parametrize(
-        ["status_code", "description"],
+        ("status_code", "description"),
         [
             (399, "status code < 400"),
             (301, "3xx redirect status code"),
@@ -1300,7 +1300,7 @@ class TestHITLOperations:
             params=None,
             multiple=False,
         )
-        assert isinstance(result, HITLDetailRequestResult)
+        assert isinstance(result, HITLDetailRequest)
         assert result.ti_id == ti_id
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"

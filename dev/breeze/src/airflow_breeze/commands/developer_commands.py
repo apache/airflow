@@ -503,6 +503,12 @@ option_executor_start_airflow = click.option(
     "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
+@click.option(
+    "--create-all-roles",
+    help="Creates all user roles for testing with FabAuthManager (viewer, user, op, admin). "
+    "SimpleAuthManager always has all roles available.",
+    is_flag=True,
+)
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
@@ -565,6 +571,7 @@ def start_airflow(
     debug_components: tuple[str, ...],
     debugger: str,
     dev_mode: bool,
+    create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
     extra_args: tuple,
@@ -603,6 +610,7 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
@@ -637,6 +645,7 @@ def start_airflow(
         debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        create_all_roles=create_all_roles,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
@@ -718,7 +727,7 @@ def start_airflow(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -777,7 +786,7 @@ def build_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        docs_list_as_tuple = tuple(distributions_list.split(","))
+        docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -1035,6 +1044,7 @@ def doctor(ctx):
 )
 @click.argument("command", required=True)
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
+@option_answer
 @option_backend
 @option_builder
 @option_docker_host

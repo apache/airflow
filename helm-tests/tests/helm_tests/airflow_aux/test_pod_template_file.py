@@ -137,7 +137,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "dag_values, expected_read_only",
+        ("dag_values", "expected_read_only"),
         [
             ({"gitSync": {"enabled": True}}, True),
             ({"persistence": {"enabled": True}}, False),
@@ -255,7 +255,7 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "tag,expected_prefix",
+        ("tag", "expected_prefix"),
         [
             ("v3.6.7", "GIT_SYNC_"),
             ("v4.4.2", "GITSYNC_"),
@@ -306,7 +306,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "dags_gitsync_values, expected",
+        ("dags_gitsync_values", "expected"),
         [
             ({"enabled": True}, {"emptyDir": {}}),
             ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
@@ -321,7 +321,7 @@ class TestPodTemplateFile:
         assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_values, expected",
+        ("log_values", "expected"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -582,7 +582,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "base_scheduler_name, worker_scheduler_name, expected",
+        ("base_scheduler_name", "worker_scheduler_name", "expected"),
         [
             ("default-scheduler", "most-allocated", "most-allocated"),
             ("default-scheduler", None, "default-scheduler"),
@@ -998,7 +998,7 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, init_container_enabled, expected_init_containers",
+        ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
             ("1.9.0", True, 0),
             ("1.9.0", False, 0),
@@ -1035,7 +1035,7 @@ class TestPodTemplateFile:
             assert initContainers[0]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        "cmd, expected",
+        ("cmd", "expected"),
         [
             (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
             (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
@@ -1071,7 +1071,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "airflow_version, workers_values, kerberos_init_container, expected_config_name",
+        ("airflow_version", "workers_values", "kerberos_init_container", "expected_config_name"),
         [
             (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
             (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),

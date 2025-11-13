@@ -163,7 +163,7 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     responded_by: Mapped[dict | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True
     )
-    chosen_options: Mapped[dict | None] = mapped_column(
+    chosen_options: Mapped[list[str] | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,
         default=None,
