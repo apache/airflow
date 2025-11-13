@@ -21,10 +21,10 @@ from asyncio import Lock as AsyncLock, Queue
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import Iterable
 from threading import Lock
-from typing import Generic, TypeVar, Tuple
+from typing import Generic, TypeVar
 
 K = TypeVar("K")
-V = TypeVar("V", bound=Tuple)
+V = TypeVar("V", bound=tuple)
 
 
 class KeyedHeadQueue(Generic[K, V]):
