@@ -330,8 +330,8 @@ Custom References
 
 The built-in references handle most common scenarios. However, you may need to create custom
 references for specific integrations like calendars or other data sources. To do this, create
-a class that inherits from BaseDeadlineReference, add the @deadline_reference decorator, and
-implement an _evaluate_with() method.
+a class that inherits from BaseDeadlineReference, add the ``@deadline_reference`` decorator, and
+implement an ``_evaluate_with()`` method.
 
 
 **Creating a Custom Reference**

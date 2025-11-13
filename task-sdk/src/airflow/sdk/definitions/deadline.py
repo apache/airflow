@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DeadlineReferenceTuple: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
+DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
 
 
 class DeadlineAlertFields:
@@ -151,17 +151,17 @@ class DeadlineReference:
         """Collection of DeadlineReference types for type checking."""
 
         # Deadlines that should be created when the DagRun is created.
-        DAGRUN_CREATED: DeadlineReferenceTuple = (
+        DAGRUN_CREATED: DeadlineReferenceTypes = (
             ReferenceModels.DagRunLogicalDateDeadline,
             ReferenceModels.FixedDatetimeDeadline,
             ReferenceModels.AverageRuntimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
-        DAGRUN_QUEUED: DeadlineReferenceTuple = (ReferenceModels.DagRunQueuedAtDeadline,)
+        DAGRUN_QUEUED: DeadlineReferenceTypes = (ReferenceModels.DagRunQueuedAtDeadline,)
 
         # All DagRun-related deadline types.
-        DAGRUN: DeadlineReferenceTuple = DAGRUN_CREATED + DAGRUN_QUEUED
+        DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
 
     from airflow.models.deadline import ReferenceModels
 
@@ -194,20 +194,20 @@ class DeadlineReference:
     def register_custom_reference(
         cls,
         reference_class: type[ReferenceModels.BaseDeadlineReference],
-        timing: DeadlineReferenceTuple | None = None,
-    ):
+        deadline_reference_type: DeadlineReferenceTypes | None = None,
+    ) -> type[ReferenceModels.BaseDeadlineReference]:
         """
         Register a custom deadline reference class.
 
         :param reference_class: The custom reference class inheriting from BaseDeadlineReference
-        :param timing: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
+        :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
             "DAGRUN_QUEUED", etc.); defaults to DeadlineReference.TYPES.DAGRUN_CREATED
         """
         from airflow.models.deadline import ReferenceModels
 
-        # Default to DAGRUN_CREATED if no timing specified
-        if timing is None:
-            timing = cls.TYPES.DAGRUN_CREATED
+        # Default to DAGRUN_CREATED if no deadline_reference_type specified
+        if deadline_reference_type is None:
+            deadline_reference_type = cls.TYPES.DAGRUN_CREATED
 
         # Validate the reference class inherits from BaseDeadlineReference
         if not issubclass(reference_class, ReferenceModels.BaseDeadlineReference):
@@ -218,13 +218,16 @@ class DeadlineReference:
         setattr(cls, reference_class.__name__, reference_class())
         logger.info("Registered DeadlineReference %s", reference_class.__name__)
 
-        # Add to appropriate timing classification
-        if timing is cls.TYPES.DAGRUN_CREATED:
+        # Add to appropriate deadline_reference_type classification
+        if deadline_reference_type is cls.TYPES.DAGRUN_CREATED:
             cls.TYPES.DAGRUN_CREATED = cls.TYPES.DAGRUN_CREATED + (reference_class,)
-        elif timing is cls.TYPES.DAGRUN_QUEUED:
+        elif deadline_reference_type is cls.TYPES.DAGRUN_QUEUED:
             cls.TYPES.DAGRUN_QUEUED = cls.TYPES.DAGRUN_QUEUED + (reference_class,)
         else:
-            raise ValueError("Invalid timing value; must be a valid DeadlineReference.TYPES option.")
+            raise ValueError(
+                "Invalid deadline reference type {deadline_references_type} value; "
+                "must be a valid DeadlineReference.TYPES option."
+            )
 
         # Refresh the combined DAGRUN tuple
         cls.TYPES.DAGRUN = cls.TYPES.DAGRUN_CREATED + cls.TYPES.DAGRUN_QUEUED
@@ -232,7 +235,9 @@ class DeadlineReference:
         return reference_class
 
 
-def deadline_reference(timing: DeadlineReferenceTuple | None = None):
+def deadline_reference(
+    deadline_reference_type: DeadlineReferenceTypes | None = None,
+) -> Callable[[type[ReferenceModels.BaseDeadlineReference]], type[ReferenceModels.BaseDeadlineReference]]:
     """
     Decorate a class to register a custom deadline reference.
 
@@ -252,8 +257,10 @@ def deadline_reference(timing: DeadlineReferenceTuple | None = None):
                 return some_datetime
     """
 
-    def decorator(reference_class):
-        DeadlineReference.register_custom_reference(reference_class, timing)
+    def decorator(
+        reference_class: type[ReferenceModels.BaseDeadlineReference],
+    ) -> type[ReferenceModels.BaseDeadlineReference]:
+        DeadlineReference.register_custom_reference(reference_class, deadline_reference_type)
         return reference_class
 
     return decorator
