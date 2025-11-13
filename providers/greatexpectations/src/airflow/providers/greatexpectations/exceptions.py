@@ -18,12 +18,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from airflow.exceptions import AirflowException
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from great_expectations.checkpoint.checkpoint import CheckpointDescriptionDict
+
+
+from typing import Any
+
+from airflow.exceptions import AirflowException
 
 
 def _extract_failed_types_from_expectations(expectations: Any) -> set[str]:
