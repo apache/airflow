@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -150,22 +149,10 @@ class AssetManager(LoggingMixin):
             alias_names=source_alias_names, asset_model=asset_model, session=session
         )
 
-        # todo: AIP-76 this needs to change. need proper interface for inferring key from log date
-        eff_key = None
-        if partition_key is not None:
-            eff_key = partition_key
-        elif task_instance.dag_run.partition_key is not None:
-            eff_key = task_instance.dag_run.partition_key
-        else:
-            try:
-                logical_date: datetime = task_instance.dag_run.logical_date
-                eff_key = logical_date.strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                log.exception("no logical date to string", logical_date=task_instance.dag_run.logical_date)
         event_kwargs = {
             "asset_id": asset_model.id,
             "extra": extra,
-            "partition_key": eff_key,
+            "partition_key": partition_key,
         }
         if task_instance:
             event_kwargs.update(
@@ -227,7 +214,7 @@ class AssetManager(LoggingMixin):
         cls._queue_dagruns(
             asset_id=asset_model.id,
             dags_to_queue=dags_to_queue,
-            partition_key=eff_key,
+            partition_key=partition_key,
             event=asset_event,
             session=session,
         )
