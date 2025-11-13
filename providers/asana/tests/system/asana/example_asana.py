@@ -50,6 +50,7 @@ with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     default_args={"conn_id": CONN_ID},
+    schedule=None,
     tags=["example"],
     catchup=False,
 ) as dag:
