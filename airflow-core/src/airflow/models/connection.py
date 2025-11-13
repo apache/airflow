@@ -341,10 +341,26 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 safe_extras = {k: self._stringify_extra_values(v) for k, v in self.extra_dejson.items()}
-                uri += ("?" if self.schema else "/?") + urlencode(safe_extras)
+
+                query = urlencode(safe_extras)
+
+                parsed_query_dict = dict(parse_qsl(query, keep_blank_values=True))
+
+                has_complex_values = any(isinstance(v, (dict, list)) for v in self.extra_dejson.values())
+
+                if not has_complex_values:
+                    if self.extra_dejson == parsed_query_dict:
+                        uri += ("?" if self.schema else "/?") + query
+                    else:
+                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                else:
+                    if not has_complex_values or all(k in parsed_query_dict for k in self.extra_dejson):
+                        uri += ("?" if self.schema else "/?") + query
+                    else:
+                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+
             except Exception:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
         return uri
 
     def get_password(self) -> str | None:
