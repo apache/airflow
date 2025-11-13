@@ -16,7 +16,7 @@
     under the License.
 
 Autoscaling with KEDA
----------------------
+=====================
 
 *This feature is still experimental.*
 
@@ -78,7 +78,7 @@ Airflow metadata database:
    the worker concurrency setting.
 
 Triggers (aka Scalers)
-++++++++++++++++++++++
+----------------------
 
 Triggers refer to the metrics (or formulae) that KEDA should refer to when scaling workers.
 
@@ -87,7 +87,7 @@ This keeps all your rules and formulae in one place and it avoids multiple Scale
 
 
 Metrics
-+++++++
+-------
 
 The HPA queries your defined triggers according to ``--horizontal-pod-autoscaler-sync-period``.
 
@@ -106,7 +106,7 @@ KEDA offers two ``metricTypes`` that provide more granular scaling control than 
 * Value controls total system load.
 
 ScaledObject
-++++++++++++
+------------
 
 To configure KEDA's triggers and scaling behaviors, you need to create a ScaledObject. 
 
