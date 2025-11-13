@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "great-expectations>=1.7.0, <2.0",
-    "apache-airflow>=2.1",
+    "apache-airflow>=2.1, <4.0",
     "setuptools>=41.0.0",
     "structlog < 25.5.0"  # temporary workaround https://github.com/apache/airflow/pull/57335
 ]
