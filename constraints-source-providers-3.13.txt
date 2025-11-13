@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-13T03:56:32.132265
+# This constraints file was automatically generated on 2025-11-13T15:47:25.841108
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -246,7 +246,7 @@ google-cloud-secret-manager==2.25.0
 google-cloud-spanner==3.59.0
 google-cloud-speech==2.34.0
 google-cloud-storage-transfer==1.18.0
-google-cloud-storage==2.19.0
+google-cloud-storage==3.5.0
 google-cloud-tasks==2.20.0
 google-cloud-texttospeech==2.33.0
 google-cloud-translate==3.23.0
@@ -277,11 +277,11 @@ hf-xet==1.2.0
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
-httplib2==0.22.0
+httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.2
+huggingface_hub==1.1.4
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -345,7 +345,7 @@ linkify-it-py==2.0.3
 litellm==1.79.3
 lockfile==0.12.2
 looker_sdk==25.20.0
-lxml==6.0.2
+lxml==5.4.0
 lz4==4.4.5
 markdown-it-py==4.0.0
 marshmallow==3.26.1
@@ -391,7 +391,7 @@ nest-asyncio==1.6.0
 networkx==3.5
 nh3==0.3.2
 nodeenv==1.9.1
-numpy==2.2.6
+numpy==2.3.4
 oauthlib==3.3.1
 openai==2.7.2
 openapi-schema-validator==0.6.3
@@ -462,7 +462,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.3
 py4j==0.10.9.9
 pyOpenSSL==25.3.0
-pyarrow==18.1.0
+pyarrow==22.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycountry==24.6.1
@@ -518,7 +518,7 @@ qdrant-client==1.15.1
 reactivex==4.1.0
 readme_renderer==44.0
 redis==5.2.1
-redshift-connector==2.1.7
+redshift-connector==2.1.9
 referencing==0.36.2
 regex==2025.11.3
 requests-file==3.0.1
