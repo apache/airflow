@@ -48,14 +48,15 @@
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-arrow/>
-    Example Dags <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/providers/apache/arrow/tests/system/apache/beam>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-arrow/|version|/providers/apache/arrow/tests/system/apache/arrow>
+    Installing from sources <installing-providers-from-sources>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Guides
 
-    Installing from sources <installing-providers-from-sources>
+    Connection types <connections/adbc>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
