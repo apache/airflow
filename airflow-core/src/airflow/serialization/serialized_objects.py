@@ -2486,7 +2486,9 @@ class SerializedDAG(BaseSerialization):
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
-            serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
+            serialized_dag["tasks"] = [
+                cls.serialize(task) for _, task in sorted(dag.task_dict.items(), key=lambda x: x[0])
+            ]
 
             dag_deps = [
                 dep
