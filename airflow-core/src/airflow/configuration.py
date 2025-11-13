@@ -1574,6 +1574,7 @@ class AirflowConfigParser(ConfigParser):
 
         Subclasses can override to add additional sources (e.g., provider configs).
         """
+        # TODO: When this is moved into shared config parser, override it to not have provider fallbacks
         return [
             ("provider-fallback-defaults", self._provider_config_fallback_default_values),
             ("default", self._default_values),
@@ -1630,6 +1631,7 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
+        # We check sequentially all those sources and the last one we saw it in will "win"
         configs = self._get_config_sources_for_as_dict()
 
         self._replace_config_with_display_sources(
