@@ -37,7 +37,6 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
   readonly run: {
-    has_mixed_versions?: boolean;
     isBundleVersionChange?: boolean;
     isDagVersionChange?: boolean;
   } & GridRunsResponse;
