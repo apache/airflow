@@ -99,7 +99,7 @@ While number of workers >= 1, both KEDA and the HPA will poll your defined trigg
 .. note::
    the HPA refers to ``--horizontal-pod-autoscaler-sync-period`` when polling.
 
-KEDA offers two metricTypes that provide more granular scaling control than the standard HPA ``Target`` metric.
+KEDA offers two ``metricTypes`` that provide more granular scaling control than the standard HPA ``Target`` metric.
 
 * AverageValue (default) controls a per-worker average. 
 
@@ -115,7 +115,7 @@ To configure KEDA's triggers and scaling behaviors, you need to create a ScaledO
 ``cooldownPeriod`` specifies the number of seconds to wait before downscaling to 0 workers, does not apply to downscaling to n workers while n >= 1. 
 
 .. note:: 
-   To avoid strange behavior, it's best practive to set ``cooldownPeriod`` to an integer slightly larger than ``terminationGracePeriodSeconds`` so that your cluster does not downscale to 0 workers before cleanup is finished. 
+   To avoid strange behavior, it's best practice to set ``cooldownPeriod`` to an integer slightly larger than ``terminationGracePeriodSeconds`` so that your cluster does not downscale to 0 workers before cleanup is finished. 
 
 ``idleReplicaCount`` can be set to any number less than ``minReplicaCount``, but it must be set to 0, otherwise KEDA will not work.
 Change ``minReplicaCount`` to n > 0 if you need idle workers. 
