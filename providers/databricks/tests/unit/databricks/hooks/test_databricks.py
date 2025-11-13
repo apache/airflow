@@ -44,6 +44,7 @@ from airflow.providers.databricks.hooks.databricks import (
     RunState,
     SQLStatementState,
 )
+from airflow.providers.databricks.hooks.databricks_google import DatabricksGoogleHook
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_MANAGEMENT_ENDPOINT,
     AZURE_METADATA_SERVICE_INSTANCE_URL,
@@ -2328,7 +2329,7 @@ if "google.auth.impersonated_credentials" not in sys.modules:
 @pytest.mark.db_test
 class TestDatabricksHookGoogleIdToken:
     """
-    Tests for DatabricksHook when auth is done with Google ID token.
+    Tests for DatabricksGoogleHook when auth is done with Google ID token.
     """
 
     @pytest.fixture(autouse=True)
@@ -2350,12 +2351,13 @@ class TestDatabricksHookGoogleIdToken:
             )
         )
 
-        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        self.hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks_google.requests")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     @mock.patch("google.auth.default", create=True)
     @mock.patch("google.auth.transport.requests.Request", create=True)
-    def test_submit_run(self, mock_request, mock_google_auth, mock_requests):
+    def test_submit_run(self, mock_request, mock_google_auth, mock_base_requests, mock_google_requests):
         # Create a valid JWT token for testing
         import base64
         import time
@@ -2365,9 +2367,6 @@ class TestDatabricksHookGoogleIdToken:
         valid_payload_b64 = base64.urlsafe_b64encode(json.dumps(valid_payload).encode()).decode().rstrip("=")
         valid_jwt_token = f"header.{valid_payload_b64}.signature"
 
-        mock_requests.codes.ok = 200
-        mock_requests.post.side_effect = [create_successful_response_mock({"run_id": "1"})]
-        
         # Mock Google credentials
         mock_credentials = mock.MagicMock()
         mock_credentials.token = "google_access_token"
@@ -2378,20 +2377,25 @@ class TestDatabricksHookGoogleIdToken:
         mock_iam_response = mock.MagicMock()
         mock_iam_response.json.return_value = {"token": valid_jwt_token}
         mock_iam_response.raise_for_status = mock.MagicMock()
-        # First call is for IAM API, second is for Databricks API
-        mock_requests.post.side_effect = [mock_iam_response, create_successful_response_mock({"run_id": "1"})]
-        
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_iam_response).status_code = status_code_mock
+        # Mock Google IAM API call
+        mock_google_requests.post.return_value = mock_iam_response
+        
+        # Mock Databricks API call
+        mock_base_requests.codes.ok = 200
+        mock_base_requests.post.return_value = create_successful_response_mock({"run_id": "1"})
         
         data = {"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
         assert run_id == "1"
         # Verify IAM API was called to generate ID token
-        assert mock_requests.post.call_count >= 2
+        mock_google_requests.post.assert_called_once()
+        # Verify Databricks API was called
+        mock_base_requests.post.assert_called_once()
         # Verify the token was used for authentication
-        args = mock_requests.post.call_args_list[-1]
+        args = mock_base_requests.post.call_args
         kwargs = args[1]
         assert kwargs["auth"].token == valid_jwt_token
         
@@ -2401,11 +2405,12 @@ class TestDatabricksHookGoogleIdToken:
         assert cache_key in self.hook.jwt_tokens
         assert self.hook.jwt_tokens[cache_key] == valid_jwt_token
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks_google.requests")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     @mock.patch("google.auth.default", create=True)
     @mock.patch("google.auth.transport.requests.Request", create=True)
     @mock.patch("google.oauth2.id_token.fetch_id_token", create=True)
-    def test_get_google_id_token_without_target_principal(self, mock_fetch_id_token, mock_request, mock_google_auth, mock_requests, create_connection_without_db):
+    def test_get_google_id_token_without_target_principal(self, mock_fetch_id_token, mock_request, mock_google_auth, mock_base_requests, mock_google_requests, create_connection_without_db):
         """Test Google ID token generation without target_principal (using fetch_id_token directly)."""
         create_connection_without_db(
             Connection(
@@ -2422,7 +2427,7 @@ class TestDatabricksHookGoogleIdToken:
                 ),
             )
         )
-        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
 
         # Mock Google credentials
         mock_credentials = mock.MagicMock()
@@ -2448,8 +2453,8 @@ class TestDatabricksHookGoogleIdToken:
         # Verify fetch_id_token was called (not IAM API)
         mock_fetch_id_token.assert_called_once()
         # Verify IAM API was NOT called
-        if mock_requests.post.called:
-            call_args = mock_requests.post.call_args
+        if mock_google_requests.post.called:
+            call_args = mock_google_requests.post.call_args
             assert "iamcredentials.googleapis.com" not in str(call_args)
         
         # Verify token is cached in jwt_tokens
@@ -2480,7 +2485,7 @@ class TestDatabricksHookGoogleIdToken:
 @pytest.mark.db_test
 class TestDatabricksHookAsyncGoogleIdToken:
     """
-    Tests for DatabricksHook using async methods when auth is done with Google ID token.
+    Tests for DatabricksGoogleHook using async methods when auth is done with Google ID token.
     """
 
     @pytest.fixture(autouse=True)
@@ -2522,7 +2527,7 @@ class TestDatabricksHookAsyncGoogleIdToken:
             )
         )
 
-        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        self.hook = DatabricksGoogleHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
     @mock.patch("google.auth.default", create=True)

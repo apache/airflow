@@ -44,7 +44,8 @@ There are several ways to connect to Databricks using Airflow.
 5. Using Google-signed OpenID Connect (ID) token for authentication with Databricks
    (only on Google Cloud Databricks). This method supports service account impersonation and uses
    Google's IAM Credentials API to generate ID tokens at runtime. Requires `apache-airflow-providers-google`
-   to be installed.
+   to be installed. This authentication method is available through
+   :class:`~airflow.providers.databricks.hooks.databricks_google.DatabricksGoogleHook`.
 
 Default Connection IDs
 ----------------------
@@ -95,7 +96,8 @@ Extra (optional)
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
 
-    Following parameters are necessary if using authentication with Google ID token:
+    Following parameters are necessary if using authentication with Google ID token
+    (requires :class:`~airflow.providers.databricks.hooks.databricks_google.DatabricksGoogleHook`):
 
     * ``use_google_id_token``: required boolean flag to enable Google ID token authentication. When set to ``true``,
       the hook will use Google's IAM Credentials API to generate ID tokens for Databricks authentication.

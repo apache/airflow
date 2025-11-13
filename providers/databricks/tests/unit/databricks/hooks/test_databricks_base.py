@@ -917,7 +917,9 @@ class TestBaseDatabricksHook:
         pytest.importorskip("flask_babel")
         pytest.importorskip("wtforms")
 
-        widgets = BaseDatabricksHook.get_connection_form_widgets()
+        from airflow.providers.databricks.hooks.databricks_google import DatabricksGoogleHook
+
+        widgets = DatabricksGoogleHook.get_connection_form_widgets()
 
         # Verify all expected widgets are present
         assert "use_google_id_token" in widgets
@@ -936,6 +938,7 @@ class TestBaseDatabricksHook:
 
     def test_is_jwt_token_valid(self):
         """Test JWT token validation."""
+        from airflow.providers.databricks.hooks.databricks_google import DatabricksGoogleHook
         import base64
         import json
         import time
@@ -951,7 +954,7 @@ class TestBaseDatabricksHook:
         valid_token = f"header.{payload_b64}.signature"
         
         # Test valid token
-        assert BaseDatabricksHook._is_jwt_token_valid(valid_token) is True
+        assert DatabricksGoogleHook._is_jwt_token_valid(valid_token) is True
         
         # Test expired token
         past_exp = int(time.time()) - 3600  # 1 hour ago
@@ -959,18 +962,18 @@ class TestBaseDatabricksHook:
         expired_payload_json = json.dumps(expired_payload)
         expired_payload_b64 = base64.urlsafe_b64encode(expired_payload_json.encode()).decode().rstrip("=")
         expired_token = f"header.{expired_payload_b64}.signature"
-        assert BaseDatabricksHook._is_jwt_token_valid(expired_token) is False
+        assert DatabricksGoogleHook._is_jwt_token_valid(expired_token) is False
         
         # Test token without exp
         no_exp_payload = {"aud": "test-audience"}
         no_exp_payload_json = json.dumps(no_exp_payload)
         no_exp_payload_b64 = base64.urlsafe_b64encode(no_exp_payload_json.encode()).decode().rstrip("=")
         no_exp_token = f"header.{no_exp_payload_b64}.signature"
-        assert BaseDatabricksHook._is_jwt_token_valid(no_exp_token) is False
+        assert DatabricksGoogleHook._is_jwt_token_valid(no_exp_token) is False
         
         # Test invalid token format (not 3 parts)
-        assert BaseDatabricksHook._is_jwt_token_valid("invalid") is False
-        assert BaseDatabricksHook._is_jwt_token_valid("header.payload") is False
+        assert DatabricksGoogleHook._is_jwt_token_valid("invalid") is False
+        assert DatabricksGoogleHook._is_jwt_token_valid("header.payload") is False
         
         # Test token expiring soon (within refresh lead time)
         soon_exp = int(time.time()) + 60  # 60 seconds from now (less than TOKEN_REFRESH_LEAD_TIME)
@@ -978,4 +981,4 @@ class TestBaseDatabricksHook:
         soon_payload_json = json.dumps(soon_payload)
         soon_payload_b64 = base64.urlsafe_b64encode(soon_payload_json.encode()).decode().rstrip("=")
         soon_token = f"header.{soon_payload_b64}.signature"
-        assert BaseDatabricksHook._is_jwt_token_valid(soon_token) is False
+        assert DatabricksGoogleHook._is_jwt_token_valid(soon_token) is False
