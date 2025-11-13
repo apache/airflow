@@ -1475,11 +1475,15 @@ def reinit_supervisor_comms() -> None:
     run_as_user, or from inside the python code in a virtualenv (et al.) operator to re-connect so those tasks
     can continue to access variables etc.
     """
+    import socket
+
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
         log = structlog.get_logger(logger_name="task")
 
-        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+        fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
+
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
 
     logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
     if isinstance(logs, SentFDs):
