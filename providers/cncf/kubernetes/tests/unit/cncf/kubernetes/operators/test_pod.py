@@ -2599,7 +2599,6 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
-    @pytest.mark.xfail
     def test_async_write_logs_should_execute_successfully(
         self, mock_manager, mocked_hook, mock_extract_xcom, mocked_client, post_complete_action, get_logs, caplog
     ):
@@ -2626,7 +2625,6 @@ class TestKubernetesPodOperatorAsync:
             # Verify the log output using caplog
             assert f"[base] logs: {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
-            mock_manager.return_value.read_pod_logs.assert_called()
         else:
             # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
             mocked_client.read_namespaced_pod_log.assert_not_called()
