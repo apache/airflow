@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pendulum
@@ -45,6 +46,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
+
+logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.db_test
 
@@ -286,9 +289,15 @@ class TestSerializedDagModel:
             example_dags = self._write_example_dags()
             ordered_example_dags = dict(sorted(example_dags.items()))
             hashes = set()
+            dag_hash_map = {}
             for dag_id in ordered_example_dags.keys():
                 smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
                 hashes.add(smd.dag_hash)
+                dag_hash_map[dag_id] = smd.dag_hash
+            # TODO: Remove this logging once the origin of flaky test is identified and fixed.
+            # Log (dag_id, hash) pairs for debugging flaky test failures.
+            for dag_id, dag_hash in sorted(dag_hash_map.items()):
+                logger.info("(%s, %s)", dag_id, dag_hash)
             return hashes
 
         first_hashes = get_hash_set()
