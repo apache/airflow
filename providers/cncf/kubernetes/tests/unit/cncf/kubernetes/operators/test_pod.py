@@ -2542,16 +2542,18 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_should_execute_successfully(
-        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
+        self, mock_manager, mocked_hook, mock_extract_xcom, mocked_client, post_complete_action, get_logs, caplog
     ):
         test_logs = "ok"
-        mock_manager.read_pod_logs.return_value = HTTPResponse(
-            body=BytesIO(test_logs.encode("utf-8")),
-            preload_content=False,
+        # Mock client.read_namespaced_pod_log to return an iterable of bytes
+        mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
+        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
         )
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
@@ -2565,10 +2567,14 @@ class TestKubernetesPodOperatorAsync:
         self.run_pod_async(k)
 
         if get_logs:
-            assert f"Container logs: {test_logs}"
+            # Verify that client.read_namespaced_pod_log was called
+            mocked_client.read_namespaced_pod_log.assert_called_once()
+            # Verify the log output using caplog
+            assert f"[base] logs: {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
         else:
-            mock_manager.return_value.read_pod_logs.assert_not_called()
+            # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
+            mocked_client.read_namespaced_pod_log.assert_not_called()
 
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
