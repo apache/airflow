@@ -225,7 +225,7 @@ class DeadlineReference:
             cls.TYPES.DAGRUN_QUEUED = cls.TYPES.DAGRUN_QUEUED + (reference_class,)
         else:
             raise ValueError(
-                "Invalid deadline reference type {deadline_references_type} value; "
+                f"Invalid deadline reference type {deadline_reference_type}; "
                 "must be a valid DeadlineReference.TYPES option."
             )
 

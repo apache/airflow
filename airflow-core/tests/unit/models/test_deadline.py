@@ -609,7 +609,11 @@ class TestCustomDeadlineReference:
         invalid_timing = ("not", "a", "valid", "timing")
 
         with pytest.raises(
-            ValueError, match=r"Invalid timing value; must be a valid DeadlineReference.TYPES option"
+            ValueError,
+            match=re.escape(
+                f"Invalid deadline reference type {invalid_timing}; "
+                f"must be a valid DeadlineReference.TYPES option."
+            ),
         ):
             DeadlineReference.register_custom_reference(self.MyCustomRef, invalid_timing)
 
@@ -709,7 +713,11 @@ class TestDeadlineReferenceDecorator:
         invalid_timing = ("not", "a", "valid", "timing")
 
         with pytest.raises(
-            ValueError, match="Invalid timing value; must be a valid DeadlineReference.TYPES option"
+            ValueError,
+            match=re.escape(
+                f"Invalid deadline reference type {invalid_timing}; "
+                f"must be a valid DeadlineReference.TYPES option."
+            ),
         ):
 
             @deadline_reference(invalid_timing)
