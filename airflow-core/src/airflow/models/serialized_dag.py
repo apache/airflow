@@ -368,7 +368,7 @@ class SerializedDagModel(Base):
                     )
                 if all("task_id" in i for i in serialized_dag):
                     return sorted(
-                        [cls._sort_serialized_dag_dict(i) for i in serialized_dag],
+                        (cls._sort_serialized_dag_dict(i) for i in serialized_dag),
                         key=lambda x: x["task_id"],
                     )
             elif all(isinstance(item, str) for item in serialized_dag):
