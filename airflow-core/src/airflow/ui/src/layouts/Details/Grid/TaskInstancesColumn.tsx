@@ -46,31 +46,29 @@ export const TaskInstancesColumn = ({
 }: Props) => {
   const { dagId = "" } = useParams();
 
-  const taskInstanceMap = new Map(taskInstances.map((ti) => [ti.task_id, ti]));
-
   return nodes.map((node, idx) => {
     // todo: how does this work with mapped? same task id for multiple tis
-    const taskInstance = taskInstanceMap.get(node.id);
+    const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
-    const hasVersionChangeFlag =
+    let hasVersionChangeFlag = false;
+
+    if (
       hasMixedVersions &&
       (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
         showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) &&
-      idx > 0 &&
-      (() => {
-        const prevNode = nodes[idx - 1];
+      idx > 0
+    ) {
+      const prevNode = nodes[idx - 1];
+      const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : null;
 
-        if (!prevNode) {
-          return false;
-        }
-        const prevTaskInstance = taskInstanceMap.get(prevNode.id);
-
-        return prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number;
-      })();
+      hasVersionChangeFlag = Boolean(
+        prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+      );
+    }
 
     return (
       <Box key={node.id} position="relative">
