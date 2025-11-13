@@ -69,7 +69,6 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.sdk.definitions.deadline import DeadlineReference
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -102,6 +101,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import Case, ColumnElement
 
     from airflow.models.dag_version import DagVersion
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -1352,9 +1352,6 @@ class DagRun(Base, LoggingMixin):
         tis = self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
-        up_for_retry_tis = [ti for ti in tis if ti.state == TaskInstanceState.UP_FOR_RETRY]
-        self.log.debug("up_for_retry_tis: %s", up_for_retry_tis)
-
         def _filter_tis_and_exclude_removed(dag: SerializedDAG, tis: list[TI]) -> Iterable[TI]:
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
@@ -1566,8 +1563,10 @@ class DagRun(Base, LoggingMixin):
             return ()
 
         def is_unmapped_task(ti: TI) -> bool:
+            from airflow.models.mappedoperator import MappedOperator
+
             # TODO: check why task is still MappedOperator even when not an unmapped task anymore
-            return isinstance(schedulable.task, MappedOperator) and schedulable.map_index == -1
+            return isinstance(ti.task, MappedOperator) and ti.map_index == -1
 
         # Check dependencies.
         expansion_happened = False
