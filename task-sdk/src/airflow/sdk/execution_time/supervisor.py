@@ -1587,7 +1587,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 state=TaskInstanceState.RUNNING,
             )
 
-            # Create a socketpair pre-emptively, in case the task process runs VirtualEnv operator or run_as_user
+            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run_as_user
             with supervisor._setup_subprocess_socket():
                 context = ti.get_template_context()
                 log = structlog.get_logger(logger_name="task")
