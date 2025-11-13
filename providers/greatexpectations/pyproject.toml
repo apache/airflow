@@ -60,8 +60,6 @@ requires-python = ">=3.10"
 dependencies = [
     "great-expectations>=1.7.0, <2.0",
     "apache-airflow>=2.1, <4.0",
-    "setuptools>=41.0.0",
-    "structlog < 25.5.0"  # temporary workaround https://github.com/apache/airflow/pull/57335
 ]
 
 # The optional dependencies should be modified in place in the generated file
