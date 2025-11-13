@@ -228,10 +228,10 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date", None)
         end_date = partial_kwargs.pop("end_date", None)
         start_from_trigger = bool(
-            partial_kwargs.pop("start_from_trigger", False)
+            partial_kwargs.get("start_from_trigger", False)
             or getattr(self.operator_class, "start_from_trigger", False)
         )
-        start_trigger_args = partial_kwargs.pop("start_trigger_args", None) or getattr(
+        start_trigger_args = partial_kwargs.get("start_trigger_args", None) or getattr(
             self.operator_class, "start_trigger_args", None
         )
 
