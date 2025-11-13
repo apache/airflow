@@ -1946,10 +1946,9 @@ def _mock_plugins(request: pytest.FixtureRequest):
 def hook_lineage_collector():
     from airflow.lineage import hook
 
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
+    hook.get_hook_lineage_collector.cache_clear()
     yield hook.get_hook_lineage_collector()
-    hook._hook_lineage_collector = None
+    hook.get_hook_lineage_collector.cache_clear()
 
 
 @pytest.fixture
