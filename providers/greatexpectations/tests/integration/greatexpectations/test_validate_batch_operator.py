@@ -26,7 +26,7 @@ import pandas as pd
 import pytest
 from great_expectations import expectations as gxe
 
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
 
 if TYPE_CHECKING:

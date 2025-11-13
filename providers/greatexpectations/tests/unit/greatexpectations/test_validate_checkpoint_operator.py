@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_checkpoint import (
     GXValidateCheckpointOperator,
 )

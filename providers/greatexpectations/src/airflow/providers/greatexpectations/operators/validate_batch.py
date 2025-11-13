@@ -20,11 +20,11 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 from airflow.models import BaseOperator
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.common.gx_context_actions import (
     load_data_context,
     run_validation_definition,
 )
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
 if TYPE_CHECKING:

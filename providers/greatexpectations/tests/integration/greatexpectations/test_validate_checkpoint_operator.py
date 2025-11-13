@@ -26,7 +26,7 @@ import great_expectations.expectations as gxe
 import pandas as pd
 import pytest
 
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_checkpoint import (
     GXValidateCheckpointOperator,
 )

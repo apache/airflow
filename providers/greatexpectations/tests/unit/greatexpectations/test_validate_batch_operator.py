@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from great_expectations.data_context import AbstractDataContext
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_batch import GXValidateBatchOperator
 
 if TYPE_CHECKING:
@@ -122,7 +122,7 @@ class TestValidateBatchOperator:
         assert pushed_result["success"] is True
 
     @pytest.mark.parametrize(
-        "result_format,expected_result",
+        ("result_format", "expected_result"),
         [
             pytest.param("BOOLEAN_ONLY", {}, id="boolean"),
             pytest.param(

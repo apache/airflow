@@ -25,7 +25,7 @@ import pytest
 from great_expectations import ExpectationSuite
 from great_expectations.expectations import ExpectColumnValuesToBeInSet
 
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_dataframe import (
     GXValidateDataFrameOperator,
 )

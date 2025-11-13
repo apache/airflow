@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
 from airflow.providers.greatexpectations.common.gx_context_actions import load_data_context
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
 if TYPE_CHECKING:

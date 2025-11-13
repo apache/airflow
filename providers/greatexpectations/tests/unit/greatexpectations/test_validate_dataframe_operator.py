@@ -35,7 +35,7 @@ from great_expectations.datasource.fluent.spark_datasource import (
 from great_expectations.expectations import ExpectColumnValuesToBeInSet
 
 from airflow.providers.greatexpectations.common.constants import USER_AGENT_STR
-from airflow.providers.greatexpectations.common.errors import GXValidationFailed
+from airflow.providers.greatexpectations.exceptions import GXValidationFailed
 from airflow.providers.greatexpectations.operators.validate_dataframe import (
     GXValidateDataFrameOperator,
 )
@@ -120,7 +120,7 @@ class TestValidateDataFrameOperator:
         assert pushed_result["success"] is True
 
     @pytest.mark.parametrize(
-        "result_format,expected_result",
+        ("result_format", "expected_result"),
         [
             pytest.param("BOOLEAN_ONLY", {}, id="boolean"),
             pytest.param(

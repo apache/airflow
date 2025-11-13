@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING, Literal
 from great_expectations.datasource.fluent import PandasDatasource, SparkDatasource
 
 from airflow.models import BaseOperator
-from airflow.providers.greatexpectations.common.errors import (
-    ExistingDataSourceTypeMismatch,
-    GXValidationFailed,
-)
 from airflow.providers.greatexpectations.common.gx_context_actions import (
     load_data_context,
     run_validation_definition,
+)
+from airflow.providers.greatexpectations.exceptions import (
+    ExistingDataSourceTypeMismatch,
+    GXValidationFailed,
 )
 from airflow.providers.greatexpectations.hooks.gx_cloud import GXCloudHook
 
