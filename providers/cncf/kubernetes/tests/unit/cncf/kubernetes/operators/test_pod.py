@@ -1701,7 +1701,7 @@ class TestKubernetesPodOperator:
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
     @pytest.mark.parametrize(
-        "labels,expected",
+        ("labels", "expected"),
         [
             pytest.param({}, {}, id="empty"),
             pytest.param(
