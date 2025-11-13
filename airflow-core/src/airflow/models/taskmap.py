@@ -36,8 +36,8 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
@@ -149,7 +149,7 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
         from airflow.serialization.serialized_objects import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
