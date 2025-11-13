@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { BundleVersionIndicator, DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
@@ -63,11 +64,15 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIn
       transition="background-color 0.2s"
     >
       {Boolean(
-        run.isBundleVersionChange && (showVersionIndicatorMode === "bundle" || showVersionIndicatorMode === "all"),
+        run.isBundleVersionChange &&
+          (showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
+            showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL),
       ) && <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />}
-      {Boolean(run.isDagVersionChange && (showVersionIndicatorMode === "dag" || showVersionIndicatorMode === "all")) && (
-        <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />
-      )}
+      {Boolean(
+        run.isDagVersionChange &&
+          (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+            showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL),
+      ) && <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />}
 
       <Flex
         alignItems="flex-end"
@@ -102,8 +107,8 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIn
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
-        taskInstances={gridTISummaries?.task_instances ?? []}
         showVersionIndicatorMode={showVersionIndicatorMode}
+        taskInstances={gridTISummaries?.task_instances ?? []}
       />
     </Box>
   );

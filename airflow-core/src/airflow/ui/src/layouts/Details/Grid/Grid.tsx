@@ -44,8 +44,8 @@ type Props = {
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
-  readonly triggeringUser?: string | undefined;
   readonly showVersionIndicatorMode?: string;
+  readonly triggeringUser?: string | undefined;
 };
 
 export const Grid = ({
@@ -53,8 +53,8 @@ export const Grid = ({
   limit,
   runType,
   showGantt,
-  triggeringUser,
   showVersionIndicatorMode,
+  triggeringUser,
 }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);

@@ -149,11 +149,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setLimit={setLimit}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
-                  setTriggeringUserFilter={setTriggeringUserFilter}
                   setshowVersionIndicatorMode={setshowVersionIndicatorMode}
+                  setTriggeringUserFilter={setTriggeringUserFilter}
                   showGantt={showGantt}
-                  triggeringUserFilter={triggeringUserFilter}
                   showVersionIndicatorMode={showVersionIndicatorMode}
+                  triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
                   <Graph />
@@ -164,8 +164,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       limit={limit}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
-                      triggeringUser={triggeringUserFilter}
                       showVersionIndicatorMode={showVersionIndicatorMode}
+                      triggeringUser={triggeringUserFilter}
                     />
                     {showGantt ? (
                       <Gantt

@@ -49,9 +49,9 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { showVersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
-import { showVersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { ToggleGroups } from "./ToggleGroups";
@@ -67,11 +67,11 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly setshowVersionIndicatorMode: React.Dispatch<React.SetStateAction<string>>;
+  readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
-  readonly triggeringUserFilter: string | undefined;
   readonly showVersionIndicatorMode: string;
+  readonly triggeringUserFilter: string | undefined;
 };
 
 const getOptions = (translate: (key: string) => string) =>
@@ -103,7 +103,6 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
   };
 };
 
-
 const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
@@ -119,11 +118,11 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
-  setTriggeringUserFilter,
   setshowVersionIndicatorMode,
+  setTriggeringUserFilter,
   showGantt,
-  triggeringUserFilter,
   showVersionIndicatorMode,
+  triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { dagId = "", runId } = useParams();
@@ -508,8 +507,9 @@ export const PanelButtons = ({
                           <Select.Trigger>
                             <Select.ValueText>
                               {translate(
-                                showVersionIndicatorOptions.items.find((item) => item.value === showVersionIndicatorMode)
-                                  ?.label ?? "",
+                                showVersionIndicatorOptions.items.find(
+                                  (item) => item.value === showVersionIndicatorMode,
+                                )?.label ?? "",
                               )}
                             </Select.ValueText>
                           </Select.Trigger>

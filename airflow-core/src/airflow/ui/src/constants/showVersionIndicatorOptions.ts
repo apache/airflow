@@ -18,11 +18,27 @@
  */
 import { createListCollection } from "@chakra-ui/react";
 
+export const VersionIndicatorDisplayOptions = {
+  ALL: "all",
+  BUNDLE: "bundle",
+  DAG: "dag",
+  NONE: "none",
+} as const;
+
+export type VersionIndicatorDisplayOption =
+  (typeof VersionIndicatorDisplayOptions)[keyof typeof VersionIndicatorDisplayOptions];
+
 export const showVersionIndicatorOptions = createListCollection({
   items: [
-    { label: "dag:panel.showVersionIndicator.options.showAll", value: "all" },
-    { label: "dag:panel.showVersionIndicator.options.showBundleVersion", value: "bundle" },
-    { label: "dag:panel.showVersionIndicator.options.showDagVersion", value: "dag" },
-    { label: "dag:panel.showVersionIndicator.options.hideAll", value: "none" },
+    { label: "dag:panel.showVersionIndicator.options.showAll", value: VersionIndicatorDisplayOptions.ALL },
+    {
+      label: "dag:panel.showVersionIndicator.options.showBundleVersion",
+      value: VersionIndicatorDisplayOptions.BUNDLE,
+    },
+    {
+      label: "dag:panel.showVersionIndicator.options.showDagVersion",
+      value: VersionIndicatorDisplayOptions.DAG,
+    },
+    { label: "dag:panel.showVersionIndicator.options.hideAll", value: VersionIndicatorDisplayOptions.NONE },
   ],
 });

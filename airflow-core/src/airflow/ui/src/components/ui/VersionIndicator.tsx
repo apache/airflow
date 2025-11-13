@@ -17,8 +17,8 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { FiGitCommit } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
+import { FiGitCommit } from "react-icons/fi";
 
 import { Tooltip } from "src/components/ui";
 
@@ -27,13 +27,7 @@ export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersi
 
   return (
     <Tooltip content={`${translate("versionDetails.bundleVersion")}: ${bundleVersion}`}>
-      <Box
-        color="orange.fg"
-        left={-2}
-        position="absolute"
-        top={93}
-        zIndex={1}
-      >
+      <Box color="orange.fg" left={-2} position="absolute" top={93} zIndex={1}>
         <FiGitCommit size="15px" />
       </Box>
     </Tooltip>
@@ -65,9 +59,7 @@ export const DagVersionIndicator = ({
           <Box bg="orange.focusRing" height="full" position="absolute" width={0.5} />
 
           <Tooltip
-            content={
-              `v${dagVersionNumber ?? ""}`
-            }
+            content={`v${dagVersionNumber ?? ""}`}
             positioning={{
               placement: "top",
             }}
@@ -91,9 +83,7 @@ export const DagVersionIndicator = ({
         </>
       ) : (
         <Tooltip
-          content={
-              `v${dagVersionNumber ?? ""}`
-          }
+          content={`v${dagVersionNumber ?? ""}`}
           positioning={{
             placement: "right",
           }}

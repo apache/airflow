@@ -21,6 +21,7 @@ import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
@@ -31,8 +32,8 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
-  readonly taskInstances: Array<LightGridTaskInstanceSummary>;
   readonly showVersionIndicatorMode?: string;
+  readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
 export const TaskInstancesColumn = ({
@@ -40,8 +41,8 @@ export const TaskInstancesColumn = ({
   nodes,
   onCellClick,
   runId,
-  taskInstances,
   showVersionIndicatorMode,
+  taskInstances,
 }: Props) => {
   const { dagId = "" } = useParams();
 
@@ -57,7 +58,8 @@ export const TaskInstancesColumn = ({
 
     const hasVersionChangeFlag =
       hasMixedVersions &&
-      (showVersionIndicatorMode === "dag" || showVersionIndicatorMode === "all") &&
+      (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+        showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) &&
       idx > 0 &&
       (() => {
         const prevNode = nodes[idx - 1];
