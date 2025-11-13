@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-arrow``
-=================================
+``apache-airflow-providers-apache-arrow``
+=========================================
 
 
 .. toctree::
