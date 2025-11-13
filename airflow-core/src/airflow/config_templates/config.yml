@@ -2088,6 +2088,14 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_interval:
+      description: |
+        How often (in seconds) the scheduler emits metrics on running DAG runs
+        to StatsD (if statsd_on is enabled)
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "30.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``

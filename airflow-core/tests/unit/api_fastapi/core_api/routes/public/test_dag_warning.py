@@ -71,7 +71,7 @@ def setup(dag_maker, testing_dag_bundle, session=None) -> None:
 
 class TestGetDagWarnings:
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_messages",
+        ("query_params", "expected_total_entries", "expected_messages"),
         [
             ({}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
             ({"dag_id": DAG1_ID}, 1, [DAG1_MESSAGE]),

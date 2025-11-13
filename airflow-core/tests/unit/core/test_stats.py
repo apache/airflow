@@ -282,7 +282,7 @@ class TestDogStats:
 
 class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
-        "validator, stat_name, expect_incr",
+        ("validator", "stat_name", "expect_incr"),
         [
             (PatternAllowListValidator, "stats_one", True),
             (PatternAllowListValidator, "stats_two.bla", True),
@@ -309,7 +309,7 @@ class TestStatsAllowAndBlockLists:
             statsd_client.assert_not_called()
 
     @pytest.mark.parametrize(
-        "match_pattern, expect_incr",
+        ("match_pattern", "expect_incr"),
         [
             ("^stat", True),  # Match: Regex Startswith
             ("a.{4}o", True),  # Match: RegEx Pattern
@@ -343,7 +343,7 @@ class TestPatternValidatorConfigOption:
     block_list = {("metrics", "metrics_block_list"): "foo,bar"}
 
     @pytest.mark.parametrize(
-        "config, expected",
+        ("config", "expected"),
         [
             pytest.param(
                 {**stats_on},

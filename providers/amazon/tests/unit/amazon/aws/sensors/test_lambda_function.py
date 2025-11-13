@@ -46,7 +46,7 @@ class TestLambdaFunctionStateSensor:
         assert op.botocore_config == {"baz": "qux"}
 
     @pytest.mark.parametrize(
-        "get_function_output, expect_failure, expected",
+        ("get_function_output", "expect_failure", "expected"),
         [
             pytest.param(
                 {"Configuration": {"State": "Active"}},

@@ -362,7 +362,7 @@ class TestProviderManager:
 
 
 @pytest.mark.parametrize(
-    "value, expected_outputs,",
+    ("value", "expected_outputs"),
     [
         ("a", "a"),
         (1, 1),

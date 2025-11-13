@@ -90,7 +90,7 @@ def get_dbt_artifact(*args, **kwargs):
 
 
 @pytest.mark.parametrize(
-    "value, is_error",
+    ("value", "is_error"),
     [
         ("1.99.0", True),
         ("2.0.0", True),

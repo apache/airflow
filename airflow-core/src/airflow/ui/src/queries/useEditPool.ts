@@ -65,19 +65,18 @@ export const useEditPool = (
 
   const editPool = (editPoolRequestBody: PoolBody) => {
     const updateMask: Array<string> = [];
+    let parsedDescription = undefined;
 
     if (editPoolRequestBody.slots !== initialPool.slots) {
       updateMask.push("slots");
     }
     if (editPoolRequestBody.description !== initialPool.description) {
+      parsedDescription = editPoolRequestBody.description;
       updateMask.push("description");
     }
     if (editPoolRequestBody.include_deferred !== initialPool.include_deferred) {
       updateMask.push("include_deferred");
     }
-
-    const parsedDescription =
-      editPoolRequestBody.description === "" ? undefined : editPoolRequestBody.description;
 
     mutate({
       poolName: initialPool.name,

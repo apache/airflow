@@ -35,7 +35,7 @@ DESTINATION_SMB = "destination_path"
 
 class TestGoogleCloudStorageToSambaOperator:
     @pytest.mark.parametrize(
-        "source_object, target_object, keep_directory_structure",
+        ("source_object", "target_object", "keep_directory_structure"),
         [
             ("folder/test_object.txt", "folder/test_object.txt", True),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
@@ -74,7 +74,7 @@ class TestGoogleCloudStorageToSambaOperator:
         gcs_hook_mock.return_value.delete.assert_not_called()
 
     @pytest.mark.parametrize(
-        "source_object, target_object, keep_directory_structure",
+        ("source_object", "target_object", "keep_directory_structure"),
         [
             ("folder/test_object.txt", "folder/test_object.txt", True),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
@@ -118,7 +118,7 @@ class TestGoogleCloudStorageToSambaOperator:
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
     @pytest.mark.parametrize(
-        "source_object, target_object, keep_directory_structure",
+        ("source_object", "target_object", "keep_directory_structure"),
         [
             ("folder/test_object.txt", "folder/test_object.txt", True),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
@@ -163,7 +163,14 @@ class TestGoogleCloudStorageToSambaOperator:
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
     @pytest.mark.parametrize(
-        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
+        (
+            "source_object",
+            "prefix",
+            "delimiter",
+            "gcs_files_list",
+            "target_objects",
+            "keep_directory_structure",
+        ),
         [
             (
                 "folder/test_object*.txt",
@@ -252,7 +259,14 @@ class TestGoogleCloudStorageToSambaOperator:
         gcs_hook_mock.return_value.delete.assert_not_called()
 
     @pytest.mark.parametrize(
-        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
+        (
+            "source_object",
+            "prefix",
+            "delimiter",
+            "gcs_files_list",
+            "target_objects",
+            "keep_directory_structure",
+        ),
         [
             (
                 "folder/test_object*.txt",

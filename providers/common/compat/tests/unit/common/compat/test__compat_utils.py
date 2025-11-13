@@ -26,7 +26,7 @@ class TestCreateModuleGetattr:
     """Unit tests for the create_module_getattr utility function."""
 
     @pytest.mark.parametrize(
-        ["name", "import_map", "is_module"],
+        ("name", "import_map", "is_module"),
         [
             ("BaseHook", {"BaseHook": "airflow.hooks.base"}, False),
             ("timezone", {}, True),  # Will be tested with module_map
@@ -51,7 +51,7 @@ class TestCreateModuleGetattr:
             assert isinstance(result, type) or callable(result)
 
     @pytest.mark.parametrize(
-        ["name", "paths", "should_succeed"],
+        ("name", "paths", "should_succeed"),
         [
             ("BaseHook", ("airflow.sdk", "airflow.hooks.base"), True),
             ("NonExistent", ("fake.module1", "fake.module2"), False),
@@ -106,7 +106,7 @@ class TestCreateModuleGetattr:
         assert exc_info.value.__cause__ is not None
 
     @pytest.mark.parametrize(
-        "error_scenario,map_config,expected_match",
+        ("error_scenario", "map_config", "expected_match"),
         [
             (
                 "import_error",
@@ -191,7 +191,7 @@ class TestCreateModuleGetattr:
             getattr_fn("Fake")
 
     @pytest.mark.parametrize(
-        "map_type,config",
+        ("map_type", "config"),
         [
             ("import_map", {"BaseHook": "airflow.hooks.base"}),
             ("module_map", {"timezone": "airflow.utils.timezone"}),

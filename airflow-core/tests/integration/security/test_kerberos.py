@@ -53,7 +53,7 @@ class TestKerberosIntegration:
             assert renew_from_kt(principal=None, keytab=self.keytab) == 0
 
     @pytest.mark.parametrize(
-        "exit_on_fail, expected_context",
+        ("exit_on_fail", "expected_context"),
         [
             pytest.param(True, pytest.raises(SystemExit), id="exit-on-fail"),
             pytest.param(False, nullcontext(), id="return-code-of-fail"),

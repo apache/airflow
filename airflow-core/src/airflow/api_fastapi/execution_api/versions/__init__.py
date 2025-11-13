@@ -28,9 +28,11 @@ from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
 from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersionIdField
 from airflow.api_fastapi.execution_api.versions.v2025_10_27 import MakeDagRunConfNullable
 from airflow.api_fastapi.execution_api.versions.v2025_11_05 import AddTriggeringUserNameField
+from airflow.api_fastapi.execution_api.versions.v2025_11_07 import AddPartitionKeyField
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2025-11-07", AddPartitionKeyField),
     Version("2025-11-05", AddTriggeringUserNameField),
     Version("2025-10-27", MakeDagRunConfNullable),
     Version("2025-09-23", AddDagVersionIdField),

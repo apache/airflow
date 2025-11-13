@@ -53,7 +53,7 @@ TEST_URI = "test-uri"
 
 class TestMetastoreHivePartitionSensor:
     @pytest.mark.parametrize(
-        "requested_partitions, result_files_with_rows, expected_result",
+        ("requested_partitions", "result_files_with_rows", "expected_result"),
         [
             (None, [(RESULT_FILE_NAME_1, [])], False),
             ([None], [(RESULT_FILE_NAME_1, [])], False),
@@ -145,7 +145,7 @@ class TestMetastoreHivePartitionSensor:
             sensor.poke(context={})
 
     @pytest.mark.parametrize(
-        "requested_partitions, result_files_with_rows, expected_result",
+        ("requested_partitions", "result_files_with_rows", "expected_result"),
         [
             ([PARTITION_1, PARTITION_1], [(RESULT_FILE_NAME_1, [ROW_1])], True),
         ],

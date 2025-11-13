@@ -423,3 +423,331 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
+
+
+@ci_group.command(
+    name="upgrade",
+    help="Perform important upgrade steps of the CI environment. And create a PR",
+)
+@click.option(
+    "--target-branch",
+    default=AIRFLOW_BRANCH,
+    help="Branch to work on and make PR against (e.g., 'main' or 'vX-Y-test')",
+    show_default=True,
+)
+@click.option(
+    "--create-pr/--no-create-pr",
+    default=None,
+    help="Automatically create a PR with the upgrade changes (if not specified, will ask)",
+    is_flag=True,
+)
+@click.option(
+    "--switch-to-base/--no-switch-to-base",
+    default=None,
+    help="Automatically switch to the base branch if not already on it (if not specified, will ask)",
+    is_flag=True,
+)
+@option_answer
+@option_verbose
+@option_dry_run
+def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | None):
+    # Validate target_branch pattern
+    target_branch_pattern = re.compile(r"^(main|v\d+-\d+-test)$")
+    if not target_branch_pattern.match(target_branch):
+        get_console().print(
+            f"[error]Invalid target branch: '{target_branch}'. "
+            "Must be 'main' or follow pattern 'vX-Y-test' where X and Y are numbers (e.g., 'v2-10-test').[/]"
+        )
+        sys.exit(1)
+
+    # Check if we're on the main branch
+    branch_result = run_command(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=False
+    )
+    current_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else ""
+
+    # Store the original branch/commit to restore later if needed
+    original_branch = current_branch
+    original_commit_result = run_command(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+    )
+    original_commit = original_commit_result.stdout.strip() if original_commit_result.returncode == 0 else ""
+
+    # Check if the working directory is clean
+    status_result = run_command(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
+    is_clean = status_result.returncode == 0 and not status_result.stdout.strip()
+
+    # Check if we have the apache remote and get its name
+    remote_result = run_command(["git", "remote", "-v"], capture_output=True, text=True, check=False)
+    apache_remote_name = None
+    origin_remote_name = None
+    origin_repo = None  # Store the user's fork repo (e.g., "username/airflow")
+
+    if remote_result.returncode == 0:
+        # Parse remote output to find apache/airflow remote and origin remote
+        # Format: remote_name\turl (fetch|push)
+        for line in remote_result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                remote_name = parts[0]
+                remote_url = parts[1]
+                if "apache/airflow" in remote_url and apache_remote_name is None:
+                    apache_remote_name = remote_name
+                # Also track origin remote for pushing
+                if remote_name == "origin" and origin_remote_name is None:
+                    origin_remote_name = remote_name
+                    # Extract repo from origin URL (supports both HTTPS and SSH formats)
+                    # HTTPS: https://github.com/username/airflow.git
+                    # SSH: git@github.com:username/airflow.git
+                    if "github.com" in remote_url:
+                        if "git@github.com:" in remote_url:
+                            # SSH format
+                            repo_part = remote_url.split("git@github.com:")[1]
+                        elif "github.com/" in remote_url:
+                            # HTTPS format
+                            repo_part = remote_url.split("github.com/")[1]
+                        else:
+                            repo_part = None
+
+                        if repo_part:
+                            # Remove .git suffix if present
+                            origin_repo = repo_part.replace(".git", "").strip()
+
+    has_apache_remote = apache_remote_name is not None
+
+    # Check if we're up to date with apache/airflow on the specified branch
+    if has_apache_remote:
+        # Fetch apache remote to get latest info
+        run_command(["git", "fetch", apache_remote_name], check=False)
+
+        # Check if the target branch exists in the apache remote
+        branch_exists = run_command(
+            ["git", "rev-parse", "--verify", f"{apache_remote_name}/{target_branch}"],
+            capture_output=True,
+            check=False,
+        )
+
+        if branch_exists.returncode != 0:
+            get_console().print(
+                f"[error]Target branch '{target_branch}' does not exist in remote '{apache_remote_name}'.[/]"
+            )
+            sys.exit(1)
+
+        # Check if current HEAD matches apache_remote/<branch>
+        local_head = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+        remote_head = run_command(
+            ["git", "rev-parse", f"{apache_remote_name}/{target_branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        at_apache_branch = (
+            current_branch == target_branch
+            and local_head.returncode == 0
+            and remote_head.returncode == 0
+            and local_head.stdout.strip() == remote_head.stdout.strip()
+        )
+    else:
+        at_apache_branch = False
+        get_console().print(
+            "[warning]No apache remote found. The command expects remote pointing to apache/airflow[/]"
+        )
+
+    # Track whether user chose to reset to target branch
+    user_switched_to_target = False
+
+    if not at_apache_branch or not is_clean:
+        get_console().print()
+        if not at_apache_branch:
+            get_console().print(
+                f"[warning]You are not at the top of apache/airflow {target_branch} branch.[/]"
+            )
+            get_console().print(f"[info]Current branch: {current_branch}[/]")
+        if not is_clean:
+            get_console().print("[warning]Your repository has uncommitted changes.[/]")
+        get_console().print()
+
+        # Determine whether to switch to base branch
+        should_switch = switch_to_base
+        if should_switch is None:
+            # Not specified, ask the user
+            get_console().print(
+                f"[warning]Attempting to switch to switch to {target_branch}. "
+                f"This will lose not committed code.[/]\n\n"
+                "NO will continue to get changes on top of current branch, QUIT will exit."
+            )
+            response = user_confirm("Do you want to switch")
+            if response == Answer.YES:
+                should_switch = True
+            elif response == Answer.QUIT:
+                get_console().print(
+                    f"[error]Upgrade cancelled. Please ensure you are on apache/airflow {target_branch} with a clean repository.[/]"
+                )
+                sys.exit(1)
+            else:
+                should_switch = False
+
+        if should_switch:
+            user_switched_to_target = True
+            get_console().print(f"[info]Resetting to apache/airflow {target_branch}...[/]")
+            if current_branch != target_branch:
+                run_command(["git", "checkout", target_branch])
+            run_command(["git", "fetch", apache_remote_name])
+            run_command(["git", "reset", "--hard", f"{apache_remote_name}/{target_branch}"])
+            run_command(["git", "clean", "-fdx"])
+            get_console().print(
+                f"[success]Successfully reset to apache/airflow {target_branch} and cleaned repository.[/]"
+            )
+        else:
+            get_console().print(
+                f"[info]Continuing with current branch {current_branch}. Changes will be on top of it.[/]"
+            )
+
+    get_console().print("[info]Running upgrade of important CI environment.[/]")
+
+    # Get GitHub token from gh CLI and set it in environment copy
+    gh_token_result = run_command(
+        ["gh", "auth", "token"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    # Create a copy of the environment to pass to commands
+    command_env = os.environ.copy()
+
+    if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
+        github_token = gh_token_result.stdout.strip()
+        command_env["GITHUB_TOKEN"] = github_token
+        get_console().print("[success]GitHub token retrieved from gh CLI and set in environment.[/]")
+    else:
+        get_console().print(
+            "[warning]Could not retrieve GitHub token from gh CLI. "
+            "Commands may fail if they require authentication.[/]"
+        )
+
+    # Define all upgrade commands to run (all run with check=False to continue on errors)
+    upgrade_commands = [
+        "prek autoupdate --freeze",
+        "prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks",
+        "prek autoupdate --bleeding-edge --freeze --repo https://github.com/eclipse-csi/octopin",
+        "prek --all-files --verbose --hook-stage manual pin-versions",
+        "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual update-chart-dependencies",
+        "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual upgrade-important-versions",
+    ]
+
+    # Execute all upgrade commands with the environment containing GitHub token
+    for command in upgrade_commands:
+        run_command(command.split(), check=False, env=command_env)
+
+    res = run_command(["git", "diff", "--exit-code"], check=False)
+    if res.returncode == 0:
+        get_console().print("[success]No changes were made during the upgrade. Exiting[/]")
+        sys.exit(0)
+
+    # Determine whether to create a PR
+    should_create_pr = create_pr
+    if should_create_pr is None:
+        # Not specified, ask the user
+        should_create_pr = user_confirm("Do you want to create a PR with the upgrade changes?") == Answer.YES
+
+    if should_create_pr:
+        # Get current HEAD commit hash for unique branch name
+        head_result = run_command(
+            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False
+        )
+        commit_hash = head_result.stdout.strip() if head_result.returncode == 0 else "unknown"
+        branch_name = f"ci-upgrade-{commit_hash}"
+
+        # Check if branch already exists and delete it
+        branch_check = run_command(
+            ["git", "rev-parse", "--verify", branch_name], capture_output=True, check=False
+        )
+        if branch_check.returncode == 0:
+            get_console().print(f"[info]Branch {branch_name} already exists, deleting it...[/]")
+            run_command(["git", "branch", "-D", branch_name])
+
+        run_command(["git", "checkout", "-b", branch_name])
+        run_command(["git", "add", "."])
+        run_command(["git", "commit", "-m", "CI: Upgrade important CI environment"])
+
+        # Push the branch to origin (use detected origin or fallback to 'origin')
+        push_remote = origin_remote_name if origin_remote_name else "origin"
+        get_console().print(f"[info]Pushing branch {branch_name} to {push_remote}...[/]")
+        push_result = run_command(
+            ["git", "push", "-u", push_remote, branch_name, "--force"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if push_result.returncode != 0:
+            get_console().print(
+                f"[error]Failed to push branch:\n{push_result.stdout}\n{push_result.stderr}[/]"
+            )
+            sys.exit(1)
+        get_console().print(f"[success]Branch {branch_name} pushed to {push_remote}.[/]")
+
+        # Create PR from the pushed branch
+        # gh pr create needs --head in format "username:branch" when creating a PR from a fork
+        # Extract username from origin_repo (e.g., "username/airflow" -> "username")
+        if origin_repo:
+            owner = origin_repo.split("/")[0]
+            head_ref = f"{owner}:{branch_name}"
+            get_console().print(
+                f"[info]Creating PR from {origin_repo} branch {branch_name} to apache/airflow {target_branch}...[/]"
+            )
+        else:
+            # Fallback to just branch name if we couldn't determine the fork
+            head_ref = branch_name
+            get_console().print("[warning]Could not determine fork repository. Using branch name only.[/]")
+
+        pr_result = run_command(
+            [
+                "gh",
+                "pr",
+                "create",
+                "-w",
+                "--repo",
+                "apache/airflow",
+                "--head",
+                head_ref,
+                "--base",
+                target_branch,
+                "--title",
+                f"[{target_branch}] Upgrade important CI environment",
+                "--body",
+                "This PR upgrades important dependencies of the CI environment.",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=command_env,
+        )
+        if pr_result.returncode != 0:
+            get_console().print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
+            sys.exit(1)
+        pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
+        get_console().print(f"[success]PR created successfully: {pr_url}.[/]")
+
+        # Switch back to appropriate branch and delete the temporary branch
+        get_console().print(f"[info]Cleaning up temporary branch {branch_name}...[/]")
+        if user_switched_to_target:
+            # User explicitly chose to switch to target branch, so stay there
+            run_command(["git", "checkout", target_branch])
+        else:
+            # User didn't switch initially, restore to original branch/commit
+            if original_branch == "HEAD":
+                # Detached HEAD state, restore to original commit
+                get_console().print(f"[info]Restoring to original commit {original_commit[:8]}...[/]")
+                run_command(["git", "checkout", original_commit])
+            else:
+                # Named branch, restore to it
+                get_console().print(f"[info]Restoring to original branch {original_branch}...[/]")
+                run_command(["git", "checkout", original_branch])
+
+        # Delete local branch
+        run_command(["git", "branch", "-D", branch_name])
+        get_console().print(f"[success]Local branch {branch_name} deleted.[/]")
+    else:
+        get_console().print("[info]PR creation skipped. Changes are committed locally.[/]")

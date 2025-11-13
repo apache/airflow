@@ -180,7 +180,7 @@ class TestCliUsers:
         assert 'User "test4" deleted' in stdout.getvalue()
 
     @pytest.mark.parametrize(
-        "args,raise_match",
+        ("args", "raise_match"),
         [
             (
                 [
@@ -248,9 +248,9 @@ class TestCliUsers:
                 ]
             )
             user_command.users_create(args)
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout_io:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
-            stdout = stdout.getvalue()
+            stdout = stdout_io.getvalue()
         for i in range(3):
             assert f"user{i}" in stdout
 
@@ -414,7 +414,7 @@ class TestCliUsers:
         ), "User should have been removed from role 'Viewer'"
 
     @pytest.mark.parametrize(
-        "role, message",
+        ("role", "message"),
         [
             ["Viewer", 'User "test4" is already a member of role "Viewer"'],
             ["Foo", '"Foo" is not a valid role. Valid roles are'],
@@ -426,7 +426,7 @@ class TestCliUsers:
             user_command.add_role(args)
 
     @pytest.mark.parametrize(
-        "role, message",
+        ("role", "message"),
         [
             ["Admin", 'User "test4" is not a member of role "Admin"'],
             ["Foo", '"Foo" is not a valid role. Valid roles are'],
@@ -438,7 +438,7 @@ class TestCliUsers:
             user_command.remove_role(args)
 
     @pytest.mark.parametrize(
-        "user, message",
+        ("user", "message"),
         [
             [
                 {

@@ -44,7 +44,7 @@ class TestDagVersionEndpoint:
 
 class TestGetDagVersion(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, dag_version, expected_response",
+        ("dag_id", "dag_version", "expected_response"),
         [
             [
                 "ANOTHER_DAG_ID",
@@ -111,7 +111,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "dag_id, dag_version, expected_response",
+        ("dag_id", "dag_version", "expected_response"),
         [
             [
                 "ANOTHER_DAG_ID",
@@ -213,7 +213,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
 
 class TestGetDagVersions(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, expected_response, expected_query_count",
+        ("dag_id", "expected_response", "expected_query_count"),
         [
             [
                 "~",
@@ -317,7 +317,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "dag_id, expected_response, expected_query_count",
+        ("dag_id", "expected_response", "expected_query_count"),
         [
             [
                 "~",
@@ -419,7 +419,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "params, expected_versions, expected_total_entries",
+        ("params", "expected_versions", "expected_total_entries"),
         [
             [{"limit": 1}, [("ANOTHER_DAG_ID", 1)], 4],
             [{"limit": 2}, [("ANOTHER_DAG_ID", 1), ("dag_with_multiple_versions", 1)], 4],

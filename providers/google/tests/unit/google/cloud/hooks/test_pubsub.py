@@ -502,7 +502,7 @@ class TestPubSubHook:
         )
 
     @pytest.mark.parametrize(
-        "ack_ids, messages",
+        ("ack_ids", "messages"),
         [
             pytest.param(None, None, id="both-empty"),
             pytest.param([1, 2, 3], _generate_messages(3), id="both-provided"),
@@ -564,7 +564,7 @@ class TestPubSubHook:
         PubSubHook._validate_messages(messages)
 
     @pytest.mark.parametrize(
-        "messages, error_message",
+        ("messages", "error_message"),
         [
             ([("wrong type",)], "Wrong message type. Must be a dictionary."),
             ([{"wrong_key": b"test"}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),

@@ -58,7 +58,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     import airflow.settings
 
-    airflow.settings.configure_policy_plugin_manager()
+    airflow.settings.get_policy_plugin_manager()
 
 
 @pytest.fixture(scope="session", autouse=True)

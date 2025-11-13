@@ -291,7 +291,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
         assert res_json == exp_payload
 
     @pytest.mark.parametrize(
-        "url, params, exp_payload",
+        ("url", "params", "exp_payload"),
         [
             (
                 API_PREFIX,

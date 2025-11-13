@@ -149,7 +149,7 @@ class TestDagTags(TestDagEndpoint):
     """Unit tests for Get DAG Tags."""
 
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
+        ("query_params", "expected_status_code", "expected_dag_tags", "expected_total_entries"),
         [
             # test with offset, limit, and without any tag_name_pattern
             (

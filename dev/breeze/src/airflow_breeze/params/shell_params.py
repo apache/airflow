@@ -34,7 +34,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
-    ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     BREEZE_DEBUG_APISERVER_PORT,
@@ -47,6 +46,7 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -156,6 +156,7 @@ class ShellParams:
     celery_flower: bool = False
     clean_airflow_installation: bool = False
     collect_only: bool = False
+    create_all_roles: bool = False
     debug_components: tuple[str, ...] = ()
     debugger: str = "debugpy"
     db_reset: bool = False
@@ -196,7 +197,7 @@ class ShellParams:
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
-    postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
+    postgres_version: str = DEFAULT_POSTGRES_VERSION
     project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
     providers_constraints_location: str = ""
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
@@ -543,7 +544,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.auth_manager == SIMPLE_AUTH_MANAGER:
-            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+            _set_var(
+                _env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer,user:user,op:op"
+            )
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
@@ -589,6 +592,7 @@ class ShellParams:
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
+        _set_var(_env, "CREATE_ALL_ROLES", self.create_all_roles)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
         _set_var(_env, "DB_RESET", self.db_reset)

@@ -57,7 +57,13 @@ class TestCategorizeTaskInstances(TestTaskInstanceEndpoint):
             return "test_user"
 
     @pytest.mark.parametrize(
-        "task_keys, expected_matched_keys, expected_not_found_keys, expected_matched_count, expected_not_found_count",
+        (
+            "task_keys",
+            "expected_matched_keys",
+            "expected_not_found_keys",
+            "expected_matched_count",
+            "expected_not_found_count",
+        ),
         [
             pytest.param(
                 {(TASK_ID_1, -1), (TASK_ID_2, -1)},

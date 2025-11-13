@@ -39,7 +39,7 @@ class TestExponentialBackoffRetry:
         mock_callable_function.assert_called_once()
 
     @pytest.mark.parametrize(
-        "attempt_number, utcnow_value, expected_calls",
+        ("attempt_number", "utcnow_value", "expected_calls"),
         [
             (
                 0,
@@ -192,7 +192,7 @@ class TestExponentialBackoffRetry:
         assert mock_callable_function.call_count == 3
 
     @pytest.mark.parametrize(
-        "attempt_number, utcnow_value, expected_calls",
+        ("attempt_number", "utcnow_value", "expected_calls"),
         [
             (
                 0,

@@ -39,7 +39,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
         subject="Subject",
         body="Optional body",
         defaults=["Approve", "Reject"],
-        params={"input_1": 1},
+        params={"input_1": {"value": 1, "description": None, "schema": {}}},
         assigned_users=[HITLUser(id="test", name="test")],
         multiple=False,
     )
@@ -50,7 +50,7 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
             subject="Subject",
             body="Optional body",
             defaults=["Approve", "Reject"],
-            params={"input_1": 1},
+            params={"input_1": {"value": 1, "description": None, "schema": {}}},
             assigned_users=[APIHITLUser(id="test", name="test")],
             multiple=False,
         )

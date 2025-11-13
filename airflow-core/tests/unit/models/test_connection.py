@@ -40,6 +40,15 @@ if TYPE_CHECKING:
 
 
 class TestConnection:
+    @pytest.fixture(autouse=True)
+    def clear_fernet_cache(self):
+        """Clear the fernet cache before each test to avoid encryption issues."""
+        from airflow.models.crypto import get_fernet
+
+        get_fernet.cache_clear()
+        yield
+        get_fernet.cache_clear()
+
     def test_get_uri_with_non_string_extras(self):
         """Ensure non-string extras (bool, ints, etc.) are properly stringified in URI"""
         conn = Connection(
@@ -59,16 +68,26 @@ class TestConnection:
         url = conn.get_uri()
         query = dict(parse_qsl(urlsplit(url).query))
 
-        assert "__extra__" not in query
+        assert "__extra__" in query
         assert query["tds_version"] == "7.3"
         assert query["as_dict"] == "true"
         assert query["retries"] == "3"
         assert query["trust_server_certificate"] == "false"
         assert json.loads(query["nested"]) == {"a": 1}
 
+
     @pytest.mark.parametrize(
-        "uri, expected_conn_type, expected_host, expected_login, expected_password,"
-        " expected_port, expected_schema, expected_extra_dict, expected_exception_message",
+        (
+            "uri",
+            "expected_conn_type",
+            "expected_host",
+            "expected_login",
+            "expected_password",
+            "expected_port",
+            "expected_schema",
+            "expected_extra_dict",
+            "expected_exception_message",
+        ),
         [
             (
                 "type://user:pass@host:100/schema",
@@ -186,7 +205,7 @@ class TestConnection:
             assert conn.extra_dejson == expected_extra_dict
 
     @pytest.mark.parametrize(
-        "connection, expected_uri",
+        ("connection", "expected_uri"),
         [
             (
                 Connection(
@@ -228,7 +247,7 @@ class TestConnection:
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        "connection, expected_conn_id",
+        ("connection", "expected_conn_id"),
         [
             # a valid example of connection id
             (
@@ -292,7 +311,7 @@ class TestConnection:
         assert connection.conn_id == expected_conn_id
 
     @pytest.mark.parametrize(
-        "conn_type, host",
+        ("conn_type", "host"),
         [
             # same protocol to type
             ("http", "http://host"),

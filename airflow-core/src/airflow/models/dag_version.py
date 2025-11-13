@@ -95,6 +95,8 @@ class DagVersion(Base):
 
         # fallback to the deprecated option if the bundle model does not have a signed_url_template
         # attribute
+        if self.bundle_name is None:
+            return None
         try:
             return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
         except ValueError:

@@ -268,7 +268,7 @@ class TestGKEStartPodTrigger:
         assert "Waiting until 120s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},

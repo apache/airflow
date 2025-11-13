@@ -128,7 +128,7 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "is_active, is_paused, expected_num_triggers",
+        ("is_active", "is_paused", "expected_num_triggers"),
         [
             (True, True, 0),
             (True, False, 1),
@@ -170,7 +170,7 @@ class TestAssetModelOperation:
         assert len(asset_model.triggers) == expected_num_triggers
 
     @pytest.mark.parametrize(
-        "schedule, model, columns, expected",
+        ("schedule", "model", "columns", "expected"),
         [
             pytest.param(
                 Asset.ref(name="name1"),
@@ -954,7 +954,7 @@ class TestUpdateDagTags:
         session.commit()
 
     @pytest.mark.parametrize(
-        ["initial_tags", "new_tags", "expected_tags"],
+        ("initial_tags", "new_tags", "expected_tags"),
         [
             (["dangerous"], {"DANGEROUS"}, {"DANGEROUS"}),
             (["existing"], {"existing", "new"}, {"existing", "new"}),

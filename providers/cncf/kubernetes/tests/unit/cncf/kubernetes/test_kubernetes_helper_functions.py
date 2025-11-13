@@ -28,7 +28,7 @@ pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])
 
 class TestCreateUniqueId:
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             ("task-id", "task-id"),  # no problem
             ("task_id", "task-id"),  # underscores
@@ -45,7 +45,7 @@ class TestCreateUniqueId:
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             ("dag-id", "dag-id"),  # no problem
             ("dag_id", "dag-id"),  # underscores
@@ -62,7 +62,7 @@ class TestCreateUniqueId:
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize(
-        "dag_id, task_id, expected",
+        ("dag_id", "task_id", "expected"),
         [
             ("dag-id", "task-id", "dag-id-task-id"),  # no problem
             ("dag_id", "task_id", "dag-id-task-id"),  # underscores

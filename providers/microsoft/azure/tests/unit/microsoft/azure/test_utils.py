@@ -55,7 +55,7 @@ def test_get_field_warns_on_dupe():
 
 
 @pytest.mark.parametrize(
-    "input, expected",
+    ("input", "expected"),
     [
         (dict(this_param="non-prefixed"), "non-prefixed"),
         (dict(this_param=None), None),
@@ -147,7 +147,7 @@ class TestAzureIdentityCredentialAdapter:
 
 
 @pytest.mark.parametrize(
-    "host, login, expected_url",
+    ("host", "login", "expected_url"),
     [
         (None, None, "https://None.blob.core.windows.net/"),  # to maintain existing behaviour
         (None, "storage_account", "https://storage_account.blob.core.windows.net/"),

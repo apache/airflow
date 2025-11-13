@@ -47,6 +47,8 @@ name = "{{ PACKAGE_PIP_NAME }}"
 version = "{{RELEASE}}{{ VERSION_SUFFIX }}"
 description = "Provider package {{ PACKAGE_PIP_NAME }} for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = {{ LICENSE_FILES }}
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -62,7 +64,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     {% for python_version in SUPPORTED_PYTHON_VERSIONS %}
     "Programming Language :: Python :: {{ python_version }}",
     {% endfor %}

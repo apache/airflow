@@ -101,7 +101,7 @@ class TestQuotaRetry:
 
 class TestRefreshCredentialsRetry:
     @pytest.mark.parametrize(
-        "exc, retryable",
+        ("exc", "retryable"),
         [
             (RefreshError("Other error", "test body"), False),
             (RefreshError("Unable to acquire impersonated credentials", "test body"), True),
@@ -713,7 +713,7 @@ class TestGoogleBaseHook:
         assert http_authorized.timeout is not None
 
     @pytest.mark.parametrize(
-        "impersonation_chain, impersonation_chain_from_conn, target_principal, delegates",
+        ("impersonation_chain", "impersonation_chain_from_conn", "target_principal", "delegates"),
         [
             pytest.param("ACCOUNT_1", None, "ACCOUNT_1", None, id="string"),
             pytest.param(None, "ACCOUNT_1", "ACCOUNT_1", None, id="string_in_conn"),

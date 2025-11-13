@@ -36,6 +36,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from _pytest.config.findpaths import ConfigValue
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -494,7 +495,9 @@ def pytest_configure(config: pytest.Config) -> None:
                 f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
             )
             pytest.exit(msg, returncode=6)
-    config.inicfg["airflow_deprecations_ignore"] = _find_all_deprecation_ignore_files()
+    config.inicfg["airflow_deprecations_ignore"] = ConfigValue(
+        value=_find_all_deprecation_ignore_files(), origin="override", mode="ini"
+    )
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system: mark test to run as system test")
@@ -1825,8 +1828,8 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(autouse=True, scope="session")
-@pytest.mark.usefixture("_ensure_configured_logging")
-def initialize_providers_manager():
+def initialize_providers_manager(request: pytest.FixtureRequest):
+    request.getfixturevalue("_ensure_configured_logging")
     if importlib.util.find_spec("airflow") is None:
         # If airflow is not installed, we should not initialize providers manager
         return

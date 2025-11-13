@@ -92,7 +92,7 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     @pytest.mark.parametrize(
-        "connection_params, expected_uri",
+        ("connection_params", "expected_uri"),
         [
             pytest.param(
                 {

@@ -194,7 +194,7 @@ class TestPrestoHookConn:
         assert mock_connect.return_value == conn
 
     @pytest.mark.parametrize(
-        "current_verify, expected_verify",
+        ("current_verify", "expected_verify"),
         [
             ("False", False),
             ("false", False),

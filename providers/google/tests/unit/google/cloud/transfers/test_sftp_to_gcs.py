@@ -333,7 +333,7 @@ class TestSFTPToGCSOperator:
         )
 
     @pytest.mark.parametrize(
-        "source_object, destination_path, expected_source, expected_destination",
+        ("source_object", "destination_path", "expected_source", "expected_destination"),
         [
             ("folder/test_object.txt", "dest/dir", "folder/test_object.txt", "dest"),
             ("folder/test_object.txt", "dest/dir/", "folder/test_object.txt", "dest/dir"),

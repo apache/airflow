@@ -48,7 +48,7 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
     COLLECTION_ID = "test_collection_id"
 
     @pytest.mark.parametrize(
-        "collection_name, collection_id, expected_pass",
+        ("collection_name", "collection_id", "expected_pass"),
         [
             pytest.param(COLLECTION_NAME, COLLECTION_ID, False, id="both_provided_fails"),
             pytest.param(COLLECTION_NAME, None, True, id="only_name_provided_passes"),

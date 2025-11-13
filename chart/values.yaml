@@ -139,6 +139,10 @@ schedulerName: ~
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
+# List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
+# registries. Items can be either strings or {name: secret} objects.
+imagePullSecrets: []
+
 # Ingress configuration
 ingress:
   # Enable all ingress resources
@@ -2729,11 +2733,16 @@ redis:
   labels: {}
 
   podAnnotations: {}
-# Auth secret for a private registry
+
+# Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
 # This is used if pulling airflow images from a private registry
 registry:
+  # Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry
+  # (Deprecated - renamed to `imagePullSecrets`).
   secretName: ~
 
+  # Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret
+  # (Deprecated - create manually the credentials secret and add to `imagePullSecrets` instead).
   # Example:
   # connection:
   #   user: ~

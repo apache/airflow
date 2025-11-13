@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 
 class TestClient:
     @pytest.mark.parametrize(
-        ["path", "json_response"],
+        ("path", "json_response"),
         [
             (
                 "/task-instances/1/run",
@@ -249,7 +249,7 @@ class TestClient:
         assert response.request.headers["Authorization"] == "Bearer abc"
 
     @pytest.mark.parametrize(
-        ["status_code", "description"],
+        ("status_code", "description"),
         [
             (399, "status code < 400"),
             (301, "3xx redirect status code"),

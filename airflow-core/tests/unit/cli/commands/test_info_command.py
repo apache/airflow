@@ -50,7 +50,7 @@ class TestPiiAnonymizer:
         assert self.instance.process_path(home_path) == "${HOME}/airflow/config"
 
     @pytest.mark.parametrize(
-        "before, after",
+        ("before", "after"),
         [
             (
                 "postgresql+psycopg2://postgres:airflow@postgres/airflow",

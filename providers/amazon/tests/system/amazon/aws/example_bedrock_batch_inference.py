@@ -71,7 +71,7 @@ CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Batch inferences currently require a minimum of 100 prompts per batch.
-MIN_NUM_PROMPTS = 300
+MIN_NUM_PROMPTS = 100
 PROMPT_TEMPLATE = "Even numbers are red. Odd numbers are blue. What color is {n}?"
 
 
@@ -97,6 +97,9 @@ def generate_prompts(_env_id: str, _bucket: str, _key: str):
 
         # Convert each prompt to serialized json, append a newline, and write that line to the temp file.
         tmp_file.writelines(json.dumps(prompt) + "\n" for prompt in prompts)
+
+        # Flush the buffer to ensure all data is written to disk before upload
+        tmp_file.flush()
 
         # Upload the file to S3.
         S3Hook().conn.upload_file(tmp_file.name, _bucket, _key)

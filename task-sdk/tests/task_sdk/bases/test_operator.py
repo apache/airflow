@@ -712,7 +712,7 @@ class TestBaseOperator:
         task.render_template_fields({})
         assert task.arg2 == "foo_barbarbar"
 
-    @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
+    @pytest.mark.parametrize("content", [object(), uuid.uuid4()])
     def test_render_template_fields_no_change(self, content):
         """Tests if non-templatable types remain unchanged."""
         task = BaseOperator(task_id="op1")

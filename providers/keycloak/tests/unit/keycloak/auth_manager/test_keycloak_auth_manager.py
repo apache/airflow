@@ -103,6 +103,10 @@ class TestKeycloakAuthManager:
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
+    def test_get_url_logout(self, auth_manager):
+        result = auth_manager.get_url_logout()
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"
+
     @patch.object(KeycloakAuthManager, "_token_expired")
     def test_refresh_user_not_expired(self, mock_token_expired, auth_manager):
         mock_token_expired.return_value = False

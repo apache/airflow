@@ -41,7 +41,7 @@ class Row2(NamedTuple):
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    ("sql", "return_last", "split_statement", "hook_results", "hook_descriptions", "expected_results"),
     [
         pytest.param(
             "select * from dummy",

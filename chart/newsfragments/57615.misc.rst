@@ -1,0 +1,1 @@
+Add ``.Values.imagePullSecrets`` as the new mechanism for configuring registry credentials, deprecating both ``.Values.registry.secretName`` and the automatic creation of the ``<RELEASE_NAME>-registry`` secret from ``.Values.registry.connection``.

@@ -737,6 +737,7 @@ class TestKubernetesImportAvoidance:
             pytest.skip("Kubernetes already imported, cannot test import avoidance")
 
         # Call _has_kubernetes() - should check sys.modules and return False without importing
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is False
@@ -747,6 +748,7 @@ class TestKubernetesImportAvoidance:
         pytest.importorskip("kubernetes")
 
         # Now k8s is imported, should return True
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is True

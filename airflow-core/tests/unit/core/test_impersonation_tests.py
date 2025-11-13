@@ -58,9 +58,8 @@ def set_permissions(settings: dict[Path | str, int]):
     orig_permissions = []
     try:
         print(" Change file/directory permissions ".center(72, "+"))
-        for path, mode in settings.items():
-            if isinstance(path, str):
-                path = Path(path)
+        for raw_path, mode in settings.items():
+            path = Path(raw_path) if isinstance(raw_path, str) else raw_path
             if len(path.parts) <= 1:
                 raise SystemError(f"Unable to change permission for the root directory: {path}.")
 

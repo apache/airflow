@@ -127,7 +127,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_host",
+        ("host", "conn_cluster_identifier", "expected_host"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -297,7 +297,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_cluster_identifier",
+        ("host", "conn_cluster_identifier", "expected_cluster_identifier"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -373,7 +373,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_workgroup_name,expected_workgroup_name",
+        ("host", "conn_workgroup_name", "expected_workgroup_name"),
         [
             (
                 "serverless-workgroup.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -690,7 +690,7 @@ class TestPostgresHook:
         assert sorted(input_data) == sorted(results)
 
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),

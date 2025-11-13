@@ -677,8 +677,14 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             operator.execute(None)
 
     @pytest.mark.parametrize(
-        "existing_objects, source_object, match_glob, exact_match, expected_source_objects, "
-        "expected_destination_objects",
+        (
+            "existing_objects",
+            "source_object",
+            "match_glob",
+            "exact_match",
+            "expected_source_objects",
+            "expected_destination_objects",
+        ),
         [
             (["source/foo.txt"], "source/foo.txt", None, True, ["source/foo.txt"], ["{prefix}/foo.txt"]),
             (["source/foo.txt"], "source/foo.txt", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),

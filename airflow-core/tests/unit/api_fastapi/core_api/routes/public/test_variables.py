@@ -141,7 +141,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 class TestGetVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, expected_response",
+        ("key", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -214,7 +214,7 @@ class TestGetVariable(TestVariableEndpoint):
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_keys",
+        ("query_params", "expected_total_entries", "expected_keys"),
         [
             # Filters
             (
@@ -328,7 +328,7 @@ class TestGetVariables(TestVariableEndpoint):
 class TestPatchVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, body, params, expected_response",
+        ("key", "body", "params", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -450,7 +450,7 @@ class TestPatchVariable(TestVariableEndpoint):
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {
@@ -593,7 +593,7 @@ class TestPostVariable(TestVariableEndpoint):
 class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -1184,7 +1184,7 @@ class TestBulkVariables(TestVariableEndpoint):
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
     @pytest.mark.parametrize(
-        "entity_key, entity_value, entity_description",
+        ("entity_key", "entity_value", "entity_description"),
         [
             (
                 "my_dict_var_param",

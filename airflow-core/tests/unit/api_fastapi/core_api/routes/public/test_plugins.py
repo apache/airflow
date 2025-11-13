@@ -29,7 +29,7 @@ pytestmark = pytest.mark.db_test
 @skip_if_force_lowest_dependencies_marker
 class TestGetPlugins:
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_names",
+        ("query_params", "expected_total_entries", "expected_names"),
         [
             # Filters
             (

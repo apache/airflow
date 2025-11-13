@@ -19,9 +19,11 @@ from __future__ import annotations
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import AuthManagerDep, is_safe_url
+from airflow.configuration import conf
 
 auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
@@ -47,11 +49,18 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
     "/logout",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
-def logout(auth_manager: AuthManagerDep, next: None | str = None) -> RedirectResponse:
+def logout(request: Request, auth_manager: AuthManagerDep, next: None | str = None) -> RedirectResponse:
     """Logout the user."""
     logout_url = auth_manager.get_url_logout()
+    if logout_url:
+        return RedirectResponse(logout_url)
 
-    if not logout_url:
-        logout_url = auth_manager.get_url_login()
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    response = RedirectResponse(auth_manager.get_url_login())
+    response.delete_cookie(
+        key=COOKIE_NAME_JWT_TOKEN,
+        secure=secure,
+        httponly=True,
+    )
 
-    return RedirectResponse(logout_url)
+    return response

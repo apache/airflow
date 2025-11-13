@@ -337,7 +337,7 @@ class TestCloudwatchTaskHandler:
             ]
 
     @pytest.mark.parametrize(
-        "end_date, expected_end_time",
+        ("end_date", "expected_end_time"),
         [
             (None, None),
             (
@@ -357,7 +357,7 @@ class TestCloudwatchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "conf_json_serialize, expected_serialized_output",
+        ("conf_json_serialize", "expected_serialized_output"),
         [
             pytest.param(
                 "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",
