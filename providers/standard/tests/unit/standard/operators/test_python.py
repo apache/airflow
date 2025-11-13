@@ -959,7 +959,7 @@ def _callable_that_imports_from_bundle():
 
 @pytest.mark.execution_timeout(120)
 @pytest.mark.parametrize(
-    "opcls,pytest_marks,test_class_ref",
+    ("opcls", "pytest_marks", "test_class_ref"),
     [
         pytest.param(
             PythonVirtualenvOperator,
