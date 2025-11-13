@@ -74,7 +74,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.commit()
 
     @pytest.mark.parametrize(
-        "query_params, expected_ids,expected_total_dag_runs",
+        ("query_params", "expected_ids", "expected_total_dag_runs"),
         [
             # Filters
             ({}, [DAG1_ID, DAG2_ID], 11),
@@ -174,7 +174,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.commit()
 
     @pytest.mark.parametrize(
-        "has_pending_actions, expected_total_entries, expected_pending_actions",
+        ("has_pending_actions", "expected_total_entries", "expected_pending_actions"),
         [
             # Without has_pending_actions param, should query all DAGs
             (None, 3, None),
@@ -326,7 +326,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_count",
+        ("query_params", "expected_dag_count"),
         [
             ({"has_asset_schedule": True}, 3),
             ({"has_asset_schedule": False}, 2),
