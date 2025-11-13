@@ -346,12 +346,13 @@ class TestCurrentContext:
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "add_arg",
+        "add_args",
         [
-            Asset("name", "uri"),
-            Asset.ref(name="name"),
-            Asset.ref(uri="uri"),
+            (Asset("name", "uri", extra={"extra": "from asset itself"}), {"extra": "from event"}),
+            (Asset.ref(name="name"), {"extra": "from event"}),
+            (Asset.ref(uri="uri"), {"extra": "from event"}),
         ],
+        ids=["asset", "asset name ref", "asset uri ref"],
     )
     @pytest.mark.parametrize(
         ("key", "asset_alias_events"),
@@ -363,18 +364,21 @@ class TestOutletEventAccessor:
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
-                        dest_asset_extra={},
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
         ),
+        ids=["inactive asset", "active asset"],
     )
-    def test_add(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
+    def test_add(self, add_args, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResponse(
+            name="name", uri="uri", group="", extra={"extra": "from asset itself"}
+        )
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={})
-        outlet_event_accessor.add(add_arg)
+        outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.parametrize(
