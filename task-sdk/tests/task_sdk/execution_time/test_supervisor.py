@@ -25,12 +25,14 @@ import re
 import selectors
 import signal
 import socket
+import subprocess
 import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from operator import attrgetter
 from random import randint
+from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -2539,3 +2541,68 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     gc.collect()
     assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
     assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+
+
+def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
+    def subprocess_main():
+        # This is run in the subprocess!
+
+        # Ensure we follow the "protocol" and get the startup message before we do anything else
+        c = CommsDecoder()
+        c._get_response()
+
+        # This mirrors what the VirtualEnvProvider puts in it's script
+        script = """
+            import os
+            import sys
+            import structlog
+
+            from airflow.sdk import Connection
+            from airflow.sdk.execution_time.task_runner import reinit_supervisor_comms
+
+            reinit_supervisor_comms()
+
+            Connection.get("a")
+            print("ok")
+            sys.stdout.flush()
+
+            structlog.get_logger().info("is connected")
+        """
+        # Now we launch a new process, as VirtualEnvOperator will do
+        subprocess.check_call([sys.executable, "-c", dedent(script)])
+
+    client_with_ti_start.connections.get.return_value = ConnectionResult(
+        conn_id="test_conn", conn_type="mysql", login="a", password="password1"
+    )
+    proc = ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        client=client_with_ti_start,
+        target=subprocess_main,
+    )
+
+    rc = proc.wait()
+
+    assert rc == 0, caplog.text
+    # Check that the log messages are write. We should expect stdout to apper right, and crucially, we should
+    # expect logs from the venv process to appear without extra "wrapping"
+    assert {
+        "logger": "task.stdout",
+        "event": "ok",
+        "log_level": "info",
+        "timestamp": mock.ANY,
+    } in caplog, caplog.text
+    assert {
+        "logger_name": "task",
+        "log_level": "info",
+        "event": "is connected",
+        "timestamp": mock.ANY,
+    } in caplog, caplog.text
