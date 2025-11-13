@@ -359,7 +359,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     events: KeyedHeadQueue[int, tuple[int, events.TriggerEvent]] = attrs.field(factory=KeyedHeadQueue, init=False)
 
     # Outbound queue of failed triggers
-    failed_triggers: KeyedHeadQueue[int, tuple[int, list[str] | None]] = attrs.field(factory=KeyedHeadQueue, init=False)
+    failed_triggers: KeyedHeadQueue[int, tuple[int, list[Any] | None, list[str] | None]] = attrs.field(factory=KeyedHeadQueue, init=False)
 
     # Outbound queue of finished triggers
     finished_triggers: set = attrs.field(factory=set, init=False)
