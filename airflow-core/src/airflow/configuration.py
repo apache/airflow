@@ -139,18 +139,6 @@ def run_command(command: str) -> str:
     return output
 
 
-def _is_template(configuration_description: dict[str, dict[str, Any]], section: str, key: str) -> bool:
-    """
-    Check if the config is a template.
-
-    :param configuration_description: description of configuration
-    :param section: section
-    :param key: key
-    :return: True if the config is a template
-    """
-    return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
-
-
 def _default_config_file_path(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
     return os.path.join(templates_dir, file_name)
@@ -243,18 +231,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 original_replacement[0],
                 default,
             )
-
-    def is_template(self, section: str, key) -> bool:
-        """
-        Return whether the value is templated.
-
-        :param section: section of the config
-        :param key: key in the section
-        :return: True if the value is templated
-        """
-        if self.configuration_description is None:
-            return False
-        return _is_template(self.configuration_description, section, key)
 
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
@@ -735,51 +711,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     # The shared base class's getimport() correctly uses self.get() instead of conf.get().
 
     # has_option, set, and remove_option are now provided by the shared base class.
-
-    def getsection(self, section: str) -> ConfigOptionsDictType | None:
-        """
-        Return the section as a dict.
-
-        Values are converted to int, float, bool as required.
-
-        :param section: section from the config
-        """
-        if not self.has_section(section) and not self._default_values.has_section(section):
-            return None
-        if self._default_values.has_section(section):
-            _section: ConfigOptionsDictType = dict(self._default_values.items(section))
-        else:
-            _section = {}
-
-        if self.has_section(section):
-            _section.update(self.items(section))
-
-        section_prefix = self._env_var_name(section, "")
-        for env_var in sorted(os.environ.keys()):
-            if env_var.startswith(section_prefix):
-                key = env_var.replace(section_prefix, "")
-                if key.endswith("_CMD"):
-                    key = key[:-4]
-                key = key.lower()
-                _section[key] = self._get_env_var_option(section, key)
-
-        for key, val in _section.items():
-            if val is None:
-                raise AirflowConfigException(
-                    f"Failed to convert value automatically. "
-                    f'Please check "{key}" key in "{section}" section is set.'
-                )
-            try:
-                _section[key] = int(val)
-            except ValueError:
-                try:
-                    _section[key] = float(val)
-                except ValueError:
-                    if isinstance(val, str) and val.lower() in ("t", "true"):
-                        _section[key] = True
-                    elif isinstance(val, str) and val.lower() in ("f", "false"):
-                        _section[key] = False
-        return _section
 
     def as_dict(
         self,
