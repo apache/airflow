@@ -55,7 +55,9 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``adbc-driver-manager``                  ``>=1.6.0``
+``adbc-driver-manager``                  ``>=1.7.0``
+``importlib-resources``                  ``>=1.3``
+``pyarrow``                              ``>=18.0.0``
 =======================================  ==================
 
 Cross provider package dependencies
