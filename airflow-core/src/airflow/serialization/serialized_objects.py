@@ -3403,7 +3403,7 @@ class SerializedDAG(BaseSerialization):
                     Encoding.VAR: {
                         DeadlineAlertFields.REFERENCE: deadline_alert.reference,
                         DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
                     },
                 }
             )

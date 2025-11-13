@@ -44,7 +44,7 @@ class DeadlineAlertFields:
 
     REFERENCE = "reference"
     INTERVAL = "interval"
-    CALLBACK = "callback"
+    CALLBACK = "callback_def"
 
 
 class DeadlineAlert:
