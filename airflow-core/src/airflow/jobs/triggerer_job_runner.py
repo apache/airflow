@@ -1000,7 +1000,10 @@ class TriggerRunner:
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance, timeout_after=workload.timeout_after, context=context), name=trigger_name
+                    self.run_trigger(
+                        trigger_id, trigger_instance, timeout_after=workload.timeout_after, context=context
+                    ),
+                    name=trigger_name,
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1135,7 +1138,13 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id: int, trigger: BaseTrigger, timeout_after: datetime | None = None, context: Context | None = None):
+    async def run_trigger(
+        self,
+        trigger_id: int,
+        trigger: BaseTrigger,
+        timeout_after: datetime | None = None,
+        context: Context | None = None,
+    ):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
