@@ -114,7 +114,7 @@ To configure KEDA's triggers and scaling behaviors, you need to create a ScaledO
 
 ``cooldownPeriod`` specifies the number of seconds to wait before downscaling to 0 workers, does not apply to downscaling to n workers while n >= 1.
 
-.. note:: 
+.. note::
    To avoid strange behavior, it's best practice to set ``cooldownPeriod`` to an integer slightly larger than ``terminationGracePeriodSeconds`` so that your cluster does not downscale to 0 workers before cleanup is finished.
 
 ``idleReplicaCount`` can be set to any number less than ``minReplicaCount``, but it must be set to 0, otherwise KEDA will not work.
