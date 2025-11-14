@@ -1476,7 +1476,7 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, Operator)
 
-        if start_trigger_args := self.start_trigger_args():
+        if start_trigger_args := self.start_trigger_args:
             trigger_kwargs = start_trigger_args.trigger_kwargs or {}
             timeout = start_trigger_args.timeout
 
