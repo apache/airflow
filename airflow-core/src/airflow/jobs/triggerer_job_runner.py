@@ -88,7 +88,6 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
-    from airflow.sdk import Context
     from airflow.sdk.api.client import Client
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
