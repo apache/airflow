@@ -428,8 +428,21 @@ class ObjectStoragePath(CloudPath):
         _source_type: Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
+        """
+        Generate the Pydantic core schema for ObjectStoragePath validation and serialization.
+
+        This method enables ObjectStoragePath to be used as a Pydantic field type with support for:
+        - Validation from serialized dict representation
+        - Validation from string paths
+        - Validation of existing ObjectStoragePath instances
+        - Serialization to dict format
+
+        :param _source_type: The source type being validated (unused)
+        :param _handler: Pydantic's schema handler (unused)
+        :return: A CoreSchema defining validation and serialization behavior
+        """
         def validate_from_typed_dict(value: dict) -> ObjectStoragePath:
-            result = cls.deserialize(value, version=cls.__version__)
+            result = cls.deserialize(value.copy(), version=cls.__version__)
             return result
 
         python_schema = core_schema.union_schema(
@@ -479,6 +492,15 @@ class ObjectStoragePath(CloudPath):
     def __get_pydantic_json_schema__(
         cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
+        """
+        Generate the JSON schema representation for ObjectStoragePath.
+
+        This method customizes the JSON schema output to include the class name as the title.
+
+        :param _core_schema: The core schema to generate JSON schema from.
+        :param handler: The JSON schema handler.
+        :return: A JSON schema dictionary with the ObjectStoragePath title.
+        """
         json_schema = handler(_core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
         json_schema["title"] = cls.__qualname__
