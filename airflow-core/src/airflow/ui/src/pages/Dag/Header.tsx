@@ -102,6 +102,13 @@ export const Header = ({
       ) : undefined,
     },
     {
+      label: translate("dagDetails.maxActiveRuns"),
+      value:
+        dag?.max_active_runs === undefined
+          ? undefined
+          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+    },
+    {
       label: translate("dagDetails.owner"),
       value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },

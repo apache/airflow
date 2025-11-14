@@ -2073,6 +2073,11 @@ export const $DAGDetailsResponse = {
             title: 'Is Favorite',
             default: false
         },
+        active_runs_count: {
+            type: 'integer',
+            title: 'Active Runs Count',
+            default: 0
+        },
         file_token: {
             type: 'string',
             title: 'File Token',

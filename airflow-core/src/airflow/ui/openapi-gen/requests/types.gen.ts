@@ -568,6 +568,7 @@ export type DAGDetailsResponse = {
     [key: string]: (string);
 } | null;
     is_favorite?: boolean;
+    active_runs_count?: number;
     /**
      * Return file token.
      */

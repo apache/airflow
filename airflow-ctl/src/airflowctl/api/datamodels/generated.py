@@ -1312,6 +1312,7 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
