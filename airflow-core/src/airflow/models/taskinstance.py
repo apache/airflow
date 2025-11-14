@@ -1412,7 +1412,8 @@ class TaskInstance(Base, LoggingMixin):
                 if alias_name not in outlet_alias_names:
                     continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
-                asset_extra_json = json.dumps(event["dest_asset_extra"], sort_keys=True)
+                # fallback for backward compatibility
+                asset_extra_json = json.dumps(event.get("dest_asset_extra", {}), sort_keys=True)
                 asset_event_extra_json = json.dumps(event["extra"], sort_keys=True)
                 d[asset_key, asset_extra_json, asset_event_extra_json].add(alias_name)
             return d
