@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``HTTP Notifier implementation (#56160)``
+* ``Add poll_interval attribute to HttpEventTrigger (#57583)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'http' provider to 'common.compat' (#57089)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to http Provider test (#57917)``
+
 5.4.0
 .....
 

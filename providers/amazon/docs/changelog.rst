@@ -26,6 +26,61 @@
 Changelog
 ---------
 
+9.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add flatten_structure parameter to GCSToS3Operator (#56134) (#57713)``
+* ``Add missing failure retry case for Bedrock (#57777)``
+* ``Add support for Airflow 3 in MWAA operators/sensors/triggers (#57443)``
+* ``Add SsmGetCommandInvocationOperator and enhance SSM components (#56936)``
+* ``Add missing 'bucket_name' to 'get_file_metadata' in 'S3Hook'``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: S3KeySensor deferrable mode ignores metadata_keys, returns only key names, and doesn't pass context to check_fn (#56910)``
+* ``Fix 'MwaaTaskCompletedTrigger' (#57490)``
+* ``Fix DAG bundle retrieval from S3 (#57178)``
+
+Misc
+~~~~
+
+* ``Exclude sagemaker for Python 3.13 due to pydanamodb pinning old sqlean (#58262)``
+* ``Remove unnecessary list (#58141)``
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update AWS auth manager documentation to fix login callback URL (#57974)``
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Skip the team config test until new modular config supports it (#58233)``
+   * ``Remove deprecation warning in common test utils (#58152)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 23 files in providers (amazon -> hooks, links, log, queues) (#58003)``
+   * ``Enable PT006 rule to 23 files in providers (all remaining files related to amazon) (#58005)``
+   * ``Decrease the batch inference size for example_bedrock_batch_inference (#57912)``
+   * ``Enable PT006 rule to 17 files in providers (operatorsproviders/amazon/tests/unit/amazon/aws/operators/) (#57903)``
+   * ``EKS sensors before delete operations (#57655)``
+   * ``Fix mypy static errors in main (#57755)``
+   * ``Enable ruff PLW1510 rule (#57660)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+   * ``Enable ruff PLW0120 rule (#57456)``
+   * ``Enable PT011 rule to prvoider tests (#56929)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Revert "Fix main. Fix 'test_athena_sql.py' (#56974)" (#57098)``
+   * ``Fixing some typos and spelling errors (#57186)``
+   * ``Add missing test for amazon/aws/executors/ecs/test_utils.py (#58139)``
+
 9.16.0
 ......
 
