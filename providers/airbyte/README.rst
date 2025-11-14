@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-airbyte``
 
-Release: ``5.2.4``
+Release: ``5.2.5``
 
 
 `Airbyte <https://airbyte.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``airbyte`` provider. All classes for this provid
 are in ``airflow.providers.airbyte`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-airbyte/5.2.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-airbyte/5.2.5/>`_.
 
 Installation
 ------------
@@ -79,4 +79,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-airbyte/5.2.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-airbyte/5.2.5/changelog.html>`_.
