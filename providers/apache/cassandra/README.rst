@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-cassandra``
 
-Release: ``3.8.3``
+Release: ``3.8.4``
 
 
 `Apache Cassandra <https://cassandra.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.cassandra`` provider. All classes for th
 are in ``airflow.providers.apache.cassandra`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.4/>`_.
 
 Installation
 ------------
@@ -57,6 +57,25 @@ PIP package           Version required
 ``cassandra-driver``  ``>=3.29.1``
 ====================  ==================
 
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-cassandra[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
 Optional dependencies
 ----------------------
 
@@ -67,4 +86,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/3.8.4/changelog.html>`_.

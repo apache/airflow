@@ -49,6 +49,7 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -59,7 +60,6 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -68,7 +68,6 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
-    from airflow.utils.types import ArgNotSet
 
 
 @contextlib.contextmanager
@@ -231,14 +230,6 @@ class DagBag(LoggingMixin):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
-        include_examples = (
-            include_examples
-            if isinstance(include_examples, bool)
-            else conf.getboolean("core", "LOAD_EXAMPLES")
-        )
-        safe_mode = (
-            safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
-        )
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -259,8 +250,14 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=include_examples,
-                safe_mode=safe_mode,
+                include_examples=(
+                    include_examples
+                    if is_arg_set(include_examples)
+                    else conf.getboolean("core", "LOAD_EXAMPLES")
+                ),
+                safe_mode=(
+                    safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
+                ),
             )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
