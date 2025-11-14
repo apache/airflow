@@ -26,5 +26,8 @@
   "name": "Name",
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
-  "searchPlaceholder": "Search Assets"
+  "searchPlaceholder": "Search Assets",
+  "asset_one": "Asset",
+  "asset_many": "Assets",
+  "additional_data": "Additional Data"
 }
