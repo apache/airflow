@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+7.7.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix documentation/provider.yaml consistencies (#57283)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 14 files in providers (databricks,dbt,docker) (#57994)``
+   * ``Fix mypy static errors in databricks provider (#57768)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
 7.7.4
 .....
 

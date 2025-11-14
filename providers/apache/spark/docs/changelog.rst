@@ -29,6 +29,22 @@
 Changelog
 ---------
 
+5.3.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+   * ``Enable PT011 rule to provider tests (#57528)``
+
 5.3.3
 .....
 
