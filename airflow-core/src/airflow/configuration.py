@@ -518,21 +518,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         self._default_values = create_default_config_parser(self.configuration_description)
         self._providers_configuration_loaded = False
 
-    @property
-    def _validators(self) -> list[Callable[[], None]]:
-        """
-        Return list of validators defined on a config parser class.
-
-        Subclasses can override this to customize the validators that are run during validation on the
-        config parser instance.
-        """
-        return [
-            self._validate_sqlite3_version,
-            self._validate_enums,
-            self._validate_deprecated_values,
-            self._upgrade_postgres_metastore_conn,
-        ]
-
     def _upgrade_postgres_metastore_conn(self):
         """
         Upgrade SQL schemas.
