@@ -2376,7 +2376,7 @@ class TestEmailNotifications:
     FROM = "from@airflow"
 
     @pytest.mark.parametrize(
-        "emails, sent",
+        ("emails", "sent"),
         [
             pytest.param(
                 "test@example.com",
@@ -2434,7 +2434,7 @@ class TestEmailNotifications:
                     )
 
     @pytest.mark.parametrize(
-        "emails, sent",
+        ("emails", "sent"),
         [
             pytest.param(
                 "test@example.com",

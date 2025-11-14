@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+12.8.1
+......
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Remove adal dependency (#57798)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to microsoft Provider test(azure,mssql,psrp) (#57936)``
+   * ``Enable PT006 rule to microsoft Provider test(operators) (#57928)``
+   * ``Enable PT006 rule to microsoft Provider test(transfers) (#57925)``
+   * ``Enable PT006 rule to microsoft Provider test(log,sensors) (#57927)``
+   * ``Enable PT006 rule to microsoft Provider test(hooks) (#57932)``
+   * ``Fix mypy static errors in main (#57755)``
+   * ``Attempt to resolve pip "ResolutionTooDeep" on cffi conflict (#57697)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
 12.8.0
 ......
 

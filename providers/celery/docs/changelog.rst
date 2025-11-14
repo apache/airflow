@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.13.1
+......
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'celery' to 'common.compat' (#57322)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to celery Provider test (#57938)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Enable ruff PLW1510 rule (#57660)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
 3.13.0
 ......
 

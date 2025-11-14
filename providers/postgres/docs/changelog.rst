@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.4.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``better error handling in SnowflakeHook and PostgresHook when old version of AzureBaseHook (#57184)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to postgres Provider test (#57934)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
 6.4.0
 .....
 

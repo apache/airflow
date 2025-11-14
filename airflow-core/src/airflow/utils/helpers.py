@@ -23,7 +23,7 @@ import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
@@ -33,10 +33,15 @@ from airflow.exceptions import AirflowException
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from typing import TypeGuard
+
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
+
+    CT = TypeVar("CT", str, datetime)
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -90,7 +95,15 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
         signal.alarm(0)
 
 
-def is_container(obj: Any) -> bool:
+@overload
+def is_container(obj: None | int | Iterable[int] | range) -> TypeGuard[Iterable[int]]: ...
+
+
+@overload
+def is_container(obj: None | CT | Iterable[CT]) -> TypeGuard[Iterable[CT]]: ...
+
+
+def is_container(obj) -> bool:
     """Test if an object is a container (iterable) but not a string."""
     if isinstance(obj, Proxy):
         # Proxy of any object is considered a container because it implements __iter__

@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'Pagerduty' provider to 'common.compat' (#57120)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT011 rule to provider tests (#57528)``
+   * ``Fix Pagerduty tests for latest version 6.0.0 (#57216)``
+
 5.1.0
 .....
 

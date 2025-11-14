@@ -407,7 +407,7 @@ class TestKubernetesPodOperator:
             namespace="default",
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
-            labels={"foo": "bar"},
+            labels={"foo": "bar", "none_value": None},
             name="test",
             task_id="task",
             in_cluster=in_cluster,
@@ -424,6 +424,7 @@ class TestKubernetesPodOperator:
             "airflow_version": mock.ANY,
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
+            "none_value": "",  # None converted to empty string
         }
 
     def test_labels_mapped(self):
@@ -453,6 +454,49 @@ class TestKubernetesPodOperator:
         label_selector = k._build_find_pod_label_selector(context)
         assert "foo=bar" in label_selector
         assert "hello=airflow" in label_selector
+
+    def test_build_find_pod_label_selector(self):
+        """Comprehensive single test combining all label normalization scenarios.
+
+        Includes: normal labels, None values, empty string, zero, False.
+        Asserts: None -> empty assignment, other falsy preserved, core airflow labels present, no literal 'None'.
+        """
+        k = KubernetesPodOperator(
+            labels={
+                "foo": "bar",
+                "hello": "airflow",
+                "a": None,
+                "c": None,
+                "empty_str": "",
+                "zero": 0,
+                "false": False,
+                "none": None,
+            },
+            name="test",
+            task_id="task",
+        )
+        context = create_context(k)
+        label_selector = k._build_find_pod_label_selector(context)
+
+        # Standard labels
+        assert "foo=bar" in label_selector
+        assert "hello=airflow" in label_selector
+
+        # None normalization (shows as key= with no value)
+        for key in ["a", "c", "none"]:
+            assert f"{key}=" in label_selector
+
+        # Falsy but non-None values preserved verbatim
+        assert "empty_str=" in label_selector
+        assert "zero=0" in label_selector
+        assert "false=False" in label_selector
+
+        # Core Airflow identifying labels always present
+        for core in ["dag_id=dag", "task_id=task", "kubernetes_pod_operator=True", "run_id=test"]:
+            assert core in label_selector
+
+        # Never include literal string 'None'
+        assert "None" not in label_selector
 
     @pytest.mark.asyncio
     @patch(HOOK_CLASS, new=MagicMock)
@@ -1655,6 +1699,27 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
+
+    @pytest.mark.parametrize(
+        ("labels", "expected"),
+        [
+            pytest.param({}, {}, id="empty"),
+            pytest.param(
+                {"a": None, "b": "value", "c": None}, {"a": "", "b": "value", "c": ""}, id="with-none"
+            ),
+            pytest.param(
+                {"empty_str": "", "zero": 0, "false": False, "none": None},
+                {"empty_str": "", "zero": 0, "false": False, "none": ""},
+                id="preserve-other-values",
+            ),
+        ],
+    )
+    def test_normalize_labels_dict(self, labels, expected):
+        """normalize_labels_dict should transform only None values to empty strings and preserve others"""
+        from airflow.providers.cncf.kubernetes.operators.pod import _normalize_labels_dict
+
+        normalized = _normalize_labels_dict(labels)
+        assert normalized == expected
 
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
