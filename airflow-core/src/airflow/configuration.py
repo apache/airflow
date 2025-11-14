@@ -505,7 +505,7 @@ class AirflowConfigParser(ConfigParser):
             needs_reload = self._ensure_providers_config_unloaded()
         yield
         if needs_reload:
-            self._reload_providers()
+            self._reload_provider_configs()
 
     def _ensure_providers_config_loaded(self) -> None:
         """Ensure providers configurations are loaded."""
