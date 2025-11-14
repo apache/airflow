@@ -1644,6 +1644,7 @@ ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
+ses
 sessionmaker
 setattr
 setdefault
