@@ -1469,6 +1469,13 @@ export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient, { next
 */
 export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
 /**
+* Get Current User
+* Get current authenticated user information.
+* @returns SimpleAuthenticatedUserResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAuthLinksServiceGetCurrentUserData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetCurrentUserKeyFn(), queryFn: () => AuthLinksService.getCurrentUser() });
+/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.

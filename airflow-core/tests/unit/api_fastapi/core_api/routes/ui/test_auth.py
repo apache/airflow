@@ -58,3 +58,16 @@ class TestGetAuthLinks:
         response = unauthorized_test_client.get("/auth/menus")
         assert response.status_code == 200
         assert response.json() == {"authorized_menu_items": [], "extra_menu_items": []}
+
+
+class TestGetCurrentSimpleAuthenticatedUser:
+    def test_should_response_200_with_authenticated_user(self, test_client):
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json() == {"username": "test", "role": "admin"}
+
+    def test_with_unauthenticated_user(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/auth/me")
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Not authenticated"}

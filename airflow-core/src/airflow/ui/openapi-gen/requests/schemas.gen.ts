@@ -7996,6 +7996,23 @@ export const $NodeResponse = {
     description: 'Node serializer for responses.'
 } as const;
 
+export const $SimpleAuthenticatedUserResponse = {
+    properties: {
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        role: {
+            type: 'string',
+            title: 'Role'
+        }
+    },
+    type: 'object',
+    required: ['username', 'role'],
+    title: 'SimpleAuthenticatedUserResponse',
+    description: 'Current User response serializer for SimpleAuthManager.'
+} as const;
+
 export const $StandardHookFields = {
     properties: {
         description: {

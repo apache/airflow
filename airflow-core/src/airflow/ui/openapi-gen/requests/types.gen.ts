@@ -1986,6 +1986,14 @@ export type NodeResponse = {
 };
 
 /**
+ * Current User response serializer for SimpleAuthManager.
+ */
+export type SimpleAuthenticatedUserResponse = {
+    username: string;
+    role: string;
+};
+
+/**
  * Standard fields of a Hook that a form will render.
  */
 export type StandardHookFields = {
@@ -3329,6 +3337,8 @@ export type LogoutData = {
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
+
+export type GetCurrentUserResponse = SimpleAuthenticatedUserResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
@@ -6423,6 +6433,16 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: MenuItemCollectionResponse;
+            };
+        };
+    };
+    '/ui/auth/me': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: SimpleAuthenticatedUserResponse;
             };
         };
     };

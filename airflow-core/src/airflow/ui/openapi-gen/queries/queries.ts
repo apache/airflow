@@ -1469,6 +1469,13 @@ export const useLoginServiceLogout = <TData = Common.LoginServiceLogoutDefaultRe
 */
 export const useAuthLinksServiceGetAuthMenus = <TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey), queryFn: () => AuthLinksService.getAuthMenus() as TData, ...options });
 /**
+* Get Current User
+* Get current authenticated user information.
+* @returns SimpleAuthenticatedUserResponse Successful Response
+* @throws ApiError
+*/
+export const useAuthLinksServiceGetCurrentUser = <TData = Common.AuthLinksServiceGetCurrentUserDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetCurrentUserKeyFn(queryKey), queryFn: () => AuthLinksService.getCurrentUser() as TData, ...options });
+/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.

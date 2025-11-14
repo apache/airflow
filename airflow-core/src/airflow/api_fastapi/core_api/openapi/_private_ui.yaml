@@ -23,6 +23,23 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/me:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Current User
+      description: Get current authenticated user information.
+      operationId: get_current_user
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleAuthenticatedUserResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -2277,6 +2294,20 @@ components:
 
 
         :meta private:'
+    SimpleAuthenticatedUserResponse:
+      properties:
+        username:
+          type: string
+          title: Username
+        role:
+          type: string
+          title: Role
+      type: object
+      required:
+      - username
+      - role
+      title: SimpleAuthenticatedUserResponse
+      description: Current User response serializer for SimpleAuthManager.
     StandardHookFields:
       properties:
         description:

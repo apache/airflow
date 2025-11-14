@@ -26,3 +26,10 @@ class MenuItemCollectionResponse(BaseModel):
 
     authorized_menu_items: list[MenuItem]
     extra_menu_items: list[ExtraMenuItem]
+
+
+class SimpleAuthenticatedUserResponse(BaseModel):
+    """Current User response serializer for SimpleAuthManager."""
+
+    username: str
+    role: str

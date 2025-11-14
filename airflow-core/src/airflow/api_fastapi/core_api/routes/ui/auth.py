@@ -21,6 +21,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     MenuItemCollectionResponse,
+    SimpleAuthenticatedUserResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 
@@ -37,4 +38,15 @@ def get_auth_menus(
     return MenuItemCollectionResponse(
         authorized_menu_items=authorized_menu_items,
         extra_menu_items=extra_menu_items,
+    )
+
+
+@auth_router.get("/auth/me")
+def get_current_user(
+    user: GetUserDep,
+) -> SimpleAuthenticatedUserResponse:
+    """Get current authenticated user information."""
+    return SimpleAuthenticatedUserResponse(
+        username=user.username,
+        role=user.role,
     )
