@@ -330,7 +330,7 @@ class TestTriggerRunner:
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(
                 trigger_runner.run_trigger(
-                    1, mock_trigger,timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
+                    1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
                 )
             )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
