@@ -23,6 +23,9 @@ from abc import abstractmethod
 class BaseUser:
     """User model interface."""
 
+    username: str | None = None
+    role: str | None = None
+
     @abstractmethod
     def get_id(self) -> str: ...
 
