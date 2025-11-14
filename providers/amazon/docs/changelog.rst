@@ -1140,7 +1140,7 @@ Misc
 * ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
 
 .. Below changes are excluded from the changelog. Move them to
-appropriate section above if needed. Do not delete the lines(!):
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
    * ``Resolve aws emr deprecations in tests (#40020)``
    * ``Prepare docs 4th wave May 2024 (#39934)``
