@@ -54,7 +54,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -360,7 +360,7 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = [task_ids]
 
         # If map_indexes is not specified, pull xcoms from all map indexes for each task
-        if isinstance(map_indexes, ArgNotSet):
+        if not is_arg_set(map_indexes):
             xcoms: list[Any] = []
             for t_id in task_ids:
                 values = XCom.get_all(

@@ -26,6 +26,35 @@
 Changelog
 ---------
 
+2.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(openlineage): Add parentRunFacet for DAG events (#57809)``
+* ``nit: Use new taskinstance method to determine if task will emit OL event (#57446)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Refactor import statement for Session to use sqlalchemy.orm (#57586)``
+* ``Migrate openlineage provider to common.compat (#57124)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing 404 errors for OpenLineage & Oracle providers (#57469)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to openlineage Provider test (#57940)``
+   * ``Fix MyPy type errors in providers openlineage (#57435)``
+   * ``Fix MyPy type errors in providers utils/sql.py (#57448)``
+
 2.7.3
 .....
 

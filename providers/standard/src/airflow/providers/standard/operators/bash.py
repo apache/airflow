@@ -31,7 +31,8 @@ from airflow.providers.standard.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
-    from airflow.utils.types import ArgNotSet
+
+    from tests_common.test_utils.version_compat import ArgNotSet
 
 
 class BashOperator(BaseOperator):

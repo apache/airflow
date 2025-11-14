@@ -98,6 +98,9 @@ and security team should be pinged to review and resolve them.
 
 # Bump min Airflow version for providers
 
+This should only happen when it is time to bump the minimum version of providers as agreed in
+[related provider policy](PROVIDERS.rst#upgrading-minimum-supported-version-of-airflow)
+
 1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove
 the versions of Airflow that are not applicable anymore.
 
@@ -224,28 +227,13 @@ To set provider as removed do the following:
 ## Increasing version number
 
 First thing that release manager has to do is to change version of the provider to a target
-version. Each provider has a `provider.yaml` file that, among others, stores information
-about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and its `CHANGELOG.rst` (or `changelog.rst` in the
-new provider's structure). It might be that
-`CHANGELOG.rst` already contains the right target version. This will be especially true if some
-changes in the provider add new features (then minor version is increased) or when the changes
-introduce backwards-incompatible, breaking change in the provider (then major version is
-incremented). Committers, when approving and merging changes to the providers, should pay attention
-that the `CHANGELOG.rst` is updated whenever anything other than bugfix is added.
-
-If there are no new features or breaking changes, the release manager should simply increase the
-patch-level version for the provider.
-
-The new version should be first on the list.
+version. This is happening by running `breeze prepare-provider-documentation` after the changes for provider
+are assessed by the Release Manager.
 
 ## Generate release notes
 
-Each of the Provider distributions contains Release notes in the form of the `CHANGELOG.rst` file that is
-automatically generated from history of the changes and code of the provider.
-They are stored in the documentation directory. The `README.md` file generated during package
-preparation is not stored anywhere in the repository - it contains however link to the Changelog
-generated.
+Each of the Provider distributions contains Release notes in the form of the `changelog.rst` file in docs
+that is  automatically generated from history of the changes and code of the provider.
 
 When the provider package version has not been updated since the latest version, the release notes
 are not generated. Release notes are only generated, when the latest version of the package does not
@@ -255,11 +243,8 @@ The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for 
 ``providers-amazon/1.0.0``. During releasing, the `rc*` tags are created (for example
 ``providers-amazon/1.0.0rc1``).
 
-Details about maintaining the SEMVER version are going to be discussed and implemented in
-[the related issue](https://github.com/apache/airflow/issues/11425)
-
 ```shell script
-breeze release-management prepare-provider-documentation  --include-removed-providers
+breeze release-management prepare-provider-documentation
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:
