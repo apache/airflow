@@ -358,6 +358,7 @@ class TestBackwardsCompatibility:
 class TestPydanticModel(BaseModel):
     key: str
     path: ObjectStoragePath
+    paths: list[ObjectStoragePath] | None
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -375,9 +376,9 @@ class TestPydanticSerDe:
         ),
     )
     def test_pydantic_serde(self, path: str, kwargs: dict, type_adapter: TypeAdapter[ObjectStoragePath]):
-        path: ObjectStoragePath = ObjectStoragePath(path, **kwargs)
-        serialized = type_adapter.dump_python(path, mode="json")
-        assert serialized == path.serialize()
+        p = ObjectStoragePath(path, **kwargs)
+        serialized = type_adapter.dump_python(p, mode="json")
+        assert serialized == p.serialize()
 
     @pytest.mark.parametrize(
         "serialized",
@@ -391,20 +392,48 @@ class TestPydanticSerDe:
             {"path": "file:///tmp/foo", "conn_id": None, "kwargs": {}},
         ),
     )
-    def test_pydantic_deserialize(self, serialized: dict | str, type_adapter: TypeAdapter[ObjectStoragePath]):
+    def test_pydantic_deserialize(self, serialized: dict, type_adapter: TypeAdapter[ObjectStoragePath]):
         deserialized = type_adapter.validate_python(serialized)
         assert deserialized == ObjectStoragePath.deserialize(
             serialized, version=ObjectStoragePath.__version__
         )
 
     def test_pydantic_model_serdes(self):
-        model = TestPydanticModel(key="key1", path=ObjectStoragePath("s3://conn_id@bucket/test.txt"))
+        model = TestPydanticModel(
+            key="key1", path=ObjectStoragePath("s3://conn_id@bucket/test.txt"), paths=None
+        )
         serialized = model.model_dump(mode="json")
         assert serialized == {
             "key": "key1",
             "path": {"path": "s3://conn_id@bucket/test.txt", "conn_id": "conn_id", "kwargs": {}},
+            "paths": None,
         }
         assert model.model_validate(serialized) == model
+        model = TestPydanticModel(
+            key="key1",
+            path=ObjectStoragePath("s3://conn_id@bucket/test.txt"),
+            paths=[
+                ObjectStoragePath(
+                    "s3://bucket/test2.txt", aws_access_key="admin", aws_secret_access_key="passowrd"
+                ),
+                ObjectStoragePath("file:///tmp/test3.txt"),
+            ],
+        )
+        serialized = model.model_dump(mode="json")
+        assert serialized == {
+            "key": "key1",
+            "path": {"path": "s3://conn_id@bucket/test.txt", "conn_id": "conn_id", "kwargs": {}},
+            "paths": [
+                {
+                    "path": "s3://bucket/test2.txt",
+                    "conn_id": None,
+                    "kwargs": {"aws_access_key": "admin", "aws_secret_access_key": "passowrd"},
+                },
+                {"path": "file:///tmp/test3.txt", "conn_id": None, "kwargs": {}},
+            ],
+        }
+        assert model.model_validate(serialized) == model
+        # model.model_validate(serialized) == model
 
     def test_pydantic_json_schema(self):
         assert TestPydanticModel.model_json_schema()
