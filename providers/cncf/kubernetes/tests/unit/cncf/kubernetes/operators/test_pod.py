@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import re
 from contextlib import contextmanager, nullcontext
-from io import BytesIO
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, mock_open, patch
@@ -28,7 +27,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
-from urllib3 import HTTPResponse
 
 from airflow.exceptions import (
     AirflowException,
@@ -2600,7 +2598,14 @@ class TestKubernetesPodOperatorAsync:
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_should_execute_successfully(
-        self, mock_manager, mocked_hook, mock_extract_xcom, mocked_client, post_complete_action, get_logs, caplog
+        self,
+        mock_manager,
+        mocked_hook,
+        mock_extract_xcom,
+        mocked_client,
+        post_complete_action,
+        get_logs,
+        caplog,
     ):
         test_logs = "ok"
         # Mock client.read_namespaced_pod_log to return an iterable of bytes
