@@ -1375,7 +1375,6 @@ class AirflowConfigParser(ConfigParser):
         Subclasses can override to add additional sources (e.g., provider configs).
         """
         return [
-            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]

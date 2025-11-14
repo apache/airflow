@@ -235,6 +235,14 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             self._get_option_from_provider_fallbacks,
         ]
 
+    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
+        """Overriding the base class _get_config_sources_for_as_dict to add provider fallbacks"""
+        return [
+            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
+            ("default", self._default_values),
+            ("airflow.cfg", self),
+        ]
+
     def _raise_config_exception(self, message: str) -> None:
         """
         Override to raise core's AirflowConfigException instead of shared one.
