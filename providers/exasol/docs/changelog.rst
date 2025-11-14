@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+4.8.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix documentation/provider.yaml consistencies (#57283)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Fix the '__init__.py' for tests (#58211)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Enable PT011 rule to prvoider tests (#56277)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 4.8.3
 .....
 

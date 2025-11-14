@@ -201,6 +201,7 @@ class BasePythonTest:
     def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
+        assert ti.task is not None
         ti.run()
         if return_ti:
             return ti
@@ -976,15 +977,16 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f():
             return None
 
-        task = self.run_as_task(f)
-        assert task.execute_callable() is None
+        ti = self.run_as_task(f, return_ti=True)
+        assert ti.xcom_pull() is None
 
     def test_return_false(self):
         def f():
             return False
 
-        task = self.run_as_task(f)
-        assert task.execute_callable() is False
+        ti = self.run_as_task(f, return_ti=True)
+
+        assert ti.xcom_pull() is False
 
     def test_lambda(self):
         with pytest.raises(
@@ -1149,8 +1151,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
-        assert task.execute_callable() == "ABCDE"
+        ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"}, return_ti=True)
+        assert ti.xcom_pull() == "ABCDE"
 
     def test_environment_variables_with_inherit_env_true(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "QWERT")
@@ -1160,8 +1162,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, inherit_env=True)
-        assert task.execute_callable() == "QWERT"
+        ti = self.run_as_task(f, inherit_env=True, return_ti=True)
+        assert ti.xcom_pull() == "QWERT"
 
     def test_environment_variables_with_inherit_env_false(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
@@ -1182,8 +1184,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
-        assert task.execute_callable() == "EFGHI"
+        ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True, return_ti=True)
+        assert ti.xcom_pull() == "EFGHI"
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
