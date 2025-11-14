@@ -1459,6 +1459,59 @@ class AirflowConfigParser(ConfigParser):
 
         return config_sources
 
+    def _write_option_header(
+        self,
+        file: IO[str],
+        option: str,
+        extra_spacing: bool,
+        include_descriptions: bool,
+        include_env_vars: bool,
+        include_examples: bool,
+        include_sources: bool,
+        section_config_description: dict[str, dict[str, Any]],
+        section_to_write: str,
+        sources_dict: ConfigSourcesType,
+    ) -> tuple[bool, bool]:
+        """
+        Write header for configuration option.
+
+        Returns tuple of (should_continue, needs_separation) where needs_separation should be
+        set if the option needs additional separation to visually separate it from the next option.
+        """
+        option_config_description = (
+            section_config_description.get("options", {}).get(option, {})
+            if section_config_description
+            else {}
+        )
+        description = option_config_description.get("description")
+        needs_separation = False
+        if description and include_descriptions:
+            for line in description.splitlines():
+                file.write(f"# {line}\n")
+            needs_separation = True
+        example = option_config_description.get("example")
+        if example is not None and include_examples:
+            if extra_spacing:
+                file.write("#\n")
+            example_lines = example.splitlines()
+            example = "\n# ".join(example_lines)
+            file.write(f"# Example: {option} = {example}\n")
+            needs_separation = True
+        if include_sources and sources_dict:
+            sources_section = sources_dict.get(section_to_write)
+            value_with_source = sources_section.get(option) if sources_section else None
+            if value_with_source is None:
+                file.write("#\n# Source: not defined\n")
+            else:
+                file.write(f"#\n# Source: {value_with_source[1]}\n")
+            needs_separation = True
+        if include_env_vars:
+            file.write(f"#\n# Variable: AIRFLOW__{section_to_write.upper()}__{option.upper()}\n")
+            if extra_spacing:
+                file.write("#\n")
+            needs_separation = True
+        return True, needs_separation
+
     def is_template(self, section: str, key) -> bool:
         """
         Return whether the value is templated.
