@@ -98,6 +98,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
+    TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
@@ -111,6 +112,20 @@ LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
 DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
 logs_already_dumped = False
+
+option_skip_docker_compose_deletion = click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
+option_skip_mounting_local_volumes = click.option(
+    "--skip-mounting-local-volumes",
+    is_flag=True,
+    default=False,
+    help="Skip mounting local volumes - useful when we do not want to iterate with modified local files. "
+    "For example, when the PROD image is built from packages rather than from local sources.",
+)
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -127,12 +142,7 @@ def group_for_testing():
 )
 @option_python
 @option_image_name
-@click.option(
-    "--skip-docker-compose-deletion",
-    help="Skip deletion of docker-compose instance after the test",
-    envvar="SKIP_DOCKER_COMPOSE_DELETION",
-    is_flag=True,
-)
+@option_skip_docker_compose_deletion
 @option_github_repository
 @option_include_success_outputs
 @option_verbose
@@ -154,8 +164,10 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
+        skip_mounting_local_volumes=False,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
     )
     sys.exit(return_code)
@@ -588,12 +600,6 @@ option_total_test_timeout = click.option(
     type=int,
     envvar="TOTAL_TEST_TIMEOUT",
 )
-option_skip_docker_compose_deletion = click.option(
-    "--skip-docker-compose-deletion",
-    help="Skip deletion of docker-compose instance after the test",
-    envvar="SKIP_DOCKER_COMPOSE_DELETION",
-    is_flag=True,
-)
 
 
 @group_for_testing.command(
@@ -787,25 +793,32 @@ def task_sdk_tests(**kwargs):
 @option_python
 @option_image_name
 @option_skip_docker_compose_deletion
+@option_skip_mounting_local_volumes
+@click.option(
+    "--task-sdk-version",
+    help="Version of Task SDK to test",
+    envvar="TASK_SDK_VERSION",
+)
+@click.option(
+    "--down",
+    help="Shuts down the docker-compose setup without running any tests. "
+    "Useful to make sure to free resources.",
+    is_flag=True,
+)
 @option_github_repository
 @option_include_success_outputs
 @option_verbose
 @option_dry_run
-@click.option(
-    "--task-sdk-version",
-    help="Version of Task SDK to test",
-    default="1.1.0",
-    show_default=True,
-    envvar="TASK_SDK_VERSION",
-)
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def task_sdk_integration_tests(
     python: str,
     image_name: str,
+    task_sdk_version: str,
+    down: bool,
     skip_docker_compose_deletion: bool,
+    skip_mounting_local_volumes: bool,
     github_repository: str,
     include_success_outputs: bool,
-    task_sdk_version: str,
     extra_pytest_args: tuple,
 ):
     """Run task SDK integration tests."""
@@ -814,18 +827,36 @@ def task_sdk_integration_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    # Export the TASK_SDK_VERSION environment variable for the test
     import os
 
-    os.environ["TASK_SDK_VERSION"] = task_sdk_version
+    if down:
+        env = {
+            **os.environ,
+            "DOCKER_IMAGE": image_name,
+        }
+        down_cmd = [
+            "docker",
+            "compose",
+            "down",
+            "--remove-orphans",
+            "--volumes",
+        ]
+        get_console().print("[info]Running docker-compose down[/]")
+        run_command(down_cmd, output=None, check=False, env=env, cwd=TASK_SDK_INTEGRATION_TESTS_ROOT_PATH)
+        sys.exit(0)
+    # Export the TASK_SDK_VERSION environment variable for the test ONLY if it is set
+    if task_sdk_version:
+        os.environ["TASK_SDK_VERSION"] = task_sdk_version
 
     get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
     get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
+        skip_mounting_local_volumes=skip_mounting_local_volumes,
         test_type="task-sdk-integration",
     )
     sys.exit(return_code)
@@ -848,7 +879,7 @@ def task_sdk_integration_tests(
 @click.option(
     "--airflow-ctl-version",
     help="Version of airflowctl to test",
-    default="1.0.0",
+    default=None,
     show_default=True,
     envvar="AIRFLOW_CTL_VERSION",
 )
@@ -859,7 +890,7 @@ def airflowctl_integration_tests(
     skip_docker_compose_deletion: bool,
     github_repository: str,
     include_success_outputs: bool,
-    airflow_ctl_version: str,
+    airflow_ctl_version: str | None,
     extra_pytest_args: tuple,
 ):
     """Run airflowctl integration tests."""
@@ -867,8 +898,8 @@ def airflowctl_integration_tests(
     import os
 
     perform_environment_checks()
-
-    os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
+    if airflow_ctl_version:
+        os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
     image_name = image_name or os.environ.get("DOCKER_IMAGE")
 
     if image_name is None:
@@ -879,9 +910,11 @@ def airflowctl_integration_tests(
     get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
+        skip_mounting_local_volumes=False,
         test_type="airflow-ctl-integration",
     )
     sys.exit(return_code)
@@ -1371,9 +1404,11 @@ def airflow_e2e_tests(
     skip_image_check = True if image_name.startswith("apache/airflow") else False
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
+        skip_mounting_local_volumes=False,
         test_type="airflow-e2e-tests",
         skip_image_check=skip_image_check,
         test_mode=e2e_test_mode,
