@@ -66,7 +66,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -1570,9 +1570,7 @@ class TestRuntimeTaskInstance:
 
         for task_id_raw in task_ids:
             # Without task_ids (or None) expected behavior is to pull with calling task_id
-            task_id = (
-                test_task_id if task_id_raw is None or isinstance(task_id_raw, ArgNotSet) else task_id_raw
-            )
+            task_id = task_id_raw if is_arg_set(task_id_raw) and task_id_raw is not None else test_task_id
 
             for map_index in map_indexes:
                 if map_index == NOTSET:
