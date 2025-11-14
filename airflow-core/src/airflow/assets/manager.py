@@ -166,6 +166,7 @@ class AssetManager(LoggingMixin):
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
+
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
         }
@@ -211,7 +212,7 @@ class AssetManager(LoggingMixin):
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
         )
-        log.info("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
+        log.debug("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
         cls._queue_dagruns(
             asset_id=asset_model.id,
             dags_to_queue=dags_to_queue,
