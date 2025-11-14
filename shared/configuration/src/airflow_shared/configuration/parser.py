@@ -301,28 +301,58 @@ class AirflowConfigParser(ConfigParser):
     @overload
     def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
+    def _update_defaults_from_string(self, config_string: str) -> None:
+        """
+        Update the defaults in _default_values based on values in config_string ("ini" format).
+
+        Override shared parser's method to add validation for template variables.
+        Note that those values are not validated and cannot contain variables because we are using
+        regular config parser to load them. This method is used to test the config parser in unit tests.
+
+        :param config_string:  ini-formatted config string
+        """
+        parser = ConfigParser()
+        parser.read_string(config_string)
+        for section in parser.sections():
+            if section not in self._default_values.sections():
+                self._default_values.add_section(section)
+            errors = False
+            for key, value in parser.items(section):
+                if not self.is_template(section, key) and "{" in value:
+                    errors = True
+                    log.error(
+                        "The %s.%s value %s read from string contains variable. This is not supported",
+                        section,
+                        key,
+                        value,
+                    )
+                self._default_values.set(section, key, value)
+            if errors:
+                raise AirflowConfigException(
+                    f"The string config passed as default contains variables. "
+                    f"This is not supported. String config: {config_string}"
+                )
+
     def get_default_value(self, section: str, key: str, fallback: Any = None, raw=False, **kwargs) -> Any:
         """
         Retrieve default value from default config parser.
 
-        This is a stub called by the shared parser's get() method as part of the lookup chain.
-        Subclasses can override this to customize how default values are retrieved.
+        This will retrieve the default value from the default config parser. Optionally a raw, stored
+        value can be retrieved by setting skip_interpolation to True. This is useful for example when
+        we want to write the default value to a file, and we don't want the interpolation to happen
+        as it is going to be done later when the config is read.
 
         :param section: section of the config
-        :param key: key in the section
-        :param fallback: fallback value if not found
-        :param raw: if True, return raw value without interpolation
-        :param kwargs: additional kwargs passed to ConfigParser.get()
-        :return: default value or fallback
+        :param key: key to use
+        :param fallback: fallback value to use
+        :param raw: if raw, then interpolation will be reversed
+        :param kwargs: other args
+        :return:
         """
-        if self._default_values is None:
-            return fallback
-        try:
-            if raw:
-                return self._default_values.get(section, key, **kwargs)
-            return self._default_values.get(section, key, **kwargs)
-        except (NoOptionError, NoSectionError):
-            return fallback
+        value = self._default_values.get(section, key, fallback=fallback, **kwargs)
+        if raw and value is not None:
+            return value.replace("%", "%%")
+        return value
 
     def _get_custom_secret_backend(self, worker_mode: bool = False) -> Any | None:
         """
@@ -1251,24 +1281,6 @@ class AirflowConfigParser(ConfigParser):
         if self.configuration_description and section in self.configuration_description:
             return True
         return False
-
-    def _update_defaults_from_string(self, config_string: str) -> None:
-        """
-        Update the defaults in _default_values based on values in config_string ("ini" format).
-
-        Used for testing purposes.
-        """
-        parser = ConfigParser()
-        parser.read_string(config_string)
-        for section in parser.sections():
-            if self._default_values is None:
-                raise AirflowConfigException(
-                    "_default_values must be set before calling _update_defaults_from_string"
-                )
-            if section not in self._default_values.sections():
-                self._default_values.add_section(section)
-            for key, value in parser.items(section):
-                self._default_values.set(section, key, value)
 
     def get_sections_including_defaults(self) -> list[str]:
         """

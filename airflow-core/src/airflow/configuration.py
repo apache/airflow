@@ -236,7 +236,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         ]
 
     def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
-        """Overriding the base class _get_config_sources_for_as_dict to add provider fallbacks"""
+        """Override the base method to add provider fallbacks."""
         return [
             ("provider-fallback-defaults", self._provider_config_fallback_default_values),
             ("default", self._default_values),
@@ -279,59 +279,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 original_replacement[0],
                 default,
             )
-
-    def _update_defaults_from_string(self, config_string: str) -> None:
-        """
-        Update the defaults in _default_values based on values in config_string ("ini" format).
-
-        Override shared parser's method to add validation for template variables.
-        Note that those values are not validated and cannot contain variables because we are using
-        regular config parser to load them. This method is used to test the config parser in unit tests.
-
-        :param config_string:  ini-formatted config string
-        """
-        parser = ConfigParser()
-        parser.read_string(config_string)
-        for section in parser.sections():
-            if section not in self._default_values.sections():
-                self._default_values.add_section(section)
-            errors = False
-            for key, value in parser.items(section):
-                if not self.is_template(section, key) and "{" in value:
-                    errors = True
-                    log.error(
-                        "The %s.%s value %s read from string contains variable. This is not supported",
-                        section,
-                        key,
-                        value,
-                    )
-                self._default_values.set(section, key, value)
-            if errors:
-                raise AirflowConfigException(
-                    f"The string config passed as default contains variables. "
-                    f"This is not supported. String config: {config_string}"
-                )
-
-    def get_default_value(self, section: str, key: str, fallback: Any = None, raw=False, **kwargs) -> Any:
-        """
-        Retrieve default value from default config parser.
-
-        This will retrieve the default value from the default config parser. Optionally a raw, stored
-        value can be retrieved by setting skip_interpolation to True. This is useful for example when
-        we want to write the default value to a file, and we don't want the interpolation to happen
-        as it is going to be done later when the config is read.
-
-        :param section: section of the config
-        :param key: key to use
-        :param fallback: fallback value to use
-        :param raw: if raw, then interpolation will be reversed
-        :param kwargs: other args
-        :return:
-        """
-        value = self._default_values.get(section, key, fallback=fallback, **kwargs)
-        if raw and value is not None:
-            return value.replace("%", "%%")
-        return value
 
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
