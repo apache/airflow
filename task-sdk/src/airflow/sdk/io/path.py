@@ -441,6 +441,7 @@ class ObjectStoragePath(CloudPath):
         :param _handler: Pydantic's schema handler (unused)
         :return: A CoreSchema defining validation and serialization behavior
         """
+
         def validate_from_typed_dict(value: dict) -> ObjectStoragePath:
             result = cls.deserialize(value.copy(), version=cls.__version__)
             return result

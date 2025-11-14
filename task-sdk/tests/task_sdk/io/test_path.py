@@ -355,7 +355,7 @@ class TestBackwardsCompatibility:
             get_fs("file", storage_options={"foo": "bar"})
 
 
-class TestPydanticModel(BaseModel):
+class TPydanticModel(BaseModel):
     key: str
     path: ObjectStoragePath
     paths: list[ObjectStoragePath] | None
@@ -399,9 +399,7 @@ class TestPydanticSerDe:
         )
 
     def test_pydantic_model_serdes(self):
-        model = TestPydanticModel(
-            key="key1", path=ObjectStoragePath("s3://conn_id@bucket/test.txt"), paths=None
-        )
+        model = TPydanticModel(key="key1", path=ObjectStoragePath("s3://conn_id@bucket/test.txt"), paths=None)
         serialized = model.model_dump(mode="json")
         assert serialized == {
             "key": "key1",
@@ -409,7 +407,7 @@ class TestPydanticSerDe:
             "paths": None,
         }
         assert model.model_validate(serialized) == model
-        model = TestPydanticModel(
+        model = TPydanticModel(
             key="key1",
             path=ObjectStoragePath("s3://conn_id@bucket/test.txt"),
             paths=[
@@ -436,4 +434,4 @@ class TestPydanticSerDe:
         # model.model_validate(serialized) == model
 
     def test_pydantic_json_schema(self):
-        assert TestPydanticModel.model_json_schema()
+        assert TPydanticModel.model_json_schema()
