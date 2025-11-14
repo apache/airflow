@@ -32,4 +32,4 @@ class SimpleAuthenticatedUserResponse(BaseModel):
     """Current User response serializer for SimpleAuthManager."""
 
     username: str
-    role: str
+    role: str | None

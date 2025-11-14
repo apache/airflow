@@ -8003,7 +8003,14 @@ export const $SimpleAuthenticatedUserResponse = {
             title: 'Username'
         },
         role: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Role'
         }
     },

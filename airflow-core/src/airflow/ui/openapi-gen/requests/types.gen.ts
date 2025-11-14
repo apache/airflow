@@ -1990,7 +1990,7 @@ export type NodeResponse = {
  */
 export type SimpleAuthenticatedUserResponse = {
     username: string;
-    role: string;
+    role: string | null;
 };
 
 /**

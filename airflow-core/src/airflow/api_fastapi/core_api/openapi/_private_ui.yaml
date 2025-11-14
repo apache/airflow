@@ -2300,7 +2300,9 @@ components:
           type: string
           title: Username
         role:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Role
       type: object
       required:
