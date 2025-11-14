@@ -176,7 +176,7 @@ from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_dete
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.version_utils import (
     is_local_package_version,
 )
@@ -807,6 +807,11 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip changelog generation. This is used in prek that updates build-files only.",
 )
 @click.option(
+    "--incremental-update",
+    is_flag=True,
+    help="Runs incremental update only after rebase of earlier branch to check if there are no changes.",
+)
+@click.option(
     "--skip-readme",
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
@@ -826,6 +831,7 @@ def prepare_provider_documentation(
     skip_git_fetch: bool,
     skip_changelog: bool,
     skip_readme: bool,
+    incremental_update: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -841,6 +847,8 @@ def prepare_provider_documentation(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    if incremental_update:
+        set_forced_answer("yes")
     if not provider_distributions:
         provider_distributions = get_available_distributions(
             include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
@@ -944,6 +952,22 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+    if incremental_update:
+        get_console().print(r"\[warning] Generated changes:")
+        run_command(["git", "diff"])
+        get_console().print("\n")
+        get_console().print("[warning]Important")
+        get_console().print(
+            " * Please review manually the changes in changelogs above and move the new changelog "
+            "entries to the right sections."
+        )
+        get_console().print(
+            "* Remove the `Please review ...` comments from the changelogs after moving changeslogs"
+        )
+        get_console().print(
+            "* Update both changelog.rst AND provider.yaml in case the new changes require "
+            "different classification of the upgrade (patchlevel/minor/major)"
+        )
 
 
 def basic_provider_checks(provider_id: str) -> dict[str, Any]:
