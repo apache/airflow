@@ -123,8 +123,6 @@ Doc-only
    * ``Fix short names in test_adls (#54907)``
    * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 12.6.1
@@ -584,7 +582,8 @@ Misc
 
 * ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
    * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
 
@@ -627,7 +626,8 @@ Misc
 * ``Faster 'airflow_version' imports (#39552)``
 * ``Simplify 'airflow_version' imports (#39497)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave May 2024 (#39328)``
 
 10.0.0
@@ -663,7 +663,8 @@ Misc
 * ``update to latest service bus (#38384)``
 * ``Limit azure-cosmos (#38175)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``fix: try002 for provider microsoft azure (#38805)``
    * ``Bump ruff to 0.3.3 (#38240)``
 
@@ -704,7 +705,8 @@ Misc
 
 * ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
    * ``Fix stacklevel in warnings.warn into the providers (#36831)``
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
@@ -895,7 +897,8 @@ Misc
 * ``Consolidate hook management in AzureBatchOperator (#34437)``
 * ``Consolidate hook management in AzureDataExplorerQueryOperator (#34436)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Refactor: consolidate import time in providers (#34402)``
    * ``Refactor usage of str() in providers (#34320)``
    * ``Refactor: reduce some conditions in providers (#34440)``
@@ -1043,7 +1046,8 @@ Misc
 
 * ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Stragglers and new additions (#32447)``
 
 6.2.0
