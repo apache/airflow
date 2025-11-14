@@ -1559,6 +1559,19 @@ class AirflowConfigParser(ConfigParser):
                         _section[key] = False
         return _section
 
+    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
+        """
+        Get list of config sources to use in as_dict().
+
+        Subclasses can override to add additional sources (e.g., provider configs).
+        """
+        # TODO: When this is moved into shared config parser, override it to not have provider fallbacks
+        return [
+            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
+            ("default", self._default_values),
+            ("airflow.cfg", self),
+        ]
+
     def as_dict(
         self,
         display_source: bool = False,
@@ -1609,13 +1622,8 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
-
         # We check sequentially all those sources and the last one we saw it in will "win"
-        configs: Iterable[tuple[str, ConfigParser]] = [
-            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
-            ("default", self._default_values),
-            ("airflow.cfg", self),
-        ]
+        configs = self._get_config_sources_for_as_dict()
 
         self._replace_config_with_display_sources(
             config_sources,
