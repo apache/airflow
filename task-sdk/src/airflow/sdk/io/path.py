@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
+from pydantic_core import core_schema
 from upath.implementations.cloud import CloudPath
 from upath.registry import get_upath_class
 
@@ -33,6 +34,8 @@ from airflow.sdk.io.store import attach
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+    from pydantic import GetCoreSchemaHandler
+    from pydantic.json_schema import GetJsonSchemaHandler, JsonSchemaValue
 
 
 class _TrackingFileWrapper:
@@ -408,11 +411,9 @@ class ObjectStoragePath(CloudPath):
     def deserialize(cls, data: dict, version: int) -> ObjectStoragePath:
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
-
         _kwargs = data.pop("kwargs")
         path = data.pop("path")
         conn_id = data.pop("conn_id", None)
-
         return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
 
     def __str__(self):
@@ -420,3 +421,65 @@ class ObjectStoragePath(CloudPath):
         if self._protocol and conn_id:
             return f"{self._protocol}://{conn_id}@{self.path}"
         return super().__str__()
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        _source_type: Any,
+        _handler: GetCoreSchemaHandler,
+    ) -> core_schema.CoreSchema:
+        def validate_from_typed_dict(value: dict) -> ObjectStoragePath:
+            result = cls.deserialize(value, version=cls.__version__)
+            return result
+
+        python_schema = core_schema.union_schema(
+            [
+                core_schema.chain_schema(
+                    [
+                        core_schema.typed_dict_schema(
+                            {
+                                "path": core_schema.typed_dict_field(core_schema.str_schema()),
+                                "conn_id": core_schema.typed_dict_field(
+                                    core_schema.union_schema(
+                                        [core_schema.str_schema(), core_schema.none_schema()]
+                                    ),
+                                    required=False,
+                                ),
+                                "kwargs": core_schema.typed_dict_field(
+                                    core_schema.dict_schema(), required=False
+                                ),
+                            },
+                        ),
+                        core_schema.no_info_plain_validator_function(validate_from_typed_dict),
+                    ],
+                ),
+                core_schema.chain_schema(
+                    [
+                        core_schema.str_schema(),
+                        core_schema.no_info_plain_validator_function(lambda v: cls(v)),
+                    ],
+                ),
+            ],
+            ref=cls.__qualname__,
+        )
+
+        return core_schema.json_or_python_schema(
+            json_schema=python_schema,
+            python_schema=core_schema.union_schema(
+                [
+                    # check if it's an instance first before doing any further work
+                    python_schema,
+                    core_schema.is_instance_schema(cls),
+                ]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(cls.serialize),
+        )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        json_schema = handler(_core_schema)
+        json_schema = handler.resolve_ref_schema(json_schema)
+        json_schema["title"] = cls.__qualname__
+        return json_schema

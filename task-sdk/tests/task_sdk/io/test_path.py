@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 from airflow.sdk import Asset, ObjectStoragePath
 from airflow.sdk.io import attach
@@ -352,3 +353,58 @@ class TestBackwardsCompatibility:
         assert get_fs("file")
         with pytest.raises(AttributeError):
             get_fs("file", storage_options={"foo": "bar"})
+
+
+class TestPydanticModel(BaseModel):
+    key: str
+    path: ObjectStoragePath
+
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+
+class TestPydanticSerDe:
+    @pytest.fixture
+    def type_adapter(self) -> TypeAdapter[ObjectStoragePath]:
+        return TypeAdapter(ObjectStoragePath)
+
+    @pytest.mark.parametrize(
+        ("path", "kwargs"),
+        (
+            ("file:///tmp/foo", {}),
+            ("s3://conn_id@bucket/test.txt", {"aws_access_key": "admin", "aws_secret_key": "password"}),
+        ),
+    )
+    def test_pydantic_serde(self, path: str, kwargs: dict, type_adapter: TypeAdapter[ObjectStoragePath]):
+        path: ObjectStoragePath = ObjectStoragePath(path, **kwargs)
+        serialized = type_adapter.dump_python(path, mode="json")
+        assert serialized == path.serialize()
+
+    @pytest.mark.parametrize(
+        "serialized",
+        (
+            {"path": ".", "conn_id": None, "kwargs": {}},
+            {
+                "path": "s3://bucket/test.txt",
+                "conn_id": "conn_id",
+                "kwargs": {"aws_access_key": "admin", "aws_secret_key": "password"},
+            },
+            {"path": "file:///tmp/foo", "conn_id": None, "kwargs": {}},
+        ),
+    )
+    def test_pydantic_deserialize(self, serialized: dict | str, type_adapter: TypeAdapter[ObjectStoragePath]):
+        deserialized = type_adapter.validate_python(serialized)
+        assert deserialized == ObjectStoragePath.deserialize(
+            serialized, version=ObjectStoragePath.__version__
+        )
+
+    def test_pydantic_model_serdes(self):
+        model = TestPydanticModel(key="key1", path=ObjectStoragePath("s3://conn_id@bucket/test.txt"))
+        serialized = model.model_dump(mode="json")
+        assert serialized == {
+            "key": "key1",
+            "path": {"path": "s3://conn_id@bucket/test.txt", "conn_id": "conn_id", "kwargs": {}},
+        }
+        assert model.model_validate(serialized) == model
+
+    def test_pydantic_json_schema(self):
+        assert TestPydanticModel.model_json_schema()
