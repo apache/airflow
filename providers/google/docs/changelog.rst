@@ -1103,7 +1103,8 @@ Bug Fixes
 * ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
 * ``fix respect project_id in CloudBatchSubmitJobOperator (#40560)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Resolve google deprecations in tests (#40629)``
    * ``Resolve google vertex ai deprecations in tests (#40506)``
    * ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
@@ -2283,8 +2284,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
 
 8.6.0
 .....
