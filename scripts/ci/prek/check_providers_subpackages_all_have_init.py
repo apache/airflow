@@ -81,7 +81,7 @@ def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bo
             global fatal_error
             should_fail = True
             fatal_error = True
-        return False, False
+        return True, True
     if depth == 2:
         # For known sub-packages that can occur in several packages we need to add __path__ extension
         return True, folder.name in KNOWN_SECOND_LEVEL_PATHS
@@ -105,7 +105,6 @@ def _determine_init_py_action(need_path_extension: bool, root_path: Path):
 
 
 def check_dir_init_test_folders(folders: list[Path]) -> None:
-    global should_fail
     folders = list(folders)
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension
@@ -121,7 +120,6 @@ def check_dir_init_test_folders(folders: list[Path]) -> None:
 
 
 def check_dir_init_src_folders(folders: list[Path]) -> None:
-    global should_fail
     folders = list(folders)
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension

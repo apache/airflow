@@ -23,8 +23,6 @@ Example Airflow DAG for Google Vertex AI Feature Store operations.
 from __future__ import annotations
 
 import os
-import random
-import string
 from datetime import datetime, timedelta
 
 from google.cloud.aiplatform_v1beta1 import FeatureOnlineStore, FeatureView, FeatureViewDataKey
@@ -64,10 +62,7 @@ BQ_VIEW_ID = "product_features_view"
 BQ_VIEW_FQN = f"{PROJECT_ID}.{BQ_DATASET_ID}.{BQ_VIEW_ID}"
 
 # Please take into consideration that max ID length is 60 symbols
-PREFIX_FEATURE_ONLINE_STORE_ID = "".join(
-    random.choice(string.ascii_letters + string.digits) for _ in range(20)
-)
-FEATURE_ONLINE_STORE_ID = f"feature_online_store_{PREFIX_FEATURE_ONLINE_STORE_ID}".replace("-", "_")
+FEATURE_ONLINE_STORE_ID = f"{ENV_ID}_fo_id".replace("-", "_")
 FEATURE_VIEW_ID = "feature_view_product"
 FEATURE_VIEW_DATA_KEY = {"key": "28098"}
 

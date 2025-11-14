@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -1050,7 +1051,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
             )
         validate_key(self.task_id)
 
@@ -1257,11 +1258,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
-        for k, v in self.__dict__.items():
+        for k, v_org in self.__dict__.items():
             if k not in shallow_copy:
-                v = copy.deepcopy(v, memo)
+                v = copy.deepcopy(v_org, memo)
             else:
-                v = copy.copy(v)
+                v = copy.copy(v_org)
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine

@@ -103,12 +103,18 @@ def create_docker(txt: str):
     )
 
 
-def check_providers(files: list[str]):
+def check_providers(files: list[str], release_date: str):
     print("Checking providers from packages.txt:\n")
     missing_list = []
-    for name, version in get_packages():
-        print(f"Checking {name} {version}")
-        version = strip_rc_suffix(version)
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_providers-{release_date}-source.tar.gz",
+        ]
+    )
+    missing_list.extend(check_all_files(expected_files=expected_files, actual_files=files))
+    for name, version_raw in get_packages():
+        print(f"Checking {name} {version_raw}")
+        version = strip_rc_suffix(version_raw)
         expected_files = expand_name_variations(
             [
                 f"{name.replace('-', '_')}-{version}.tar.gz",
@@ -147,7 +153,7 @@ def check_airflow_release(files: list[str], version: str):
     expected_files = expand_name_variations(
         [
             f"apache_airflow-{version}.tar.gz",
-            f"apache-airflow-{version}-source.tar.gz",
+            f"apache_airflow-{version}-source.tar.gz",
             f"apache_airflow-{version}-py3-none-any.whl",
             f"apache_airflow_core-{version}.tar.gz",
             f"apache_airflow_core-{version}-py3-none-any.whl",
@@ -229,11 +235,18 @@ def cli():
 
 @click.command()
 @path_option
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @click.pass_context
-def providers(ctx, path: str):
+def providers(ctx, path: str, release_date: str):
     files = os.listdir(os.path.join(path, "providers"))
     pips = [f"{name}=={version}" for name, version in get_packages()]
-    missing_files = check_providers(files)
+    missing_files = check_providers(files, release_date)
     create_docker(
         PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips))
     )
@@ -296,9 +309,9 @@ def test_check_release_pass():
         "apache_airflow-2.8.1-py3-none-any.whl",
         "apache_airflow-2.8.1-py3-none-any.whl.asc",
         "apache_airflow-2.8.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.8.1-source.tar.gz",
-        "apache-airflow-2.8.1-source.tar.gz.asc",
-        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1-source.tar.gz",
+        "apache_airflow-2.8.1-source.tar.gz.asc",
+        "apache_airflow-2.8.1-source.tar.gz.sha512",
         "apache_airflow-2.8.1.tar.gz",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
@@ -318,9 +331,9 @@ def test_check_release_fail():
         "apache_airflow-2.8.1-py3-none-any.whl",
         "apache_airflow-2.8.1-py3-none-any.whl.asc",
         "apache_airflow-2.8.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.8.1-source.tar.gz",
-        "apache-airflow-2.8.1-source.tar.gz.asc",
-        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1-source.tar.gz",
+        "apache_airflow-2.8.1-source.tar.gz.asc",
+        "apache_airflow-2.8.1-source.tar.gz.sha512",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
         "apache_airflow_core-2.8.1-py3-none-any.whl",

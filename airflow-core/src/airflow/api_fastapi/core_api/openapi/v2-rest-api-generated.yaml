@@ -5759,6 +5759,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5767,6 +5779,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5799,6 +5823,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -6589,6 +6625,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -6597,6 +6645,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -6629,6 +6689,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -8707,7 +8779,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8738,6 +8811,11 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - id
@@ -8763,7 +8841,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -9730,6 +9809,11 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
         extra:
           additionalProperties: true
           type: object
@@ -10334,6 +10418,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - dag_run_id
@@ -10356,6 +10445,7 @@ components:
       - dag_versions
       - bundle_version
       - dag_display_name
+      - partition_key
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -10846,7 +10936,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -11190,7 +11279,7 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailHisotry:
+    HITLDetailHistory:
       properties:
         options:
           items:
@@ -11260,7 +11349,7 @@ components:
       - options
       - subject
       - created_at
-      title: HITLDetailHisotry
+      title: HITLDetailHistory
       description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
@@ -11765,7 +11854,6 @@ components:
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots
@@ -12151,7 +12239,7 @@ components:
           - type: 'null'
         hitl_detail:
           anyOf:
-          - $ref: '#/components/schemas/HITLDetailHisotry'
+          - $ref: '#/components/schemas/HITLDetailHistory'
           - type: 'null'
       type: object
       required:
@@ -12857,6 +12945,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:

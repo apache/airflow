@@ -45,11 +45,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Install Python 3.11 as 3.11+ is needed by pin-versions pre-commit"
-        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c  # v4.9.1
-        with:
-          python-version: 3.11
-
       - name: "Find workflow run status"
         id: find-workflow-run-status
         run: |

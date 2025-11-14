@@ -292,7 +292,7 @@ class TestExecutorConfigType:
         under older kubernetes library version.
         """
 
-        class MockAttrError:
+        class MockAttrError:  # noqa: PLW1641
             def __eq__(self, other):
                 raise AttributeError("hello")
 

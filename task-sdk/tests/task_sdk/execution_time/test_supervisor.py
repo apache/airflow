@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -110,6 +111,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -175,7 +177,7 @@ def client_with_ti_start(make_ti_context):
 @pytest.mark.usefixtures("disable_capturing")
 class TestSupervisor:
     @pytest.mark.parametrize(
-        "server, dry_run, expectation",
+        ("server", "dry_run", "expectation"),
         [
             ("/execution/", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
             ("", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
@@ -228,6 +230,26 @@ class TestWatchedSubprocess:
     @pytest.fixture(autouse=True)
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
+
+    @pytest.fixture(autouse=True)
+    def use_real_secrets_backends(self, monkeypatch):
+        """
+        Ensure that real secrets backend instances are used instead of mocks.
+
+        This prevents Python 3.13 RuntimeWarning when hasattr checks async methods
+        on mocked backends. The warning occurs because hasattr on AsyncMock creates
+        unawaited coroutines.
+
+        This fixture ensures test isolation when running in parallel with pytest-xdist,
+        regardless of what other tests patch.
+        """
+        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+        )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
@@ -886,7 +908,7 @@ class TestWatchedSubprocess:
         } in captured_logs
 
     @pytest.mark.parametrize(
-        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        ("terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"),
         [
             pytest.param(
                 None,
@@ -958,7 +980,7 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        ["signal_to_raise", "log_pattern", "level"],
+        ("signal_to_raise", "log_pattern", "level"),
         (
             pytest.param(
                 signal.SIGKILL,
@@ -1101,7 +1123,7 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once_with(timeout=0)
 
     @pytest.mark.parametrize(
-        ["signal_to_send", "exit_after"],
+        ("signal_to_send", "exit_after"),
         [
             pytest.param(
                 signal.SIGINT,
@@ -1208,7 +1230,7 @@ class TestWatchedSubprocessKill:
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
         """Test `_service_subprocess` processes selector events and handles subprocess exit."""
-        ## Given
+        # Given
 
         # Mock file objects and handlers
         mock_stdout = mocker.Mock()
@@ -1228,10 +1250,10 @@ class TestWatchedSubprocessKill:
         # Mock to simulate process exited successfully
         mock_process.wait.return_value = 0
 
-        ## Our actual test
+        # Our actual test
         watched_subprocess._service_subprocess(max_wait_time=1.0)
 
-        ## Validations!
+        # Validations!
         # Validate selector interactions
         watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
 
@@ -1273,7 +1295,7 @@ class TestWatchedSubprocessKill:
         assert timeout_arg >= 0.01, f"Expected timeout >= 0.01, got {timeout_arg}"
 
     @pytest.mark.parametrize(
-        ["heartbeat_timeout", "min_interval", "heartbeat_ago", "expected_min_timeout"],
+        ("heartbeat_timeout", "min_interval", "heartbeat_ago", "expected_min_timeout"),
         [
             # Normal case: heartbeat is recent, should use calculated value
             pytest.param(30, 5, 5, 0.01, id="normal_heartbeat"),
@@ -2047,6 +2069,7 @@ REQUEST_TEST_CASES = [
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "partition_key": None,
                 "run_type": "scheduled",
                 "start_date": timezone.parse("2024-01-15T12:00:00Z"),
                 "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2297,6 +2320,37 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="skip_downstream_tasks",
+    ),
+    RequestTestCase(
+        message=GetTaskBreadcrumbs(dag_id="test_dag", run_id="test_run"),
+        client_mock=ClientMock(
+            method_path="task_instances.get_task_breakcrumbs",
+            kwargs={"dag_id": "test_dag", "run_id": "test_run"},
+            response=TaskBreadcrumbsResult(
+                breadcrumbs=[
+                    {
+                        "task_id": "test_task",
+                        "map_index": 2,
+                        "state": "success",
+                        "operator": "PythonOperator",
+                        "duration": 432.0,
+                    },
+                ],
+            ),
+        ),
+        expected_body={
+            "breadcrumbs": [
+                {
+                    "task_id": "test_task",
+                    "map_index": 2,
+                    "state": "success",
+                    "operator": "PythonOperator",
+                    "duration": 432.0,
+                },
+            ],
+            "type": "TaskBreadcrumbsResult",
+        },
+        test_id="get_task_breadcrumbs",
     ),
 ]
 

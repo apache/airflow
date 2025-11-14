@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+2.3.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate pinecone provider to 'common.compat' (#57137)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 2.3.4
 .....
 

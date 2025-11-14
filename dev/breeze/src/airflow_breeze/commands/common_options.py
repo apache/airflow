@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
@@ -312,7 +313,7 @@ option_postgres_version = click.option(
     "-P",
     "--postgres-version",
     type=BackendVersionChoice(ALLOWED_POSTGRES_VERSIONS),
-    default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    default=CacheableDefault(DEFAULT_POSTGRES_VERSION),
     envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
@@ -412,12 +413,12 @@ option_use_uv = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
-option_use_uv_default_disabled = click.option(
+option_use_uv_default_depends_on_installation_method = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
-    default=False,
-    show_default=True,
-    help="Use uv instead of pip as packaging tool to build the image.",
+    default=None,
+    help="Use uv instead of pip as packaging tool to build the image (default is True for installing "
+    "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
 option_uv_http_timeout = click.option(
@@ -431,8 +432,9 @@ option_uv_http_timeout = click.option(
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
-    "`none`, `wheel`, or `sdist` to install from `dist` folder or `owner/repo:branch` to "
-    "install from GitHub repo. Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
+    "`none`, `wheel`, or `sdist` to install from `dist` folder, `owner/repo:branch` to "
+    "install from GitHub repo, or a PR number (e.g., `57219`) to install from a pull request. "
+    "Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
     "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",

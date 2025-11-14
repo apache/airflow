@@ -790,7 +790,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if return_iterator:
             # The iterator returned by list_datasets() is a HTTPIterator but annotated
             # as Iterator
-            return iterator  #  type: ignore
+            return iterator  # type: ignore
 
         datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
@@ -1815,11 +1815,15 @@ class BigQueryCursor(BigQueryBaseCursor):
             (cluster_fields, "clustering", None, dict),
         ]
 
-        for param, param_name, param_default, param_type in query_param_list:
-            if param_name not in configuration["query"] and param in [None, {}, ()]:
+        for param_raw, param_name, param_default, param_type in query_param_list:
+            param: Any
+            if param_name not in configuration["query"] and param_raw in [None, {}, ()]:
                 if param_name == "timePartitioning":
-                    param_default = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
-                param = param_default
+                    param = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
+                else:
+                    param = param_default
+            else:
+                param = param_raw
 
             if param in [None, {}, ()]:
                 continue
