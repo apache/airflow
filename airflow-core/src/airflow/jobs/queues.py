@@ -29,8 +29,9 @@ V = TypeVar("V", bound=tuple)
 
 class KeyedHeadQueue(Generic[K, V]):
     """
-    A keyed queue where:
+    A keyed queue that manages values per key in insertion order.
 
+    Features:
       - `popleft()` returns only the *first value* per key (in insertion order of keys).
       - Once a key's first value is popped, that key will never yield in `popleft()` again.
       - Remaining values for consumed keys are preserved.
