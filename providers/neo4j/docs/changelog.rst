@@ -29,6 +29,20 @@
 Changelog
 ---------
 
+3.10.3
+......
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate neo4j provider to 'common.compat' (#57149)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to neo4j  Provider test (#57939)``
+
 3.10.2
 ......
 
