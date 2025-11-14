@@ -50,7 +50,7 @@ class TestDatabaseCleanupDeployment:
     ]
 
     @pytest.mark.parametrize(
-        "release_name,schedule_value,schedule_result",
+        ("release_name", "schedule_value", "schedule_result"),
         cron_tests,
         ids=[x[0] for x in cron_tests],
     )
@@ -195,7 +195,6 @@ class TestDatabaseCleanupPods:
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
-            "bash",
             "-c",
             'CLEAN_TS=$(date -d "-10 days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${CLEAN_TS}"; exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
         ]
@@ -206,9 +205,10 @@ class TestDatabaseCleanupPods:
             show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
 
-        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) is None
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) == [
+            "bash"
+        ]
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
-            "bash",
             "-c",
             'CLEAN_TS=$(date -d "-90 days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${CLEAN_TS}"; exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
         ]
