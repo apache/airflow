@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 
 import ReactJson, { ReactJsonViewProps } from "react-json-view";
 
@@ -39,8 +39,16 @@ interface Props extends FlexProps {
 
 const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
   const [isJson, contentJson, contentFormatted] = jsonParse(content);
-  const { onCopy, hasCopied } = useClipboard(contentFormatted);
+  const { onCopy, hasCopied, setValue } = useClipboard(contentFormatted);
   const theme = useTheme();
+
+  // Current version of the "@chakra-ui/hooks v2.1.2" have a problem with multiple different run configs.
+  // The following code piece derived from this issue: https://github.com/chakra-ui/chakra-ui/issues/6759
+  useEffect(() => {
+    if (contentFormatted) {
+      setValue(contentFormatted);
+    }
+  }, [contentFormatted, setValue]);
 
   return isJson ? (
     <Flex {...rest} p={2}>
