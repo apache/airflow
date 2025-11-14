@@ -175,7 +175,7 @@ class AirflowConfigParser(ConfigParser):
     @property
     def _lookup_sequence(self) -> list[Callable]:
         """
-        Define the sequence of lookup methods for get().
+        Define the sequence of lookup methods for get(). The definition here does not have provider lookup.
 
         Subclasses can override this to customise lookup order.
         """
@@ -190,17 +190,12 @@ class AirflowConfigParser(ConfigParser):
     @property
     def _validators(self) -> list[Callable[[], None]]:
         """
-        Return list of validators defined on a config parser class.
+        Return list of validators defined on a config parser class. Base class will return an empty list.
 
         Subclasses can override this to customize the validators that are run during validation on the
         config parser instance.
         """
-        return [
-            self._validate_sqlite3_version,
-            self._validate_enums,
-            self._validate_deprecated_values,
-            self._upgrade_postgres_metastore_conn,
-        ]
+        return []
 
     def validate(self) -> None:
         """Run all registered validators."""
@@ -286,22 +281,6 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError):
             return fallback
 
-    # TODO: Remove this from shared, after https://github.com/apache/airflow/pull/57970 is merged
-    def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
-        """
-        Get provider config fallback default values.
-
-        This is a stub called by the shared parser's get() method as part of the lookup chain.
-        Subclasses can override this to provide provider-specific fallback defaults.
-        Default implementation returns None (no provider fallbacks).
-
-        :param section: section name
-        :param key: key name
-        :param kwargs: additional kwargs
-        :return: fallback value or None
-        """
-        return None
-
     def _get_custom_secret_backend(self, worker_mode: bool = False) -> Any | None:
         """
         Get Secret Backend if defined in airflow.cfg.
@@ -379,8 +358,6 @@ class AirflowConfigParser(ConfigParser):
                         command = command_value[0]
                     return run_command(command)
         return None
-
-    # _get_secret_option is now provided by the shared base class.
 
     def _get_secret_option_from_config_sources(
         self, config_sources: ConfigSourcesType, section: str, key: str

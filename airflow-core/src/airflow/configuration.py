@@ -37,10 +37,13 @@ from re import Pattern
 from typing import IO, TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow._shared.configuration.parser import (
+    VALUE_NOT_FOUND_SENTINEL,
+    AirflowConfigParser as _SharedAirflowConfigParser,
+    ValueNotFound,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
@@ -211,6 +214,28 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         self._suppress_future_warnings = False
         self._providers_configuration_loaded = False
 
+    @property
+    def _validators(self) -> list[Callable[[], None]]:
+        """Overring _validators from shared base class to add core-specific validators."""
+        return [
+            self._validate_sqlite3_version,
+            self._validate_enums,
+            self._validate_deprecated_values,
+            self._upgrade_postgres_metastore_conn,
+        ]
+
+    @property
+    def _lookup_sequence(self) -> list[Callable]:
+        """Overring _lookup_sequence from shared base class to add provider fallbacks."""
+        return [
+            self._get_environment_variables,
+            self._get_option_from_config_file,
+            self._get_option_from_commands,
+            self._get_option_from_secrets,
+            self._get_option_from_defaults,
+            self._get_option_from_provider_fallbacks,
+        ]
+
     def _raise_config_exception(self, message: str) -> None:
         """
         Override to raise core's AirflowConfigException instead of shared one.
@@ -221,6 +246,22 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 
         raise CoreAirflowConfigException(message)
+
+    def _get_option_from_provider_fallbacks(
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
+        extra_stacklevel: int = 0,
+        **kwargs,
+    ) -> str | ValueNotFound:
+        """Get config option from provider fallback defaults."""
+        if self.get_provider_config_fallback_defaults(section, key) is not None:
+            # no expansion needed
+            return self.get_provider_config_fallback_defaults(section, key, **kwargs)
+        return VALUE_NOT_FOUND_SENTINEL
 
     def _update_logging_deprecated_template_to_one_from_defaults(self):
         default = self.get_default_value("logging", "log_filename_template")
