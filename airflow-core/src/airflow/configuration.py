@@ -28,7 +28,7 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator
 from configparser import ConfigParser
 from contextlib import contextmanager
 from copy import deepcopy
@@ -584,27 +584,20 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         self._default_values = create_default_config_parser(self.configuration_description)
         self._providers_configuration_loaded = False
 
-    def validate(self):
-        self._validate_sqlite3_version()
-        self._validate_enums()
+    @property
+    def _validators(self) -> list[Callable[[], None]]:
+        """
+        Return list of validators defined on a config parser class.
 
-        for section, replacement in self.deprecated_values.items():
-            for name, info in replacement.items():
-                old, new = info
-                current_value = self.get(section, name, fallback="")
-                if self._using_old_value(old, current_value):
-                    self.upgraded_values[(section, name)] = current_value
-                    new_value = old.sub(new, current_value)
-                    self._update_env_var(section=section, name=name, new_value=new_value)
-                    self._create_future_warning(
-                        name=name,
-                        section=section,
-                        current_value=current_value,
-                        new_value=new_value,
-                    )
-
-        self._upgrade_postgres_metastore_conn()
-        self.is_validated = True
+        Subclasses can override this to customize the validators that are run during validation on the
+        config parser instance.
+        """
+        return [
+            self._validate_sqlite3_version,
+            self._validate_enums,
+            self._validate_deprecated_values,
+            self._upgrade_postgres_metastore_conn,
+        ]
 
     def _upgrade_postgres_metastore_conn(self):
         """
@@ -711,109 +704,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     # The shared base class's getimport() correctly uses self.get() instead of conf.get().
 
     # has_option, set, and remove_option are now provided by the shared base class.
-
-    def as_dict(
-        self,
-        display_source: bool = False,
-        display_sensitive: bool = False,
-        raw: bool = False,
-        include_env: bool = True,
-        include_cmds: bool = True,
-        include_secret: bool = True,
-    ) -> ConfigSourcesType:
-        """
-        Return the current configuration as an OrderedDict of OrderedDicts.
-
-        When materializing current configuration Airflow defaults are
-        materialized along with user set configs. If any of the `include_*`
-        options are False then the result of calling command or secret key
-        configs do not override Airflow defaults and instead are passed through.
-        In order to then avoid Airflow defaults from overwriting user set
-        command or secret key configs we filter out bare sensitive_config_values
-        that are set to Airflow defaults when command or secret key configs
-        produce different values.
-
-        :param display_source: If False, the option value is returned. If True,
-            a tuple of (option_value, source) is returned. Source is either
-            'airflow.cfg', 'default', 'env var', or 'cmd'.
-        :param display_sensitive: If True, the values of options set by env
-            vars and bash commands will be displayed. If False, those options
-            are shown as '< hidden >'
-        :param raw: Should the values be output as interpolated values, or the
-            "raw" form that can be fed back in to ConfigParser
-        :param include_env: Should the value of configuration from AIRFLOW__
-            environment variables be included or not
-        :param include_cmds: Should the result of calling any ``*_cmd`` config be
-            set (True, default), or should the _cmd options be left as the
-            command to run (False)
-        :param include_secret: Should the result of calling any ``*_secret`` config be
-            set (True, default), or should the _secret options be left as the
-            path to get the secret from (False)
-        :return: Dictionary, where the key is the name of the section and the content is
-            the dictionary with the name of the parameter and its value.
-        """
-        if not display_sensitive:
-            # We want to hide the sensitive values at the appropriate methods
-            # since envs from cmds, secrets can be read at _include_envs method
-            if not all([include_env, include_cmds, include_secret]):
-                raise ValueError(
-                    "If display_sensitive is false, then include_env, "
-                    "include_cmds, include_secret must all be set as True"
-                )
-
-        config_sources: ConfigSourcesType = {}
-
-        # We check sequentially all those sources and the last one we saw it in will "win"
-        configs: Iterable[tuple[str, ConfigParser]] = [
-            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
-            ("default", self._default_values),
-            ("airflow.cfg", self),
-        ]
-
-        self._replace_config_with_display_sources(
-            config_sources,
-            configs,
-            self.configuration_description if self.configuration_description else {},
-            display_source,
-            raw,
-            self.deprecated_options,
-            include_cmds=include_cmds,
-            include_env=include_env,
-            include_secret=include_secret,
-        )
-
-        # add env vars and overwrite because they have priority
-        if include_env:
-            self._include_envs(config_sources, display_sensitive, display_source, raw)
-        else:
-            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
-
-        # add bash commands
-        if include_cmds:
-            self._include_commands(config_sources, display_sensitive, display_source, raw)
-        else:
-            self._filter_by_source(config_sources, display_source, self._get_cmd_option)
-
-        # add config from secret backends
-        if include_secret:
-            self._include_secrets(config_sources, display_sensitive, display_source, raw)
-        else:
-            self._filter_by_source(config_sources, display_source, self._get_secret_option)
-
-        if not display_sensitive:
-            # This ensures the ones from config file is hidden too
-            # if they are not provided through env, cmd and secret
-            hidden = "< hidden >"
-            for section, key in self.sensitive_config_values:
-                if config_sources.get(section):
-                    if config_sources[section].get(key, None):
-                        if display_source:
-                            source = config_sources[section][key][1]
-                            config_sources[section][key] = (hidden, source)
-                        else:
-                            config_sources[section][key] = hidden
-
-        return config_sources
 
     def load_test_config(self):
         """

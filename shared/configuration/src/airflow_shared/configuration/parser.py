@@ -1348,6 +1348,117 @@ class AirflowConfigParser(ConfigParser):
         """
         return optionstr
 
+    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
+        """
+        Get list of config sources to use in as_dict().
+
+        Subclasses can override to add additional sources (e.g., provider configs).
+        """
+        return [
+            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
+            ("default", self._default_values),
+            ("airflow.cfg", self),
+        ]
+
+    def as_dict(
+        self,
+        display_source: bool = False,
+        display_sensitive: bool = False,
+        raw: bool = False,
+        include_env: bool = True,
+        include_cmds: bool = True,
+        include_secret: bool = True,
+    ) -> ConfigSourcesType:
+        """
+        Return the current configuration as an OrderedDict of OrderedDicts.
+
+        When materializing current configuration Airflow defaults are
+        materialized along with user set configs. If any of the `include_*`
+        options are False then the result of calling command or secret key
+        configs do not override Airflow defaults and instead are passed through.
+        In order to then avoid Airflow defaults from overwriting user set
+        command or secret key configs we filter out bare sensitive_config_values
+        that are set to Airflow defaults when command or secret key configs
+        produce different values.
+
+        :param display_source: If False, the option value is returned. If True,
+            a tuple of (option_value, source) is returned. Source is either
+            'airflow.cfg', 'default', 'env var', or 'cmd'.
+        :param display_sensitive: If True, the values of options set by env
+            vars and bash commands will be displayed. If False, those options
+            are shown as '< hidden >'
+        :param raw: Should the values be output as interpolated values, or the
+            "raw" form that can be fed back in to ConfigParser
+        :param include_env: Should the value of configuration from AIRFLOW__
+            environment variables be included or not
+        :param include_cmds: Should the result of calling any ``*_cmd`` config be
+            set (True, default), or should the _cmd options be left as the
+            command to run (False)
+        :param include_secret: Should the result of calling any ``*_secret`` config be
+            set (True, default), or should the _secret options be left as the
+            path to get the secret from (False)
+        :return: Dictionary, where the key is the name of the section and the content is
+            the dictionary with the name of the parameter and its value.
+        """
+        if not display_sensitive:
+            # We want to hide the sensitive values at the appropriate methods
+            # since envs from cmds, secrets can be read at _include_envs method
+            if not all([include_env, include_cmds, include_secret]):
+                raise ValueError(
+                    "If display_sensitive is false, then include_env, "
+                    "include_cmds, include_secret must all be set as True"
+                )
+
+        config_sources: ConfigSourcesType = {}
+
+        # We check sequentially all those sources and the last one we saw it in will "win"
+        configs = self._get_config_sources_for_as_dict()
+
+        self._replace_config_with_display_sources(
+            config_sources,
+            configs,
+            self.configuration_description if self.configuration_description else {},
+            display_source,
+            raw,
+            self.deprecated_options,
+            include_cmds=include_cmds,
+            include_env=include_env,
+            include_secret=include_secret,
+        )
+
+        # add env vars and overwrite because they have priority
+        if include_env:
+            self._include_envs(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_env_var_option)
+
+        # add bash commands
+        if include_cmds:
+            self._include_commands(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_cmd_option)
+
+        # add config from secret backends
+        if include_secret:
+            self._include_secrets(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_secret_option)
+
+        if not display_sensitive:
+            # This ensures the ones from config file is hidden too
+            # if they are not provided through env, cmd and secret
+            hidden = "< hidden >"
+            for section, key in self.sensitive_config_values:
+                if config_sources.get(section):
+                    if config_sources[section].get(key, None):
+                        if display_source:
+                            source = config_sources[section][key][1]
+                            config_sources[section][key] = (hidden, source)
+                        else:
+                            config_sources[section][key] = hidden
+
+        return config_sources
+
     def is_template(self, section: str, key) -> bool:
         """
         Return whether the value is templated.
