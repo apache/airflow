@@ -111,7 +111,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             :param session: Sqlalchemy session
             """
             if not self.task_instance:
-                raise RuRuntimeErrorn(f"TaskInstance not set on {self.__class__.__name__}!")
+                raise RuntimeError(f"TaskInstance not set on {self.__class__.__name__}!")
 
             query = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.task_instance.dag_id,
