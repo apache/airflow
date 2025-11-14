@@ -68,8 +68,6 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 3.2.2
@@ -260,7 +258,8 @@ Bug Fixes
 
 * ``Fix mypy problems in new weaviate client (#40330)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``fix two typos (#40670)``
    * ``Fix weaviate changelog to bring back 1.4.2 (#40663)``
    * ``Prepare docs 1st wave July 2024 (#40644)``
@@ -275,7 +274,8 @@ Misc
 * ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
 
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
    * ``Prepare docs 2nd wave June 2024 (#40273)``
    * ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
@@ -372,8 +372,6 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
    * ``Add documentation for 3rd wave of providers in Deember (#36464)``
 

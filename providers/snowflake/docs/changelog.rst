@@ -106,8 +106,6 @@ Doc-only
    * ``Remove airflow.models.DAG (#54383)``
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 6.5.2
@@ -398,8 +396,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 5.8.1
@@ -709,7 +705,8 @@ Bug Fixes
 
 * ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
 
 

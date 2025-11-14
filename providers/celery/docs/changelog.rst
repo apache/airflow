@@ -123,8 +123,6 @@ Doc-only
    * ``Remove airflow.models.DAG (#54383)``
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 3.12.2
@@ -726,7 +724,8 @@ Misc
 * ``Move default_celery.py to inside the provider (#32628)``
 * ``Raise original import error in CLI vending of executors (#32931)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Introduce decorator to load providers configuration (#32765)``
    * ``Allow configuration to be contributed by providers (#32604)``
    * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
