@@ -3793,7 +3793,7 @@ class TestSchedulerJob:
         SerializedDagModel.write_dag(
             LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
         )
-
+        session.commit()
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
