@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow._shared.timezones import timezone
@@ -226,22 +226,24 @@ class PartitionMapper:
     Maps keys from asset events to target dag run partitions.
     """
 
-    def map(self, key): ...
+    def map(self, key: str) -> str: ...
 
-    def inverse_map(self, key): ...
+    def inverse_map(self, key: str) -> Iterable[str]: ...
 
 
 class IdentityMapper(PartitionMapper):
-    "Partition mapper that does not change the key."
+    """Partition mapper that does not change the key."""
 
-    def map(self, key):
+    def map(self, key: str) -> str:
         return key
 
-    def inverse_map(self, key):
-        return key
+    def inverse_map(self, key: str) -> Iterable[str]:
+        yield key
 
 
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
+    """Asset-driven timetable that listens for partitioned assets."""
+
     @property
     def summary(self) -> str:
         return "Partitioned Asset"
