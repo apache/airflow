@@ -21,7 +21,6 @@ import re
 import sys
 from itertools import chain
 from pathlib import Path
-from subprocess import DEVNULL
 
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
@@ -31,6 +30,7 @@ from airflow_breeze.global_constants import (
     SelectiveCoreTestType,
     all_helm_test_packages,
 )
+from airflow_breeze.utils.confirm import Answer, confirm_action
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
@@ -43,9 +43,9 @@ DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
 DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
-TASK_SDK_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-integration-tests"
-TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
-TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_TESTS_ROOT_PATH / "requirements.txt"
+TASK_SDK_INTEGRATION_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk-integration-tests"
+TASK_SDK_TESTS_TESTS_MODULE_PATH = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH / "tests" / "task_sdk_tests"
+TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH / "requirements.txt"
 
 AIRFLOW_E2E_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests"
 
@@ -101,23 +101,51 @@ def verify_an_image(
 
 def run_docker_compose_tests(
     image_name: str,
+    python_version: str,
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
+    skip_mounting_local_volumes: bool,
     include_success_outputs: bool,
     test_type: str = "docker-compose",
     skip_image_check: bool = False,
     test_mode: str = "basic",
 ) -> tuple[int, str]:
     if not skip_image_check:
-        command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
+        command_result = run_command(
+            ["docker", "inspect", image_name], check=False, capture_output=True, text=True
+        )
         if command_result.returncode != 0:
             get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-            return command_result.returncode, f"Testing {test_type} python with {image_name}"
-    pytest_args = ("--color=yes",)
+            get_console().print(command_result.stderr or "", highlight=False)
+            if "no such object" in command_result.stderr:
+                get_console().print(
+                    f"The image {image_name} does not exist locally. "
+                    f"It should be build before running docker-compose tests."
+                )
+                answer = confirm_action(
+                    "Should we build it now? No will",
+                    default_answer=Answer.YES,
+                    quit_allowed=False,
+                    timeout=20,
+                )
+                if answer:
+                    get_console().print(f"[info]Building image {image_name}[/]")
+                    run_command(["breeze", "prod-image", "build", "--python", python_version], check=True)
+
+                else:
+                    get_console().print(
+                        f"[error]Cannot run docker-compose tests without the image {image_name} present locally.[/]"
+                    )
+                    get_console().print(
+                        f"\nPlease build the image, using\n\n"
+                        f"[special]breeze prod-image build --python {python_version}[/]\n\n"
+                        f"and try again.\n"
+                    )
+                    sys.exit(1)
 
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests"
-        cwd = TASK_SDK_TESTS_ROOT_PATH.as_posix()
+        cwd = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH.as_posix()
     elif test_type == "airflow-e2e-tests":
         test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
         cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
@@ -128,17 +156,27 @@ def run_docker_compose_tests(
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
 
+    all_tests = [test_path.as_posix()]
+    # Always with color and -s to see print outputs as they come
+    pytest_args = ["--color=yes", "-s"]
+    if not any(pytest_arg.startswith("tests/") for pytest_arg in extra_pytest_args):
+        # Only add all tests when no tests were specified on the command line
+        pytest_args.extend(all_tests)
+    else:
+        pytest_args.extend(extra_pytest_args)
+
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     env["E2E_TEST_MODE"] = test_mode
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
+    if skip_mounting_local_volumes:
+        env["SKIP_MOUNTING_LOCAL_VOLUMES"] = "true"
     if include_success_outputs:
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     env["AIRFLOW_UID"] = str(os.getuid())
-    # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
-        ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
+        ["uv", "run", "pytest", *pytest_args],
         env=env,
         check=False,
         cwd=cwd,
