@@ -43,7 +43,6 @@ from re import Pattern
 from typing import IO, TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
-from packaging.version import parse as parse_version
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
@@ -548,19 +547,11 @@ class AirflowConfigParser(ConfigParser):
         Returns tuple of (should_continue, needs_separation) where needs_separation should be
         set if the option needs additional separation to visually separate it from the next option.
         """
-        from airflow import __version__ as airflow_version
-
         option_config_description = (
             section_config_description.get("options", {}).get(option, {})
             if section_config_description
             else {}
         )
-        version_added = option_config_description.get("version_added")
-        if version_added is not None and parse_version(version_added) > parse_version(
-            parse_version(airflow_version).base_version
-        ):
-            # skip if option is going to be added in the future version
-            return False, False
         description = option_config_description.get("description")
         needs_separation = False
         if description and include_descriptions:
