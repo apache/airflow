@@ -25,6 +25,28 @@
 Changelog
 ---------
 
+1.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow a list of SQL statements in GenericTransfer (#56041)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'common/sql' provider to 'common.compat' (#57135)``
+* ``Migrate 'common.sql' provider to 'common.compat' (#57075)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (cncf,common) (#57995)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0127 rule (#57298)``
+
 1.28.2
 ......
 

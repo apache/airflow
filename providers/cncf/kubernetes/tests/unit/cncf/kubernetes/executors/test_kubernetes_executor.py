@@ -407,6 +407,26 @@ class TestKubernetesExecutor:
                 State.FAILED,
                 id="429 Too Many Requests (empty body)",
             ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "Internal error occurred: failed calling webhook \\"mutation.azure-workload-identity.io\\": failed to call webhook: Post \\"https://azure-wi-webhook-webhook-service.kube-system.svc:443/mutate-v1-pod?timeout=10s\\""}',
+                    status=500,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="500 Internal Server Error (webhook failure)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "Internal error occurred: failed calling webhook"}',
+                    status=500,
+                ),
+                1,
+                True,
+                State.FAILED,
+                id="500 Internal Server Error (webhook failure) (retry failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -439,6 +459,9 @@ class TestKubernetesExecutor:
             - your requested namespace doesn't exists
         - 422 Unprocessable Entity will returns in scenarios like
             - your request parameters are valid but unsupported e.g. limits lower than requests.
+        - 500 Internal Server Error will returns in scenarios like
+            - failed calling webhook - typically transient API server or webhook service issues
+            - should be retried if task_publish_max_retries > 0
 
         """
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()

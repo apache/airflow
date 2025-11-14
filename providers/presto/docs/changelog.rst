@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+5.9.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Replace the "postgres" extra on pandas from Presto provider with direct psycopg2-binary. (#57813)``
+* ``Fix pandas extra in Presto provider (#57141)``
+* ``Migrate presto provider to common.compat (#57136)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
 5.9.3
 .....
 
