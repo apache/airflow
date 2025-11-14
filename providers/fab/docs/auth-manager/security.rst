@@ -70,10 +70,24 @@ uses per-webserver default limit of 5 requests per 40 second fixed window. By de
 rate limits is used between the gunicorn processes you run so rate-limit is applied separately for each process,
 so assuming random distribution of the requests by gunicorn with single webserver instance and default 4
 gunicorn workers, the effective rate limit is 5 x 4 = 20 requests per 40 second window (more or less).
-However you can configure the rate limit to be shared between the processes by using rate limit storage via
-setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
-For example, to use Redis as a rate limit storage you can use the following configuration (you need
-to set ``redis_host`` to your Redis instance)
+
+However, you can configure the rate limit to be shared between processes by using a common storage backend like Redis.
+
+Example (using airflow.cfg):
+.. code-block:: ini
+
+    [fab]
+    auth_rate_limit_storage_uri = redis://redis_host:6379/0
+    auth_rate_limit_storage_options = {"socket_timeout": 5}
+
+Example (using environment variables):
+.. code-block:: bash
+
+    export AIRFLOW__FAB__AUTH_RATE_LIMIT_STORAGE_URI="redis://redis_host:6379/0"
+    export AIRFLOW__FAB__AUTH_RATE_LIMIT_STORAGE_OPTIONS='{"socket_timeout": 5}'
+
+Legacy Method:
+Alternatively, these settings can be configured by adding them directly to your webserver_config.py file
 
 .. code-block:: python
 

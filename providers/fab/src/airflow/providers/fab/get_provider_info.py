@@ -177,6 +177,20 @@ def get_provider_info():
                         "example": None,
                         "default": "1",
                     },
+                    "auth_rate_limit_storage_uri": {
+                        "description": "Storage backend for rate limit data. The default backend is in-memory storage.\nWhen specifying a storage URI, only Redis and Redis Cluster backends are supported.\nExamples: ``redis://localhost:6379`` or ``redis+cluster://redis0:6379,redis1:6379``.\nSee `Flask-Limiter Storage Options\n<https://flask-limiter.readthedocs.io/en/stable/#storage-backends>`__ for more details.\n",
+                        "version_added": "3.0.1",
+                        "type": "string",
+                        "example": None,
+                        "default": "memory://",
+                    },
+                    "auth_rate_limit_storage_options": {
+                        "description": "Storage options for rate limit data storage backend.\nSee `Flask-Limiter Storage Options\n<https://flask-limiter.readthedocs.io/en/stable/#storage-backends>`__ for more details.\n",
+                        "version_added": "3.0.1",
+                        "type": "string",
+                        "example": None,
+                        "default": None,
+                    },
                 },
             }
         },
