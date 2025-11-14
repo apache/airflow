@@ -36,7 +36,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SimpleAuthenticatedUserResponse'
+                $ref: '#/components/schemas/CurrentAuthenticatedMeResponse'
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1398,6 +1398,24 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
+    CurrentAuthenticatedMeResponse:
+      properties:
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+      type: object
+      required:
+      - username
+      - role
+      title: CurrentAuthenticatedMeResponse
+      description: Current User (me) response serializer for SimpleAuthManager.
     DAGRunLightResponse:
       properties:
         id:
@@ -2294,22 +2312,6 @@ components:
 
 
         :meta private:'
-    SimpleAuthenticatedUserResponse:
-      properties:
-        username:
-          type: string
-          title: Username
-        role:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Role
-      type: object
-      required:
-      - username
-      - role
-      title: SimpleAuthenticatedUserResponse
-      description: Current User response serializer for SimpleAuthManager.
     StandardHookFields:
       properties:
         description:

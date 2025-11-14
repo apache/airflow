@@ -1791,6 +1791,14 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * Current User (me) response serializer for SimpleAuthManager.
+ */
+export type CurrentAuthenticatedMeResponse = {
+    username: string | null;
+    role: string | null;
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -1983,14 +1991,6 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
-};
-
-/**
- * Current User response serializer for SimpleAuthManager.
- */
-export type SimpleAuthenticatedUserResponse = {
-    username: string;
-    role: string | null;
 };
 
 /**
@@ -3338,7 +3338,7 @@ export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
-export type GetCurrentUserResponse = SimpleAuthenticatedUserResponse;
+export type GetCurrentUserResponse = CurrentAuthenticatedMeResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
@@ -6442,7 +6442,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: SimpleAuthenticatedUserResponse;
+                200: CurrentAuthenticatedMeResponse;
             };
         };
     };

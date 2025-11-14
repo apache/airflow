@@ -28,8 +28,8 @@ class MenuItemCollectionResponse(BaseModel):
     extra_menu_items: list[ExtraMenuItem]
 
 
-class SimpleAuthenticatedUserResponse(BaseModel):
-    """Current User response serializer for SimpleAuthManager."""
+class CurrentAuthenticatedMeResponse(BaseModel):
+    """Current User (me) response serializer for SimpleAuthManager."""
 
-    username: str
+    username: str | None
     role: str | None

@@ -23,7 +23,7 @@ from abc import abstractmethod
 class BaseUser:
     """User model interface."""
 
-    username: str
+    username: str | None
     role: str | None
 
     @abstractmethod

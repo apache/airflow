@@ -32,4 +32,4 @@ class KeycloakAuthManagerUser(BaseUser):
         return self.user_id
 
     def get_name(self) -> str:
-        return self.name
+        return self.name or "unknown"

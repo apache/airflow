@@ -7147,6 +7147,37 @@ It is used to transfer providers information loaded by providers_manager such th
 the API server/Web UI can use this data to render connection form UI.`
 } as const;
 
+export const $CurrentAuthenticatedMeResponse = {
+    properties: {
+        username: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Username'
+        },
+        role: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Role'
+        }
+    },
+    type: 'object',
+    required: ['username', 'role'],
+    title: 'CurrentAuthenticatedMeResponse',
+    description: 'Current User (me) response serializer for SimpleAuthManager.'
+} as const;
+
 export const $DAGRunLightResponse = {
     properties: {
         id: {
@@ -7994,30 +8025,6 @@ export const $NodeResponse = {
     required: ['id', 'label', 'type'],
     title: 'NodeResponse',
     description: 'Node serializer for responses.'
-} as const;
-
-export const $SimpleAuthenticatedUserResponse = {
-    properties: {
-        username: {
-            type: 'string',
-            title: 'Username'
-        },
-        role: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Role'
-        }
-    },
-    type: 'object',
-    required: ['username', 'role'],
-    title: 'SimpleAuthenticatedUserResponse',
-    description: 'Current User response serializer for SimpleAuthManager.'
 } as const;
 
 export const $StandardHookFields = {

@@ -60,7 +60,7 @@ class TestGetAuthLinks:
         assert response.json() == {"authorized_menu_items": [], "extra_menu_items": []}
 
 
-class TestGetCurrentSimpleAuthenticatedUser:
+class TestGetCurrentSimpleAuthenticatedMeResponse:
     def test_should_response_200_with_authenticated_user(self, test_client):
         response = test_client.get("/auth/me")
 

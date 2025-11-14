@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
+    CurrentAuthenticatedMeResponse,
     MenuItemCollectionResponse,
-    SimpleAuthenticatedUserResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 
@@ -44,9 +45,15 @@ def get_auth_menus(
 @auth_router.get("/auth/me")
 def get_current_user(
     user: GetUserDep,
-) -> SimpleAuthenticatedUserResponse:
+) -> CurrentAuthenticatedMeResponse:
     """Get current authenticated user information."""
-    return SimpleAuthenticatedUserResponse(
-        username=user.username,
-        role=user.role,
+    auth_manager = get_auth_manager()
+    if isinstance(auth_manager, SimpleAuthManager):
+        return CurrentAuthenticatedMeResponse(
+            username=user.username,
+            role=user.role,
+        )
+    return CurrentAuthenticatedMeResponse(
+        username=user.get_name(),
+        role=user.role or None,
     )
