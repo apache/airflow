@@ -185,7 +185,9 @@ class TestPostgresHookConn:
         mock_aws_hook_instance.region_name = "us-east-1"
 
         if should_raise:
-            with pytest.raises(ValueError, match="connection.host is required for Redshift OpenLineage authority"):
+            with pytest.raises(
+                ValueError, match="connection.host is required for Redshift OpenLineage authority"
+            ):
                 self.db_hook._get_openlineage_redshift_authority_part(self.connection)
         else:
             assert (

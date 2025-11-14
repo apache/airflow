@@ -580,7 +580,9 @@ class PostgresHook(DbApiHook):
                 "connection.host is required for Redshift OpenLineage authority "
                 "when cluster-identifier is not provided in connection extra"
             )
-        cluster_identifier = cluster_identifier if cluster_identifier is not None else connection.host.split(".")[0]
+        cluster_identifier = (
+            cluster_identifier if cluster_identifier is not None else connection.host.split(".")[0]
+        )
         region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
 
         return f"{cluster_identifier}.{region_name}:{port}"
