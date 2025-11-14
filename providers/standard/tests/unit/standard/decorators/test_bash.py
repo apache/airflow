@@ -41,7 +41,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     # bad hack but does the job
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
+    from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
+        NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
+    )
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
