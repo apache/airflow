@@ -266,7 +266,7 @@ class HITLTrigger(BaseTrigger):
                 resp = await sync_to_async(update_hitl_detail_response)(
                     ti_id=self.ti_id,
                     chosen_options=self.defaults,
-                    params_input=self.params,
+                    params_input=self.params.dump(),
                 )
                 if TYPE_CHECKING:
                     assert resp.responded_at is not None
@@ -276,7 +276,7 @@ class HITLTrigger(BaseTrigger):
                 yield TriggerEvent(
                     HITLTriggerEventSuccessPayload(
                         chosen_options=self.defaults,
-                        params_input=self.params,
+                        params_input=self.params.dump(),
                         responded_by_user=None,
                         responded_at=resp.responded_at,
                         timedout=True,
