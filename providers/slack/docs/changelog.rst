@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: use get async conn from common compact (#57894)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate slack provider to ''common.compat'' (#57110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to slack Provider test (#57963)``
+
 9.4.0
 .....
 

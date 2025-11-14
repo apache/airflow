@@ -51,6 +51,63 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
+19.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated in google provider scheduled for October 2025 (#56935)``
+
+Features
+~~~~~~~~
+
+* ``issue-58236: Adding gcp_conn_id to template_fields for BigQuery and Dataproc Operators (#58250)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: add required arguments when creating an external table (#58199)``
+* ``Fix MSSQLToGCSOperator MSSQL BIT data type conversion to Parquet boolean (#57514)``
+* ``Small fix for feature_store system test + add output for operator (#57605)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate google provider to 'common.compat' (#57130)``
+* ``Move subprocess utility closer to usage in google beam (#57187)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove tasks which use DirectRunner from Dataflow system tests (#57803)``
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Add google provider dataflow pipeline streaming system test (#56265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to google Provider test (triggers) (#57953)``
+   * ``Enable PT006 rule to google Provider test (triggers) (#57950)``
+   * ``Enable PT006 rule to google Provider test (log,openlineage,common,utils) (#57947)``
+   * ``Enable PT006 rule to google Provider test (operators part2)  (#57944)``
+   * ``KubernetesPodTriggerer reads pod logs instead of KubernetesPodOperator (#57531)``
+   * ``modify test_variables (#57945)``
+   * ``Enable PT006 rule to google Provider test (operators part1) (#57943)``
+   * ``Enable PT006 rule to google Provider test （hooks） (#57915)``
+   * ``Add gcp_conn_id parameter to DataprocDiagnoseClusterOperator examples (#57904)``
+   * ``Replace dag.log.info with log.info in system tests in google provider (#57550)``
+   * ``Change the runtime for Google Cloud Function system test (#57623)``
+   * ``Enable ruff PLW1510 rule (#57660)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+   * ``Enable ruff PLW0120 rule (#57456)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Fixing some typos and spelling errors (#57186)``
+
 18.1.0
 ......
 

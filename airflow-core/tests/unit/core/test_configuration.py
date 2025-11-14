@@ -23,6 +23,7 @@ import os
 import re
 import textwrap
 import warnings
+from collections.abc import Callable
 from enum import Enum
 from io import StringIO
 from unittest import mock
@@ -1104,6 +1105,89 @@ key7 =
             # Verify kwargs are properly applied to the backend instance
             for key, value in expected_backend_kwargs.items():
                 assert getattr(secrets_backend, key) == value
+
+    def test_lookup_sequence_override_excludes_env_vars(self, monkeypatch):
+        """Test that overriding lookup sequence to exclude env vars means env vars are not respected."""
+
+        class CustomConfigParser(AirflowConfigParser):
+            @property
+            def _lookup_sequence(self) -> list[Callable]:
+                return [
+                    self._get_option_from_config_file,
+                    self._get_option_from_defaults,
+                ]
+
+        test_conf = CustomConfigParser()
+        monkeypatch.setenv("AIRFLOW__TEST__KEY", "env_value")
+        # Even though env var is set, it will NOT be used because _get_environment_variables is not in the lookup sequence
+        result = test_conf.get("test", "key", fallback="default_value")
+        assert result == "default_value"
+
+    def test_validate_sets_is_validated_flag(self):
+        """Test that validate() sets is_validated to True."""
+        test_conf = AirflowConfigParser(default_config="")
+        assert test_conf.is_validated is False
+        test_conf.validate()
+        assert test_conf.is_validated is True
+
+    def test_validators_can_be_overridden_in_subclass(self):
+        """Test that subclasses can override _validators to customize validation."""
+
+        class CustomConfigParser(AirflowConfigParser):
+            @property
+            def _validators(self):
+                return [self._validate_enums]
+
+        test_conf = CustomConfigParser(default_config="")
+        validators = test_conf._validators
+        assert len(validators) == 1
+        assert validators[0].__name__ == "_validate_enums"
+
+    def test_validate_exception_is_handled(self):
+        """Test that exceptions from validators bubble up and is_validated remains False."""
+
+        class FailingValidatorsParser(AirflowConfigParser):
+            def failing_validator(self):
+                raise AirflowConfigException("Test validator failure")
+
+            @property
+            def _validators(self):
+                return [self.failing_validator]
+
+        failing_conf = FailingValidatorsParser(default_config="")
+        assert failing_conf.is_validated is False
+
+        with pytest.raises(AirflowConfigException, match="Test validator failure"):
+            failing_conf.validate()
+        assert failing_conf.is_validated is False
+
+    def test_validate_is_idempotent(self):
+        """Test that running validate() multiple times is idempotent."""
+        test_conf = AirflowConfigParser(default_config="")
+
+        test_conf.deprecated_values = {
+            "core": {"executor": (re.compile(re.escape("SequentialExecutor")), "LocalExecutor")},
+        }
+        test_conf.read_dict({"core": {"executor": "SequentialExecutor"}})
+
+        # first pass at validation
+        test_conf.validate()
+        assert test_conf.is_validated is True
+        first_upgraded_values = dict(test_conf.upgraded_values)
+
+        # deprecated value should be upgraded
+        assert ("core", "executor") in first_upgraded_values
+        assert first_upgraded_values[("core", "executor")] == "SequentialExecutor"
+
+        # second pass at validation
+        test_conf.validate()
+        assert test_conf.is_validated is True
+
+        # previously upgraded values should remain the same, no re-upgrade
+        second_upgraded_values = dict(test_conf.upgraded_values)
+        assert first_upgraded_values == second_upgraded_values
+
+        assert test_conf.get("core", "executor") == "LocalExecutor"
 
 
 @mock.patch.dict(

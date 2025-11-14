@@ -124,6 +124,14 @@ export const Header = ({
                   value: <Time datetime={dagRun.logical_date} />,
                 },
               ]),
+          ...(dagRun.partition_key === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.partitionKey"),
+                  value: dagRun.partition_key,
+                },
+              ]),
           {
             label: translate("dagRun.runType"),
             value: (

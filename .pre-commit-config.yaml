@@ -350,7 +350,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.4']
+        additional_dependencies: ['ruff==0.14.5']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -555,6 +555,7 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
+          ^scripts/ci/prek/upgrade_important_versions.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs
