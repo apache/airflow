@@ -163,7 +163,7 @@ input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-ge
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -196,7 +196,7 @@ testpaths = [
 ]
 asyncio_default_fixture_loop_scope = "function"
 
-pythonpath = "tests"
+pythonpath = ["tests"]
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
