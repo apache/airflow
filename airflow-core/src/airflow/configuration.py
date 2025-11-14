@@ -716,25 +716,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             del self.sensitive_config_values
         self._providers_configuration_loaded = True
 
-    @staticmethod
-    def _warn_deprecate(
-        section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
-    ):
-        if section == deprecated_section:
-            warnings.warn(
-                f"The {deprecated_name} option in [{section}] has been renamed to {key} - "
-                f"the old setting has been used, but please update your config.",
-                DeprecationWarning,
-                stacklevel=4 + extra_stacklevel,
-            )
-        else:
-            warnings.warn(
-                f"The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option "
-                f"in [{section}] - the old setting has been used, but please update your config.",
-                DeprecationWarning,
-                stacklevel=4 + extra_stacklevel,
-            )
-
     def __getstate__(self) -> dict[str, Any]:
         """Return the state of the object as a dictionary for pickling."""
         return {

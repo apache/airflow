@@ -118,11 +118,6 @@ class AirflowConfigParser(ConfigParser):
     - _default_values: ConfigParser with default values (set by subclasses)
     - deprecated_options: class attribute mapping new -> old options
     - deprecated_sections: class attribute mapping new -> old sections
-
-    Subclasses should:
-    1. Set configuration_description and _default_values in __init__
-    2. Override get_provider_config_fallback_defaults() if needed
-    3. Override _get_config_value_from_secret_backend() if needed
     """
 
     # A mapping of section -> setting -> { old, replace } for deprecated default values.
