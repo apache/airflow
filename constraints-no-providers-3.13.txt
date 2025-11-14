@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-13T15:47:32.747549
+# This constraints file was automatically generated on 2025-11-14T21:44:54.931691
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -22,7 +22,7 @@ SQLAlchemy==2.0.44
 a2wsgi==1.10.10
 aiosmtplib==5.0.0
 aiosqlite==0.21.0
-alembic==1.17.1
+alembic==1.17.2
 annotated-types==0.7.0
 anyio==4.11.0
 argcomplete==3.6.3
