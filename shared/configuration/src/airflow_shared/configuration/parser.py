@@ -35,6 +35,7 @@ from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from enum import Enum
 from json.decoder import JSONDecodeError
+from re import Pattern
 from typing import IO, Any, TypeVar, overload
 
 from .exceptions import AirflowConfigException
@@ -124,6 +125,10 @@ class AirflowConfigParser(ConfigParser):
     3. Override _get_config_value_from_secret_backend() if needed
     """
 
+    # A mapping of section -> setting -> { old, replace } for deprecated default values.
+    # Subclasses can override this to define deprecated values that should be upgraded.
+    deprecated_values: dict[str, dict[str, tuple[Pattern, str]]] = {}
+
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
@@ -203,6 +208,43 @@ class AirflowConfigParser(ConfigParser):
             validator()
         self.is_validated = True
 
+    def _validate_deprecated_values(self) -> None:
+        """Validate and upgrade deprecated default values."""
+        for section, replacement in self.deprecated_values.items():
+            for name, info in replacement.items():
+                old, new = info
+                current_value = self.get(section, name, fallback="")
+                if self._using_old_value(old, current_value):
+                    self.upgraded_values[(section, name)] = current_value
+                    new_value = old.sub(new, current_value)
+                    self._update_env_var(section=section, name=name, new_value=new_value)
+                    self._create_future_warning(
+                        name=name,
+                        section=section,
+                        current_value=current_value,
+                        new_value=new_value,
+                    )
+
+    def _using_old_value(self, old: Pattern, current_value: str) -> bool:
+        """Check if current_value matches the old pattern."""
+        return old.search(current_value) is not None
+
+    def _update_env_var(self, section: str, name: str, new_value: str) -> None:
+        """Update environment variable with new value."""
+        env_var = self._env_var_name(section, name)
+        # Set it as an env var so that any subprocesses keep the same override!
+        os.environ[env_var] = new_value
+
+    @staticmethod
+    def _create_future_warning(name: str, section: str, current_value: Any, new_value: Any) -> None:
+        """Create a FutureWarning for deprecated default values."""
+        warnings.warn(
+            f"The {name!r} setting in [{section}] has the old default value of {current_value!r}. "
+            f"This value has been changed to {new_value!r} in the running config, but please update your config.",
+            FutureWarning,
+            stacklevel=3,
+        )
+
     def __init__(self, *args, **kwargs):
         """
         Initialize the parser.
@@ -217,6 +259,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description: dict[str, dict[str, Any]] | None = None
         self._default_values: ConfigParser | None = None
         self._suppress_future_warnings: bool = False
+        self.upgraded_values = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):

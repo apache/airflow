@@ -199,7 +199,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     ):
         super().__init__(*args, **kwargs)
         self.configuration_description = retrieve_configuration_description(include_providers=False)
-        self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
         # We have to keep the default values in a ConfigParser rather than in any other
         # data structure, because the values we have might contain %% which are ConfigParser
@@ -640,23 +639,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         raise AirflowConfigException(
             f"error: SQLite C library too old (< {min_sqlite_version_str}). "
             f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-        )
-
-    def _using_old_value(self, old: Pattern, current_value: str) -> bool:
-        return old.search(current_value) is not None
-
-    def _update_env_var(self, section: str, name: str, new_value: str):
-        env_var = self._env_var_name(section, name)
-        # Set it as an env var so that any subprocesses keep the same override!
-        os.environ[env_var] = new_value
-
-    @staticmethod
-    def _create_future_warning(name: str, section: str, current_value: Any, new_value: Any):
-        warnings.warn(
-            f"The {name!r} setting in [{section}] has the old default value of {current_value!r}. "
-            f"This value has been changed to {new_value!r} in the running config, but please update your config.",
-            FutureWarning,
-            stacklevel=3,
         )
 
     def mask_secrets(self):
