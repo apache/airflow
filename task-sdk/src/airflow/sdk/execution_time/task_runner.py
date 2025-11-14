@@ -1101,7 +1101,11 @@ def _handle_trigger_dag_run(
             trigger=DagStateTrigger(
                 dag_id=drte.trigger_dag_id,
                 states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                execution_dates=[drte.logical_date] if drte.logical_date else None,
+                # Don't filter by execution_dates when run_ids is provided.
+                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                # drte.logical_date might be a newly calculated value that doesn't match
+                # the persisted logical_date in the database, causing the trigger to never find the run.
+                execution_dates=None,
                 run_ids=[drte.dag_run_id],
                 poll_interval=drte.poke_interval,
             ),
