@@ -1447,6 +1447,7 @@ class TaskInstance(Base, LoggingMixin):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
+    @property
     def start_trigger_args(self) -> StartTriggerArgs | None:
         if self.task:
             if self.task.is_mapped:
