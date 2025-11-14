@@ -3309,3 +3309,56 @@ class TestTriggerDagRunOperator:
             state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == intermediate_state
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_deferred_with_reset_uses_run_id_only(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Test that TriggerDagRunOperator with deferrable=True and reset_dag_run=True
+        creates a DagStateTrigger with execution_dates=None.
+
+        This prevents the bug where reset_dag_run preserves the original logical_date
+        in the database but the trigger queries with a newly calculated logical_date,
+        causing a mismatch that makes the trigger never find the dag run.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="fixed_run_id",
+            wait_for_completion=True,
+            deferrable=True,
+            reset_dag_run=True,
+            poke_interval=5,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_deferred_reset", run_id="test_run", task=task
+        )
+
+        log = mock.MagicMock()
+        state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        # Task should be deferred
+        assert state == TaskInstanceState.DEFERRED
+        assert isinstance(msg, DeferTask)
+
+        # Verify the DeferTask message structure
+        assert msg.classpath == "airflow.providers.standard.triggers.external_task.DagStateTrigger"
+        assert msg.next_method == "execute_complete"
+
+        # Critical assertion: execution_dates should be None to avoid logical_date mismatch
+        # when reset_dag_run=True. The run_id alone is sufficient and unique.
+        trigger_kwargs = msg.trigger_kwargs
+        assert trigger_kwargs["execution_dates"] is None, (
+            "execution_dates should be None when using run_ids. "
+            "When reset_dag_run=True, the logical_date in the database may differ from "
+            "the newly calculated logical_date, causing the trigger to never find the run."
+        )
+        assert trigger_kwargs["run_ids"] == ["fixed_run_id"]
+        assert trigger_kwargs["dag_id"] == "test_dag"
+        assert trigger_kwargs["poll_interval"] == 5
+
+        # Also verify it was sent to supervisor
+        mock_supervisor_comms.send.assert_any_call(msg)
