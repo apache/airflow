@@ -19,10 +19,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow._shared.observability.metrics.protocols import Timer
+try:
+    from airflow_shared.observability.metrics.protocols import Timer
+except ModuleNotFoundError:
+    from airflow._shared.observability.metrics.protocols import Timer
 
 if TYPE_CHECKING:
-    from airflow._shared.observability.metrics.protocols import DeltaType
+    try:
+        from airflow_shared.observability.metrics.protocols import DeltaType
+    except ModuleNotFoundError:
+        from airflow._shared.observability.metrics.protocols import DeltaType
 
 
 class StatsLogger(Protocol):

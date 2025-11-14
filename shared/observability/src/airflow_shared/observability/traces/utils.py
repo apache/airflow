@@ -20,7 +20,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from airflow._shared.observability.traces import NO_TRACE_ID
+try:
+    from airflow_shared.observability.traces import NO_TRACE_ID
+except ModuleNotFoundError:
+    from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.utils.hashlib_wrapper import md5
 
 if TYPE_CHECKING:

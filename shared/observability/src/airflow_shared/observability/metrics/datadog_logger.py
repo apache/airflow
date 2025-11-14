@@ -33,10 +33,16 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from datadog import DogStatsd
 
-    from airflow._shared.observability.metrics.protocols import DeltaType
-    from airflow._shared.observability.metrics.validators import (
-        ListValidator,
-    )
+    try:
+        from airflow_shared.observability.metrics.protocols import DeltaType
+        from airflow_shared.observability.metrics.validators import (
+            ListValidator,
+        )
+    except ModuleNotFoundError:
+        from airflow._shared.observability.metrics.protocols import DeltaType
+        from airflow._shared.observability.metrics.validators import (
+            ListValidator,
+        )
 
 log = logging.getLogger(__name__)
 
