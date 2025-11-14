@@ -47,8 +47,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 2.3.3
@@ -254,7 +252,8 @@ Misc
 * ``Reapply templates for all providers (#39554)``
 * ``Fix the argument type of input_vectors in pinecone upsert (#39688)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``

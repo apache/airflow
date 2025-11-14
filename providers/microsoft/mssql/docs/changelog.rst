@@ -212,8 +212,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 3.9.2
@@ -487,7 +485,8 @@ Misc
 * ``Add common-sql lower bound for common-sql (#25789)``
 
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 3.2.0

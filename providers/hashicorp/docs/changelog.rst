@@ -451,7 +451,8 @@ Bug Fixes
 
 * ``Fix empty paths in Vault secrets backend (#29908)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs for 03/2023 wave of Providers (#29878)``
 
 3.2.0

@@ -175,8 +175,6 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
    * ``Bump pytest-asyncio to 1.1.0 (#54123)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 10.7.0
@@ -505,8 +503,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
    * ``fix: Get the pid of xcom command dynamically (#45053)``
 
 10.0.1
@@ -909,7 +905,8 @@ Misc
 * ``Add GKEStartKueueInsideClusterOperator (#37072)``
 * ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add d401 support to kubernetes provider (#37301)``
    * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
    * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
@@ -1416,7 +1413,8 @@ Features
 
 * ``Allow to set limits for XCOM container (#28125)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add mechanism to suspend providers (#30422)``
 
 5.3.0
@@ -1516,8 +1514,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated docs for RC3 wave of providers (#27937)``
    * ``Prepare for follow-up relase for November providers (#27774)``
-
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....
