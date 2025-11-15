@@ -43,8 +43,6 @@ from task_sdk_tests.constants import (
     TASK_SDK_INTEGRATION_LOCAL_DOCKER_COMPOSE_FILE_PATH,
 )
 
-from tests_common.test_utils.fernet import update_environment_variable_from_compose_yaml
-
 
 def print_diagnostics(compose, compose_version, docker_version):
     """Print diagnostic information when test fails."""

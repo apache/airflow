@@ -30,8 +30,6 @@ from airflowctl_tests.constants import (
     DOCKER_IMAGE,
 )
 
-from tests_common.test_utils.fernet import update_environment_variable_from_compose_yaml
-
 docker_client = None
 
 
@@ -167,8 +165,6 @@ def docker_compose_up(tmp_path_factory):
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
     os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
     os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
-
-    update_environment_variable_from_compose_yaml(file_path=tmp_docker_compose_file)
 
     # Initialize Docker client
     docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
