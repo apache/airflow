@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, JsonValue, StringConstraints
@@ -78,6 +79,8 @@ async def xcom_query(
     key: str,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
+    if key:
+        key = unquote(key)
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -143,6 +146,8 @@ def get_xcom(
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    if key:
+        key = unquote(key)
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -196,6 +201,8 @@ def get_mapped_xcom_by_index(
     offset: int,
     session: SessionDep,
 ) -> XComSequenceIndexResponse:
+    if key:
+        key = unquote(key)
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -240,6 +247,8 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
+    if key:
+        key = unquote(key)
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -360,7 +369,8 @@ def set_xcom(
                 "message": "XCom key must be a non-empty string.",
             },
         )
-
+    if key:
+        key = unquote(key)
     if mapped_length is not None:
         task_map = TaskMap(
             dag_id=dag_id,
@@ -425,6 +435,8 @@ def delete_xcom(
     map_index: Annotated[int, Query()] = -1,
 ):
     """Delete a single XCom Value."""
+    if key:
+        key = unquote(key)
     query = delete(XComModel).where(
         XComModel.key == key,
         XComModel.run_id == run_id,

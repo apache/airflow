@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
@@ -60,7 +61,7 @@ xcom_router = AirflowRouter(
 
 
 @xcom_router.get(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -80,6 +81,8 @@ def get_xcom_entry(
     stringify: Annotated[bool, Query()] = False,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
+    if xcom_key:
+        xcom_key = unquote(xcom_key)
     xcom_query = XComModel.get_many(
         run_id=dag_run_id,
         key=xcom_key,
@@ -156,6 +159,8 @@ def get_xcom_entries(
 
     This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
     """
+    if xcom_key:
+        xcom_key = unquote(xcom_key)
     query = select(XComModel)
     if dag_id != "~":
         query = query.where(XComModel.dag_id == dag_id)
@@ -241,6 +246,7 @@ def create_xcom_entry(
             )
 
     # Check existing XCom
+    request_body.key = unquote(request_body.key)
     already_existing_query = XComModel.get_many(
         key=request_body.key,
         task_ids=task_id,
@@ -291,7 +297,7 @@ def create_xcom_entry(
 
 
 @xcom_router.patch(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -314,7 +320,8 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
-    xcom_new_value = XComModel.serialize_value(patch_body.value)
+    if xcom_key:
+        xcom_key = unquote(xcom_key)
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
@@ -334,7 +341,7 @@ def update_xcom_entry(
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
 
-    # Update XCom entry
-    xcom_entry.value = XComModel.serialize_value(xcom_new_value)
+    # Update XCom entry (serialize exactly once, consistent with create)
+    xcom_entry.value = XComModel.serialize_value(patch_body.value)
 
     return XComResponseNative.model_validate(xcom_entry)
