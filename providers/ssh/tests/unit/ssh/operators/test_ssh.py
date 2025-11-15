@@ -30,11 +30,10 @@ from airflow.models import TaskInstance
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, NOTSET
 
 datetime = timezone.datetime
 
@@ -80,7 +79,7 @@ class TestSSHOperator:
             yield exec_ssh_client_command
 
     @pytest.mark.parametrize(
-        "cmd_timeout, cmd_timeout_expected",
+        ("cmd_timeout", "cmd_timeout_expected"),
         [(45, 45), ("Not Set", 10), (None, None)],
     )
     def test_hook_created_correctly(self, cmd_timeout, cmd_timeout_expected):
@@ -183,7 +182,7 @@ class TestSSHOperator:
             ).execute(None)
 
     @pytest.mark.parametrize(
-        "command, get_pty_in, get_pty_out",
+        ("command", "get_pty_in", "get_pty_out"),
         [
             (COMMAND, False, False),
             (COMMAND, True, True),
@@ -214,7 +213,7 @@ class TestSSHOperator:
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc",
+        ("extra_kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),

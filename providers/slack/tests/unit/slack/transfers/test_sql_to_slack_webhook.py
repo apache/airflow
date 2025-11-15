@@ -60,7 +60,7 @@ class TestSqlToSlackWebhookOperator:
         return operator
 
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param(
                 {}, {"timeout": None, "proxy": None, "retry_handlers": None}, id="default-hook-parameters"
@@ -137,7 +137,7 @@ class TestSqlToSlackWebhookOperator:
         )
 
     @pytest.mark.parametrize(
-        "slack_webhook_conn_id, warning_expected, expected_conn_id",
+        ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),
         [
             pytest.param("foo", False, "foo", id="slack-webhook-conn-id"),
             pytest.param("spam", True, "spam", id="mixin-conn-ids"),

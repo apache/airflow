@@ -480,7 +480,7 @@ class PodManager(LoggingMixin):
                 try:
                     for raw_line in logs:
                         line = raw_line.decode("utf-8", errors="backslashreplace")
-                        line_timestamp, message = self.parse_log_line(line)
+                        line_timestamp, message = parse_log_line(line)
                         if line_timestamp:  # detect new log line
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
@@ -707,22 +707,6 @@ class PodManager(LoggingMixin):
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
         return remote_pod
-
-    def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
-        """
-        Parse K8s log line and returns the final state.
-
-        :param line: k8s log line
-        :return: timestamp and log message
-        """
-        timestamp, sep, message = line.strip().partition(" ")
-        if not sep:
-            return None, line
-        try:
-            last_log_time = cast("DateTime", pendulum.parse(timestamp))
-        except ParserError:
-            return None, line
-        return last_log_time, message
 
     def container_is_running(self, pod: V1Pod, container_name: str) -> bool:
         """Read pod and checks if container is running."""
@@ -971,6 +955,23 @@ def is_log_group_marker(line: str) -> bool:
     return line.startswith("::group::") or line.startswith("::endgroup::")
 
 
+def parse_log_line(line: str) -> tuple[DateTime | None, str]:
+    """
+    Parse K8s log line and returns the final state.
+
+    :param line: k8s log line
+    :return: timestamp and log message
+    """
+    timestamp, sep, message = line.strip().partition(" ")
+    if not sep:
+        return None, line
+    try:
+        last_log_time = cast("DateTime", pendulum.parse(timestamp))
+    except ParserError:
+        return None, line
+    return last_log_time, message
+
+
 class AsyncPodManager(LoggingMixin):
     """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodTriggerer."""
 
@@ -1032,3 +1033,54 @@ class AsyncPodManager(LoggingMixin):
             startup_timeout=startup_timeout,
             check_interval=check_interval,
         )
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(5), wait=tenacity.wait_exponential(), reraise=True)
+    async def fetch_container_logs_before_current_sec(
+        self, pod: V1Pod, container_name: str, since_time: DateTime | None = None
+    ) -> DateTime | None:
+        """
+        Asynchronously read the log file of the specified pod.
+
+        This method streams logs from the base container, skipping log lines from the current second to prevent duplicate entries on subsequent reads. It is designed to handle long-running containers and gracefully suppresses transient interruptions.
+
+        :param pod: The pod specification to monitor.
+        :param container_name: The name of the container within the pod.
+        :param since_time: The timestamp from which to start reading logs.
+        :return: The timestamp to use for the next log read, representing the start of the current second. Returns None if an exception occurred.
+        """
+        now = pendulum.now()
+        logs = await self._hook.read_logs(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container_name=container_name,
+            since_seconds=(math.ceil((now - since_time).total_seconds()) if since_time else None),
+        )
+        message_to_log = None
+        try:
+            now_seconds = now.replace(microsecond=0)
+            for line in logs:
+                line_timestamp, message = parse_log_line(line)
+                # Skip log lines from the current second to prevent duplicate entries on the next read.
+                # The API only allows specifying 'since_seconds', not an exact timestamp.
+                if line_timestamp and line_timestamp.replace(microsecond=0) == now_seconds:
+                    break
+                if line_timestamp:  # detect new log line
+                    if message_to_log is None:  # first line in the log
+                        message_to_log = message
+                    else:  # previous log line is complete
+                        if message_to_log is not None:
+                            if is_log_group_marker(message_to_log):
+                                print(message_to_log)
+                            else:
+                                self.log.info("[%s] %s", container_name, message_to_log)
+                        message_to_log = message
+                elif message_to_log:  # continuation of the previous log line
+                    message_to_log = f"{message_to_log}\n{message}"
+        finally:
+            # log the last line and update the last_captured_timestamp
+            if message_to_log is not None:
+                if is_log_group_marker(message_to_log):
+                    print(message_to_log)
+                else:
+                    self.log.info("[%s] %s", container_name, message_to_log)
+            return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.

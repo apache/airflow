@@ -74,7 +74,7 @@ class TestGcpTextToSpeech:
         )
 
     @pytest.mark.parametrize(
-        "missing_arg, input_data, voice, audio_config, target_bucket_name, target_filename",
+        ("missing_arg", "input_data", "voice", "audio_config", "target_bucket_name", "target_filename"),
         [
             ("input_data", "", VOICE, AUDIO_CONFIG, TARGET_BUCKET_NAME, TARGET_FILENAME),
             ("voice", INPUT, "", AUDIO_CONFIG, TARGET_BUCKET_NAME, TARGET_FILENAME),

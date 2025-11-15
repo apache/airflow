@@ -128,7 +128,7 @@ class TestBaseOperations:
             client.connections.get("1")
 
     @pytest.mark.parametrize(
-        "total_entries, limit, expected_response",
+        ("total_entries", "limit", "expected_response"),
         [
             (1, 50, (HelloCollectionResponse(hellos=[HelloResponse(name="hello")], total_entries=1))),
             (
@@ -200,7 +200,7 @@ class TestAssetsOperations:
         id=asset_id,
         name="asset",
         uri="asset_uri",
-        extra={"extra": "extra"},
+        extra={"extra": "extra"},  # type: ignore[dict-item]
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         scheduled_dags=[],

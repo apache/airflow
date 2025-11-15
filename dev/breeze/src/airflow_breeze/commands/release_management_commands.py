@@ -87,7 +87,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_candidate_command import create_tarball_release
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
@@ -227,12 +226,6 @@ option_use_local_hatch = click.option(
     envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
-option_tag = click.option(
-    "--tag",
-    type=str,
-    help="Tag to use for the release processes",
-    default=None,
-)
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(
@@ -259,11 +252,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.7"
+AIRFLOW_UV_VERSION = "0.9.9"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.12"
+PREK_VERSION = "0.2.13"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -288,7 +281,7 @@ AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
 
 
 class DistributionBuildType(Enum):
-    """Type of the build"""
+    """Type of the Python distribution to build."""
 
     AIRFLOW = "airflow"
     PROVIDERS = "providers"
@@ -544,24 +537,6 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
-def create_tarball_from_tag(
-    version_suffix: str,
-    distribution_name: Literal[
-        "apache_airflow", "apache_airflow_task_sdk", "apache_airflow_providers", "apache_airflow_ctl"
-    ],
-    tag: str | None,
-):
-    if tag is not None:
-        get_console().print(f"Tag Used for source tarball creation: {tag}")
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name=distribution_name,
-            tag=tag,
-        )
-    else:
-        get_console().print("No tag provided, skipping source tarball creation.")
-
-
 @release_management.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
@@ -569,14 +544,12 @@ def create_tarball_from_tag(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -607,13 +580,6 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow",
-        tag=tag,
-    )
 
 
 def _prepare_non_core_distributions(
@@ -740,14 +706,12 @@ def _prepare_non_core_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -762,13 +726,6 @@ def prepare_task_sdk_distributions(
         distribution_pretty_name="Task SDK",
     )
 
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_task_sdk",
-        tag=tag,
-    )
-
 
 @release_management.command(
     name="prepare-airflow-ctl-distributions",
@@ -777,14 +734,12 @@ def prepare_task_sdk_distributions(
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -798,13 +753,6 @@ def prepare_airflow_ctl_distributions(
         distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
-    )
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_ctl",
-        tag=tag,
     )
 
 
@@ -834,8 +782,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
 )
 @option_github_repository
 @argument_provider_distributions
-@option_answer
-@option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -866,6 +812,8 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
+@option_answer
+@option_dry_run
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
@@ -1091,7 +1039,7 @@ def _build_provider_distributions(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1100,7 +1048,6 @@ def _build_provider_distributions(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_distributions
-@option_tag
 @option_verbose
 def prepare_provider_distributions(
     clean_dist: bool,
@@ -1114,7 +1061,6 @@ def prepare_provider_distributions(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix: str,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1125,7 +1071,7 @@ def prepare_provider_distributions(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override provider_distributions with values from DISTRIBUTIONS_LIST
-        distributions_list_as_tuple = tuple(distributions_list.split(","))
+        distributions_list_as_tuple = tuple(distributions_list.split(" "))
     if provider_distributions and distributions_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -1199,13 +1145,6 @@ def prepare_provider_distributions(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="apache_airflow_providers",
-        tag=tag,
-    )
 
 
 def run_generate_constraints(
@@ -1295,10 +1234,18 @@ def run_generate_constraints_in_parallel(
     "issues to avoid errors. The default behaviour would be to clean both local and remote tags.",
     show_default=True,
 )
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @option_dry_run
 @option_verbose
 def tag_providers(
     clean_tags: bool,
+    release_date: str,
 ):
     found_remote = None
     remotes = ["origin", "apache"]
@@ -1315,8 +1262,6 @@ def tag_providers(
                 break
         except subprocess.CalledProcessError:
             pass
-
-    release_date = os.environ.get("PACKAGE_DATE", datetime.now().strftime("%Y-%m-%d"))
 
     if found_remote is None:
         raise ValueError("Could not find the remote configured to push to apache/airflow")
@@ -1843,7 +1788,7 @@ def run_publish_docs_in_parallel(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1874,7 +1819,7 @@ def publish_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        packages_list_as_tuple = tuple(distributions_list.split(","))
+        packages_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -2021,6 +1966,8 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
+            if "-source" in file:
+                continue
             versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
@@ -2368,11 +2315,11 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and file.endswith(
+    for filename in dist_files:
+        if filename.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and filename.endswith(
             ".tar.gz"
         ):
-            file = file[: -len(".tar.gz")]
+            file = filename[: -len(".tar.gz")]
             version = file.split("-")[-1]
             match = VERSION_MATCH.match(version)
             if match:
@@ -2430,6 +2377,56 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     )
 
 
+def get_commented_out_prs_from_provider_changelogs() -> list[int]:
+    """
+    Returns list of PRs that are commented out in the changelog.
+    :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
+    """
+    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
+    commented_prs = set()
+
+    # Get all provider distributions
+    provider_distributions_metadata = get_provider_distributions_metadata()
+
+    for provider_id in provider_distributions_metadata.keys():
+        provider_details = get_provider_details(provider_id)
+        changelog_path = provider_details.changelog_path
+        print(f"[info]Checking changelog {changelog_path} for PRs to be excluded automatically.")
+        if not changelog_path.exists():
+            continue
+
+        changelog_lines = changelog_path.read_text().splitlines()
+        in_excluded_section = False
+
+        for line in changelog_lines:
+            # Check if we're entering an excluded/commented section
+            if line.strip().startswith(
+                ".. Below changes are excluded from the changelog"
+            ) or line.strip().startswith(".. Review and move the new changes"):
+                in_excluded_section = True
+                continue
+            # Check if we're exiting the excluded section (new version header or regular content)
+            # Version headers are lines that contain only dots (like "4.10.1" followed by "......")
+            # Or lines that start with actual content sections like "Misc", "Features", etc.
+            if (
+                in_excluded_section
+                and line
+                and not line.strip().startswith("..")
+                and not line.strip().startswith("*")
+            ):
+                # end excluded section with empty line
+                if line.strip() == "":
+                    in_excluded_section = False
+
+            # Extract PRs from excluded sections
+            if in_excluded_section and line.strip().startswith("*"):
+                match_result = pr_matcher.search(line)
+                if match_result:
+                    commented_prs.add(int(match_result.group(1)))
+
+    return sorted(commented_prs)
+
+
 @release_management.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
@@ -2451,20 +2448,12 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
-@click.option(
-    "--no-include-browser-link",
-    "include_browser_link",
-    flag_value=False,
-    default=True,
-    help="Do not include browser link to prefill GitHub issue",
-)
 @argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
-    include_browser_link: bool,
     provider_distributions: list[str],
 ):
     import jinja2
@@ -2484,10 +2473,15 @@ def generate_issue_content_providers(
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
         else:
             excluded_prs = []
+        commented_prs = get_commented_out_prs_from_provider_changelogs()
+        get_console().print(
+            "[info]Automatically excluding {len(commented_prs)} PRs that are only commented out in changelog:"
+        )
+        excluded_prs.extend(commented_prs)
         all_prs: set[int] = set()
+        all_retrieved_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
-        if only_available_in_dist:
-            files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH))
+        files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH)) if only_available_in_dist else []
         prepared_package_ids = []
         for provider_id in provider_distributions:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
@@ -2505,15 +2499,35 @@ def generate_issue_content_providers(
                     "The changelog file doesn't contain any PRs for the release.\n"
                 )
                 continue
+            all_prs.update(prs)
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
-            all_prs.update(provider_prs[provider_id])
+            all_retrieved_prs.update(provider_prs[provider_id])
+        if not github_token:
+            # Get GitHub token from gh CLI and set it in environment copy
+            gh_token_result = run_command(
+                ["gh", "auth", "token"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if gh_token_result.returncode == 0:
+                github_token = gh_token_result.stdout.strip()
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         linked_issues: dict[int, list[Issue.Issue]] = {}
+        all_prs_len = len(all_prs)
+        all_retrieved_prs_len = len(all_retrieved_prs)
+        get_console().print(
+            f"[info] Found {all_prs_len} PRs in the providers. "
+            f"Retrieving {all_retrieved_prs_len} (excluded {all_prs_len - all_retrieved_prs_len})"
+        )
+        get_console().print(f"Retrieved PRs: {all_retrieved_prs}")
+        excluded_prs = sorted(set(all_prs) - set(all_retrieved_prs))
+        get_console().print(f"Excluded PRs: {excluded_prs}")
         with Progress(console=get_console(), disable=disable_progress) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            for pr_number in all_prs:
+            task = progress.add_task(f"Retrieving {all_retrieved_prs_len} PRs ", total=all_retrieved_prs_len)
+            for pr_number in all_retrieved_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
@@ -2569,7 +2583,10 @@ def generate_issue_content_providers(
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
             if pull_request_list:
-                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+                if only_available_in_dist:
+                    package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+                else:
+                    package_suffix = ""
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
                     provider_id=provider_id,
@@ -2602,18 +2619,29 @@ def generate_issue_content_providers(
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
         get_console().print(syntax)
-        url_to_create_the_issue = create_github_issue_url(
-            title=f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
-            body=issue_content,
-            labels=["testing status", "kind:meta"],
-        )
-        if include_browser_link:
-            get_console().print()
-            get_console().print(
-                "[info]You can prefill the issue by copy&pasting this link to browser "
-                "(or Cmd+Click if your terminal supports it):\n"
+        create_issue = user_confirm("Should I create the issue?")
+        if create_issue == Answer.YES:
+            res = run_command(
+                [
+                    "gh",
+                    "issue",
+                    "create",
+                    "-t",
+                    f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
+                    "-b",
+                    issue_content,
+                    "-l",
+                    "testing status,kind:meta",
+                    "-w",
+                ],
+                check=False,
             )
-            print(url_to_create_the_issue)
+            if res.returncode != 0:
+                get_console().print(
+                    "Failed to create issue. If the error is about 'too long URL' you have "
+                    "to create the issue manually by copy&pasting the above output"
+                )
+                sys.exit(1)
 
 
 def get_git_log_command(

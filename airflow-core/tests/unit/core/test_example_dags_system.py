@@ -88,7 +88,7 @@ class TestExampleDagsSystem(SystemTest):
         test_run()
 
     @pytest.mark.parametrize(
-        "factory, expected",
+        ("factory", "expected"),
         [
             (get_dag_fail, "failed"),
             (get_dag_fail_root, "failed"),

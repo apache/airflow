@@ -66,7 +66,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -126,6 +126,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -182,8 +183,57 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
     assert ti.task
     assert ti.task.dag
-    assert isinstance(ti.task, BaseOperator)
-    assert isinstance(ti.task.dag, DAG)
+
+
+@mock.patch("airflow.dag_processing.dagbag.DagBag")
+def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+    """Test that checks that the dagbag is constructed as expected during parsing"""
+    mock_bag_instance = mock.Mock()
+    mock_dagbag.return_value = mock_bag_instance
+    mock_dag = mock.Mock(spec=DAG)
+    mock_task = mock.Mock(spec=BaseOperator)
+
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dag.task_dict = {"a": mock_task}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        parse(what, mock.Mock())
+
+    mock_dagbag.assert_called_once_with(
+        dag_folder=mock.ANY,
+        include_examples=False,
+        safe_mode=False,
+        load_op_links=False,
+        bundle_name="my-bundle",
+    )
 
 
 @pytest.mark.parametrize(
@@ -554,6 +604,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.task is ti.get_template_context()["task"], "task in context should be updated too"
     assert ti.state == TaskInstanceState.SUCCESS
 
     mock_supervisor_comms.send.assert_any_call(
@@ -568,7 +619,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
 
 
 @pytest.mark.parametrize(
-    ["task_params", "expected_rendered_fields"],
+    ("task_params", "expected_rendered_fields"),
     [
         pytest.param(
             {"op_args": [], "op_kwargs": {}, "templates_dict": None},
@@ -810,7 +861,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
 
 
 @pytest.mark.parametrize(
-    ["command", "rendered_command"],
+    ("command", "rendered_command"),
     [
         ("{{ task.task_id }}", "templated_task"),
         ("{{ run_id }}", "c"),
@@ -863,7 +914,7 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
 
 @pytest.mark.parametrize(
-    ["dag_id", "task_id", "fail_with_exception"],
+    ("dag_id", "task_id", "fail_with_exception"),
     [
         pytest.param(
             "basic_failed", "fail-exception", AirflowFailException("Oops. Failing by AirflowFailException!")
@@ -953,7 +1004,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
 
 
 @pytest.mark.parametrize(
-    ["task_outlets", "expected_msg"],
+    ("task_outlets", "expected_msg"),
     [
         pytest.param(
             [Asset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
@@ -1358,7 +1409,7 @@ class TestRuntimeTaskInstance:
         assert result == "Task: test_template_render -> test_template_render_task"
 
     @pytest.mark.parametrize(
-        ["content", "expected_output"],
+        ("content", "expected_output"),
         [
             ('{{ conn.get("a_connection").host }}', "hostvalue"),
             ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
@@ -1396,7 +1447,7 @@ class TestRuntimeTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
-        ["accessor_type", "var_value", "expected_value"],
+        ("accessor_type", "var_value", "expected_value"),
         [
             pytest.param("value", "test_value", "test_value"),
             pytest.param(
@@ -1517,10 +1568,10 @@ class TestRuntimeTaskInstance:
         if not isinstance(map_indexes, Iterable):
             map_indexes = [map_indexes]
 
-        for task_id in task_ids:
+        for task_id_raw in task_ids:
             # Without task_ids (or None) expected behavior is to pull with calling task_id
-            if task_id is None or isinstance(task_id, ArgNotSet):
-                task_id = test_task_id
+            task_id = task_id_raw if is_arg_set(task_id_raw) and task_id_raw is not None else test_task_id
+
             for map_index in map_indexes:
                 if map_index == NOTSET:
                     mock_supervisor_comms.send.assert_any_call(
@@ -1547,7 +1598,7 @@ class TestRuntimeTaskInstance:
                     )
 
     @pytest.mark.parametrize(
-        "task_ids, map_indexes, expected_value",
+        ("task_ids", "map_indexes", "expected_value"),
         [
             pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
             pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
@@ -1766,7 +1817,7 @@ class TestRuntimeTaskInstance:
             )
 
     @pytest.mark.parametrize(
-        ["cmd", "rendered_cmd"],
+        ("cmd", "rendered_cmd"),
         [
             pytest.param("echo 'hi'", "echo 'hi'", id="no_template_fields"),
             pytest.param(SET_DURING_EXECUTION, SET_DURING_EXECUTION.serialize(), id="with_default"),
@@ -1800,7 +1851,7 @@ class TestRuntimeTaskInstance:
         )
 
     @pytest.mark.parametrize(
-        ["task_reschedule_count", "expected_date"],
+        ("task_reschedule_count", "expected_date"),
         [
             (
                 0,
@@ -2032,7 +2083,7 @@ class TestRuntimeTaskInstance:
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
-        ["do_xcom_push", "should_push_xcom", "expected_xcom_value"],
+        ("do_xcom_push", "should_push_xcom", "expected_xcom_value"),
         [
             pytest.param(False, False, None, id="do_xcom_push_false"),
             pytest.param(True, True, "Hello World!", id="do_xcom_push_true"),
@@ -2317,6 +2368,173 @@ class TestXComAfterTaskExecution:
                 include_prior_dates=expected_value,
             ),
         )
+
+
+class TestEmailNotifications:
+    FROM = "from@airflow"
+
+    @pytest.mark.parametrize(
+        ("emails", "sent"),
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_retry(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task retry."""
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class ZeroDivsionOperator(BaseOperator):
+            def execute(self, context):
+                1 // 0
+
+        task = ZeroDivsionOperator(
+            task_id="divide_by_zero_task",
+            email=emails,
+            email_on_retry=True,
+            retries=2,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    @pytest.mark.parametrize(
+        ("emails", "sent"),
+        [
+            pytest.param(
+                "test@example.com",
+                True,
+                id="one-email",
+            ),
+            pytest.param(
+                ["test@example.com"],
+                True,
+                id="one-email-as-list",
+            ),
+            pytest.param(
+                ["test@example.com", "test2@example.com"],
+                True,
+                id="multiple-email-as-list",
+            ),
+            pytest.param(None, False, id="no-email"),
+            pytest.param([], False, id="no-email-as-list"),
+        ],
+    )
+    def test_email_on_failure(self, emails, sent, create_runtime_ti, mock_supervisor_comms):
+        """Test email notification on task failure."""
+        from airflow.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="failing_task",
+            email=emails,
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                if not sent:
+                    mock_smtp_notifier.assert_not_called()
+                else:
+                    mock_smtp_notifier.assert_called_once()
+                    kwargs = mock_smtp_notifier.call_args.kwargs
+                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["to"] == emails
+                    assert (
+                        kwargs["html_content"]
+                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    )
+
+    def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
+        """Test email notification respects custom subject and html_content templates."""
+        from airflow.exceptions import AirflowFailException
+
+        subject_template = tmp_path / "custom_subject.jinja2"
+        html_template = tmp_path / "custom_html.html"
+
+        subject_template.write_text("Custom Subject: Task {{ti.task_id}} Failed\n")
+        html_template.write_text(
+            "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+        )
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed for template test")
+
+        task = FailingOperator(
+            task_id="template_test_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "subject_template"): str(subject_template),
+                ("email", "html_content_template"): str(html_template),
+                ("email", "from_email"): self.FROM,
+            }
+        ):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+                mock_smtp_notifier.assert_called_once()
+                kwargs = mock_smtp_notifier.call_args.kwargs
+
+                assert kwargs["subject"] == "Custom Subject: Task {{ti.task_id}} Failed\n"
+                assert (
+                    kwargs["html_content"]
+                    == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+                )
+                assert kwargs["from_email"] == self.FROM
 
 
 class TestDagParamRuntime:
@@ -2802,7 +3020,7 @@ class TestTaskRunnerCallsCallbacks:
         raise self._Failure("sorry!")
 
     @pytest.mark.parametrize(
-        "execute_impl, should_retry, expected_state, expected_results",
+        ("execute_impl", "should_retry", "expected_state", "expected_results"),
         [
             pytest.param(
                 _execute_success,
@@ -2873,7 +3091,7 @@ class TestTaskRunnerCallsCallbacks:
         assert collected_results == expected_results
 
     @pytest.mark.parametrize(
-        ["base_url", "expected_url"],
+        ("base_url", "expected_url"),
         [
             ("http://localhost:8080/", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
             ("http://localhost:8080", "http://localhost:8080/dags/test_dag/runs/test_run/tasks/test_task"),
@@ -3025,7 +3243,14 @@ class TestTaskRunnerCallsCallbacks:
         )
 
     @pytest.mark.parametrize(
-        "callback_to_test, execute_impl, should_retry, expected_state, expected_results, extra_exceptions",
+        (
+            "callback_to_test",
+            "execute_impl",
+            "should_retry",
+            "expected_state",
+            "expected_results",
+            "extra_exceptions",
+        ),
         [
             pytest.param(
                 "on_success_callback",
@@ -3181,7 +3406,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["skip_when_already_exists", "expected_state"],
+        ("skip_when_already_exists", "expected_state"),
         [
             (True, TaskInstanceState.SKIPPED),
             (False, TaskInstanceState.FAILED),
@@ -3222,7 +3447,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["allowed_states", "failed_states", "target_dr_state", "expected_task_state"],
+        ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
             (None, None, DagRunState.FAILED, TaskInstanceState.FAILED),
             (None, None, DagRunState.SUCCESS, TaskInstanceState.SUCCESS),
@@ -3316,7 +3541,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        ["allowed_states", "failed_states", "intermediate_state"],
+        ("allowed_states", "failed_states", "intermediate_state"),
         [
             ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
         ],
@@ -3351,3 +3576,56 @@ class TestTriggerDagRunOperator:
             state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == intermediate_state
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_deferred_with_reset_uses_run_id_only(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Test that TriggerDagRunOperator with deferrable=True and reset_dag_run=True
+        creates a DagStateTrigger with execution_dates=None.
+
+        This prevents the bug where reset_dag_run preserves the original logical_date
+        in the database but the trigger queries with a newly calculated logical_date,
+        causing a mismatch that makes the trigger never find the dag run.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="fixed_run_id",
+            wait_for_completion=True,
+            deferrable=True,
+            reset_dag_run=True,
+            poke_interval=5,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_deferred_reset", run_id="test_run", task=task
+        )
+
+        log = mock.MagicMock()
+        state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        # Task should be deferred
+        assert state == TaskInstanceState.DEFERRED
+        assert isinstance(msg, DeferTask)
+
+        # Verify the DeferTask message structure
+        assert msg.classpath == "airflow.providers.standard.triggers.external_task.DagStateTrigger"
+        assert msg.next_method == "execute_complete"
+
+        # Critical assertion: execution_dates should be None to avoid logical_date mismatch
+        # when reset_dag_run=True. The run_id alone is sufficient and unique.
+        trigger_kwargs = msg.trigger_kwargs
+        assert trigger_kwargs["execution_dates"] is None, (
+            "execution_dates should be None when using run_ids. "
+            "When reset_dag_run=True, the logical_date in the database may differ from "
+            "the newly calculated logical_date, causing the trigger to never find the run."
+        )
+        assert trigger_kwargs["run_ids"] == ["fixed_run_id"]
+        assert trigger_kwargs["dag_id"] == "test_dag"
+        assert trigger_kwargs["poll_interval"] == 5
+
+        # Also verify it was sent to supervisor
+        mock_supervisor_comms.send.assert_any_call(msg)

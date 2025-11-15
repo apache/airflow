@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* `` Add push_logs configuration option to Edge executor (#58125)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#58235)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 6 files in providers (edge3,git) (#58018)``
+   * ``Synchronize default versions in all split .pre-commit-config.yaml (#57851)``
+
 1.4.1
 .....
 
@@ -53,6 +73,9 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Extract prek hooks for Edge provider (#57104)``
    * ``Prepare edge3 provider ad-hoc release (October 2025) (#57280)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Prepare edge3 provider ad-hoc release rc2 (October 2025) (#57538)``
 
 1.4.0
 .....

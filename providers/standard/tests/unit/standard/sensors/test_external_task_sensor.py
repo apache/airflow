@@ -859,7 +859,7 @@ exit 0
             )
 
     @pytest.mark.parametrize(
-        "kwargs, expected_message",
+        ("kwargs", "expected_message"),
         (
             (
                 {
@@ -884,7 +884,7 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         (
             (
                 False,
@@ -932,7 +932,7 @@ exit 0
                 op.execute(context={})
 
     @pytest.mark.parametrize(
-        "response_get_current, response_exists, kwargs, expected_message",
+        ("response_get_current", "response_exists", "kwargs", "expected_message"),
         (
             (None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
             (
@@ -957,7 +957,7 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         (
             (
                 False,
@@ -1416,8 +1416,9 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
+        context = {"execution_date": datetime(2025, 1, 1), "logical_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(context=mock.MagicMock())
+            sensor.execute(context=context)
 
         assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
@@ -1508,8 +1509,9 @@ class TestExternalTaskAsyncSensor:
             failed_states=failed_states,
         )
 
+        context = {"execution_date": datetime(2025, 1, 1), "logical_date": datetime(2025, 1, 1)}
         with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(context=mock.MagicMock())
+            sensor.execute(context=context)
 
         trigger = exc.value.trigger
         assert isinstance(trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
@@ -1518,7 +1520,7 @@ class TestExternalTaskAsyncSensor:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Needs Flask app context fixture for AF 2")
 @pytest.mark.parametrize(
-    argnames=["external_dag_id", "external_task_id", "expected_external_dag_id", "expected_external_task_id"],
+    argnames=("external_dag_id", "external_task_id", "expected_external_dag_id", "expected_external_task_id"),
     argvalues=[
         ("dag_test", "task_test", "dag_test", "task_test"),
         ("dag_{{ ds }}", "task_{{ ds }}", f"dag_{DEFAULT_DATE.date()}", f"task_{DEFAULT_DATE.date()}"),

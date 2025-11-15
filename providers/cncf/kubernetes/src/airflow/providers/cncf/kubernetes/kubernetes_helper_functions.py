@@ -111,6 +111,8 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     if not annotation_run_id and logical_date_key in annotations:
         logical_date = pendulum.parse(annotations[logical_date_key])
         # Do _not_ use create-session, we don't want to expunge
+        if Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
 
         task_instance_run_id = (
