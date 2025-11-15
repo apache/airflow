@@ -253,9 +253,26 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self.asset_condition = assets
         self.partition_mapper = partition_mapper
 
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_asset_condition
+
+        return {
+            "asset_condition": encode_asset_condition(self.asset_condition),
+            "partition_mapper_cls": self.partition_mapper.__class__.__name__,
+        }
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_asset_condition
 
         # todo: AIP-76 need to properly serialize / deserialize
-        return cls(decode_asset_condition(data["asset_condition"]), partition_mapper=IdentityMapper())
+        ser_asset_condition = data["asset_condition"]
+        mapper_class_name = data.get("partition_mapper_cls", None)
+        if mapper_class_name:
+            mapper_class = globals()[mapper_class_name]
+        else:
+            mapper_class = IdentityMapper
+        return cls(
+            assets=decode_asset_condition(ser_asset_condition),
+            partition_mapper=mapper_class(),
+        )
