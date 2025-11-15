@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box , Text, Code } from "@chakra-ui/react";
+import { HStack, Box, Text, Code } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -128,25 +128,25 @@ export const AssetLayout = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
-           {asset?.extra && Object.keys(asset.extra).length > 0 && (
-            <Box mt={3} mb={3} px={3}>
-              <Text fontWeight="bold" mb={2}>
-                 {translate("assets:additional_data")}
-              </Text>
-            <Code
-              display="block"
-              whiteSpace="pre"
-              w="full"
-              p={2}
-              borderRadius="md"
-              background="bg.subtle"
-              color="fg.default"
-              fontSize="sm"
-            >
-              {JSON.stringify(asset.extra, null, 2)}
-            </Code>
-          </Box>
-       )}
+            {asset?.extra && Object.keys(asset.extra).length > 0 ? (
+              <Box mb={3} mt={3} px={3}>
+                <Text fontWeight="bold" mb={2}>
+                  {translate("assets:additional_data")}
+                </Text>
+                <Code
+                  background="bg.subtle"
+                  borderRadius="md"
+                  color="fg.default"
+                  display="block"
+                  fontSize="sm"
+                  p={2}
+                  w="full"
+                  whiteSpace="pre"
+                >
+                  {JSON.stringify(asset.extra, null, 2)}
+                </Code>
+              </Box>
+            ) : null}
 
             <Box h="100%" overflow="auto" pt={2}>
               <AssetEvents

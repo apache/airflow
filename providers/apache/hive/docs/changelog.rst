@@ -236,8 +236,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 8.2.1
@@ -334,7 +332,8 @@ Features
 
 * ``Adding support to hive hook for high availability Hive installations (#38651)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix TRY002 for apache hive provider (#38781)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Fix D105 for Apache Hive Provider (#38042)``
@@ -371,7 +370,8 @@ Misc
 
 * ``Fix pyhive hive_pure_sasl extra name (#37323)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``D401 Support in Providers (simple) (#37258)``
 
 6.4.2
@@ -646,7 +646,6 @@ of ``apache.hive`` the hive macros are provided by the Provider.
 * ``Move Hive macros to the provider (#28538)``
 * ``Make pandas dependency optional for Amazon Provider (#28505)``
 
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....
@@ -707,7 +706,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 4.0.0

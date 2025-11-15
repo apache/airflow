@@ -1,4 +1,7 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Consuming Dags",
   "createEvent": {
     "button": "Create Event",
@@ -26,8 +29,5 @@
   "name": "Name",
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
-  "searchPlaceholder": "Search Assets",
-  "asset_one": "Asset",
-  "asset_many": "Assets",
-  "additional_data": "Additional Data"
+  "searchPlaceholder": "Search Assets"
 }
