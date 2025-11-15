@@ -831,6 +831,13 @@ class AsyncKubernetesHook(KubernetesHook):
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
+                if isinstance(kubeconfig, dict):
+                    self.log.debug(
+                        LOADING_KUBE_CONFIG_FILE_RESOURCE.format(
+                            "connection kube_config dictionary (serializing)"
+                        )
+                    )
+                    kubeconfig = json.dumps(kubeconfig)
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 self._is_in_cluster = False
