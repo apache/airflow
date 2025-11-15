@@ -27,6 +27,7 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
+from cryptography.fernet import InvalidToken
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
@@ -350,8 +351,8 @@ class Connection(Base, LoggingMixin):
                 )
             try:
                 return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-            except InvalidToken as e:
-                 return self._password
+            except InvalidToken:
+                return self._password
         return self._password
 
     def set_password(self, value: str | None):

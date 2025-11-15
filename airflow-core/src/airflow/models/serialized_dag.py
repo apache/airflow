@@ -491,7 +491,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_latest_serialized_dags(
         cls, *, dag_ids: list[str], session: Session = NEW_SESSION
-    ) -> list[SerializedDagModel]:
+    ) -> Iterable[SerializedDagModel]:
         """
         Get the latest serialized dags of given DAGs.
 
@@ -514,7 +514,7 @@ class SerializedDagModel(Base):
             )
             .where(cls.dag_id.in_(dag_ids))
         ).all()
-        return list(latest_serdags)
+        return latest_serdags
 
     @classmethod
     @provide_session
