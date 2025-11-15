@@ -412,7 +412,7 @@ class TestPydanticSerDe:
             path=ObjectStoragePath("s3://conn_id@bucket/test.txt"),
             paths=[
                 ObjectStoragePath(
-                    "s3://bucket/test2.txt", aws_access_key="admin", aws_secret_access_key="passowrd"
+                    "s3://bucket/test2.txt", aws_access_key="admin", aws_secret_access_key="password"
                 ),
                 ObjectStoragePath("file:///tmp/test3.txt"),
             ],
@@ -425,7 +425,7 @@ class TestPydanticSerDe:
                 {
                     "path": "s3://bucket/test2.txt",
                     "conn_id": None,
-                    "kwargs": {"aws_access_key": "admin", "aws_secret_access_key": "passowrd"},
+                    "kwargs": {"aws_access_key": "admin", "aws_secret_access_key": "password"},
                 },
                 {"path": "file:///tmp/test3.txt", "conn_id": None, "kwargs": {}},
             ],
