@@ -163,9 +163,11 @@ def get_field(extras: dict, field_name: str) -> str | None:
             "when using this method."
         )
     if field_name in extras:
-        return extras[field_name] or None
+        value = extras[field_name]
+        return None if value == "" else value
     prefixed_name = f"extra__google_cloud_platform__{field_name}"
-    return extras.get(prefixed_name) or None
+    value = extras.get(prefixed_name)
+    return None if value == "" else value
 
 
 class GoogleBaseHook(BaseHook):
@@ -405,7 +407,11 @@ class GoogleBaseHook(BaseHook):
         custom UI elements to the hook page, which allow admins to specify
         service_account, key_path, etc. They get formatted as shown below.
         """
-        return hasattr(self, "extras") and get_field(self.extras, f) or default
+        if hasattr(self, "extras"):
+            value = get_field(self.extras, f)
+            if value is not None:
+                return value
+        return default
 
     @property
     def project_id(self) -> str:
