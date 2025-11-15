@@ -21,10 +21,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
-from airflow.providers.apache.spark.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SparkSqlOperator(BaseOperator):

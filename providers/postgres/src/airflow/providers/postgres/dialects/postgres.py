@@ -41,24 +41,21 @@ class PostgresDialect(Dialect):
         """
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        pk_columns = [
-            row[0]
-            for row in self.get_records(
-                """
-                  select kcu.column_name
-                  from information_schema.table_constraints tco
-                           join information_schema.key_column_usage kcu
-                                on kcu.constraint_name = tco.constraint_name
-                                    and kcu.constraint_schema = tco.constraint_schema
-                                    and kcu.constraint_name = tco.constraint_name
-                  where tco.constraint_type = 'PRIMARY KEY'
-                    and kcu.table_schema = %s
-                    and kcu.table_name = %s
-                  order by kcu.ordinal_position
-                  """,
-                (self.unescape_word(schema), self.unescape_word(table)),
-            )
-        ]
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+        query = """
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = %s
+            and kcu.table_name = %s
+            order by kcu.ordinal_position
+        """
+        pk_columns = [row[0] for row in self.get_records(query, (schema, table))]
         return pk_columns or None
 
     @staticmethod
@@ -78,31 +75,27 @@ class PostgresDialect(Dialect):
     ) -> list[str] | None:
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-
-        column_names = list(
-            row["name"]
-            for row in filter(
-                predicate,
-                map(
-                    self._to_row,
-                    self.get_records(
-                        """
-                        select column_name,
-                               data_type,
-                               is_nullable,
-                               column_default,
-                               is_generated,
-                               is_identity
-                        from information_schema.columns
-                        where table_schema = %s
-                          and table_name = %s
-                        order by ordinal_position
-                        """,
-                        (self.unescape_word(schema), self.unescape_word(table)),
-                    ),
-                ),
-            )
-        )
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+        query = """
+            select column_name,
+                    data_type,
+                    is_nullable,
+                    column_default,
+                    is_generated,
+                    is_identity
+            from information_schema.columns
+            where table_schema = %s
+                and table_name = %s
+            order by ordinal_position
+        """
+        column_names = []
+        for row in map(
+            self._to_row,
+            self.get_records(query, (schema, table)),
+        ):
+            if predicate(row):
+                column_names.append(row["name"])
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
 

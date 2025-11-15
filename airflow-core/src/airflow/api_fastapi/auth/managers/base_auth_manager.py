@@ -32,6 +32,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagDetails,
     PoolDetails,
+    TeamDetails,
     VariableDetails,
 )
 from airflow.api_fastapi.auth.tokens import (
@@ -141,12 +142,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def get_url_refresh(self) -> str | None:
+    def refresh_user(self, *, user: T) -> T | None:
         """
-        Return the URL to refresh the authentication token.
+        Refresh the user if needed.
 
-        This is used to refresh the authentication token when it expires.
-        The default implementation returns None, which means that the auth manager does not support refresh token.
+        By default, does nothing. Some auth managers might need to refresh the user to, for instance,
+        refresh some tokens that are needed to communicate with a service/tool.
+
+        This method is called by every single request, it must be lightweight otherwise the overall API
+        server latency will increase.
         """
         return None
 
@@ -264,6 +268,28 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user to performing the action
         :param details: optional details about the pool
         """
+
+    def is_authorized_team(
+        self,
+        *,
+        method: ResourceMethod,
+        user: T,
+        details: TeamDetails | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a team.
+
+        It is used primarily to check whether a user belongs to a team.
+        This function needs to be overridden by an auth manager compatible with multi-team.
+
+        :param method: the method to perform
+        :param user: the user performing the action
+        :param details: optional details about the team
+        """
+        raise NotImplementedError(
+            "The auth manager you are using is not compatible with multi-team. "
+            "In order to run Airflow in multi-team mode you need to use an auth manager compatible with it."
+        )
 
     @abstractmethod
     def is_authorized_variable(
@@ -552,66 +578,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(dag_id)}
 
     @provide_session
-    def get_authorized_variables(
-        self,
-        *,
-        user: T,
-        method: ResourceMethod = "GET",
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        """
-        Get variable keys the user has access to.
-
-        :param user: the user
-        :param method: the method to filter on
-        :param session: the session
-        """
-        stmt = select(Variable.key, Team.name).join(Team, Variable.team_id == Team.id, isouter=True)
-        rows = session.execute(stmt).all()
-        variables_by_team: dict[str | None, set[str]] = defaultdict(set)
-        for var_key, team_name in rows:
-            variables_by_team[team_name].add(var_key)
-
-        var_keys: set[str] = set()
-        for team_name, team_var_keys in variables_by_team.items():
-            var_keys.update(
-                self.filter_authorized_variables(
-                    variable_keys=team_var_keys, user=user, method=method, team_name=team_name
-                )
-            )
-
-        return var_keys
-
-    def filter_authorized_variables(
-        self,
-        *,
-        variable_keys: set[str],
-        user: T,
-        method: ResourceMethod = "GET",
-        team_name: str | None = None,
-    ) -> set[str]:
-        """
-        Filter variables the user has access to.
-
-        By default, check individually if the user has permissions to access the variable.
-        Can lead to some poor performance. It is recommended to override this method in the auth manager
-        implementation to provide a more efficient implementation.
-
-        :param variable_keys: the set of variable keys
-        :param user: the user
-        :param method: the method to filter on
-        :param team_name: the name of the team associated to the connections if Airflow environment runs in
-            multi-team mode
-        """
-
-        def _is_authorized_variable(var_key: str):
-            return self.is_authorized_variable(
-                method=method, details=VariableDetails(key=var_key, team_name=team_name), user=user
-            )
-
-        return {var_key for var_key in variable_keys if _is_authorized_variable(var_key)}
-
-    @provide_session
     def get_authorized_pools(
         self,
         *,
@@ -670,6 +636,108 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
 
         return {pool_name for pool_name in pool_names if _is_authorized_pool(pool_name)}
+
+    @provide_session
+    def get_authorized_teams(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        """
+        Get teams the user belongs to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        teams = Team.get_all_teams_id_to_name_mapping(session=session)
+        return self.filter_authorized_teams(teams_names=set(teams.values()), user=user, method=method)
+
+    def filter_authorized_teams(
+        self,
+        *,
+        teams_names: set[str],
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        """
+        Filter teams the user belongs to.
+
+        By default, check individually if the user has permissions to access the team.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param teams_names: the set of team names
+        :param user: the user
+        :param method: the method to filter on
+        """
+
+        def _is_authorized_team(name: str):
+            return self.is_authorized_team(method=method, details=TeamDetails(name=name), user=user)
+
+        return {team_name for team_name in teams_names if _is_authorized_team(team_name)}
+
+    @provide_session
+    def get_authorized_variables(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        """
+        Get variable keys the user has access to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        stmt = select(Variable.key, Team.name).join(Team, Variable.team_id == Team.id, isouter=True)
+        rows = session.execute(stmt).all()
+        variables_by_team: dict[str | None, set[str]] = defaultdict(set)
+        for var_key, team_name in rows:
+            variables_by_team[team_name].add(var_key)
+
+        var_keys: set[str] = set()
+        for team_name, team_var_keys in variables_by_team.items():
+            var_keys.update(
+                self.filter_authorized_variables(
+                    variable_keys=team_var_keys, user=user, method=method, team_name=team_name
+                )
+            )
+
+        return var_keys
+
+    def filter_authorized_variables(
+        self,
+        *,
+        variable_keys: set[str],
+        user: T,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        """
+        Filter variables the user has access to.
+
+        By default, check individually if the user has permissions to access the variable.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param variable_keys: the set of variable keys
+        :param user: the user
+        :param method: the method to filter on
+        :param team_name: the name of the team associated to the connections if Airflow environment runs in
+            multi-team mode
+        """
+
+        def _is_authorized_variable(var_key: str):
+            return self.is_authorized_variable(
+                method=method, details=VariableDetails(key=var_key, team_name=team_name), user=user
+            )
+
+        return {var_key for var_key in variable_keys if _is_authorized_variable(var_key)}
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

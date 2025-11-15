@@ -64,35 +64,35 @@ If you pass ``--tag`` fag, the distribution will create a source tarball release
   :alt: Breeze release-management prepare-airflow-distributions
 
 
-Preparing Airflow tarball
-"""""""""""""""""""""""""
+Preparing tarballs
+""""""""""""""""""
 
-You can prepare Airflow source tarball using Breeze:
+You can prepare source tarball using Breeze - they are used as official releases according to ASF release policies.
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-tarball
+     breeze release-management prepare-tarball
 
 This prepares airflow -source.tar.gz package in the dist folder.
 
-You must specify ``--version`` flag which is a pre-release version of Airflow you are preparing the
-tarball for.
-
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+     breeze release-management prepare-tarball
 
 You can also specify distribution name which distribution of Airflow you are preparing the tarball for.
-By default it is "airflow".
+By default it is "apache_airflow". The version will be automatically derived from the version specified
+in the --tag
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-tarball --version 2.8.0rc1 --distribution-name airflowctl
+     breeze release-management prepare-tarball --tarball-type apache_airflow_ctl
 
-.. image:: ./images/output_release-management_prepare-airflow-tarball.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-tarball.svg
+When testing from HEAD of the branch when the tag
+
+.. image:: ./images/output_release-management_prepare-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-tarball.svg
   :width: 100%
-  :alt: Breeze release-management prepare-airflow-tarball
+  :alt: Breeze release-management prepare-tarball
 
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
@@ -281,10 +281,10 @@ This command can be utilized to manage git tags for providers within the Airflow
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
-The flag ``--clean-local-tags`` can be used to delete the local tags.
+The flag ``--clean-tags`` can be used to delete the local tags.
 
 However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-local-tags`` flag.
+``--no-clean-tags`` flag.
 
 .. code-block:: bash
 
@@ -428,7 +428,7 @@ Installing providers
 """"""""""""""""""""
 
 In some cases we want to just see if the providers generated can be installed with Airflow without
-verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+verifying them. This happens automatically on CI for sdist packages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash

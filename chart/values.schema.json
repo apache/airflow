@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -225,6 +225,23 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "imagePullSecrets": {
+            "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
+            "type": "array",
+            "default": [],
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "oneOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference"
+                    }
+                ]
+            },
+            "uniqueItems": true
         },
         "ingress": {
             "description": "Ingress configuration.",
@@ -4192,6 +4209,14 @@
                         }
                     }
                 },
+                "labels": {
+                    "description": "Labels specific to dag processor objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to dag processor.",
                     "type": "array",
@@ -7317,6 +7342,14 @@
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
                 },
+                "labels": {
+                    "description": "Labels specific to statsd objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to statsd container.",
                     "type": "array",
@@ -8306,6 +8339,14 @@
                         }
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the redis objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "uid": {
                     "description": "Redis run as user parameter.",
                     "type": "integer",
@@ -8336,7 +8377,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets) (Deprecated - renamed to `registry.secretNames`).",
                     "type": [
                         "string",
                         "null"
@@ -8344,7 +8385,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets) (create manually the credentials secret and add to `imagePullSecrets` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,

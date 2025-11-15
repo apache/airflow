@@ -24,6 +24,179 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.2 (2025-11-05)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix import error when upgrading structlog to 25.5.0+ (#57335)
+- Fix connection retrieval in ``DagProcessorManager`` for bundle initialization (#57459)
+- Fix incorrect task instance counts displayed in task group headers (#55670)
+- Fix task retry execution after tasks are killed by external signals (#55767)
+- Fix triggerer errors after Airflow 2 to 3 migration (#55884)
+- Fix tasks unable to access ``triggering_user_name`` context variable (#56193)
+- Fix outlet event extra data being empty in task instance success listener callbacks (#57031)
+- UI: Fix panel button spacing and alignment issues (#57062)
+- UI: Fix broken grid view links for tasks with retries (#57097)
+- Fix DAG processor crash when renaming DAG tag case on MySQL (#57113)
+- Fix iteration errors when using ``ObjectStoragePath`` (#57156)
+- Fix auto-refresh not working on Required Actions page (#57207)
+- Fix DAG processor crash by ignoring callbacks from other bundles (#57330)
+- Fix asset name text overflow in DAG list view (#57363)
+- Fix memory leak caused by repeated SSL context creation in API client (#57374)
+- Fix performance issues loading DAG list page with many DAGs (#57444)
+- Fix text selection jumping unexpectedly in log viewer (#57453)
+- Fix DAG documentation pane not scroll-able when content is too long (#57518)
+- Fix incorrect macro listings in template reference documentation (#57529)
+- Fix Human-In-The-Loop operators failing when using notifiers (#57551)
+- Fix n+1 query issues in XCom API endpoints (#57554)
+- Fix n+1 query issues in Event Logs API endpoint (#57558)
+- Fix n+1 query to fetch tags in the dags list page (#57570)
+- Optimize database query to prevent "Out of sort memory" errors with many DAG versions (#57042)
+- Optimize DAG list query for users with limited access (#57460)
+- Optimize dynamic DAG updates to avoid loading large serialized DAGs (#57592)
+- Reduce serialized DAG size by optimizing callback serialization in ``default_args`` (#57397)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- UI: Improve global navigation visual design, interaction, and accessibility (#57565)
+- UI: Add button to download all task logs at once (#56771)
+- UI: Add timestamp column to ``XCom`` viewer and standardize task instance columns (#57447)
+- UI: Improve highlighting of selected task instances and edges in grid view (#57560)
+- Improve retry logic by migrating from ``retryhttp`` to ``tenacity`` library (#56762)
+- Improve exception logging for task instance heartbeat failures (#57179)
+- Add ``Content-Type`` header to Task SDK API requests (#57386)
+- Log execution API server URL at task startup (#57409)
+- Reduce log noise by changing "Connection not found" from error to debug level (#57548)
+- Add ``task_display_name`` alias in event log API responses (#57609)
+- Improve Pydantic model validation strictness in serialization (#57616)
+- Fix systemd service files issues (#57231)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Improve plugin system documentation for clarity and completeness (#57068)
+- Improve clarity on api workers recommendation in docs (#57404)
+- Fix ``instance_name`` in UI docs (#57523)
+- Fix airflow macros list in template document (#57529)
+
+Airflow 3.1.1 (2025-10-27)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix execution failures with NULL ``dag_run.conf`` during upgrades from earlier versions (#56729)
+- Fix memory leak in remote logging connection cache (#56695)
+- Fix DAG processor crash with pre-import module optimization enabled (#56779)
+- Fix scheduler crash with email notifications (#56431)
+- Fix scheduler crash during 3.0 to 3.1 migration when ``retry_delay`` is ``None`` (#56236)
+- Fix task retries executing wrong method after deferred state (#56737)
+- Fix retry callbacks not executing for externally killed tasks (#56607)
+- Fix custom timetable ``generate_run_id`` not called for manual triggers (#56699)
+- Fix ``KeyError`` when accessing ``retry_delay`` on ``MappedOperator`` without explicit value (#56605)
+- Fix ``task-sdk`` connection error handling to match ``airflow-core`` behavior (#56653)
+- Fix topological sort for Grid View (#56963)
+- Fix ``get_ti_count`` and ``get_task_states`` access in callback requests (#56860)
+- Fix ``Connection`` or ``Variable`` access in Server context (#56602)
+- Fix ``.airflowignore`` order precedence (#56832)
+- Fix migration errors for Pydantic 2.12.0 compatibility (#56581)
+- Fix: Correctly parse JSON for ``--dag_run_conf`` in ``airflow dags backfill`` CLI (#56599)
+- UI: Fix note modal does not change markdown text after change (#56092)
+- UI: Fix Grid for cleared runs when tasks were removed (#56297)
+- UI: Fix log text selection contrast in light mode (#56893)
+- UI: Fix Advanced Search button overlap in DAG List View (#56777)
+- UI: Fix view for many DAG tags (#55604)
+- UI: Fix asset name text overflow in DAGs list view (#55914)
+- UI: Fix auto refresh when only 1 dag run is running (#56649)
+- UI: Fix UI keeps poking pools API when no permission (#56626)
+- UI: Fix multi-line drag selection in task log view (#56300)
+- UI: Fix task named ``'root'`` causes blue screen on hover (#56926)
+- UI: Fix cron expression display for ``Day-of-Month`` and ``Day-of-Week`` conflicts (#56255)
+- UI: Fix Grid view performance issues with ``SerializedDagModel`` query optimization (#56938)
+- Fix: Gracefully handle FastAPI plugins with empty ``url_prefix`` (#55262)
+- Fix: Allow mapped tasks to accept zero-length inputs on rerun (#56162)
+- Fix: Enable API to clear task instances by specifying map indexes (#56945)
+- Fix: Add ``max_retry_delay`` to ``MappedOperator`` model (#56951)
+- Fix: Use name passed to ``@asset`` decorator when fetching the asset (#56611)
+- UI: Add English as a fallback locale (#56934)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Add Greek UI translation (#56724)
+- Add Thai UI translation (#56946)
+- Add Polish translations (#56825)
+- Close German translation gaps for full UI translation (#56981)
+- Fix Hebrew typo in translations (#56168)
+- Improve DAG and task missing error handling in callbacks (#56725)
+- Improve UI retry strategy on client errors (#56638)
+- Improve get dag grid structure endpoint speed (#56937)
+- Optimize grid structure query with ``DISTINCT`` for ``dag_version_id`` lookup (#56565)
+- Add configurable timeout for Execution API requests (#56969)
+- Prevent unnecessary kubernetes client imports in workers (#56692)
+- Lazy import ``PodGenerator`` for deserialization (#56733)
+- Serialize pydantic models in json mode for JSON serialization compatibility (#56939)
+- Update authentication to handle JWT token in backend (#56677)
+- Update bulk API permission check to handle ``action_on_existence`` (#56672)
+- Migrate ``CreateAssetEventsBody`` to Pydantic v2 ``ConfigDict`` (#56772)
+- Restore timetable ``active_runs_limit`` check (#56922)
+- Add ``is_favorite`` to UI dags list (#56341)
+- Add ``executor``, ``hostname``, and ``queue`` columns to ``TaskInstances`` page (#55922)
+- Add resize function for DAG Documentation (#56344)
+- Add optional pending dag runs check to auto refresh (#56648)
+- Add auto refresh to backfill banner (#56774)
+- UI: Add Expand/Collapse all to ``XComs`` page (#56285)
+- UI: Update recent runs bar chart and improve responsiveness (#56314)
+- UI: Update duration format to show milliseconds (#56961)
+- UI: Modify min width for task names in grid view (#56952)
+- UI: Use Task Display Name in Graph if existing (#56511)
+- UI: Use Task Display Name in Grid if existing (#56410)
+- UI: Use TI duration from database instead of UI calculated (#56329)
+- UI: Make DAG Run ID visible in DAG Header Card (#56409)
+- UI: Modify calendar cell colors (#56161)
+- UI: Modify log highlight color (#56894)
+- UI: Fix show appropriate time units in grid view (#56414)
+- UI: Reduce default columns of DAG Run and Task Instance lists (#55968)
+- UI: Add expand and collapse functionality for task groups (#56334)
+- UI: Avoid using rem for icons for Safari compatibility (#56304)
+- UI: Add ANSI support to log viewer (#56721)
+- UI: Support Dynamic UI Alerts (#56259)
+- UI: Disable Gantt view by default (#56242)
+- UI: Use welcome on dashboard instead of airflow (#56074)
+- UI: Improve clipboard button visibility with hover effect (#56484)
+- UI: Allow sub-pages in React UI plugins (#56485)
+- Include task instance id in log printed by supervisor (#56383)
+- Emit log stream stopped warning as ``ndjson`` (#56480)
+- Detect interactive terminal to set colored logging with override env variable support (#56157)
+- Add back deprecation warning for ``sla_miss_callback`` (#56127)
+- Move ``natsort`` dependency to ``airflow-core`` (#56582)
+- Added missing ``babel`` dependency in Task SDK (#56592)
+- Remove unused ``dagReports`` API endpoint (#56621)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Improve API sort documentation (#56617)
+- Improve API doc for ordering query param (#55988)
+- Add Audit Logs detailed documentation (#56719)
+- Update serializer document to reflect latest changes in codebase (#56857)
+- Update ASF logos in documentation to the new Oak logo (#56601)
+- Enhance ``triggering_asset_event`` retrieval documentation in DAGs (#56957)
+- Remove self-reference in best practices documentation (#56111)
+- Fix supported Python versions in README (#56734)
+
 Airflow 3.1.0 (2025-09-25)
 --------------------------
 
@@ -1645,15 +1818,16 @@ in Airflow 3.0. Run ``airflow --help`` to review the current set of available co
 Provider Refactor & Standardization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow 3.0 completes the migration of several core operators, sensors, and hooks into the new
+Airflow 3.0 completes the migration of several core operators, sensors, hooks, and triggers into the new
 ``apache-airflow-providers-standard`` package. This package now includes commonly used components such as:
 
-- ``PythonOperator``
-- ``BashOperator``
-- ``EmailOperator``
-- ``ShortCircuitOperator``
+- ``PythonOperator``, ``BashOperator``
+- ``ExternalTaskSensor``, ``FileSensor``
+- ``ShortCircuitOperator``, ``LatestOnlyOperator``
+- ``SubprocessHook``, ``FilesystemHook``
+- ``DateTimeTrigger``, ``TimeDeltaTrigger``, ``FileTrigger``
 
-These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
+These operators, sensors, hooks, and triggers were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
 improve modularity, testability, and lifecycle independence.
 
 This change enables more consistent versioning across providers and prepares Airflow for a future where all integrations

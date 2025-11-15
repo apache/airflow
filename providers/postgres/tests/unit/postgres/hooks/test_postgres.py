@@ -27,14 +27,13 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -127,7 +126,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_host",
+        ("host", "conn_cluster_identifier", "expected_host"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -297,7 +296,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_cluster_identifier",
+        ("host", "conn_cluster_identifier", "expected_cluster_identifier"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -373,7 +372,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_workgroup_name,expected_workgroup_name",
+        ("host", "conn_workgroup_name", "expected_workgroup_name"),
         [
             (
                 "serverless-workgroup.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -471,22 +470,22 @@ class TestPostgresHookConn:
 
         assert mock_db_token in self.db_hook.sqlalchemy_url
 
-    def test_get_azure_iam_token_expect_failure_on_get_token(self, mocker):
-        """Test get_azure_iam_token method gets token from provided connection id"""
+    def test_get_azure_iam_token_expect_failure_on_older_azure_provider_package(self, mocker):
+        class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
 
-        class MockAzureBaseHookWithoutGetToken:
-            def __init__(self):
+            def __init__(self, sdk_client, conn_id="azure_default"):
                 pass
 
         azure_conn_id = "azure_test_conn"
         mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
-        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+        mock_connection_class.get.return_value.get_hook = MockAzureBaseHookOldVersion
 
         self.connection.extra = json.dumps({"iam": True, "azure_conn_id": azure_conn_id})
         with pytest.raises(
-            AttributeError,
+            AirflowOptionalProviderFeatureException,
             match=(
-                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Getting azure token is not supported.*"
                 "Please upgrade apache-airflow-providers-microsoft-azure>="
             ),
         ):
@@ -690,7 +689,7 @@ class TestPostgresHook:
         assert sorted(input_data) == sorted(results)
 
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),

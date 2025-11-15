@@ -59,6 +59,8 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
         AIRFLOW_ROOT_PATH
@@ -72,17 +74,19 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     ),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
     (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
     (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
     (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
     (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "go-sdk" / ".pre-commit-config.yaml", False),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
@@ -180,6 +184,76 @@ def get_latest_lts_node_version() -> str:
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for LTS Node: {latest_version}")
     return latest_version
+
+
+def get_latest_image_version(image: str) -> str:
+    """
+    Fetch the latest tag released for a DockerHub image.
+
+    Args:
+        image: DockerHub image name in the format "namespace/repository" or just "repository" for official images
+
+    Returns:
+        The latest tag version as a string
+    """
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest tag for DockerHub image: {image}")
+
+    # Split image into namespace and repository
+    if "/" in image:
+        namespace, repository = image.split("/", 1)
+    else:
+        # Official images use 'library' as namespace
+        namespace = "library"
+        repository = image
+
+    # DockerHub API endpoint for tags
+    url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
+    params = {"page_size": 100, "ordering": "last_updated"}
+
+    headers = {"User-Agent": "Python requests"}
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+
+    data = response.json()
+    tags = data.get("results", [])
+
+    if not tags:
+        console.print(f"[bright_red]No tags found for image {image}")
+        return ""
+
+    # Filter out non-version tags and sort by version
+    version_tags = []
+    for tag in tags:
+        tag_name = tag["name"]
+        # Skip tags like 'latest', 'stable', etc.
+        if tag_name in ["latest", "stable", "main", "master"]:
+            continue
+        try:
+            # Try to parse as version to filter out non-version tags
+            # Remove leading 'v' if present
+            version_str = tag_name.lstrip("v")
+            version_obj = Version(version_str)
+            version_tags.append((version_obj, tag_name))
+        except Exception:
+            # Skip tags that don't parse as versions
+            continue
+
+    if not version_tags:
+        # If no version tags found, return the first tag
+        latest_tag = tags[0]["name"]
+        if VERBOSE:
+            console.print(f"[bright_blue]Latest tag for {image}: {latest_tag} (no version tags found)")
+        return latest_tag
+
+    # Sort by version and get the latest
+    version_tags.sort(key=lambda x: x[0], reverse=True)
+    latest_tag = version_tags[0][1]
+
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest tag for {image}: {latest_tag}")
+
+    return latest_tag
 
 
 class Quoting(Enum):
@@ -290,8 +364,9 @@ UPGRADE_RICH: bool = os.environ.get("UPGRADE_RICH", UPGRADE_ALL_BY_DEFAULT_STR).
 UPGRADE_RUFF: bool = os.environ.get("UPGRADE_RUFF", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 UPGRADE_MYPY: bool = os.environ.get("UPGRADE_MYPY", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
+UPGRADE_PROTOC: bool = os.environ.get("UPGRADE_PROTOC", UPGRADE_ALL_BY_DEFAULT_STR).lower() == "true"
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
 
 
@@ -336,6 +411,7 @@ if __name__ == "__main__":
     rich_version = get_latest_pypi_version("rich", UPGRADE_RICH)
     mypy_version = get_latest_pypi_version("mypy", UPGRADE_MYPY)
     node_lts_version = get_latest_lts_node_version()
+    protoc_version = get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else ""
     latest_python_versions: dict[str, str] = {}
     latest_image_python_version = ""
     if UPGRADE_PYTHON:
@@ -413,6 +489,16 @@ if __name__ == "__main__":
                 f'HATCH_VERSION="{hatch_version}"',
                 new_content,
             )
+            new_content = re.sub(
+                r"(hatch==)([0-9.abrc]+)",
+                f"hatch=={hatch_version}",
+                new_content,
+            )
+            new_content = re.sub(
+                r"(hatch>=)([0-9.abrc]+)",
+                f"hatch>={hatch_version}",
+                new_content,
+            )
         if UPGRADE_PYYAML:
             new_content = re.sub(
                 r"(PYYAML_VERSION = )(\"[0-9.abrc]+\")",
@@ -476,6 +562,14 @@ if __name__ == "__main__":
                 new_content,
             )
 
+        if UPGRADE_PROTOC:
+            console.print(f"[bright_blue]Latest protoc image version: {protoc_version}")
+
+            new_content = re.sub(
+                r"(rvolosatovs/protoc:)(v[0-9.]+)",
+                f"rvolosatovs/protoc:{protoc_version}",
+                new_content,
+            )
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")
@@ -485,7 +579,7 @@ if __name__ == "__main__":
         copy_env = os.environ.copy()
         del copy_env["VIRTUAL_ENV"]
         subprocess.run(
-            ["uv", "sync", "--resolution", "highest"],
+            ["uv", "sync", "--resolution", "highest", "--upgrade"],
             check=True,
             cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
             env=copy_env,

@@ -29,7 +29,7 @@ DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "r
 class TestSlackNotifier:
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
     @pytest.mark.parametrize(
-        "extra_kwargs, hook_extra_kwargs",
+        ("extra_kwargs", "hook_extra_kwargs"),
         [
             pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
             pytest.param(
@@ -120,6 +120,34 @@ class TestSlackNotifier:
         )
         notifier({"dag": create_dag_without_db("test_slack_notifier")})
         mock_slack_hook.return_value.call.assert_called_once_with(
+            "chat.postMessage",
+            json={
+                "channel": "#general",
+                "username": "Airflow",
+                "text": "test",
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/main/airflow-core"
+                "/src/airflow/ui/public/pin_100.png",
+                "attachments": "[]",
+                "blocks": "[]",
+                "unfurl_links": False,
+                "unfurl_media": False,
+            },
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    async def test_async_slack_notifier(self, mock_slack_hook):
+        mock_slack_hook.return_value.async_call = mock.AsyncMock()
+
+        notifier = send_slack_notification(
+            text="test",
+            unfurl_links=False,
+            unfurl_media=False,
+        )
+
+        await notifier.async_notify({})
+
+        mock_slack_hook.return_value.async_call.assert_called_once_with(
             "chat.postMessage",
             json={
                 "channel": "#general",

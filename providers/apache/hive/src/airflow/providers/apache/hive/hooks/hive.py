@@ -33,7 +33,7 @@ from typing_extensions import overload
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.hive.version_compat import (
+from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     BaseHook,
 )
@@ -320,8 +320,8 @@ class HiveCliHook(BaseHook):
             )
             self.sub_process = sub_process
             stdout = ""
-            for line in iter(sub_process.stdout.readline, b""):
-                line = line.decode()
+            for line_raw in iter(sub_process.stdout.readline, b""):
+                line = line_raw.decode()
                 stdout += line
                 if verbose:
                     self.log.info(line.strip())
@@ -336,24 +336,23 @@ class HiveCliHook(BaseHook):
         """Test an hql statement using the hive cli and EXPLAIN."""
         create, insert, other = [], [], []
         for query in hql.split(";"):  # naive
-            query_original = query
-            query = query.lower().strip()
+            query_lower = query.lower().strip()
 
-            if query.startswith("create table"):
-                create.append(query_original)
-            elif query.startswith(("set ", "add jar ", "create temporary function")):
-                other.append(query_original)
-            elif query.startswith("insert"):
-                insert.append(query_original)
+            if query_lower.startswith("create table"):
+                create.append(query)
+            elif query_lower.startswith(("set ", "add jar ", "create temporary function")):
+                other.append(query)
+            elif query_lower.startswith("insert"):
+                insert.append(query)
         other_ = ";".join(other)
         for query_set in [create, insert]:
-            for query in query_set:
-                query_preview = " ".join(query.split())[:50]
+            for query_item in query_set:
+                query_preview = " ".join(query_item.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
-                    query = other_ + "; explain " + query
+                    query = other_ + "; explain " + query_item
                 else:
-                    query = "explain " + query
+                    query = "explain " + query_item
                 try:
                     self.run_cli(query, verbose=False)
                 except AirflowException as e:

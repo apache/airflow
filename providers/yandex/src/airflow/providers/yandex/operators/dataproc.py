@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 
 import yandexcloud
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.yandex.hooks.dataproc import DataprocHook
-from airflow.providers.yandex.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.yandex.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 @dataclass

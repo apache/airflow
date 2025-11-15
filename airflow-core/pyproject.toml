@@ -34,7 +34,8 @@ build-backend = "hatchling.build"
 name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
@@ -55,7 +56,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -79,10 +79,12 @@ dependencies = [
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
+    "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -171,19 +173,17 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
+"memray" = [
+    "memray>=1.19.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
-]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]
@@ -208,6 +208,7 @@ path = "src/airflow/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = [
     "src/airflow",
+    "LICENSE",
     "NOTICE"
 ]
 exclude = [

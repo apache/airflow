@@ -257,7 +257,7 @@ class TestAddDeprecatedClasses:
     """Tests for the add_deprecated_classes function."""
 
     @pytest.mark.parametrize(
-        "test_case,module_imports,override_classes,expected_behavior",
+        ("test_case", "module_imports", "override_classes", "expected_behavior"),
         [
             (
                 "basic_class_mapping",
@@ -316,7 +316,14 @@ class TestAddDeprecatedClasses:
             assert sys.modules[full_module_name].existing_attr == "existing_value"
 
     @pytest.mark.parametrize(
-        "test_case,module_imports,attr_name,target_attr,expected_target_msg,override_classes",
+        (
+            "test_case",
+            "module_imports",
+            "attr_name",
+            "target_attr",
+            "expected_target_msg",
+            "override_classes",
+        ),
         [
             (
                 "direct_imports",

@@ -97,7 +97,7 @@ class TestAwsAuthManager:
         assert hasattr(auth_manager, "avp_facade")
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (ConfigurationDetails(section="test"), mock, mock, "test"),
@@ -128,7 +128,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (ConnectionDetails(conn_id="conn_id"), mock, mock, "conn_id"),
@@ -159,7 +159,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "access_entity, details, user, expected_user, expected_entity_id, expected_context",
+        ("access_entity", "details", "user", "expected_user", "expected_entity_id", "expected_context"),
         [
             (None, None, mock, ANY, None, None),
             (None, DagDetails(id="dag_1"), mock, mock, "dag_1", None),
@@ -207,7 +207,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (BackfillDetails(id=1), mock, mock, 1),
@@ -235,7 +235,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (AssetDetails(id="1"), mock, mock, "1"),
@@ -263,7 +263,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (AssetAliasDetails(id="1"), mock, mock, "1"),
@@ -294,7 +294,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (PoolDetails(name="pool1"), mock, mock, "pool1"),
@@ -322,7 +322,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "details, user, expected_user, expected_entity_id",
+        ("details", "user", "expected_user", "expected_entity_id"),
         [
             (None, mock, ANY, None),
             (VariableDetails(key="var1"), mock, mock, "var1"),
@@ -350,7 +350,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "access_view, user, expected_user",
+        ("access_view", "user", "expected_user"),
         [
             (AccessView.CLUSTER_ACTIVITY, mock, ANY),
             (AccessView.PLUGINS, mock, mock),
@@ -613,7 +613,7 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "get_authorized_method, avp_entity, entities_parameter",
+        ("get_authorized_method", "avp_entity", "entities_parameter"),
         [
             ("filter_authorized_connections", AvpEntities.CONNECTION.value, "conn_ids"),
             ("filter_authorized_dag_ids", AvpEntities.DAG.value, "dag_ids"),
@@ -622,7 +622,7 @@ class TestAwsAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "method, user, expected_result",
+        ("method", "user", "expected_result"),
         [
             ("GET", AwsAuthManagerUser(user_id="test_user_id1", groups=[]), {"entity_1"}),
             ("PUT", AwsAuthManagerUser(user_id="test_user_id1", groups=[]), set()),

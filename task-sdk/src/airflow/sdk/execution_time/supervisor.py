@@ -27,13 +27,13 @@ import os
 import selectors
 import signal
 import sys
+import threading
 import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
-from functools import lru_cache
 from http import HTTPStatus
 from socket import socket, socketpair
 from typing import (
@@ -87,6 +87,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -95,6 +96,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
@@ -104,10 +106,12 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskState,
     TaskStatesResult,
     ToSupervisor,
@@ -827,8 +831,10 @@ class WatchedSubprocess:
         return self._exit_code
 
 
-@lru_cache
-def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
+_REMOTE_LOGGING_CONN_CACHE: dict[str, Connection | None] = {}
+
+
+def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
     """
     Fetch and cache connection for remote logging.
 
@@ -837,18 +843,22 @@ def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
         client: API client for making requests
 
     Returns:
-        Connection object or None if not found
+        Connection object or None if not found.
     """
     # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
     # SUPERVISOR_COMMS
 
     # TODO: Store in the SecretsCache if its enabled - see #48858
 
+    if conn_id in _REMOTE_LOGGING_CONN_CACHE:
+        return _REMOTE_LOGGING_CONN_CACHE[conn_id]
+
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
+                _REMOTE_LOGGING_CONN_CACHE[conn_id] = conn
                 return conn
         except Exception:
             log.exception(
@@ -862,8 +872,12 @@ def _get_remote_logging_conn(conn_id: str, client: Client) -> Connection | None:
         conn_result = ConnectionResult.from_conn_response(conn)
         from airflow.sdk.definitions.connection import Connection
 
-        return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
-    return None
+        result: Connection | None = Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    else:
+        result = None
+
+    _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
+    return result
 
 
 @contextlib.contextmanager
@@ -878,7 +892,8 @@ def _remote_logging_conn(client: Client):
     This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
     supervisor process when this is needed, so that doesn't exist yet.
 
-    This function uses @lru_cache for connection caching to avoid repeated API calls.
+    The connection details are fetched eagerly on every invocation to avoid retaining
+    per-task API client instances in global caches.
     """
     from airflow.sdk.log import load_remote_conn_id, load_remote_log_handler
 
@@ -887,8 +902,8 @@ def _remote_logging_conn(client: Client):
         yield
         return
 
-    # Use cached connection fetcher
-    conn = _get_remote_logging_conn(conn_id, client)
+    # Fetch connection details on-demand without caching the entire API client instance
+    conn = _fetch_remote_logging_conn(conn_id, client)
 
     if conn:
         key = f"AIRFLOW_CONN_{conn_id.upper()}"
@@ -913,6 +928,9 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    _should_retry: bool = attrs.field(default=False, init=False)
+    """Whether the task should retry or not as decided by the API server."""
 
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
@@ -953,6 +971,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1119,7 +1138,7 @@ class ActivitySubprocess(WatchedSubprocess):
         except Exception as e:
             self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self, exc: Exception | None):
+    def _handle_heartbeat_failures(self, exc: Exception):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1127,7 +1146,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exception=exc,
+            exc_info=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -1151,6 +1170,13 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
+
+        # Any negative exit code indicates a signal kill
+        # We consider all signal kills as potentially retryable
+        # since they're often transient issues that could succeed on retry
+        if self._exit_code < 0 and self._should_retry:
+            return TaskInstanceState.UP_FOR_RETRY
+
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
@@ -1253,6 +1279,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, SetRenderedMapIndex):
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
@@ -1270,12 +1298,25 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = asset_resp
         elif isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
+            asset_event_resp = self.client.asset_events.get(
+                uri=msg.uri,
+                name=msg.name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(alias_name=msg.alias_name)
+            asset_event_resp = self.client.asset_events.get(
+                alias_name=msg.alias_name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
@@ -1320,6 +1361,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetTaskBreadcrumbs):
+            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -1346,7 +1390,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
         elif isinstance(msg, CreateHITLDetailPayload):
-            resp = self.client.hitl.add_response(
+            hitl_detail_request = self.client.hitl.add_response(
                 ti_id=msg.ti_id,
                 options=msg.options,
                 subject=msg.subject,
@@ -1356,7 +1400,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 multiple=msg.multiple,
                 assigned_users=msg.assigned_users,
             )
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
         else:
@@ -1451,6 +1496,44 @@ class InProcessTestSupervisor(ActivitySubprocess):
             # Bypass the tenacity retries!
             return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
 
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
+        # InProcessSupervisor has no subprocess, so we don't need to poll anything. This is called from
+        # _handle_socket_comms, so we need to override it
+        return None
+
+    def _handle_socket_comms(self):
+        while self._open_sockets:
+            self._service_subprocess(1.0)
+
+    @contextlib.contextmanager
+    def _setup_subprocess_socket(self):
+        thread = threading.Thread(target=self._handle_socket_comms, daemon=True)
+
+        requests, child_sock = socketpair()
+
+        self._open_sockets[requests] = "requests"
+        self.stdin = requests
+
+        self.selector.register(
+            requests,
+            selectors.EVENT_READ,
+            length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
+        )
+        os.set_inheritable(child_sock.fileno(), True)
+        os.environ["__AIRFLOW_SUPERVISOR_FD"] = str(child_sock.fileno())
+
+        try:
+            thread.start()
+            yield child_sock
+        finally:
+            requests.close()
+            child_sock.close()
+            self._on_socket_closed(requests)
+            thread.join(0)
+            os.environ.pop("__AIRFLOW_SUPERVISOR_FD", None)
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1503,16 +1586,19 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 start_date=start_date,
                 state=TaskInstanceState.RUNNING,
             )
-            context = ti.get_template_context()
-            log = structlog.get_logger(logger_name="task")
 
-            state, msg, error = run(ti, context, log)
-            finalize(ti, state, context, log, error)
+            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run_as_user
+            with supervisor._setup_subprocess_socket():
+                context = ti.get_template_context()
+                log = structlog.get_logger(logger_name="task")
 
-            # In the normal subprocess model, the task runner calls this before exiting.
-            # Since we're running in-process, we manually notify the API server that
-            # the task has finished—unless the terminal state was already sent explicitly.
-            supervisor.update_task_state_if_needed()
+                state, msg, error = run(ti, context, log)
+                finalize(ti, state, context, log, error)
+
+                # In the normal subprocess model, the task runner calls this before exiting.
+                # Since we're running in-process, we manually notify the API server that
+                # the task has finished—unless the terminal state was already sent explicitly.
+                supervisor.update_task_state_if_needed()
 
         return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
 
@@ -1899,9 +1985,12 @@ def supervise(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
+    close_client = False
     if not client:
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
         client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+        close_client = True
+        log.debug("Connecting to execution API server", server=server)
 
     start = time.monotonic()
 
@@ -1920,24 +2009,29 @@ def supervise(
 
     reset_secrets_masker()
 
-    process = ActivitySubprocess.start(
-        dag_rel_path=dag_rel_path,
-        what=ti,
-        client=client,
-        logger=logger,
-        bundle_info=bundle_info,
-        subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-    )
+    try:
+        process = ActivitySubprocess.start(
+            dag_rel_path=dag_rel_path,
+            what=ti,
+            client=client,
+            logger=logger,
+            bundle_info=bundle_info,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+        )
 
-    exit_code = process.wait()
-    end = time.monotonic()
-    log.info(
-        "Task finished",
-        task_instance_id=str(ti.id),
-        exit_code=exit_code,
-        duration=end - start,
-        final_state=process.final_state,
-    )
-    if log_path and log_file_descriptor:
-        log_file_descriptor.close()
-    return exit_code
+        exit_code = process.wait()
+        end = time.monotonic()
+        log.info(
+            "Task finished",
+            task_instance_id=str(ti.id),
+            exit_code=exit_code,
+            duration=end - start,
+            final_state=process.final_state,
+        )
+        return exit_code
+    finally:
+        if log_path and log_file_descriptor:
+            log_file_descriptor.close()
+        if close_client and client:
+            with suppress(Exception):
+                client.close()

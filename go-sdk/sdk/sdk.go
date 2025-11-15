@@ -15,9 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/*
-Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
-*/
 package sdk
 
 import (

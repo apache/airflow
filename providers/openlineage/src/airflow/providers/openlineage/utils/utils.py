@@ -33,8 +33,10 @@ from openlineage.client.utils import RedactMixin
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import DagRun, TaskReschedule
+from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -57,11 +59,6 @@ from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.module_loading import import_string
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
-
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -71,10 +68,6 @@ if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
-    from airflow.models import TaskInstance
-    from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, BaseOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -85,21 +78,6 @@ if TYPE_CHECKING:
 
     AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:
-    try:
-        from airflow.sdk import DAG, BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-    except ImportError:
-        from airflow.models import DAG, BaseOperator, MappedOperator
-
-    try:
-        from airflow.providers.common.compat.assets import Asset
-    except ImportError:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk import Asset
-        else:
-            # dataset is renamed to asset since Airflow 3.0
-            from airflow.datasets import Dataset as Asset
-
     try:
         from airflow.sdk._shared.secrets_masker import (
             Redactable,
@@ -169,25 +147,173 @@ def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_task_parent_run_facet(
-    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+def _get_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Retrieve the parent run facet for task-level events.
-
-    This facet currently always points to the DAG-level run ID and name,
-    as external events for DAG runs are not yet handled.
-    """
+    """Create the parent run facet from identifiers."""
+    root_parent_run_id = root_parent_run_id or parent_run_id
+    root_parent_job_name = root_parent_job_name or parent_job_name
+    root_parent_job_namespace = root_parent_job_namespace or parent_job_namespace
     return {
         "parent": parent_run.ParentRunFacet(
             run=parent_run.Run(runId=parent_run_id),
             job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
             root=parent_run.Root(
-                run=parent_run.RootRun(runId=parent_run_id),
-                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+                run=parent_run.RootRun(runId=root_parent_run_id),
+                job=parent_run.RootJob(namespace=root_parent_job_namespace, name=root_parent_job_name),
             ),
         )
     }
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
+) -> dict[str, Any]:
+    """Retrieve the parent run facet."""
+    return _get_parent_run_facet(
+        parent_run_id=parent_run_id,
+        parent_job_namespace=parent_job_namespace,
+        parent_job_name=parent_job_name,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
+
+
+def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
+    """Return the 'openlineage' section from a DAG run config if valid, otherwise an empty dict."""
+    if not dr_conf or not isinstance(dr_conf, dict):
+        return {}
+    ol_data = dr_conf.get("openlineage")
+    return ol_data if isinstance(ol_data, dict) else {}
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+    """Extract root parent run and job information from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    root_run_id = ol_data.get("rootParentRunId", "")
+    root_namespace = ol_data.get("rootParentJobNamespace", "")
+    root_name = ol_data.get("rootParentJobName", "")
+
+    all_root_info = (root_run_id, root_namespace, root_name)
+    if not all(all_root_info):
+        if any(all_root_info):
+            log.warning(
+                "Incomplete root OpenLineage information in DAG run config. "
+                "No root information will be used. Found values: "
+                "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+                root_run_id,
+                root_namespace,
+                root_name,
+            )
+        else:
+            log.debug("No 'openlineage' root information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=root_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage rootParentRunId '%s' in DAG run config - expected a valid UUID.",
+            root_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid root OpenLineage identifiers from DAG run config: "
+        "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+        root_run_id,
+        root_namespace,
+        root_name,
+    )
+    return {
+        "root_parent_run_id": root_run_id,
+        "root_parent_job_namespace": root_namespace,
+        "root_parent_job_name": root_name,
+    }
+
+
+def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
+    """Build the OpenLineage parent run facet from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    parent_run_id = ol_data.get("parentRunId", "")
+    parent_job_namespace = ol_data.get("parentJobNamespace", "")
+    parent_job_name = ol_data.get("parentJobName", "")
+
+    all_parent_info = (parent_run_id, parent_job_namespace, parent_job_name)
+    if not all(all_parent_info):
+        if any(all_parent_info):
+            log.warning(
+                "Incomplete parent OpenLineage information in DAG run config. "
+                "ParentRunFacet will NOT be created. Found values: "
+                "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+                parent_run_id,
+                parent_job_namespace,
+                parent_job_name,
+            )
+        else:
+            log.debug("No 'openlineage' parent information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=parent_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage parentRunId '%s' in DAG run config - expected a valid UUID.",
+            parent_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid parent OpenLineage identifiers from DAG run config: "
+        "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+        parent_run_id,
+        parent_job_namespace,
+        parent_job_name,
+    )
+
+    root_info = get_root_information_from_dagrun_conf(dr_conf)
+    if root_info and all(root_info.values()):
+        root_parent_run_id = root_info["root_parent_run_id"]
+        root_parent_job_namespace = root_info["root_parent_job_namespace"]
+        root_parent_job_name = root_info["root_parent_job_name"]
+    else:
+        log.debug(
+            "Missing OpenLineage root identifiers in DAG run config, "
+            "parent identifiers will be used as root instead."
+        )
+        root_parent_run_id, root_parent_job_namespace, root_parent_job_name = (
+            parent_run_id,
+            parent_job_namespace,
+            parent_job_name,
+        )
+
+    return _get_parent_run_facet(
+        parent_run_id=parent_run_id,
+        parent_job_namespace=parent_job_namespace,
+        parent_job_name=parent_job_name,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
 
 
 def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str:
@@ -803,25 +929,32 @@ def _get_task_groups_details(dag: DAG | SerializedDAG) -> dict:
 def _emits_ol_events(task: AnyOperator) -> bool:
     config_selective_enabled = is_selective_lineage_enabled(task)
     config_disabled_for_operators = is_operator_disabled(task)
-    # empty operators without callbacks/outlets are skipped for optimization by Airflow
-    # in airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks
-    is_skipped_as_empty_operator = all(
-        (
-            task.inherits_from_empty_operator,
-            not getattr(task, "on_execute_callback", None),
-            not getattr(task, "on_success_callback", None),
-            not task.outlets,
-            not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
-            not (
-                getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
-                and get_base_airflow_version_tuple() >= (3, 1, 0)
-            ),
-            not (
-                getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
-                and get_base_airflow_version_tuple() >= (3, 1, 0)
-            ),
+
+    is_task_schedulable_method = getattr(TaskInstance, "is_task_schedulable", None)  # Added in 3.2.0 #56039
+    if is_task_schedulable_method and callable(is_task_schedulable_method):
+        is_skipped_as_empty_operator = not is_task_schedulable_method(task)
+    else:
+        # For older Airflow versions, re-create Airflow core internal logic as
+        # empty operators without callbacks/outlets are skipped for optimization by Airflow
+        # in airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks or
+        # airflow.models.dagrun.DagRun.schedule_tis, depending on Airflow version
+        is_skipped_as_empty_operator = all(
+            (
+                task.inherits_from_empty_operator,
+                not getattr(task, "on_execute_callback", None),
+                not getattr(task, "on_success_callback", None),
+                not task.outlets,
+                not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
+                not (
+                    getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
+                    and get_base_airflow_version_tuple() >= (3, 1, 0)
+                ),
+                not (
+                    getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
+                    and get_base_airflow_version_tuple() >= (3, 1, 0)
+                ),
+            )
         )
-    )
 
     emits_ol_events = all(
         (

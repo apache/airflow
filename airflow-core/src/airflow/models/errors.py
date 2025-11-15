@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped
 
@@ -30,12 +32,14 @@ class ParseImportError(Base):
 
     __tablename__ = "import_error"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    timestamp: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    timestamp: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""
+        if self.bundle_name is None or self.filename is None:
+            raise ValueError("bundle_name and filename must not be None")
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
         return "/".join([str(bundle.path), self.filename])
