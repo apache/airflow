@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
@@ -312,7 +312,7 @@ class XComModel(TaskInstanceDependencies):
         if isinstance(map_indexes, range) and map_indexes.step == 1:
             query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif map_indexes is not None and is_container(map_indexes):
-            query = query.where(cls.map_index.in_(cast("Iterable[int]", map_indexes)))
+            query = query.where(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
             query = query.where(cls.map_index == map_indexes)
 
