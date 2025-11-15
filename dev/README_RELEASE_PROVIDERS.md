@@ -684,7 +684,7 @@ directory and cd into it.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}/dev
 # Copy packages.txt extracted from the mail sent by the release manager here
-uv run check_files.py providers -p ${PATH_TO_SVN}/${RELEASE_DATE}
+uv run check_files.py providers --release-date ${RELEASE_DATE} --path ${PATH_TO_SVN}
 ```
 
 After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
@@ -745,7 +745,9 @@ cd providers/${RELEASE_DATE}
 ```shell
 for i in *.tar.gz *.whl
 do
-   echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
+  if [ "$i" != "apache_airflow_providers-${RELEASE_DATE}-source.tar.gz" ]; then
+    echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
+  fi
 done
 ```
 

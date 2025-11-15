@@ -244,7 +244,7 @@ def cli():
 )
 @click.pass_context
 def providers(ctx, path: str, release_date: str):
-    files = os.listdir(os.path.join(path, "providers"))
+    files = os.listdir(os.path.join(path, "providers", release_date))
     pips = [f"{name}=={version}" for name, version in get_packages()]
     missing_files = check_providers(files, release_date)
     create_docker(
