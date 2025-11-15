@@ -21,13 +21,22 @@ import datetime
 import logging
 from typing import TYPE_CHECKING
 
-from airflow._shared.observability.metrics.protocols import Timer
-from airflow._shared.observability.metrics.validators import (
-    PatternAllowListValidator,
-    PatternBlockListValidator,
-    get_validator,
-    validate_stat,
-)
+try:
+    from airflow_shared.observability.metrics.protocols import Timer
+    from airflow_shared.observability.metrics.validators import (
+        PatternAllowListValidator,
+        PatternBlockListValidator,
+        get_validator,
+        validate_stat,
+    )
+except ModuleNotFoundError:
+    from airflow._shared.observability.metrics.protocols import Timer
+    from airflow._shared.observability.metrics.validators import (
+        PatternAllowListValidator,
+        PatternBlockListValidator,
+        get_validator,
+        validate_stat,
+    )
 from airflow.configuration import conf
 
 if TYPE_CHECKING:

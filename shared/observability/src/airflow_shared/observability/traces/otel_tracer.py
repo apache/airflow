@@ -39,13 +39,12 @@ try:
         parse_traceparent,
         parse_tracestate,
     )
-    from airflow_shared.timezones import timezone
 except ModuleNotFoundError:
     from airflow._shared.observability.traces.utils import (
         parse_traceparent,
         parse_tracestate,
     )
-    from airflow._shared.timezones import timezone
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.net import get_hostname
