@@ -79,7 +79,7 @@ const components = {
     }
 
     return (
-      <Code className={className} display="block" p={2} w="full" whiteSpace="break-spaces">
+      <Code className={className} display="block" p={2} w="full" whiteSpace="pre-wrap">
         {children}
       </Code>
     );
@@ -101,8 +101,16 @@ const components = {
     </List.Root>
   ),
   // eslint-disable-next-line id-length
-  p: ({ children }: PropsWithChildren) => <Text>{children}</Text>,
-  pre: ({ children }: PropsWithChildren) => <Code my={3}>{children}</Code>,
+  p: ({ children }: PropsWithChildren) => (
+    <Text overflowWrap="break-word" wordBreak="break-word">
+      {children}
+    </Text>
+  ),
+  pre: ({ children }: PropsWithChildren) => (
+    <Box as="pre" my={3} w="full">
+      {children}
+    </Box>
+  ),
   table: ({ children }: PropsWithChildren) => <Table.Root mb={3}>{children}</Table.Root>,
   tbody: Table.Body,
   td: Table.Cell,
