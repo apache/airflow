@@ -251,8 +251,6 @@ Misc
    * ``Update DAG example links in multiple providers documents (#44034)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 4.0.0

@@ -24,7 +24,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 LOGIN_USER = "login"
 LOGIN_PASSWORD = "password"

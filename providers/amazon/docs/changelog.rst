@@ -746,8 +746,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix deferrable RedshiftClusterSensor (#45098)``
    * ``Update path of example dags in docs (#45069)``
 
@@ -1141,7 +1139,8 @@ Misc
 * ``Bump boto min versions (#40052)``
 * ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
    * ``Resolve aws emr deprecations in tests (#40020)``
    * ``Prepare docs 4th wave May 2024 (#39934)``

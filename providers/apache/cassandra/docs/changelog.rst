@@ -164,8 +164,6 @@ Misc
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 3.6.0
