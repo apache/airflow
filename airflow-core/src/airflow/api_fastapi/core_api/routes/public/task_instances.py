@@ -64,7 +64,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
     TaskInstanceHistoryCollectionResponse,
     TaskInstanceHistoryResponse,
@@ -917,11 +917,18 @@ def bulk_task_instances(
     dag_bag: DagBagDep,
     dag_run_id: str,
     user: GetUserDep,
-) -> BulkResponse:
+) -> TaskInstanceCollectionResponse:
     """Bulk update, and delete task instances."""
     return BulkTaskInstanceService(
-        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user, commit=True,
+        session=session,
+        request=request,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        dag_bag=dag_bag,
+        user=user,
+        commit=True,
     ).handle_request()
+
 
 @task_instances_router.patch(
     task_instances_prefix + "/dry_run",
@@ -937,8 +944,14 @@ def bulk_task_instances_dry_run(
 ) -> TaskInstanceCollectionResponse:
     """Bulk update, and delete task instances dry run."""
     return BulkTaskInstanceService(
-        session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user, commit=False,
-    ).handle_request_dry_run()
+        session=session,
+        request=request,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        dag_bag=dag_bag,
+        user=user,
+        commit=False,
+    ).handle_request()
 
 
 @task_instances_router.patch(
@@ -1000,7 +1013,7 @@ def patch_task_instance(
                 task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
-                commit=True
+                commit=True,
             )
 
         elif key == "note":

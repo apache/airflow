@@ -26,18 +26,17 @@ import {
   useGridServiceGetGridTiSummariesKey,
   useTaskInstanceServiceBulkTaskInstances,
 } from "openapi/queries";
+import type { BulkBody_BulkTaskInstanceBody_ } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
-
-import { BulkBody_BulkTaskInstanceBody_, BulkUpdateAction_BulkTaskInstanceBody_ } from "openapi/requests/types.gen";
 
 export const useBulkTaskInstances = ({
   dagId,
-  runId,
   onSuccess,
+  runId,
 }: {
   dagId: string;
+  onSuccess?: () => void;
   runId: string;
-  onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
@@ -62,9 +61,7 @@ export const useBulkTaskInstances = ({
   ) => {
     const { requestBody } = variables;
     const { actions } = requestBody;
-    const updateActions = actions.filter(
-      (action) => action.action === "update",
-    ) as BulkUpdateAction_BulkTaskInstanceBody_[];
+    const updateActions = actions.filter((action) => action.action === "update");
     const updateActionsEntities = updateActions.flatMap((action) => action.entities);
     const affectsMultipleRuns = updateActionsEntities.some(
       (entity) => entity.include_future === true || entity.include_past === true,

@@ -71,10 +71,10 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
 
   // Build bulk update request
-  const { mutate, isPending } = useBulkTaskInstances({
+  const { isPending, mutate } = useBulkTaskInstances({
     dagId,
-    runId,
     onSuccess: onClose,
+    runId,
   });
   const { data, isPending: isPendingDryRun } = useBulkTaskInstancesDryRun({
     dagId,
@@ -88,17 +88,17 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
         {
           action: "update",
           entities: groupTaskIds.map((taskId) => ({
-            task_id: taskId,
-            map_index: null,
-            new_state: state,
-            note: note || null,
-            include_upstream: upstream,
             include_downstream: downstream,
             include_future: future,
             include_past: past,
+            include_upstream: upstream,
+            map_index: undefined,
+            new_state: state,
+            note: note || undefined,
+            task_id: taskId,
           })),
         },
-      ]
+      ],
     },
   });
 
@@ -113,14 +113,14 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
         {
           action: "update",
           entities: groupTaskIds.map((taskId) => ({
-            task_id: taskId,
-            map_index: null,
-            new_state: state,
-            note: note || null,
-            include_upstream: upstream,
             include_downstream: downstream,
             include_future: future,
             include_past: past,
+            include_upstream: upstream,
+            map_index: undefined,
+            new_state: state,
+            note: note || undefined,
+            task_id: taskId,
           })),
         },
       ],
@@ -179,11 +179,7 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
               ]}
             />
           </Flex>
-          <ActionAccordion
-            affectedTasks={affectedTasks}
-            note={note}
-            setNote={setNote}
-          />
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"

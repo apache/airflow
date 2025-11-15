@@ -30,7 +30,6 @@ from sqlalchemy.orm.session import Session
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
-    BulkAction,
     BulkActionNotOnExistence,
     BulkActionResponse,
     BulkBody,
@@ -70,7 +69,9 @@ def _patch_ti_validate_request(
 
     query = (
         select(TaskInstance)
-        .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id, TaskInstance.task_id == task_id)
+        .where(
+            TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id, TaskInstance.task_id == task_id
+        )
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.rendered_task_instance_fields))
     )
@@ -106,7 +107,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-    commit: bool
+    commit: bool,
 ) -> list[TaskInstance]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
@@ -128,6 +129,8 @@ def _patch_task_instance_state(
             status.HTTP_409_CONFLICT,
             f"Task id {task_id} is already in {data['new_state']} state",
         )
+    if not commit:
+        return updated_tis
 
     if commit:
         for ti in updated_tis:
@@ -320,7 +323,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
-    ) -> None:
+    ) -> TaskInstanceCollectionResponse:
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
@@ -400,6 +403,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
+                        all_updated_tis.extend(tis)
 
                     entity = all_map_entity_map.get((dag_id, run_id, task_id))
 
