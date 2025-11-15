@@ -17,38 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
 
 class TestFernetUtils:
     """Test utils for Fernet encryption."""
 
-    @patch("tests_common.test_utils.fernet.Fernet")
-    def test_generate_fernet_key_string(self, mock_fernet):
+    def test_generate_fernet_key_string(self):
         """Test generating a Fernet key."""
-        mock_fernet.generate_key.return_value = b"test_key"
-        key = generate_fernet_key_string()
-        assert key == "test_key"
-        mock_fernet.generate_key.assert_called_once()
-
-    @patch("tests_common.test_utils.fernet.Fernet")
-    def test_update_environment_variable_from_compose_yaml(self, mock_fernet, tmp_path):
-        """Test updating environment variable in docker-compose YAML file."""
-        mock_fernet.generate_key.return_value = b"new_test_key"
-        compose_yaml_content = """
-        x-airflow-common:
-            environment:
-                AIRFLOW__CORE__FERNET_KEY: old_key
-        """
-        compose_file = tmp_path / "docker-compose.yaml"
-        compose_file.write_text(compose_yaml_content)
-
-        from tests_common.test_utils.fernet import update_environment_variable_from_compose_yaml
-
-        update_environment_variable_from_compose_yaml(compose_file)
-
-        updated_content = compose_file.read_text()
-        assert "new_test_key" in updated_content
-        mock_fernet.generate_key.assert_called_once()
+        key = generate_fernet_key_string("TEST_KEY")
+        assert key == "NBJC_zYX6NWNek9v7tVv64YZz4K5sAgpoC4WGkQYv6I="
+        default_key = generate_fernet_key_string()
+        assert default_key == "BMsag_V7iplH1SIxzrTIbhLRZYOAYd6p0_nPtGdmuxo="

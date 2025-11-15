@@ -40,7 +40,6 @@ dependencies = [
     "typer-slim>=0.15.1",
     "time-machine>=2.15.0",
     "wheel>=0.42.0",
-    "pyyaml>=6.0.3",
     "yamllint>=1.33.0",
     "python-on-whales>=0.70.0",
     "apache-airflow-devel-common[basic]"
