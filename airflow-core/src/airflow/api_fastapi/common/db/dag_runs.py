@@ -34,8 +34,8 @@ dagruns_select_with_state_count = (
     select(
         DagRun.dag_id,
         DagRun.state,
-        DagModel.dag_display_name,
-        cast("ColumnElement[int]", func.count(DagRun.state).label("count")),
+        cast("ColumnElement", DagModel.dag_display_name),
+        func.count(DagRun.state).label("count"),
     )
     .join(DagModel, DagRun.dag_id == DagModel.dag_id)
     .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
