@@ -14,19 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
 
-import airflow.sdk.definitions._internal.types
-
-if TYPE_CHECKING:
-    from typing import TypeAlias
-
-ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
-
-NOTSET = airflow.sdk.definitions._internal.types.NOTSET
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
 
 class DagRunType(str, enum.Enum):
@@ -68,3 +61,14 @@ class DagRunTriggeredByType(enum.Enum):
     TIMETABLE = "timetable"  # for timetable based triggering
     ASSET = "asset"  # for asset_triggered run type
     BACKFILL = "backfill"
+
+
+add_deprecated_classes(
+    {
+        __name__: {
+            "ArgNotSet": "airflow.serialization.definitions.notset.ArgNotSet",
+            "NOTSET": "airflow.serialization.definitions.notset.ArgNotSet",
+        },
+    },
+    package=__name__,
+)
