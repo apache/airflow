@@ -340,6 +340,22 @@ class Connection(Base, LoggingMixin):
 
         return uri
 
+    def _safe_decrypt(self, fld: str) -> str:
+        """Safely decrypt and decode a field with proper error handling."""
+        fernet = get_fernet()
+        try:
+            as_bytes = bytes(fld, "utf-8")
+        except (TypeError, UnicodeEncodeError):
+            return fld
+        try:
+            decrypted = fernet.decrypt(as_bytes)
+        except InvalidToken:
+            return fld
+        try:
+            return decrypted.decode()
+        except UnicodeDecodeError:
+            return fld
+
     def get_password(self) -> str | None:
         """Return encrypted password."""
         if self._password and self.is_encrypted:
@@ -349,10 +365,7 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt encrypted password for login={self.login}  "
                     f"FERNET_KEY configuration is missing"
                 )
-            try:
-                return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-            except InvalidToken:
-                return self._password
+            return self._safe_decrypt(self._password)
         return self._password
 
     def set_password(self, value: str | None):
@@ -376,7 +389,7 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            extra_val: str | None = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
+            extra_val: str | None = self._safe_decrypt(self._extra)
         else:
             extra_val = self._extra
         if extra_val:
