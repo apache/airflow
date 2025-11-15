@@ -311,7 +311,6 @@ class AssetManager(LoggingMixin):
 
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,
-                partition_key=partition_key,
                 target_dag=target_dag,
                 session=session,
             )
@@ -330,7 +329,6 @@ class AssetManager(LoggingMixin):
     def _get_or_create_apdr(
         cls,
         target_key: str,
-        partition_key: str,
         target_dag: SerializedDagModel,
         session: Session,
     ):
@@ -349,7 +347,7 @@ class AssetManager(LoggingMixin):
             apdr = AssetPartitionDagRun(
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
-                partition_key=partition_key,
+                partition_key=target_key,
             )
             session.add(apdr)
             session.flush()
