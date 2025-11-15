@@ -1946,14 +1946,12 @@ def _mock_plugins(request: pytest.FixtureRequest):
 def hook_lineage_collector():
     from airflow.lineage import hook
 
-    hook.get_hook_lineage_collector.cache_clear()
     hlc = hook.HookLineageCollector()
     with mock.patch(
         "airflow.lineage.hook.get_hook_lineage_collector",
         return_value=hlc,
     ):
         yield hlc
-    hook.get_hook_lineage_collector.cache_clear()
 
 
 @pytest.fixture
