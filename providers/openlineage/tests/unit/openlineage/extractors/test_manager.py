@@ -48,21 +48,6 @@ if TYPE_CHECKING:
         AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
 
-@pytest.fixture
-def hook_lineage_collector():
-    from airflow.lineage import hook
-    from airflow.providers.common.compat.lineage.hook import (
-        get_hook_lineage_collector,
-    )
-
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-
-    yield get_hook_lineage_collector()
-
-    hook._hook_lineage_collector = None
-
-
 @pytest.mark.parametrize(
     ("uri", "dataset"),
     (
