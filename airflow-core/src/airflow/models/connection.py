@@ -350,12 +350,8 @@ class Connection(Base, LoggingMixin):
                 )
             try:
                 return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-            except Exception as e:
-                from cryptography.fernet import InvalidToken
-
-                if isinstance(e, InvalidToken):
-                    return self._password
-                raise
+            except InvalidToken as e:
+                 return self._password
         return self._password
 
     def set_password(self, value: str | None):
