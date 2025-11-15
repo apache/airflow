@@ -1013,7 +1013,7 @@ def patch_task_instance(
                 task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
-                commit=True
+                commit=True,
             )
 
         elif key == "note":
