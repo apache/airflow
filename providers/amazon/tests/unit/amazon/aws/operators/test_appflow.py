@@ -56,7 +56,6 @@ DUMP_COMMON_ARGS = {
 AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 
-@pytest.mark.db_test
 @pytest.fixture
 def ctx(create_task_instance, session):
     ti = create_task_instance(

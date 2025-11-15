@@ -758,7 +758,7 @@ class HITLOperations:
         body: str | None = None,
         defaults: list[str] | None = None,
         multiple: bool = False,
-        params: dict[str, Any] | None = None,
+        params: dict[str, dict[str, Any]] | None = None,
         assigned_users: list[HITLUser] | None = None,
     ) -> HITLDetailRequest:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""

@@ -84,7 +84,7 @@ apache-airflow-providers-apache-impala package
 `Apache Impala <https://impala.apache.org/>`__.
 
 
-Release: 1.7.3
+Release: 1.7.4
 
 Provider package
 ----------------
@@ -107,7 +107,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``impyla``                               ``>=0.18.0,<1.0``
+``impyla``                               ``>=0.22.0,<1.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``apache-airflow``                       ``>=2.10.0``
 =======================================  ==================
@@ -137,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-impala 1.7.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-impala 1.7.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-impala 1.7.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-impala 1.7.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.7.4-py3-none-any.whl.sha512>`__)

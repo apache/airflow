@@ -187,7 +187,7 @@ def patch_dag_run(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
-    for attr_name, attr_value in data.items():
+    for attr_name, attr_value_raw in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:
@@ -208,9 +208,9 @@ def patch_dag_run(
         elif attr_name == "note":
             updated_dag_run = session.get(DagRun, dag_run.id)
             if updated_dag_run and updated_dag_run.dag_run_note is None:
-                updated_dag_run.note = (attr_value, user.get_id())
+                updated_dag_run.note = (attr_value_raw, user.get_id())
             elif updated_dag_run:
-                updated_dag_run.dag_run_note.content = attr_value
+                updated_dag_run.dag_run_note.content = attr_value_raw
                 updated_dag_run.dag_run_note.user_id = user.get_id()
 
     final_dag_run = session.get(DagRun, dag_run.id)
@@ -466,6 +466,7 @@ def trigger_dag_run(
             triggered_by=triggered_by,
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
+            partition_key=params["partition_key"],
             session=session,
         )
 
