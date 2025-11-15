@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.sql.selectable import Select as SelectClass
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -180,8 +181,8 @@ def get_dags(
         .subquery()
     )
 
-    recent_dag_runs_select = (
-        select(
+    recent_dag_runs_select: SelectClass = (
+        SelectClass(
             recent_runs_subquery.c.run_after,
             DagRun.id,
             DagRun.dag_id,
@@ -191,7 +192,7 @@ def get_dags(
             DagRun.run_after,
             DagRun.start_date,
             DagRun.state,
-            DagRun.duration,
+            getattr(DagRun, "duration"),
         )
         .join(
             DagRun,
