@@ -343,12 +343,12 @@ class AssetManager(LoggingMixin):
             .order_by(AssetPartitionDagRun.id.desc())
             .limit(1)
         )
-        if latest_apdr and latest_apdr.target_dag_run_id is None:
+        if latest_apdr and latest_apdr.created_dag_run_id is None:
             apdr = latest_apdr
         else:
             apdr = AssetPartitionDagRun(
                 target_dag_id=target_dag.dag_id,
-                target_dag_run_id=None,
+                created_dag_run_id=None,
                 partition_key=partition_key,
             )
             session.add(apdr)
