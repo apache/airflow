@@ -19,7 +19,10 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { BulkBody_BulkTaskInstanceBody_, BulkTaskInstancesResponse, PatchTaskInstanceBody, PatchTaskInstanceDryRunResponse } from "openapi/requests/types.gen";
+import type {
+  BulkBody_BulkTaskInstanceBody_,
+  BulkTaskInstancesDryRunResponse,
+} from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
@@ -30,7 +33,7 @@ type Props<TData, TError> = {
 
 export const usePatchTaskInstanceDryRunKey = "patchTaskInstanceDryRun";
 
-export const useBulkTaskInstancesDryRun = <TData = BulkTaskInstancesResponse, TError = unknown>({
+export const useBulkTaskInstancesDryRun = <TData = BulkTaskInstancesDryRunResponse, TError = unknown>({
   dagId,
   dagRunId,
   options,
@@ -42,7 +45,7 @@ export const useBulkTaskInstancesDryRun = <TData = BulkTaskInstancesResponse, TE
       TaskInstanceService.bulkTaskInstancesDryRun({
         dagId,
         dagRunId,
-        requestBody
+        requestBody,
       }) as TData,
     queryKey: [
       usePatchTaskInstanceDryRunKey,

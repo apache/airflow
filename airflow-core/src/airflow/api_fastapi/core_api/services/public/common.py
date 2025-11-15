@@ -31,10 +31,11 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkCreateAction,
     BulkDeleteAction,
-    BulkResponse,
     BulkUpdateAction,
     T,
 )
+from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceCollectionResponse
+from airflow.models.taskinstance import TaskInstance
 
 
 class BulkService(Generic[T], ABC):
@@ -44,9 +45,10 @@ class BulkService(Generic[T], ABC):
         self.session = session
         self.request = request
 
-    def handle_request(self) -> BulkResponse:
+    def handle_request(self) -> TaskInstanceCollectionResponse:
         """Handle request for bulk actions."""
         results: dict[str, BulkActionResponse] = {}
+        response: dict[list[TaskInstance], int] = {}
 
         for action in self.request.actions:
             if action.action.value not in results:
@@ -55,11 +57,11 @@ class BulkService(Generic[T], ABC):
             if action.action == BulkAction.CREATE:
                 self.handle_bulk_create(action, results[action.action.value])
             elif action.action == BulkAction.UPDATE:
-                self.handle_bulk_update(action, results[action.action.value])
+                response = self.handle_bulk_update(action, results[action.action.value])
             elif action.action == BulkAction.DELETE:
                 self.handle_bulk_delete(action, results[action.action.value])
 
-        return BulkResponse(**results)
+        return response
 
     @abstractmethod
     def handle_bulk_create(self, action: BulkCreateAction[T], results: BulkActionResponse) -> None:
@@ -67,7 +69,9 @@ class BulkService(Generic[T], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_bulk_update(self, action: BulkUpdateAction[T], results: BulkActionResponse) -> None:
+    def handle_bulk_update(
+        self, action: BulkUpdateAction[T], results: BulkActionResponse
+    ) -> TaskInstanceCollectionResponse:
         """Bulk update entities."""
         raise NotImplementedError
 
