@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -127,6 +128,18 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
 CELERY_INTEGRATION = "celery"
+
+
+def is_wsl() -> bool:
+    """Detect if we are running inside WSL."""
+    if platform.system().lower() != "linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            version_info = f.read().lower()
+            return "microsoft" in version_info or "wsl" in version_info
+    except FileNotFoundError:
+        return False
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -503,6 +516,12 @@ option_executor_start_airflow = click.option(
     "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
+@click.option(
+    "--create-all-roles",
+    help="Creates all user roles for testing with FabAuthManager (viewer, user, op, admin). "
+    "SimpleAuthManager always has all roles available.",
+    is_flag=True,
+)
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
@@ -565,6 +584,7 @@ def start_airflow(
     debug_components: tuple[str, ...],
     debugger: str,
     dev_mode: bool,
+    create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
     extra_args: tuple,
@@ -603,6 +623,14 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    # Automatically enable file polling for hot reloading under WSL
+    if dev_mode and is_wsl():
+        os.environ["CHOKIDAR_USEPOLLING"] = "true"
+        get_console().print(
+            "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
+        )
+
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
@@ -637,6 +665,7 @@ def start_airflow(
         debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        create_all_roles=create_all_roles,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
@@ -718,7 +747,7 @@ def start_airflow(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -777,7 +806,7 @@ def build_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        docs_list_as_tuple = tuple(distributions_list.split(","))
+        docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
