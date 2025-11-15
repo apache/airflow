@@ -1654,8 +1654,8 @@ class TranslateListGlossariesOperator(GoogleCloudBaseOperator):
             raise AirflowException(e)
 
         result_ids = []
-        for glossary_item in results_pager:
-            glossary_item = type(glossary_item).to_dict(glossary_item)
+        for glossary_item_raw in results_pager:
+            glossary_item = type(glossary_item_raw).to_dict(glossary_item_raw)
             glossary_id = hook.extract_object_id(glossary_item)
             result_ids.append(glossary_id)
         self.log.info("Fetching the glossaries list complete. Glossary id-s: %s", result_ids)

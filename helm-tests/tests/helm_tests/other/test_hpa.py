@@ -33,7 +33,7 @@ class TestHPA:
         assert docs == []
 
     @pytest.mark.parametrize(
-        "executor, is_created",
+        ("executor", "is_created"),
         [
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
@@ -55,7 +55,7 @@ class TestHPA:
             assert docs == []
 
     @pytest.mark.parametrize(
-        "min_replicas, max_replicas",
+        ("min_replicas", "max_replicas"),
         [
             (None, None),
             (2, 8),
@@ -104,7 +104,7 @@ class TestHPA:
         assert jmespath.search("spec.behavior", docs[0]) == expected_behavior
 
     @pytest.mark.parametrize(
-        "enabled, kind",
+        ("enabled", "kind"),
         [
             ("enabled", "StatefulSet"),
             ("not_enabled", "Deployment"),

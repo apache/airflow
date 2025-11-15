@@ -181,7 +181,7 @@ class TestConfigEndpoint:
 
 class TestGetConfig(TestConfigEndpoint):
     @pytest.mark.parametrize(
-        "section, headers, expected_status_code, expected_response",
+        ("section", "headers", "expected_status_code", "expected_response"),
         [
             (
                 None,
@@ -273,7 +273,7 @@ class TestGetConfig(TestConfigEndpoint):
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
-        "headers, expected_status_code, expected_response",
+        ("headers", "expected_status_code", "expected_response"),
         [
             (HEADERS_JSON, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
             (HEADERS_JSON_UTF8, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
@@ -316,7 +316,7 @@ class TestGetConfig(TestConfigEndpoint):
 
 class TestGetConfigValue(TestConfigEndpoint):
     @pytest.mark.parametrize(
-        "section, option, headers, expected_status_code, expected_response",
+        ("section", "option", "headers", "expected_status_code", "expected_response"),
         [
             (
                 SECTION_CORE,
@@ -430,7 +430,7 @@ class TestGetConfigValue(TestConfigEndpoint):
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
-        "section, option, headers, expected_status_code, expected_response",
+        ("section", "option", "headers", "expected_status_code", "expected_response"),
         [
             (
                 SECTION_DATABASE,

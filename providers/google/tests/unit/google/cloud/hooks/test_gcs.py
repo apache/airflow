@@ -96,7 +96,7 @@ class TestGCSHookHelperFunctions:
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
 
     @pytest.mark.parametrize(
-        "json_value, parsed_value",
+        ("json_value", "parsed_value"),
         [
             ("[1, 2, 3]", [1, 2, 3]),
             ('"string value"', "string value"),
@@ -960,7 +960,7 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, blob_names, returned_prefixes, call_args, result",
+        ("prefix", "blob_names", "returned_prefixes", "call_args", "result"),
         (
             (
                 "prefix",

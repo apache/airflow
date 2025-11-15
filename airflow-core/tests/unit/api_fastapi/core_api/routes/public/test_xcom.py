@@ -162,7 +162,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
     @pytest.mark.parametrize(
-        "params, expected_value",
+        ("params", "expected_value"),
         [
             pytest.param(
                 {"deserialize": True},
@@ -196,7 +196,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["value"] == expected_value
 
     @pytest.mark.parametrize(
-        "xcom_value, expected_return",
+        ("xcom_value", "expected_return"),
         [
             pytest.param(42, 42, id="jsonable"),
             pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
@@ -368,7 +368,7 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "key, expected_entries",
+        ("key", "expected_entries"),
         [
             (
                 TEST_XCOM_KEY,
@@ -482,7 +482,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_xcom_ids",
+        ("query_params", "expected_xcom_ids"),
         [
             (
                 {"limit": "1"},
@@ -544,7 +544,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
 
 class TestCreateXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail",
+        ("dag_id", "task_id", "dag_run_id", "request_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid input, should succeed with 201 CREATED
             pytest.param(
@@ -649,7 +649,7 @@ class TestCreateXComEntry(TestXComEndpoint):
 
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "key, patch_body, expected_status, expected_detail",
+        ("key", "patch_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid update, should return 200 OK
             pytest.param(

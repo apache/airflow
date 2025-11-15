@@ -543,7 +543,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "timetable, serialized_timetable",
+        ("timetable", "serialized_timetable"),
         [
             (
                 cron_timetable("0 0 * * *"),
@@ -858,7 +858,7 @@ class TestStringifiedDAGs:
             )
 
     @pytest.mark.parametrize(
-        "dag_start_date, task_start_date, expected_task_start_date",
+        ("dag_start_date", "task_start_date", "expected_task_start_date"),
         [
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
@@ -914,7 +914,7 @@ class TestStringifiedDAGs:
             SerializedDAG.to_dict(dag)
 
     @pytest.mark.parametrize(
-        "dag_end_date, task_end_date, expected_task_end_date",
+        ("dag_end_date", "task_end_date", "expected_task_end_date"),
         [
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
@@ -955,7 +955,7 @@ class TestStringifiedDAGs:
         assert simple_task.end_date == expected_task_end_date
 
     @pytest.mark.parametrize(
-        "serialized_timetable, expected_timetable",
+        ("serialized_timetable", "expected_timetable"),
         [
             (
                 {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
@@ -1004,7 +1004,7 @@ class TestStringifiedDAGs:
         assert dag.timetable == expected_timetable
 
     @pytest.mark.parametrize(
-        "serialized_timetable, expected_timetable_summary",
+        ("serialized_timetable", "expected_timetable_summary"),
         [
             (
                 {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
@@ -1076,7 +1076,7 @@ class TestStringifiedDAGs:
             SerializedDAG.from_dict(serialized)
 
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             (
                 relativedelta(days=-1),
@@ -1106,7 +1106,7 @@ class TestStringifiedDAGs:
         assert val == round_tripped
 
     @pytest.mark.parametrize(
-        "val, expected_val",
+        ("val", "expected_val"),
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
@@ -1195,7 +1195,7 @@ class TestStringifiedDAGs:
         }
 
     @pytest.mark.parametrize(
-        "val, expected_val",
+        ("val", "expected_val"),
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
@@ -1351,7 +1351,7 @@ class TestStringifiedDAGs:
             return not self.__eq__(other)
 
     @pytest.mark.parametrize(
-        "templated_field, expected_field",
+        ("templated_field", "expected_field"),
         [
             (None, None),
             ([], []),
@@ -2181,7 +2181,7 @@ class TestStringifiedDAGs:
         assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
 
     @pytest.mark.parametrize(
-        "passed_success_callback, expected_value",
+        ("passed_success_callback", "expected_value"),
         [
             ({"on_success_callback": lambda x: print("hi")}, True),
             ({}, False),
@@ -2213,7 +2213,7 @@ class TestStringifiedDAGs:
         assert deserialized_dag.has_on_success_callback is expected_value
 
     @pytest.mark.parametrize(
-        "passed_failure_callback, expected_value",
+        ("passed_failure_callback", "expected_value"),
         [
             ({"on_failure_callback": lambda x: print("hi")}, True),
             ({}, False),
@@ -2245,7 +2245,7 @@ class TestStringifiedDAGs:
         assert deserialized_dag.has_on_failure_callback is expected_value
 
     @pytest.mark.parametrize(
-        "dag_arg, conf_arg, expected",
+        ("dag_arg", "conf_arg", "expected"),
         [
             (True, "True", True),
             (True, "False", True),
@@ -2278,7 +2278,7 @@ class TestStringifiedDAGs:
             assert deserialized_dag.disable_bundle_versioning is expected
 
     @pytest.mark.parametrize(
-        "object_to_serialized, expected_output",
+        ("object_to_serialized", "expected_output"),
         [
             (
                 ["task_1", "task_5", "task_2", "task_4"],
@@ -3735,7 +3735,7 @@ def dummy_callback():
 
 
 @pytest.mark.parametrize(
-    "callback_config,expected_flags,is_mapped",
+    ("callback_config", "expected_flags", "is_mapped"),
     [
         # Regular operator tests
         (
@@ -3904,7 +3904,7 @@ def test_task_callback_properties_exist():
 
 
 @pytest.mark.parametrize(
-    "old_callback_name,new_callback_name",
+    ("old_callback_name", "new_callback_name"),
     [
         ("on_execute_callback", "has_on_execute_callback"),
         ("on_failure_callback", "has_on_failure_callback"),
@@ -4180,7 +4180,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert deserialized_task.retries == 5  # Explicitly set value
 
     @pytest.mark.parametrize(
-        ["task_config", "dag_id", "task_id", "non_default_fields"],
+        ("task_config", "dag_id", "task_id", "non_default_fields"),
         [
             # Test case 1: Size optimization with non-default values
             pytest.param(
@@ -4273,7 +4273,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert expand_value["env"] == {"VAR1": "value1", "VAR2": "value2"}
 
     @pytest.mark.parametrize(
-        ["partial_kwargs_data", "expected_results"],
+        ("partial_kwargs_data", "expected_results"),
         [
             # Test case 1: Encoded format with client defaults
             pytest.param(
@@ -4351,7 +4351,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
 
 
 @pytest.mark.parametrize(
-    ["callbacks", "expected_has_flags", "absent_keys"],
+    ("callbacks", "expected_has_flags", "absent_keys"),
     [
         pytest.param(
             {

@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
@@ -312,7 +313,7 @@ option_postgres_version = click.option(
     "-P",
     "--postgres-version",
     type=BackendVersionChoice(ALLOWED_POSTGRES_VERSIONS),
-    default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    default=CacheableDefault(DEFAULT_POSTGRES_VERSION),
     envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
@@ -412,12 +413,12 @@ option_use_uv = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
-option_use_uv_default_disabled = click.option(
+option_use_uv_default_depends_on_installation_method = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
-    default=False,
-    show_default=True,
-    help="Use uv instead of pip as packaging tool to build the image.",
+    default=None,
+    help="Use uv instead of pip as packaging tool to build the image (default is True for installing "
+    "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
 option_uv_http_timeout = click.option(
