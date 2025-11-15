@@ -1054,7 +1054,7 @@ class TestGetFieldWithFalseValues:
         result = hook.get_field(extras, "use_legacy_sql")
         assert result is False
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.providers.common.compat.sdk.BaseHook.get_connection")
     def test_hook_get_field_returns_false_not_default(self, mock_get_connection):
         """Test that _get_field correctly returns False instead of default value."""
         mock_connection = mock.MagicMock()

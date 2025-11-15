@@ -1420,7 +1420,7 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]["query"]["useLegacySql"] is False
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.providers.common.compat.sdk.BaseHook.get_connection")
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(CREDENTIALS, PROJECT_ID),
