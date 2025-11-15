@@ -577,8 +577,7 @@ class PostgresHook(DbApiHook):
         cluster_identifier = connection.extra_dejson.get("cluster-identifier")
         if cluster_identifier is None and not connection.host:
             raise ValueError(
-                "connection.host is required for Redshift OpenLineage authority "
-                "when cluster-identifier is not provided in connection extra"
+                "connection host is required for Redshift OpenLineage when cluster-identifier is not set in extras."
             )
         cluster_identifier = (
             cluster_identifier if cluster_identifier is not None else connection.host.split(".")[0]
