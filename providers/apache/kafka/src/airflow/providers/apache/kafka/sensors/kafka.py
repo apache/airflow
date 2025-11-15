@@ -20,12 +20,12 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 
 VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 
 
-class AwaitMessageSensor(BaseOperator):
+class AwaitMessageSensor(BaseSensorOperator):
     """
     An Airflow sensor that defers until a specific message is published to Kafka.
 
@@ -53,6 +53,10 @@ class AwaitMessageSensor(BaseOperator):
     :param poll_interval: How long the kafka consumer should sleep after reaching the end of the Kafka log,
         defaults to 5
     :param xcom_push_key: the name of a key to push the returned message to, defaults to None
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :param timeout: Time elapsed before the task times out and fails (in seconds)
+    :param poke_interval: This parameter is inherited but not used in this deferrable implementation
+    :param mode: This parameter is inherited but not used in this deferrable implementation
 
 
     """
@@ -111,7 +115,7 @@ class AwaitMessageSensor(BaseOperator):
         return event
 
 
-class AwaitMessageTriggerFunctionSensor(BaseOperator):
+class AwaitMessageTriggerFunctionSensor(BaseSensorOperator):
     """
     Defer until a specific message is published to Kafka, trigger a registered function, then resume waiting.
 
@@ -137,6 +141,10 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         cluster, defaults to 1
     :param poll_interval: How long the kafka consumer should sleep after reaching the end of the Kafka log,
         defaults to 5
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :param timeout: Time elapsed before the task times out and fails (in seconds)
+    :param poke_interval: This parameter is inherited but not used in this deferrable implementation
+    :param mode: This parameter is inherited but not used in this deferrable implementation
 
 
     """

@@ -223,7 +223,7 @@ class TestFabAuthManager:
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
     @pytest.mark.parametrize(
-        "api_name, method, user_permissions, expected_result",
+        ("api_name", "method", "user_permissions", "expected_result"),
         chain(
             *[
                 (
@@ -277,7 +277,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        ("method", "dag_access_entity", "dag_details", "user_permissions", "expected_result"),
         [
             # Scenario 1 #
             # With global permissions on Dags
@@ -509,7 +509,7 @@ class TestFabAuthManager:
         AIRFLOW_V_3_1_PLUS is not True, reason="HITL test will be skipped if Airflow version < 3.1.0"
     )
     @pytest.mark.parametrize(
-        "method, dag_access_entity, dag_details, user_permissions, expected_result",
+        ("method", "dag_access_entity", "dag_details", "user_permissions", "expected_result"),
         HITL_ENDPOINT_TESTS if AIRFLOW_V_3_1_PLUS else [],
     )
     @mock.patch.object(FabAuthManager, "get_authorized_dag_ids")
@@ -536,7 +536,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "access_view, user_permissions, expected_result",
+        ("access_view", "user_permissions", "expected_result"),
         [
             # With permission (jobs)
             (
@@ -601,7 +601,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "method, resource_name, user_permissions, expected_result",
+        ("method", "resource_name", "user_permissions", "expected_result"),
         [
             (
                 "GET",
@@ -643,7 +643,7 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "menu_items, user_permissions, expected_result",
+        ("menu_items", "user_permissions", "expected_result"),
         [
             (
                 [MenuItem.ASSETS, MenuItem.DAGS],
@@ -686,7 +686,7 @@ class TestFabAuthManager:
         assert result == {"conn1", "conn2"}
 
     @pytest.mark.parametrize(
-        "method, user_permissions, expected_results",
+        ("method", "user_permissions", "expected_results"),
         [
             # Scenario 1
             # With global read permissions on Dags

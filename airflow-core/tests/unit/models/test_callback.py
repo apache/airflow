@@ -100,7 +100,7 @@ class TestCallback:
     def test_get_metric_info(self):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
         callback.data["kwargs"] = {"context": {"dag_id": TEST_DAG_ID}, "email": "test@example.com"}
-        metric_info = callback.get_metric_info(CallbackState.SUCCESS.value, "0")
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
 
         assert metric_info["stat"] == "deadline_alerts.callback_success"
         assert metric_info["tags"] == {
@@ -122,7 +122,7 @@ class TestTriggererCallback:
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.state == CallbackState.PENDING.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -192,7 +192,7 @@ class TestExecutorCallback:
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.state == CallbackState.PENDING.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None

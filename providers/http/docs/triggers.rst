@@ -30,7 +30,7 @@ enabling event-driven DAGs based on API responses.
 How It Works
 ------------
 
-1. Sends requests to an API.
+1. Sends requests to an API every ``poll_interval`` seconds (default 60).
 2. Uses the callable at ``response_check_path`` to evaluate the API response.
 3. If the callable returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
 
@@ -85,6 +85,7 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
         http_conn_id="http_default",  # HTTP connection with https://api.github.com/ as the Host
         headers=headers,
         response_check_path="dags.check_airflow_releases.check_github_api_response",  # Path to the check_github_api_response callable
+        poll_interval=600,  # Poll API every 600 seconds
     )
 
     asset = Asset(
@@ -133,11 +134,15 @@ Parameters
 ``response_check_path``
     Path to callable that evaluates whether the API response passes the conditions set by the user to trigger DAGs
 
+``poll_interval``
+    How often, in seconds, the trigger should send a request to the API.
+
 
 Important Notes
 ---------------
 
 1. A ``response_check_path`` value is required.
 2. The ``response_check_path`` must contain the path to an asynchronous callable. Synchronous callables will raise an exception.
-3. This trigger does not automatically record the previous API response.
-4. The previous response may have to be persisted manually though ``Variable.set()`` in the ``response_check_path`` callable to prevent the trigger from emitting events repeatedly for the same API response.
+3. The ``poll_interval`` defaults to 60 seconds. This may be changed to avoid hitting API rate limits.
+4. This trigger does not automatically record the previous API response.
+5. The previous response may have to be persisted manually though ``Variable.set()`` in the ``response_check_path`` callable to prevent the trigger from emitting events repeatedly for the same API response.
