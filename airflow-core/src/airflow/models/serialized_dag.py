@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 class _DagDependenciesResolver:
     """Resolver that resolves dag dependencies to include asset id and assets link to asset aliases."""
 
-    def __init__(self, dag_id_dependencies: Sequence[tuple[str, dict]], session: Session) -> None:
+    def __init__(self, dag_id_dependencies: Sequence[tuple[str, list]], session: Session) -> None:
         self.dag_id_dependencies = dag_id_dependencies
         self.session = session
 
@@ -650,10 +650,10 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        if load_json is not None:
-            iterator_result = [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
-        else:
-            iterator_result = [(str(row[0]), row[1] if row[1] else []) for row in query.all()]
+        iterator_result = [
+            (str(dag_id), load_json(deps_data) if load_json else (deps_data or []))
+            for dag_id, deps_data in query
+        ]
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator_result, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
