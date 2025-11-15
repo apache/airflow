@@ -722,8 +722,8 @@ class TestDagRunOperatorAF2:
             task.execute_complete(context={}, event=trigger.serialize())
 
     @pytest.mark.parametrize(
-        argnames=("trigger_logical_date",),
-        argvalues=[
+        "trigger_logical_date",
+        [
             pytest.param(DEFAULT_DATE, id=f"logical_date={DEFAULT_DATE}"),
             pytest.param(None, id="logical_date=None"),
         ],

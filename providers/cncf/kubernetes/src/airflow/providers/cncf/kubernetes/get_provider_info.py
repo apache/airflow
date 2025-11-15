@@ -135,6 +135,8 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "",
+                        "deprecated": True,
+                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify container image instead.\n",
                     },
                     "worker_container_tag": {
                         "description": "The tag of the Kubernetes Image for the Worker to Run\n",
@@ -142,6 +144,8 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "",
+                        "deprecated": True,
+                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify the image tag instead.\n",
                     },
                     "namespace": {
                         "description": "The Kubernetes namespace where airflow workers should be created. Defaults to ``default``\n",
@@ -149,6 +153,8 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "default",
+                        "deprecated": True,
+                        "deprecation_reason": "This configuration is deprecated. Use `pod_template_file` to specify namespace instead.\n",
                     },
                     "delete_worker_pods": {
                         "description": "If True, all worker pods will be deleted upon termination\n",
