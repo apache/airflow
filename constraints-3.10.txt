@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-14T21:49:00.813192
+# This constraints file was automatically generated on 2025-11-15T09:48:50.762554
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -111,7 +111,7 @@ attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.1
+azure-cosmos==4.14.2
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -609,5 +609,5 @@ zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.1
-zope.interface==8.1
+zope.interface==8.1.1
 zstandard==0.25.0
