@@ -180,7 +180,20 @@ and update version of the provider to a target version - depending on type of ch
 providers. This is happening by running `breeze prepare-provider-documentation`. The tool aids the release
 manager to classify each of the changes and will automatically increase version of the provider.
 
-Note that version of the provider should be updated in two places (the tool does it automatically):
+Before running the command, you need to set the environment variable ``RELEASE_DATE``
+to the date of the release, usually current on next day - depending on when you plan to start the release.
+This can be updated later, when you rebase the PR with the latest main before merging it.
+
+```shell script
+export RELEASE_DATE=$(date "+%Y-%m-%d")
+```
+
+The RELEASE_DATE can also optionally have `_01`, `_02` suffixes appended to it to indicate that the release
+is the first, second or third release candidate for the provider that day. It's unlikely to happen that
+we have several release candidates for the same provider in a single day, but this makes it possible to
+release multiple providers in a single day.
+
+Note that versions of the provider will be updated in two places (the tool does it automatically):
 
 * **provider.yaml** - where there is a list of all versions of providers (the first one is the latest)
 * **changelog.rst** - where changelogs are sorted according to provider version and group changes in

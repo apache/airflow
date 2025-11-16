@@ -118,6 +118,7 @@ from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_validators import validate_release_date
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.constraints_version_check import constraints_version_check
@@ -156,6 +157,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
@@ -816,6 +818,15 @@ def provider_action_summary(description: str, message_type: MessageType, package
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
+@click.option(
+    "--release-date",
+    required=True,
+    type=str,
+    callback=validate_release_date,
+    envvar="RELEASE_DATE",
+    help="Planned release date for the providers release in format "
+    "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
+)
 @option_verbose
 @option_answer
 @option_dry_run
@@ -832,6 +843,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
+    release_date: str,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -952,6 +964,7 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
     if incremental_update:
         get_console().print(r"\[warning] Generated changes:")
         run_command(["git", "diff"])
