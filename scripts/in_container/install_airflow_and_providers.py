@@ -435,6 +435,12 @@ def find_installation_spec(
             console.print(f"\nInstalling airflow from GitHub PR #{use_airflow_version}: {resolved_version}\n")
         elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
             # Handle owner/repo:branch format
+            if repo_match is None:
+                console.print(
+                    f"[red]USE_AIRFLOW_VERSION '{use_airflow_version}' did not match expected "
+                    "owner/repo:branch pattern"
+                )
+                sys.exit(1)
             owner, repo, branch = repo_match.groups()
             resolved_version = use_airflow_version
             console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
