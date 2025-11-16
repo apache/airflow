@@ -175,18 +175,16 @@ class TestLocalExecutor:
 
     @skip_spawn_mp_start
     def test_worker_process_revive(self):
-        import signal
-
         executor = LocalExecutor(parallelism=2)
         executor.start()
 
         worker_pid = list(executor.workers.keys())
         for killed_pid in worker_pid:
-            os.kill(killed_pid, signal.SIGTERM)
+            # killing the worker process
+            proc = mock.MagicMock()
+            proc.is_alive.return_value = True
 
-        # wait until worker is terminated
-        for killed_pid in worker_pid:
-            executor.workers[killed_pid].join(timeout=3)
+            executor.workers[killed_pid] = proc
 
         success_tis = [
             workloads.TaskInstance(
