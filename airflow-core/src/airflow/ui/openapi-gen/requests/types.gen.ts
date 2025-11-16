@@ -1998,6 +1998,8 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
+export type OklchColor = string;
+
 /**
  * Standard fields of a Hook that a form will render.
  */
@@ -2061,7 +2063,7 @@ export type Theme = {
         [key: string]: {
             [key: string]: {
                 [key: string]: {
-                    [key: string]: (string);
+                    [key: string]: OklchColor;
                 };
             };
         };
