@@ -615,7 +615,7 @@ class SerializedDagModel(Base):
                 yield (str(dag_id), load_json(deps_data))
         else:
             for dag_id, deps_data in query:
-                yield (str(dag_id), deps_data if deps_data else [])
+                yield str(dag_id), deps_data or []
 
     @classmethod
     @provide_session
