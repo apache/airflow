@@ -589,6 +589,14 @@ class AirflowConfigParser(ConfigParser):
                 value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
+                if "\n" in value:
+                    try:
+                        value = json.dumps(json.loads(value), indent=4)
+                        value = value.replace(
+                            "\n", "\n    "
+                        )  # indent multi-line JSON to satisfy configparser format
+                    except JSONDecodeError:
+                        pass
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
