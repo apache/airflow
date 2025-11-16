@@ -41,6 +41,9 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -237,33 +240,51 @@ class Variable(Base, LoggingMixin):
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
 
-            # Import dialect-specific insert function
-            if (dialect_name := session.get_bind().dialect.name) == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert
+            # Create dialect-specific upsert statement
+            dialect_name = session.get_bind().dialect.name
+            stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+
+            if dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                pg_stmt = pg_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = pg_stmt.on_conflict_do_update(
+                    index_elements=["key"],
+                    set_=dict(
+                        val=val,
+                        description=description,
+                        is_encrypted=is_encrypted,
+                    ),
+                )
             elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert
-            else:
-                from sqlalchemy.dialects.sqlite import insert
+                from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-            # Create the insert statement (common for all dialects)
-            stmt = insert(Variable).values(
-                key=key,
-                val=val,
-                description=description,
-                is_encrypted=is_encrypted,
-            )
-
-            # Apply dialect-specific upsert
-            if dialect_name == "mysql":
-                # MySQL: ON DUPLICATE KEY UPDATE
-                stmt = stmt.on_duplicate_key_update(
+                mysql_stmt = mysql_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = mysql_stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
             else:
-                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
-                stmt = stmt.on_conflict_do_update(
+                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+                sqlite_stmt = sqlite_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = sqlite_stmt.on_conflict_do_update(
                     index_elements=["key"],
                     set_=dict(
                         val=val,
@@ -375,7 +396,8 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+            result = session.execute(delete(Variable).where(Variable.key == key))
+            rows = getattr(result, "rowcount", 0) or 0
             SecretCache.invalidate_variable(key)
             return rows
 

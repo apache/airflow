@@ -586,6 +586,31 @@ class TestACIOperator:
 
         assert aci_mock.return_value.delete.call_count == 1
 
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_identity(self, aci_mock):
+        identity = MagicMock()
+
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            identity=identity,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_cg.identity == identity
+
 
 class XcomMock:
     def __init__(self) -> None:
