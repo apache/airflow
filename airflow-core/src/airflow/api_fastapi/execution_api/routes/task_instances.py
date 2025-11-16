@@ -22,7 +22,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
 from uuid import UUID
 
 import attrs
@@ -297,10 +297,18 @@ def ti_run(
         )
 
 
+class TaskInstanceLike(Protocol):
+    """Protocol for objects that have task instance attributes."""
+
+    task_id: str
+    map_index: int
+    run_id: str
+
+
 def _get_upstream_map_indexes(
     *,
     serialized_dag: SerializedDAG,
-    ti: TI | Any,
+    ti: TaskInstanceLike,
     session: SessionDep,
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     task = serialized_dag.get_task(ti.task_id)
