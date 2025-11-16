@@ -27,6 +27,7 @@ import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { type HoverContextType, useHover } from "src/context/hover";
+import { getDuration } from "src/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const handleMouseEnter =
@@ -91,6 +92,8 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
   searchParams.delete("try_number");
   const redirectionSearch = searchParams.toString();
 
+  const duration = getDuration(instance.min_start_date, instance.max_end_date);
+
   return (
     <Flex
       alignItems="center"
@@ -122,6 +125,12 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
               <>
                 <br />
                 {translate("endDate")}: <Time datetime={instance.max_end_date} />
+              </>
+            )}
+            {Boolean(duration) && (
+              <>
+                <br />
+                {translate("duration")}: {duration}
               </>
             )}
           </>
