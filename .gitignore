@@ -281,3 +281,6 @@ _e2e_test_report.json
 
 # UV cache
 .uv-cache/
+
+# Allow logs folder in task-sdk-integration-tests (they logs folders are ignored above in general)
+!/task-sdk-integration-tests/logs/

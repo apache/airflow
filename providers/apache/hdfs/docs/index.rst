@@ -65,7 +65,7 @@ apache-airflow-providers-apache-hdfs package
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.10.4
+Release: 4.10.5
 
 Provider package
 ----------------
@@ -94,3 +94,31 @@ PIP package                        Version required
 ``pandas``                         ``>=2.1.2; python_version < "3.13"``
 ``pandas``                         ``>=2.2.3; python_version >= "3.13"``
 =================================  =====================================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-hdfs[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-apache-hdfs 4.10.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hdfs 4.10.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.10.5-py3-none-any.whl.sha512>`__)

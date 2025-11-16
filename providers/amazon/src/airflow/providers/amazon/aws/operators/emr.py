@@ -57,8 +57,8 @@ from airflow.providers.amazon.aws.utils.waiter import (
     waiter,
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.utils.helpers import exactly_one, prune_dict
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

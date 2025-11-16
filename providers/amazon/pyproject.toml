@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.16.0"
+version = "9.17.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -77,7 +77,10 @@ dependencies = [
     "asgiref>=2.3.0",
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
-    "sagemaker-studio>=1.0.9",
+    "sagemaker-studio>=1.0.9; python_version < \"3.13\"",
+    # The sagemaker studio 1.1.0+ uses pydynamodb that pins sqlean in version 3.45.1 that is not
+    # Supporting Python 3.13 https://github.com/passren/PyDynamoDB/issues/72
+    "sagemaker-studio>=1.0.9,<1.1.0; python_version >= \"3.13\"",
     "marshmallow>=3",
 ]
 
@@ -207,8 +210,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.16.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.16.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.17.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.17.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

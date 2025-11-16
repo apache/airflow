@@ -43,15 +43,13 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
         Bucket as S3Bucket,
         Object as S3ResourceObject,
     )
 
-    from airflow.utils.types import ArgNotSet
-
-    with suppress(ImportError):
-        from aiobotocore.client import AioBaseClient
+    from airflow.providers.amazon.version_compat import ArgNotSet
 
 
 from asgiref.sync import sync_to_async

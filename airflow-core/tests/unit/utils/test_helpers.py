@@ -26,6 +26,7 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.utils import helpers
 from airflow.utils.helpers import (
     at_most_one,
@@ -35,7 +36,6 @@ from airflow.utils.helpers import (
     prune_dict,
     validate_key,
 )
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 

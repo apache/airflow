@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+1.7.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Handle SQLAlchemy_URI for Apache Impala  (#57153)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump impyla>=0.22.0 (#57424)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Fix the '__init__.py' for tests (#58211)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
 1.7.3
 .....
 

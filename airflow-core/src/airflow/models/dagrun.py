@@ -69,6 +69,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -90,7 +91,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.thread_safe_dict import ThreadSafeDict
-from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
@@ -105,7 +106,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-    from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -348,7 +348,7 @@ class DagRun(Base, LoggingMixin):
         self.conf = conf or {}
         if state is not None:
             self.state = state
-        if queued_at is NOTSET:
+        if not is_arg_set(queued_at):
             self.queued_at = timezone.utcnow() if state == DagRunState.QUEUED else None
         elif queued_at is not None:
             self.queued_at = queued_at

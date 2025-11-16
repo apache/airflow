@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+7.7.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix documentation/provider.yaml consistencies (#57283)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 14 files in providers (databricks,dbt,docker) (#57994)``
+   * ``Fix mypy static errors in databricks provider (#57768)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
 7.7.4
 .....
 
@@ -92,8 +115,6 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Switch pre-commit to prek (#54258)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 7.7.1
@@ -379,8 +400,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
 
@@ -681,11 +700,10 @@ Misc
 * ``fix typos in DatabricksSubmitRunOperator (#36248)``
 * ``Add code snippet formatting in docstrings via Ruff (#36262)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
    * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Prepare 2nd wave of providers in December (#36373)``
 

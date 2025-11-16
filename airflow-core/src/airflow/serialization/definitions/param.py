@@ -22,7 +22,7 @@ import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any
 
-from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
+from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
@@ -51,7 +51,7 @@ class SerializedParam:
         import jsonschema
 
         try:
-            if isinstance(value := self.value, ArgNotSet):
+            if not is_arg_set(value := self.value):
                 raise ValueError("No value passed")
             jsonschema.validate(value, self.schema, format_checker=jsonschema.FormatChecker())
         except Exception:

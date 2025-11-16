@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+6.6.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``better error handling in SnowflakeHook and PostgresHook when old version of AzureBaseHook (#57184)``
+* ``Bump snowflake-connector-python>=3.16.0 (#57420)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``Enable PT006 rule to 9 files in providers (snowflake,smtp/tests) (#57845)``
+   * ``Attempt to resolve pip "ResolutionTooDeep" on cffi conflict (#57697)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Attempt to limit setuptools for Snowflake snowpark (#57581)``
+
 6.6.0
 .....
 
@@ -87,8 +106,6 @@ Doc-only
    * ``Remove airflow.models.DAG (#54383)``
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 6.5.2
@@ -379,8 +396,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 5.8.1
@@ -690,7 +705,8 @@ Bug Fixes
 
 * ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
 
 

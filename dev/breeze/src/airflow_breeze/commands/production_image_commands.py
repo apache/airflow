@@ -72,7 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
-    option_use_uv_default_disabled,
+    option_use_uv_default_depends_on_installation_method,
     option_uv_http_timeout,
     option_verbose,
     option_version_suffix,
@@ -108,7 +108,13 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCKER_CONTEXT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_ROOT_PATH,
+    DOCKER_CONTEXT_PATH,
+    FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH,
+    UI_VITE_MANIFEST_PATH,
+)
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
@@ -188,7 +194,7 @@ def prod_image():
 @prod_image.command(name="build")
 @click.option(
     "--installation-method",
-    help="Install Airflow from: sources or PyPI.",
+    help="Install Airflow from: sources (.) or packages (apache-airflow).",
     type=BetterChoice(ALLOWED_INSTALLATION_METHODS),
     default=ALLOWED_INSTALLATION_METHODS[0],
     show_default=True,
@@ -266,7 +272,7 @@ def prod_image():
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_skip_cleanup
-@option_use_uv_default_disabled
+@option_use_uv_default_depends_on_installation_method
 @option_uv_http_timeout
 @option_verbose
 @option_version_suffix
@@ -318,7 +324,7 @@ def build(
     runtime_apt_deps: str | None,
     skip_cleanup: bool,
     use_constraints_for_context_distributions: bool,
-    use_uv: bool,
+    use_uv: bool | None,
     uv_http_timeout: int,
     version_suffix: str,
 ):
@@ -339,6 +345,36 @@ def build(
     if not install_airflow_version and not airflow_constraints_location:
         get_console().print(f"[yellow]Using {CONSTRAINTS_SOURCE_PROVIDERS} constraints mode[/]")
         airflow_constraints_mode = CONSTRAINTS_SOURCE_PROVIDERS
+
+    airflow_wheel_found_in_dist = len([AIRFLOW_DIST_PATH.glob("apache_airflow-*.whl")]) > 0
+    if installation_method == ".":
+        if install_distributions_from_context and airflow_wheel_found_in_dist:
+            get_console().print("[info]Installing Airflow from local distributions in docker context[/]")
+        else:
+            get_console().print("[info]Installing Airflow from sources[/]")
+            if not UI_VITE_MANIFEST_PATH.exists():
+                get_console().print(
+                    f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
+                    f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                )
+                sys.exit(1)
+            if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
+                get_console().print(
+                    f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
+                    f"does not exist.[/]\n\n"
+                    f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                )
+                sys.exit(1)
+    else:
+        get_console().print("[info]Installing Airflow from packages[/]")
+
+    if use_uv is None:
+        if installation_method == ".":
+            get_console().print("[warning]Since we are installing from sources - UV is used by default[/]")
+            use_uv = True
+        else:
+            get_console().print("[warning]Since we are installing from sources - PIP is used by default[/]")
+            use_uv = False
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()

@@ -46,7 +46,7 @@ from airflow.exceptions import (
 from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
@@ -1197,7 +1197,7 @@ class DAG:
             self.validate()
 
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
-            logical_date = logical_date if not isinstance(logical_date, ArgNotSet) else timezone.utcnow()
+            logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
 
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point

@@ -69,6 +69,7 @@
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",

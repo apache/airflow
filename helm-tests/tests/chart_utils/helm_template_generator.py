@@ -19,11 +19,10 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from time import timezone
 from typing import Any
 
 import jmespath

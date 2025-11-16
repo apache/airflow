@@ -122,7 +122,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -736,7 +736,11 @@ class BaseSerialization:
 
         :meta private:
         """
-        if cls._is_primitive(var):
+        from airflow.sdk.definitions._internal.types import is_arg_set
+
+        if not is_arg_set(var):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
+        elif cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
@@ -867,8 +871,6 @@ class BaseSerialization:
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
-        elif isinstance(var, ArgNotSet):
-            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -981,6 +983,8 @@ class BaseSerialization:
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
+            from airflow.serialization.definitions.notset import NOTSET
+
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
             return DeadlineAlert.deserialize_deadline_alert(var)

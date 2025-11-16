@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+1.7.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'opensearch' provider to 'common.compat'  (#57129)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+
 1.7.4
 .....
 

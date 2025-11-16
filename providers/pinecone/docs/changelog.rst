@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+2.3.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate pinecone provider to 'common.compat' (#57137)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 2.3.4
 .....
 
@@ -32,8 +47,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 2.3.3
@@ -239,7 +252,8 @@ Misc
 * ``Reapply templates for all providers (#39554)``
 * ``Fix the argument type of input_vectors in pinecone upsert (#39688)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``

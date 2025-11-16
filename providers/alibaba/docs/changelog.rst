@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+3.2.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add stream method to RemoteIO (#54813)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+
 3.2.4
 .....
 
@@ -218,8 +233,6 @@ Misc
    * ``Update DAG example links in multiple providers documents (#44034)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 2.9.1

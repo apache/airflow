@@ -181,6 +181,8 @@ with DAG(
         # [END howto_awslogs_ecs]
     )
     # [END howto_operator_ecs_run_task]
+    # The default is 6 seconds between checks, which is very aggressive, setting to 60s to reduce throttling errors.
+    run_task.waiter_delay = 60
 
     # [START howto_operator_ecs_deregister_task_definition]
     deregister_task = EcsDeregisterTaskDefinitionOperator(

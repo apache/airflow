@@ -28,6 +28,49 @@ Changelog
 ---------
 
 
+10.10.0
+.......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodTriggerer reads pod logs instead of KubernetesPodOperator (#57531)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'KubernetesPodOperator' fails to delete pods with None value labels (#53477)``
+* ``Fix KubernetesExecutor open slots metric (#55797)``
+* ``improve deferrable KPO handling of deleted pods in between polls (#56976)``
+* ``KubernetesExecutor: retry pod creation on Kubernetes API 500 errors (#57054)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Unify Pod Startup Tracking: KubernetesPodTriggerer and KubernetesPodOperator Now Share Common Startup Logic (#56875)``
+* ``Relax Kubernetes client version support to <35.0.0 (#57413)``
+* ``Identify duplicate kubernetes section airflow configuration and mark them as deprecated (#57028)``
+
+Doc-only
+~~~~~~~~
+
+* ``CHG: image (#56593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix main failing on cross-merged PR (#58270)``
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (cncf,common) (#57995)``
+   * ``Fix docstring typos (#57840)``
+   * ``Fix MyPy type errors in providers in cncf/kubernetes provider  (#57563)``
+   * ``Fix mypy static errors in main (#57755)``
+   * ``Attempt to resolve pip "ResolutionTooDeep" on cffi conflict (#57697)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+
+
 10.9.0
 ......
 
@@ -132,8 +175,6 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
    * ``Bump pytest-asyncio to 1.1.0 (#54123)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 10.7.0
@@ -462,8 +503,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
    * ``fix: Get the pid of xcom command dynamically (#45053)``
 
 10.0.1
@@ -866,7 +905,8 @@ Misc
 * ``Add GKEStartKueueInsideClusterOperator (#37072)``
 * ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add d401 support to kubernetes provider (#37301)``
    * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
    * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
@@ -1373,7 +1413,8 @@ Features
 
 * ``Allow to set limits for XCOM container (#28125)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add mechanism to suspend providers (#30422)``
 
 5.3.0
@@ -1473,8 +1514,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated docs for RC3 wave of providers (#27937)``
    * ``Prepare for follow-up relase for November providers (#27774)``
-
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....

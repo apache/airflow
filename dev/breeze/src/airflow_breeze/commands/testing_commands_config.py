@@ -196,12 +196,19 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-name",
                 "--python",
+                "--task-sdk-version",
                 "--skip-docker-compose-deletion",
+                "--skip-mounting-local-volumes",
+                "--down",
+            ],
+        },
+        {
+            "name": "Common CI options",
+            "options": [
                 "--include-success-outputs",
                 "--github-repository",
-                "--task-sdk-version",
             ],
-        }
+        },
     ],
     "breeze testing airflow-ctl-tests": [
         {
@@ -219,11 +226,16 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--python",
                 "--skip-docker-compose-deletion",
-                "--include-success-outputs",
-                "--github-repository",
                 "--airflow-ctl-version",
             ],
-        }
+        },
+        {
+            "name": "Common CI options",
+            "options": [
+                "--include-success-outputs",
+                "--github-repository",
+            ],
+        },
     ],
     "breeze testing core-integration-tests": [
         TEST_OPTIONS_DB,

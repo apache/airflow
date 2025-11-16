@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+
 4.3.2
 .....
 
@@ -69,15 +82,14 @@ Misc
 * ``Refactor Common Queue Interface (#54651)``
 
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Remove airflow.models.DAG (#54383)``
    * ``Make term Dag consistent in providers docs (#55101)``
    * ``Switch pre-commit to prek (#54258)``
    * ``make bundle_name not nullable (#47592)``
    * ``Update main with Airflow 3.0.4 release details (#54294)``
    * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 4.2.0
@@ -220,8 +232,6 @@ Misc
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 3.8.0

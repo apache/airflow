@@ -60,7 +60,7 @@ const nodeColor = (
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
-  const { dagId = "", runId = "", taskId } = useParams();
+  const { dagId = "", groupId, runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();
 
@@ -130,7 +130,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
+        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -145,6 +145,8 @@ export const Graph = () => {
         isSelected:
           taskId === edge.source ||
           taskId === edge.target ||
+          groupId === edge.source ||
+          groupId === edge.target ||
           edge.source === `dag:${dagId}` ||
           edge.target === `dag:${dagId}`,
       },

@@ -21,7 +21,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from openlineage.common import __version__
+from openlineage.client.constants import __version__
 from packaging.version import parse
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException

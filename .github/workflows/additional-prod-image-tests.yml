@@ -190,7 +190,7 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Run Task SDK integration tests"
-        run: breeze testing task-sdk-integration-tests
+        run: breeze testing task-sdk-integration-tests --skip-mounting-local-volumes
 
   test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"

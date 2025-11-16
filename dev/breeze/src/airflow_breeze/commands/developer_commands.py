@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -127,6 +128,18 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
 CELERY_INTEGRATION = "celery"
+
+
+def is_wsl() -> bool:
+    """Detect if we are running inside WSL."""
+    if platform.system().lower() != "linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            version_info = f.read().lower()
+            return "microsoft" in version_info or "wsl" in version_info
+    except FileNotFoundError:
+        return False
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -610,6 +623,13 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    # Automatically enable file polling for hot reloading under WSL
+    if dev_mode and is_wsl():
+        os.environ["CHOKIDAR_USEPOLLING"] = "true"
+        get_console().print(
+            "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
+        )
 
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui

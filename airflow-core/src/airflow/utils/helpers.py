@@ -30,7 +30,7 @@ from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import is_arg_set
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -283,13 +283,7 @@ def at_most_one(*args) -> bool:
 
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
-
-    def is_set(val):
-        if val is NOTSET:
-            return False
-        return bool(val)
-
-    return sum(map(is_set, args)) in (0, 1)
+    return sum(is_arg_set(a) and bool(a) for a in args) in (0, 1)
 
 
 def prune_dict(val: Any, mode="strict"):
