@@ -254,10 +254,18 @@ def ti_run(
         )
 
         if dag := dag_bag.get_dag_for_run(dag_run=dr, session=session):
+            # Create a minimal TaskInstance-like object with the required attributes
+            class TIProxy:
+                def __init__(self, task_id: str, map_index: int, run_id: str):
+                    self.task_id = task_id
+                    self.map_index = map_index
+                    self.run_id = run_id
+
+            ti_proxy = TIProxy(ti.task_id, ti.map_index, ti.run_id)
             upstream_map_indexes = dict(
                 _get_upstream_map_indexes(
                     serialized_dag=dag,
-                    ti=ti,
+                    ti=ti_proxy,
                     session=session,
                 )
             )
@@ -292,7 +300,7 @@ def ti_run(
 def _get_upstream_map_indexes(
     *,
     serialized_dag: SerializedDAG,
-    ti: TI,
+    ti: TI | Any,
     session: SessionDep,
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     task = serialized_dag.get_task(ti.task_id)
@@ -758,7 +766,7 @@ def ti_patch_rendered_map_index(
     query = update(TI).where(TI.id == ti_id_str).values(rendered_map_index=rendered_map_index)
     result = session.execute(query)
 
-    if result.rowcount == 0:
+    if getattr(result, "rowcount", 0) == 0:
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
