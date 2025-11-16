@@ -26,8 +26,14 @@ import pytest
 from airflowctl.api.datamodels.generated import TaskInstanceState
 
 from airflow.sdk import timezone
-from airflow.sdk.exceptions import AirflowException
-from airflow.sdk.execution_time.comms import BundleInfo, MaskSecret, StartupDetails, _ResponseFrame
+from airflow.sdk.exceptions import AirflowException, AirflowRuntimeError
+from airflow.sdk.execution_time.comms import (
+    BundleInfo,
+    ErrorResponse,
+    MaskSecret,
+    StartupDetails,
+    _ResponseFrame,
+)
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 
 
@@ -161,7 +167,7 @@ class TestCommsDecoder:
         decoder = CommsDecoder(socket=mock_socket, log=None)
 
         # Configure the mock to raise an exception when sendall is called
-        original_error = OSError("Connection reset by peer")
+        original_error = AirflowRuntimeError(ErrorResponse(detail={"error": "Internal server error"}))
         mock_socket.sendall.side_effect = original_error
 
         msg = TaskState(state=TaskInstanceState.SKIPPED, end_date=None)
@@ -171,5 +177,5 @@ class TestCommsDecoder:
 
         # Verify the original exception is preserved as cause
         assert exc_info.value.__cause__ is original_error
-        assert "Could not make request:" in str(exc_info.value)
+        assert "Could not make API request" in str(exc_info.value)
         assert "TaskState" in str(exc_info.value)

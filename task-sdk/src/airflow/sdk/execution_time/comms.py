@@ -92,7 +92,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import AirflowException, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowRuntimeError, ErrorType
 
 try:
     from socket import recv_fds
@@ -207,8 +207,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 return resp  # type: ignore[return-value]
 
             return self._get_response()
-        except Exception as e:
-            raise AirflowException(f"Could not make request: {msg}") from e
+        except AirflowRuntimeError as e:
+            msg_type = getattr(msg, "type", None)
+            raise AirflowException(
+                f"Could not make API request {msg_type if msg_type else ''}. You may check API server logs (see correlation-id)"
+            ) from e
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent without blocking."""
