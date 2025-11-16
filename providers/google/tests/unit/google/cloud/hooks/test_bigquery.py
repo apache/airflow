@@ -1420,6 +1420,22 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
         _, kwargs = mock_insert.call_args
         assert kwargs["configuration"]["query"]["useLegacySql"] is False
 
+    @mock.patch("airflow.providers.common.compat.sdk.BaseHook.get_connection")
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    def test_use_legacy_sql_from_connection_extra_false(
+        self, mock_get_creds_and_proj_id, mock_get_connection
+    ):
+        """Test that use_legacy_sql=False in connection extras is respected."""
+        mock_connection = mock.MagicMock()
+        mock_connection.extra_dejson = {"use_legacy_sql": False}
+        mock_get_connection.return_value = mock_connection
+
+        bq_hook = BigQueryHook(gcp_conn_id="test_conn")
+        assert bq_hook.use_legacy_sql is False
+
 
 @pytest.mark.db_test
 class TestBigQueryWithKMS(_BigQueryBaseTestClass):
