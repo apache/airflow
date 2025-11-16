@@ -768,8 +768,8 @@ SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/airflow-ctl"
 # Create airflow-ctl folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
 cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
-mkdir -pv airflow-ctl
-cd airflow-ctl
+mkdir -pv airflow-ctl/${VERSION}
+cd airflow-ctl/${VERSION}
 
 # Copy your airflow-ctl with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
