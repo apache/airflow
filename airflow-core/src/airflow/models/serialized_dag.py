@@ -610,10 +610,11 @@ class SerializedDagModel(Base):
         cls, query, load_json: Callable[[bytes | str], list] | None
     ) -> Iterator[tuple[str, list]]:
         """Process query results for DAG dependencies, yielding (dag_id, dependencies) tuples."""
-        for dag_id, deps_data in query:
-            if load_json is not None:
+        if load_json is not None:
+            for dag_id, deps_data in query:
                 yield (str(dag_id), load_json(deps_data))
-            else:
+        else:
+            for dag_id, deps_data in query:
                 yield (str(dag_id), deps_data if deps_data else [])
 
     @classmethod
