@@ -238,6 +238,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
+                "--kubeconfig-file",
+                "--force-rebuild-cluster",
             ],
         },
         {
