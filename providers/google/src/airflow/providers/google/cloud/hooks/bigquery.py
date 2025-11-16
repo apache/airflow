@@ -175,18 +175,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             value = self._get_field("use_legacy_sql", _UNSET)
             self.use_legacy_sql: bool = value if value is not None else True
         else:
-            self.use_legacy_sql: bool = use_legacy_sql  # type: ignore[assignment]
+            self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
 
         if location is _UNSET:
             self.location: str | None = self._get_field("location", _UNSET)
         else:
-            self.location: str | None = location  # type: ignore[assignment]
+            self.location = location  # type: ignore[assignment]
 
         if priority is _UNSET:
             value = self._get_field("priority", _UNSET)
             self.priority: str = value if value is not None else "INTERACTIVE"
         else:
-            self.priority: str = priority  # type: ignore[assignment]
+            self.priority = priority  # type: ignore[assignment]
 
         self.running_job_id: str | None = None
 
@@ -194,7 +194,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             value = self._get_field("api_resource_configs", _UNSET)
             self.api_resource_configs: dict = value if value is not None else {}
         else:
-            self.api_resource_configs: dict = api_resource_configs or {}  # type: ignore[assignment]
+            self.api_resource_configs = api_resource_configs or {}  # type: ignore[assignment]
 
         if labels is _UNSET:
             value = self._get_field("labels", _UNSET)
