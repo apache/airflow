@@ -154,6 +154,9 @@ PROVIDE_PROJECT_ID: str = cast("str", None)
 T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
 
+# Sentinel value to distinguish "parameter not provided" from "parameter explicitly set to a value"
+_UNSET = object()
+
 
 def get_field(extras: dict, field_name: str) -> str | None:
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
@@ -407,6 +410,17 @@ class GoogleBaseHook(BaseHook):
         custom UI elements to the hook page, which allow admins to specify
         service_account, key_path, etc. They get formatted as shown below.
         """
+        # New behavior: If default is _UNSET, parameter was not provided
+        # Check connection extras first, return None if not found (caller handles default)
+        if default is _UNSET:
+            if hasattr(self, "extras"):
+                value = get_field(self.extras, f)
+                if value is not None:
+                    return value
+            return None
+
+        # Old behavior (for backward compatibility):
+        # Check connection extras, but properly handle False values
         if hasattr(self, "extras"):
             value = get_field(self.extras, f)
             if value is not None:
