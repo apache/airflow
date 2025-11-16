@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import zlib
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 class _DagDependenciesResolver:
     """Resolver that resolves dag dependencies to include asset id and assets link to asset aliases."""
 
-    def __init__(self, dag_id_dependencies: Sequence[tuple[str, list]], session: Session) -> None:
+    def __init__(self, dag_id_dependencies: Iterable[tuple[str, list]], session: Session) -> None:
         self.dag_id_dependencies = dag_id_dependencies
         self.session = session
 
@@ -606,6 +606,17 @@ class SerializedDagModel(Base):
         return session.scalar(cls.latest_item_select_object(dag_id))
 
     @classmethod
+    def _process_dag_dependencies_query(
+        cls, query, load_json: Callable[[Any], Any] | None
+    ) -> Iterator[tuple[str, list]]:
+        """Process query results for DAG dependencies, yielding (dag_id, dependencies) tuples."""
+        for dag_id, deps_data in query:
+            if load_json is not None:
+                yield (dag_id, load_json(deps_data))
+            else:
+                yield (str(dag_id), deps_data if deps_data else [])
+
+    @classmethod
     @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
@@ -650,10 +661,7 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        iterator_result = [
-            (str(dag_id), load_json(deps_data) if load_json else (deps_data or []))
-            for dag_id, deps_data in query
-        ]
+        iterator_result = list(cls._process_dag_dependencies_query(query, load_json))
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator_result, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
