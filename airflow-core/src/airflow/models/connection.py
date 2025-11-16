@@ -395,8 +395,6 @@ class Connection(Base, LoggingMixin):
             extra_val = self._extra
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
-        if not extra_val:
-            raise ValueError(f"Extra field is empty or invalid for connection {self.conn_id!r}")
         return extra_val
 
     def set_extra(self, value: str | None):
