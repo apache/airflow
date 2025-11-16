@@ -607,7 +607,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     def _process_dag_dependencies_query(
-        cls, query, load_json: Callable[[Any], Any] | None
+        cls, query, load_json: Callable[[bytes | str], list] | None
     ) -> Iterator[tuple[str, list]]:
         """Process query results for DAG dependencies, yielding (dag_id, dependencies) tuples."""
         for dag_id, deps_data in query:
