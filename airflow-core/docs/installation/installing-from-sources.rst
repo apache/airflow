@@ -23,8 +23,7 @@ Released packages
 
 .. jinja:: official_download_page
 
-    This page describes downloading and verifying Airflow® version
-    ``{{ airflow_version }}`` using officially released packages.
+    This page describes downloading and verifying Airflow® version ``|version|`` using officially released packages.
     You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting a different version from the drop-down at
     the top-left of the page.
@@ -46,10 +45,12 @@ The |version| downloads of Airflow® are available at:
 .. jinja:: official_download_page
 
     * `Sources package for airflow <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
-    * `Sdist package for airflow meta package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}.tar.gz.sha512>`__)
-    * `Whl package for airflow meta package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
-    * `Sdist package for airflow core package <{{ closer_lua_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz.sha512>`__)
-    * `Whl package for airflow core package <{{ closer_lua_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
+    * `Sdist package for airflow meta distribution <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}.tar.gz.sha512>`__)
+    * `Whl package for airflow meta distributio <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
+    * `Sdist package for airflow core distribution <{{ closer_lua_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache_airflow_core-{{ airflow_version }}.tar.gz.sha512>`__)
+    * `Whl package for airflow core distribution <{{ closer_lua_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow_core-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
+    * `Sdist package for airflow task-sdk distribution <{{ closer_lua_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}.tar.gz>`__ (`asc <{{ base_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}.tar.gz.asc>`__, `sha512 <{{ base_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}.tar.gz.sha512>`__)
+    * `Whl package for airflow task-sdk distribution <{{ closer_lua_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}-py3-none-any.whl>`__ (`asc <{{ base_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url_task_sdk }}/apache_airflow_task_sdk-{{ task_sdk_version }}-py3-none-any.whl.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
 a ``INSTALL`` file containing details on how you can build and install Airflow.
