@@ -612,7 +612,7 @@ class SerializedDagModel(Base):
         """Process query results for DAG dependencies, yielding (dag_id, dependencies) tuples."""
         for dag_id, deps_data in query:
             if load_json is not None:
-                yield (dag_id, load_json(deps_data))
+                yield (str(dag_id), load_json(deps_data))
             else:
                 yield (str(dag_id), deps_data if deps_data else [])
 
