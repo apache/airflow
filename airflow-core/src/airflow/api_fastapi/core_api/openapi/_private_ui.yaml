@@ -2300,6 +2300,8 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    OklchColor:
+      type: string
     ReprocessBehavior:
       type: string
       enum:
@@ -2660,7 +2662,7 @@ components:
             additionalProperties:
               additionalProperties:
                 additionalProperties:
-                  type: string
+                  $ref: '#/components/schemas/OklchColor'
                 propertyNames:
                   const: value
                 type: object

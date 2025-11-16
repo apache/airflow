@@ -1364,7 +1364,14 @@ api:
         JSON config to customiza the Chakra UI theme.
         Currently only supports ``brand`` color customization.
 
-        Must supply ``50``-``950`` color values for ``brand`` color.
+        Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+
+        .. important::
+          oklch(l c h) must follow next format:
+
+          * l (lightness) : float Must be between 0 and 1
+          * c (chroma) : float Must be between 0 and 0.5
+          * h (hue) : float Must be between 0 and 360
 
         Note: As shown below, you can split your json config over multiple lines by indenting.
         See configparser documentation for an example:

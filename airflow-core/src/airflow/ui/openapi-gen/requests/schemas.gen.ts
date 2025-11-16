@@ -8071,6 +8071,10 @@ export const $NodeResponse = {
     description: 'Node serializer for responses.'
 } as const;
 
+export const $OklchColor = {
+    type: 'string'
+} as const;
+
 export const $StandardHookFields = {
     properties: {
         description: {
@@ -8264,7 +8268,7 @@ export const $Theme = {
                 additionalProperties: {
                     additionalProperties: {
                         additionalProperties: {
-                            type: 'string'
+                            '$ref': '#/components/schemas/OklchColor'
                         },
                         propertyNames: {
                             const: 'value'
