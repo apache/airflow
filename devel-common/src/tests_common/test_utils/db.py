@@ -227,6 +227,10 @@ def clear_db_assets():
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import TaskInletAssetReference
+
+            session.query(TaskInletAssetReference).delete()
         from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
         session.query(AssetAliasModel).delete()
