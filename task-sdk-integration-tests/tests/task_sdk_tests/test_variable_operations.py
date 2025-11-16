@@ -19,7 +19,9 @@
 Integration tests for Variable operations.
 
 These tests validate the Execution API endpoints for Variable operations:
-- get(): Get variable value
+- get(): Get Variable value (positive, negative)
+- set(): Set Variable value
+- delete(): Delete Variable value
 """
 
 from __future__ import annotations
@@ -91,7 +93,7 @@ def test_variable_set(sdk_client):
     console.print("=" * 72)
 
     assert isinstance(response, OKResponse)
-    assert response.ok
+    assert response.ok is True
 
     console.print("[green]✅ Variable set test passed!")
 
@@ -117,6 +119,14 @@ def test_variable_delete(sdk_client):
     console.print("=" * 72)
 
     assert isinstance(response, OKResponse)
-    assert response.ok
+    assert response.ok is True
+
+    # Validate that the Variable has in fact been deleted
+    get_response = sdk_client.variables.get("test_variable_key")
+
+    # TODO: Add console.print(...) statements
+
+    assert isinstance(get_response, ErrorResponse)
+    assert str(get_response.error).find("VARIABLE_NOT_FOUND") != -1
 
     console.print("[green]✅ Variable delete test passed!")
