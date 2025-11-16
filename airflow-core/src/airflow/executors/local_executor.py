@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
+from airflow.utils.gc_utils import with_gc_freeze
 from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -142,6 +143,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
+    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
     serve_logs: bool = True
 
@@ -162,6 +164,11 @@ class LocalExecutor(BaseExecutor):
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
+
+        if self.is_mp_using_fork:
+            # This creates the maximum number of worker processes (parallelism) at once
+            # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+            self._spawn_workers_with_gc_freeze(self.parallelism)
 
     def _check_workers(self):
         # Reap any dead workers
@@ -186,9 +193,14 @@ class LocalExecutor(BaseExecutor):
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
         if num_outstanding and len(self.workers) < self.parallelism:
-            # This only creates one worker, which is fine as we call this directly after putting a message on
-            # activity_queue in execute_async
-            self._spawn_worker()
+            if self.is_mp_using_fork:
+                # This creates the maximum number of worker processes at once
+                # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+                self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
+            else:
+                # This only creates one worker, which is fine as we call this directly after putting a message on
+                # activity_queue in execute_async when using spawn in multiprocessing
+                self._spawn_worker()
 
     def _spawn_worker(self):
         p = multiprocessing.Process(
@@ -204,6 +216,11 @@ class LocalExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
+
+    @with_gc_freeze
+    def _spawn_workers_with_gc_freeze(self, spawn_number):
+        for _ in range(spawn_number):
+            self._spawn_worker()
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""
