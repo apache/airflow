@@ -562,6 +562,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             )
 
             env_vars = dict(os.environ) if self.inherit_env else {}
+            if fd := os.getenv("__AIRFLOW_SUPERVISOR_FD"):
+                env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
 

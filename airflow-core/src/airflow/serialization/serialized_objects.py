@@ -122,7 +122,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -736,7 +736,11 @@ class BaseSerialization:
 
         :meta private:
         """
-        if cls._is_primitive(var):
+        from airflow.sdk.definitions._internal.types import is_arg_set
+
+        if not is_arg_set(var):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
+        elif cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
@@ -867,8 +871,6 @@ class BaseSerialization:
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
-        elif isinstance(var, ArgNotSet):
-            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -981,6 +983,8 @@ class BaseSerialization:
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
+            from airflow.serialization.definitions.notset import NOTSET
+
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
             return DeadlineAlert.deserialize_deadline_alert(var)
@@ -1069,10 +1073,9 @@ class BaseSerialization:
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
         """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
         serialized_params = []
-        for k, v in params.items():
-            if isinstance(params, ParamsDict):
-                # Use native param object, not resolved value if possible
-                v = params.get_param(k)
+        for k, raw_v in params.items():
+            # Use native param object, not resolved value if possible
+            v = params.get_param(k) if isinstance(params, ParamsDict) else raw_v
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
@@ -1589,7 +1592,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         deserialized_partial_kwarg_defaults = {}
 
-        for k, v in encoded_op.items():
+        for k_in, v_in in encoded_op.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
                 pass  # Template fields are handled separately
@@ -2566,7 +2571,9 @@ class SerializedDAG(BaseSerialization):
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
 
-        for k, v in encoded_dag.items():
+        for k_in, v_in in encoded_dag.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
