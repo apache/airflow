@@ -1328,11 +1328,11 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 [
                     {},
-                ], 
+                ],
                 True,
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"run_id_pattern": "TEST_DAG_"},
-                1,# apart from the TIs in the fixture, we also get one from
+                1,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
                 3,
                 id="test run_id_pattern filter",
