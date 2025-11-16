@@ -71,8 +71,8 @@ from airflow.providers.google.cloud.utils.credentials_provider import _get_scope
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID,
     _UNSET,
+    PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
     get_field,
