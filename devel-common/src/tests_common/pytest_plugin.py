@@ -1944,14 +1944,17 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage import hook
+    from airflow.lineage.hook import HookLineageCollector
 
-    hlc = hook.HookLineageCollector()
+    hlc = HookLineageCollector()
     with mock.patch(
         "airflow.lineage.hook.get_hook_lineage_collector",
         return_value=hlc,
     ):
-        yield hlc
+        # Redirect calls to compat provider to support back-compat tests of 2.x as well
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        yield get_hook_lineage_collector()
 
 
 @pytest.fixture
