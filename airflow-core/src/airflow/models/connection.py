@@ -27,7 +27,6 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from cryptography.fernet import InvalidToken
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
@@ -342,6 +341,8 @@ class Connection(Base, LoggingMixin):
 
     def _safe_decrypt(self, fld: str) -> str:
         """Safely decrypt and decode a field with proper error handling."""
+        from cryptography.fernet import InvalidToken
+
         fernet = get_fernet()
         try:
             as_bytes = bytes(fld, "utf-8")
@@ -394,7 +395,9 @@ class Connection(Base, LoggingMixin):
             extra_val = self._extra
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
-        return extra_val or None
+        if not extra_val:
+            raise ValueError(f"Extra field is empty or invalid for connection {self.conn_id!r}")
+        return extra_val
 
     def set_extra(self, value: str | None):
         """Encrypt extra-data and save in object attribute to object."""

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import zlib
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 class _DagDependenciesResolver:
     """Resolver that resolves dag dependencies to include asset id and assets link to asset aliases."""
 
-    def __init__(self, dag_id_dependencies: Iterable[tuple[str, list]], session: Session) -> None:
+    def __init__(self, dag_id_dependencies: Sequence[tuple[str, list]], session: Session) -> None:
         self.dag_id_dependencies = dag_id_dependencies
         self.session = session
 
@@ -506,15 +506,14 @@ class SerializedDagModel(Base):
             .group_by(cls.dag_id)
             .subquery()
         )
-        latest_serdags = session.scalars(
+        return session.scalars(
             select(cls)
             .join(
                 latest_serdag_subquery,
                 cls.created_at == latest_serdag_subquery.c.created_at,
             )
             .where(cls.dag_id.in_(dag_ids))
-        ).all()
-        return latest_serdags
+        )
 
     @classmethod
     @provide_session
