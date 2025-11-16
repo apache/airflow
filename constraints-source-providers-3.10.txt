@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-14T22:04:47.616961
+# This constraints file was automatically generated on 2025-11-16T22:55:56.852909
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -85,7 +85,7 @@ asana==5.2.2
 asgiref==3.10.0
 asn1crypto==1.5.1
 astroid==3.3.11
-asttokens==3.0.0
+asttokens==3.0.1
 async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.30.0
@@ -98,7 +98,7 @@ aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.1
+azure-cosmos==4.14.2
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -128,7 +128,7 @@ backports.tarfile==1.2.0
 bcrypt==5.0.0
 beartype==0.21.0
 beautifulsoup4==4.14.2
-billiard==4.2.2
+billiard==4.2.3
 bitarray==3.8.0
 black==25.11.0
 bleach==6.3.0
@@ -362,7 +362,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.79.3
+litellm==1.80.0
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -565,9 +565,9 @@ rich-argparse==1.7.2
 rich-click==1.8.9
 rich-toolkit==0.15.1
 rich==13.9.4
-rpds-py==0.28.0
+rpds-py==0.29.0
 rsa==4.9.1
-ruamel.yaml.clib==0.2.14
+ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
 ruff==0.14.5
 s3fs==2025.10.0
@@ -663,11 +663,11 @@ types-aiofiles==25.1.0.20251011
 types-certifi==2021.10.8.3
 types-cffi==1.17.0.20250915
 types-croniter==6.0.0.20250809
-types-docutils==0.22.2.20251006
+types-docutils==0.22.3.20251115
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20251105
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20251108
+types-python-dateutil==2.9.0.20251115
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20251108
 types-redis==4.6.0.20241004
@@ -714,5 +714,5 @@ zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.1
-zope.interface==8.1
+zope.interface==8.1.1
 zstandard==0.25.0

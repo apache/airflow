@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-14T22:08:05.211248
+# This constraints file was automatically generated on 2025-11-16T22:58:42.000967
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -184,7 +184,7 @@ argcomplete==3.6.3
 asana==5.2.2
 asgiref==3.10.0
 asn1crypto==1.5.1
-asttokens==3.0.0
+asttokens==3.0.1
 async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.30.0
@@ -195,7 +195,7 @@ attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.1
+azure-cosmos==4.14.2
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -221,7 +221,7 @@ babel==2.17.0
 backoff==2.2.1
 bcrypt==5.0.0
 beautifulsoup4==4.14.2
-billiard==4.2.2
+billiard==4.2.3
 bitarray==3.8.0
 black==25.11.0
 bleach==6.3.0
@@ -242,7 +242,7 @@ ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
-click==8.2.1
+click==8.3.1
 cloudpickle==3.1.2
 cohere==5.20.0
 colorlog==6.10.1
@@ -404,7 +404,7 @@ jupyter_client==8.6.3
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.6
-keyring==25.6.0
+keyring==25.7.0
 kombu==5.5.4
 krb5==0.8.0
 kubernetes==33.1.0
@@ -414,7 +414,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.79.3
+litellm==1.80.0
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==5.4.0
@@ -450,7 +450,7 @@ nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==6.0.3
 nest-asyncio==1.6.0
-numpy==2.3.4
+numpy==2.3.5
 oauthlib==3.3.1
 openai==2.8.0
 openlineage-integration-common==1.40.0
@@ -562,9 +562,9 @@ retryhttp==1.4.0
 rich-argparse==1.7.2
 rich-toolkit==0.15.1
 rich==14.2.0
-rpds-py==0.28.0
+rpds-py==0.29.0
 rsa==4.9.1
-ruamel.yaml.clib==0.2.14
+ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
 s3fs==2025.10.0
 s3transfer==0.14.0
@@ -656,5 +656,5 @@ zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.1
-zope.interface==8.1
+zope.interface==8.1.1
 zstandard==0.25.0
