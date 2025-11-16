@@ -24,10 +24,8 @@ These tests validate the Execution API endpoints for Variable operations:
 
 from __future__ import annotations
 
-import pytest
-
 from airflow.sdk.api.datamodels._generated import VariableResponse
-from airflow.sdk.execution_time.comms import ErrorResponse
+from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse
 from task_sdk_tests import console
 
 
@@ -76,7 +74,6 @@ def test_variable_get_not_found(sdk_client):
     console.print("[green]✅ Variable get (not found) test passed!")
 
 
-@pytest.mark.skip(reason="TODO: Implement Variable set test")
 def test_variable_set(sdk_client):
     """
     Test setting variable value.
@@ -84,11 +81,21 @@ def test_variable_set(sdk_client):
     Expected: OKResponse with ok=True
     Endpoint: PUT /execution/variables/{key}
     """
-    console.print("[yellow]TODO: Implement test_variable_set")
-    raise NotImplementedError("test_variable_set not implemented")
+    console.print("[yellow]TODO: Setting variable...")
+
+    response = sdk_client.variables.set("test_variable_key", "test_variable_value")
+
+    console.print(" Variable Set Response ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Status:[/] {response.ok}")
+    console.print("=" * 72)
+
+    assert isinstance(response, OKResponse)
+    assert response.ok
+
+    console.print("[green]✅ Variable set test passed!")
 
 
-@pytest.mark.skip(reason="TODO: Implement Variable delete test")
 def test_variable_delete(sdk_client):
     """
     Test deleting variable value.
@@ -96,5 +103,20 @@ def test_variable_delete(sdk_client):
     Expected: OKResponse with ok=True
     Endpoint: DELETE /execution/variables/{key}
     """
-    console.print("[yellow]TODO: Implement test_variable_delete")
-    raise NotImplementedError("test_variable_delete not implemented")
+    console.print("[yellow]Deleting variable...")
+
+    # First, set the variable
+    sdk_client.variables.set("test_variable_key", "test_variable_value")
+
+    # Now, delete the variable
+    response = sdk_client.variables.delete("test_variable_key")
+
+    console.print(" Variable Delete Response ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Status:[/] {response.ok}")
+    console.print("=" * 72)
+
+    assert isinstance(response, OKResponse)
+    assert response.ok
+
+    console.print("[green]✅ Variable delete test passed!")
