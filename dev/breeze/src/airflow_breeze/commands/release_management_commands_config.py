@@ -249,6 +249,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Documentation generation mode",
             "options": [
+                "--release-date",
                 "--incremental-update",
                 "--only-min-version-update",
                 "--reapply-templates-only",

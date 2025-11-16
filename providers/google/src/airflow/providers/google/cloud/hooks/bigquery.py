@@ -71,6 +71,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import _get_scope
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
+    _UNSET,
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
@@ -160,21 +161,47 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def __init__(
         self,
-        use_legacy_sql: bool = True,
-        location: str | None = None,
-        priority: str = "INTERACTIVE",
-        api_resource_configs: dict | None = None,
+        use_legacy_sql: bool | object = _UNSET,
+        location: str | None | object = _UNSET,
+        priority: str | object = _UNSET,
+        api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
-        labels: dict | None = None,
+        labels: dict | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.use_legacy_sql: bool = self._get_field("use_legacy_sql", use_legacy_sql)
-        self.location: str | None = self._get_field("location", location)
-        self.priority: str = self._get_field("priority", priority)
+        # Use sentinel pattern to distinguish "not provided" from "explicitly provided"
+        if use_legacy_sql is _UNSET:
+            value = self._get_field("use_legacy_sql", _UNSET)
+            self.use_legacy_sql: bool = value if value is not None else True
+        else:
+            self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
+
+        if location is _UNSET:
+            self.location: str | None = self._get_field("location", _UNSET)
+        else:
+            self.location = location  # type: ignore[assignment]
+
+        if priority is _UNSET:
+            value = self._get_field("priority", _UNSET)
+            self.priority: str = value if value is not None else "INTERACTIVE"
+        else:
+            self.priority = priority  # type: ignore[assignment]
+
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = self._get_field("api_resource_configs", api_resource_configs or {})
-        self.labels = self._get_field("labels", labels or {})
+
+        if api_resource_configs is _UNSET:
+            value = self._get_field("api_resource_configs", _UNSET)
+            self.api_resource_configs: dict = value if value is not None else {}
+        else:
+            self.api_resource_configs = api_resource_configs or {}  # type: ignore[assignment]
+
+        if labels is _UNSET:
+            value = self._get_field("labels", _UNSET)
+            self.labels = value if value is not None else {}
+        else:
+            self.labels = labels or {}  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:

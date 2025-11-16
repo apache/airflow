@@ -801,6 +801,7 @@ class DagRun(Base, LoggingMixin):
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
             )
+            .order_by(TI.task_id, TI.map_index)
         )
 
         if state:
