@@ -1236,6 +1236,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1714,6 +1716,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
+    def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
+        if (schema_loader := cls._json_schema) is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const")
+        }
+
+    @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_optional_fields_from_schema(cls) -> set[str]:
         schema_loader = cls._json_schema
@@ -1868,10 +1886,39 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        # Use class-level cache for optimisation
+        if cls._const_fields is None:
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
+                # If it also matches client_defaults, exclude (optimization)
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
+                            return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
                 return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
