@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-17T09:50:46.814291
+# This constraints file was automatically generated on 2025-11-17T15:48:00.780440
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -27,7 +27,7 @@ Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.10
 MarkupSafe==3.0.3
-PyAthena==3.21.1
+PyAthena==3.22.0
 PyGithub==2.8.1
 PyHive==0.7.0
 PyJWT==2.10.1
@@ -467,7 +467,7 @@ polars==1.35.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.4.0
-prek==0.2.14
+prek==0.2.15
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
@@ -541,7 +541,7 @@ pytokens==0.3.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
-qdrant-client==1.15.1
+qdrant-client==1.16.0
 ray==2.47.1
 reactivex==4.1.0
 readme_renderer==44.0
