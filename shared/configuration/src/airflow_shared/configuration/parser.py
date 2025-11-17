@@ -1264,19 +1264,6 @@ class AirflowConfigParser(ConfigParser):
         """
         super().read_dict(dictionary=dictionary, source=source)
 
-    def has_section(self, section: str) -> bool:
-        """
-        Check if section exists in config or configuration_description.
-
-        :param section: section name to check
-        :return: True if section exists in config or configuration_description
-        """
-        if super().has_section(section):
-            return True
-        if self.configuration_description and section in self.configuration_description:
-            return True
-        return False
-
     def get_sections_including_defaults(self) -> list[str]:
         """
         Retrieve all sections from the configuration parser, including sections defined by built-in defaults.
