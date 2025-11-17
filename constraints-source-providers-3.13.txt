@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-16T21:43:50.350739
+# This constraints file was automatically generated on 2025-11-17T03:57:44.304070
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -391,7 +391,7 @@ nest-asyncio==1.6.0
 networkx==3.5
 nh3==0.3.2
 nodeenv==1.9.1
-numpy==2.3.4
+numpy==2.3.5
 oauthlib==3.3.1
 openai==2.8.0
 openapi-schema-validator==0.6.3
