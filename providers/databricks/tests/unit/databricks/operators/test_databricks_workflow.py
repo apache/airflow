@@ -225,6 +225,22 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
     )
 
 
+def test_task_group_exception_super_exit():
+    """Test that DatabricksWorkflowTaskGroup execute super().__exit__ even with an exception."""
+
+    with patch('airflow.utils.task_group.TaskGroup.__exit__') as mock_super_exit:
+        with pytest.raises(AirflowException):
+            with DAG(dag_id="example_databricks_workflow_dag", schedule=None,
+                     start_date=DEFAULT_DATE):
+                with DatabricksWorkflowTaskGroup(
+                    group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
+                ):
+                    EmptyOperator(task_id="task1")
+
+    # Assert that super().__exit__ was called even with an exception
+    mock_super_exit.assert_called_once()
+
+
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
     """Test that tasks added to a DatabricksWorkflowTaskGroup are set upstream to the operator."""
     with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE):
