@@ -942,7 +942,7 @@ virtualenv_string_args: list[str] = []
 
 def _callable_that_imports_from_bundle():
     """
-    A callable function for testing DAG bundle imports.
+    A callable function for testing Dag bundle imports.
     This import will fail if PYTHONPATH is not set correctly by the operator.
     The module 'bug_test_dag_repro' is created dynamically in the test.
     """
@@ -977,49 +977,48 @@ def _callable_that_imports_from_bundle():
 )
 class TestDagBundleImportInSubprocess(BasePythonTest):
     """
-    Test DAG bundle imports for subprocess-based Python operators.
+    Test Dag bundle imports for subprocess-based Python operators.
 
     This test ensures that callables running in subprocesses can import modules
-    from their DAG bundle by verifying PYTHONPATH is correctly set (Airflow 3.x+).
+    from their Dag bundle by verifying PYTHONPATH is correctly set (Airflow 3.x+).
     """
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="DAG Bundle import fix is for Airflow 3.x+")
-    def test_dag_bundle_import_in_subprocess(self, dag_maker, opcls, pytest_marks, test_class_ref):
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag Bundle import fix is for Airflow 3.x+")
+    def test_dag_bundle_import_in_subprocess(self, dag_maker, opcls, pytest_marks, test_class_ref, tmp_path):
         """
         Tests that a callable in a subprocess can import modules from its
-        own DAG bundle (fix for Airflow 3.x).
+        own Dag bundle (fix for Airflow 3.x).
         """
-        with TemporaryDirectory() as tmp_dir:
-            bundle_root = Path(tmp_dir)
+        bundle_root = tmp_path
 
-            # Dummy module structure inside the temp dir
-            module_dir = bundle_root / "bug_test_dag_repro"
-            lib_dir = module_dir / "lib"
-            lib_dir.mkdir(parents=True)
+        # Dummy module structure inside the temp dir
+        module_dir = bundle_root / "bug_test_dag_repro"
+        lib_dir = module_dir / "lib"
+        lib_dir.mkdir(parents=True)
 
-            (module_dir / "__init__.py").touch()
-            (lib_dir / "__init__.py").touch()
-            (lib_dir / "helper.py").write_text("def get_message():\n    return 'it works from bundle'")
+        (module_dir / "__init__.py").touch()
+        (lib_dir / "__init__.py").touch()
+        (lib_dir / "helper.py").write_text("def get_message():\n    return 'it works from bundle'")
 
-            # We need a real DAG to create a real TI context
-            with dag_maker(self.dag_id, serialized=True):
-                op = opcls(
-                    task_id=self.task_id,
-                    python_callable=_callable_that_imports_from_bundle,
-                    **test_class_ref().default_kwargs(),
-                )
+        # We need a real DAG to create a real TI context
+        with dag_maker(self.dag_id, serialized=True):
+            op = opcls(
+                task_id=self.task_id,
+                python_callable=_callable_that_imports_from_bundle,
+                **test_class_ref().default_kwargs(),
+            )
 
-            dr = dag_maker.create_dagrun()
-            ti = dr.get_task_instance(self.task_id)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(self.task_id)
 
-            mock_bundle_instance = mock.Mock()
-            mock_bundle_instance.path = str(bundle_root)
-            ti.bundle_instance = mock_bundle_instance
+        mock_bundle_instance = mock.Mock()
+        mock_bundle_instance.path = str(bundle_root)
+        ti.bundle_instance = mock_bundle_instance
 
-            context = ti.get_template_context()
-            result = op.execute(context)
+        context = ti.get_template_context()
+        result = op.execute(context)
 
-            assert result == "it works from bundle"
+        assert result == "it works from bundle"
 
 
 @pytest.mark.execution_timeout(120)
