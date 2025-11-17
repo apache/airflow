@@ -192,24 +192,28 @@ Step 4: Install the Standard Provider
 - For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
-Step 5: Review custom operators for direct db access
-----------------------------------------------------
+Step 5: Review custom written tasks for direct DB access
+--------------------------------------------------------
 
 In Airflow 3, operators cannot access the Airflow metadata database directly using database sessions.
 If you have custom operators, review your code to ensure there are no direct database access calls.
 You can follow examples in https://github.com/apache/airflow/issues/49187 to learn how to modify your code if needed.
 
-If you have custom operators or task code that previously accessed the metadata database directly, you must migrate to one of the following recommended approaches:
+If you have custom operators or task code that previously accessed the metadata database directly, you must migrate to one of the following approaches:
 
-Recommended Approach 1: Use Airflow Python Client
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Recommended Approach: Use Airflow Python Client
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the official `Airflow Python Client <https://github.com/apache/airflow-client-python>`_ to interact with
-Airflow metadata via REST API. The Python Client has APIs defined for most use cases, including DagRuns, TaskInstances, Variables, Connections, XComs, and more.
+Airflow metadata database via REST API. The Python Client has APIs defined for most use cases, including DagRuns,
+TaskInstances, Variables, Connections, XComs, and more.
 
 **Pros:**
 - No direct database network access required from workers
 - Most aligned with Airflow 3's API-first architecture
+- No database credentials needed in worker environment (uses API tokens)
+- Workers don't need database drivers installed
+- Centralized access control and authentication via API server
 
 **Cons:**
 - Requires installing ``apache-airflow-client`` package
@@ -217,13 +221,25 @@ Airflow metadata via REST API. The Python Client has APIs defined for most use c
 - Requires API server availability and network access to API server
 - Not all database operations may be exposed via API endpoints
 
-Recommended Approach 2: Use DbApiHook (PostgresHook or MySqlHook)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. note::
+   If you need functionality that is not available via the Airflow Python Client, consider requesting new API endpoints or Task SDK features. The Airflow community prioritizes adding missing API capabilities over enabling direct database access.
 
-If your use case cannot be catered using the Python Client OR you are not in a position to install
-that package, you can use database hooks to query your metadata database directly. Create a database
+Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+   This approach is **NOT recommended** and is documented only as a known workaround for users who cannot use the Airflow Python Client. This approach has significant limitations and **will** break in future Airflow versions.
+
+   **Important considerations:**
+
+   - **Will break in future versions**: This approach will break in Airflow 3.2+ and beyond. You are responsible for adapting your code when schema changes occur.
+   - **Database schema is NOT a public API**: The Airflow metadata database schema can change at any time without notice. Schema changes will break your queries without warning.
+   - **Breaks task isolation**: This contradicts one of Airflow 3's core features - task isolation. Tasks should not directly access the metadata database.
+   - **Performance implications**: This reintroduces Airflow 2 behavior where each task opens separate database connections, dramatically changing performance characteristics and scalability.
+
+If your use case cannot be addressed using the Python Client and you understand the risks above, you ma use database hooks to query your metadata database directly. Create a database
 connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
-and use Airflow's standard database hooks.
+and use Database Hooks in Airflow.
 
 **Note:** These hooks connect directly to the database (not via
 the API server) using database drivers like psycopg2 or mysqlclient.
@@ -267,46 +283,6 @@ You can also use ``SQLExecuteQueryOperator`` if you prefer to use operators inst
 
 .. note::
    Always use **read-only database credentials** for metadata database connections and it is recommended to use temporary credentials.
-
-**Pros:**
-- Simple SQL execution with minimal code
-- Supports templating and parameterization
-
-**Cons:**
-- Requires installing provider packages (e.g., ``apache-airflow-providers-postgres`` or ``apache-airflow-providers-mysql``)
-- Requires direct network access from workers to database server because these providers connect to the database via database drivers.
-- Database credentials must be configured and rotated manually
-- Query performance directly impacts metadata database
-
-Last Resort: Direct Database Access with Special Credentials
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**WARNING:** This approach bypasses Airflow's default protection and should only be used when the above methods cannot meet your requirements.
-
-If you absolutely must access the metadata database directly from task code:
-
-1. Use read-only or temporary credentials that are rotated regularly. Create a database user with read-only permissions and use it only
-for this purpose.
-
-2. Set a separate environment variable (e.g., ``METADATA_DB_CONN_DIRECT``) with your metadata database connection string in the worker
-before the process starts.
-
-      export METADATA_DB_CONN_DIRECT="postgresql+psycopg2://readonly_user:password@host:5432/airflow"
-
-3. Create SQLAlchemy engine and session directly in your task code using the environment variable. Then, use this session in your task
-to query the database.
-
-**Pros:**
-- Maximum flexibility for complex queries
-- No extra package needs to be installed
-- Can query any database table/model
-- No dependency on API server availability
-
-**Cons:**
-- Requires database drivers installed in worker environment
-- Requires direct network access from workers to database server
-- Raw database credentials must be managed and rotated
-- Bypasses Airflow's architectural protections and bad queries can affect performance of Airflow database
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
