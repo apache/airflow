@@ -28,7 +28,7 @@ from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 try:
     from airflow_shared.observability.metrics.protocols import Timer
@@ -49,7 +49,6 @@ except ModuleNotFoundError:
         stat_name_otel_handler,
     )
 from airflow.configuration import conf
-from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
@@ -394,7 +393,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     debug = conf.getboolean("metrics", "otel_debugging_on")
     service_name = conf.get("metrics", "otel_service")
 
-    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
+    resource = Resource.create(attributes={SERVICE_NAME: service_name})
     protocol = "https" if ssl_active else "http"
     # Allow transparent support for standard OpenTelemetry SDK environment variables.
     # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options

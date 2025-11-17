@@ -17,18 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import calendar
 import logging
-from typing import TYPE_CHECKING
-
-try:
-    from airflow_shared.observability.traces import NO_TRACE_ID
-except ModuleNotFoundError:
-    from airflow._shared.observability.traces import NO_TRACE_ID
-from airflow.utils.hashlib_wrapper import md5
-
-if TYPE_CHECKING:
-    from airflow.models import DagRun, TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
 TRACE_ID = 0
 SPAN_ID = 16
@@ -36,52 +26,17 @@ SPAN_ID = 16
 log = logging.getLogger(__name__)
 
 
-def _gen_id(seeds: list[str], as_int: bool = False, type: int = TRACE_ID) -> str | int:
-    seed_str = "_".join(seeds).encode("utf-8")
-    hash_hex = md5(seed_str).hexdigest()[type:]
-    return int(hash_hex, 16) if as_int else hash_hex
-
-
-def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
-    if dag_run.start_date is None:
-        return NO_TRACE_ID
-
-    """Generate trace id from DagRun."""
-    return _gen_id(
-        [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
-        as_int,
-    )
-
-
-def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> str | int:
-    """Generate span id from TI key."""
-    return _gen_id(
-        [ti_key.dag_id, str(ti_key.run_id), ti_key.task_id, str(ti_key.try_number)],
-        as_int,
-        SPAN_ID,
-    )
-
-
-def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
-    """Generate dag's root span id using dag_run."""
-    if dag_run.start_date is None:
-        return NO_TRACE_ID
-
-    return _gen_id(
-        [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
-        as_int,
-        SPAN_ID,
-    )
-
-
-def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
-    """Generate span id from the task instance."""
-    dag_run = ti.dag_run
-    return _gen_id(
-        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number)],
-        as_int,
-        SPAN_ID,
-    )
+def datetime_to_nano(datetime) -> int | None:
+    """Convert datetime to nanoseconds."""
+    if datetime:
+        if datetime.tzinfo is None:
+            # There is no timezone info, handle it the same as UTC.
+            timestamp = calendar.timegm(datetime.timetuple()) + datetime.microsecond / 1e6
+        else:
+            # The datetime is timezone-aware. Use timestamp directly.
+            timestamp = datetime.timestamp()
+        return int(timestamp * 1e9)
+    return None
 
 
 def parse_traceparent(traceparent_str: str | None = None) -> dict:
@@ -105,13 +60,3 @@ def parse_tracestate(tracestate_str: str | None = None) -> dict:
             key, value = pair.split("=")
             result[key.strip()] = value.strip()
     return result
-
-
-def is_valid_trace_id(trace_id: str) -> bool:
-    """Check whether trace id is valid."""
-    return trace_id is not None and len(trace_id) == 34 and int(trace_id, 16) != 0
-
-
-def is_valid_span_id(span_id: str) -> bool:
-    """Check whether span id is valid."""
-    return span_id is not None and len(span_id) == 18 and int(span_id, 16) != 0

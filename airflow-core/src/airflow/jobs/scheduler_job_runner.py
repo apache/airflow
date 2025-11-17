@@ -39,7 +39,6 @@ from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow._shared.observability.stats import Stats
-from airflow._shared.observability.traces import utils as trace_utils
 from airflow._shared.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
@@ -2085,12 +2084,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run, as_int=True))
-        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
-        links = [{"trace_id": trace_id, "span_id": span_id}]
-
-        with DebugTrace.start_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
+        with DebugTrace.start_root_span(
+            span_name="_schedule_dag_run", component="SchedulerJobRunner"
         ) as span:
             span.set_attributes(
                 {

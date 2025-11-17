@@ -29,8 +29,7 @@ import pendulum
 
 from airflow._shared.observability.stats import Stats
 from airflow._shared.observability.traces import NO_TRACE_ID
-from airflow._shared.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span, gen_context
-from airflow._shared.observability.traces.utils import gen_span_id_from_ti_key
+from airflow._shared.observability.traces.base_tracer import DebugTrace, Trace, add_debug_span
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -419,11 +418,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="fail",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {
@@ -446,11 +443,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="success",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {
