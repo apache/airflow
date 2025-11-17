@@ -1471,7 +1471,7 @@ export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClie
 /**
 * Get Current User
 * Get current authenticated user information.
-* @returns CurrentAuthenticatedMeResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const ensureUseAuthLinksServiceGetCurrentUserData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetCurrentUserKeyFn(), queryFn: () => AuthLinksService.getCurrentUser() });

@@ -21,10 +21,12 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
-    CurrentAuthenticatedMeResponse,
+    FabAuthenticatedMeResponse,
     MenuItemCollectionResponse,
+    SimpleAuthenticatedMeResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 auth_router = AirflowRouter(tags=["Auth Links"])
 
@@ -45,15 +47,21 @@ def get_auth_menus(
 @auth_router.get("/auth/me")
 def get_current_user(
     user: GetUserDep,
-) -> CurrentAuthenticatedMeResponse:
+) -> SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse:
     """Get current authenticated user information."""
     auth_manager = get_auth_manager()
     if isinstance(auth_manager, SimpleAuthManager):
-        return CurrentAuthenticatedMeResponse(
+        return SimpleAuthenticatedMeResponse(
             username=user.username,
             role=user.role,
         )
-    return CurrentAuthenticatedMeResponse(
-        username=user.get_name(),
-        role=user.role or None,
-    )
+    if isinstance(auth_manager, FabAuthManager) and user.active:
+        return FabAuthenticatedMeResponse(
+            id=user.get_id(),
+            name=user.get_name(),
+            full_name=user.get_full_name(),
+            username=user.username,
+            email=user.email,
+            roles=[role.name for role in user.roles] if user.roles else None,
+        )
+    raise NotImplementedError("Unsupported auth manager type")

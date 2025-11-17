@@ -1791,14 +1791,6 @@ export type ConnectionHookMetaData = {
 };
 
 /**
- * Current User (me) response serializer for SimpleAuthManager.
- */
-export type CurrentAuthenticatedMeResponse = {
-    username: string | null;
-    role: string | null;
-};
-
-/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -1909,6 +1901,18 @@ export type ExtraMenuItem = {
 };
 
 /**
+ * Current User (me) response serializer for FAB auth.
+ */
+export type FabAuthenticatedMeResponse = {
+    id: number;
+    name: string;
+    full_name: string;
+    username: string;
+    email: string;
+    roles?: Array<(string)> | null;
+};
+
+/**
  * Base Node serializer for responses.
  */
 export type GridNodeResponse = {
@@ -1991,6 +1995,14 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+};
+
+/**
+ * Current User (me) response serializer for SimpleAuth.
+ */
+export type SimpleAuthenticatedMeResponse = {
+    username: string | null;
+    role: string | null;
 };
 
 /**
@@ -3338,7 +3350,7 @@ export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
-export type GetCurrentUserResponse = CurrentAuthenticatedMeResponse;
+export type GetCurrentUserResponse = SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
@@ -6442,7 +6454,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: CurrentAuthenticatedMeResponse;
+                200: SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse;
             };
         };
     };

@@ -1471,7 +1471,7 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
 /**
 * Get Current User
 * Get current authenticated user information.
-* @returns CurrentAuthenticatedMeResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const prefetchUseAuthLinksServiceGetCurrentUser = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetCurrentUserKeyFn(), queryFn: () => AuthLinksService.getCurrentUser() });

@@ -36,7 +36,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurrentAuthenticatedMeResponse'
+                anyOf:
+                - $ref: '#/components/schemas/SimpleAuthenticatedMeResponse'
+                - $ref: '#/components/schemas/FabAuthenticatedMeResponse'
+                title: Response Get Current User
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1398,24 +1401,6 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
-    CurrentAuthenticatedMeResponse:
-      properties:
-        username:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Username
-        role:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Role
-      type: object
-      required:
-      - username
-      - role
-      title: CurrentAuthenticatedMeResponse
-      description: Current User (me) response serializer for SimpleAuthManager.
     DAGRunLightResponse:
       properties:
         id:
@@ -1856,6 +1841,39 @@ components:
       - text
       - href
       title: ExtraMenuItem
+    FabAuthenticatedMeResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        full_name:
+          type: string
+          title: Full Name
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          title: Email
+        roles:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Roles
+      type: object
+      required:
+      - id
+      - name
+      - full_name
+      - username
+      - email
+      title: FabAuthenticatedMeResponse
+      description: Current User (me) response serializer for FAB auth.
     GridNodeResponse:
       properties:
         id:
@@ -2312,6 +2330,24 @@ components:
 
 
         :meta private:'
+    SimpleAuthenticatedMeResponse:
+      properties:
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+      type: object
+      required:
+      - username
+      - role
+      title: SimpleAuthenticatedMeResponse
+      description: Current User (me) response serializer for SimpleAuth.
     StandardHookFields:
       properties:
         description:

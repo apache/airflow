@@ -14,33 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class MenuItemCollectionResponse(BaseModel):
-    """Menu Item Collection serializer for responses."""
-
-    authorized_menu_items: list[MenuItem]
-    extra_menu_items: list[ExtraMenuItem]
-
-
-class SimpleAuthenticatedMeResponse(BaseModel):
-    """Current User (me) response serializer for SimpleAuth."""
-
-    username: str | None
-    role: str | None
-
-
-class FabAuthenticatedMeResponse(BaseModel):
-    """Current User (me) response serializer for FAB auth."""
-
-    id: int
-    name: str
-    full_name: str
-    username: str
-    email: str
-    roles: list[str] | None = None

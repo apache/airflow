@@ -1471,7 +1471,7 @@ export const useAuthLinksServiceGetAuthMenusSuspense = <TData = Common.AuthLinks
 /**
 * Get Current User
 * Get current authenticated user information.
-* @returns CurrentAuthenticatedMeResponse Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useAuthLinksServiceGetCurrentUserSuspense = <TData = Common.AuthLinksServiceGetCurrentUserDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetCurrentUserKeyFn(queryKey), queryFn: () => AuthLinksService.getCurrentUser() as TData, ...options });
