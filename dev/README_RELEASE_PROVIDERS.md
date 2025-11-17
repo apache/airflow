@@ -1015,7 +1015,9 @@ Provider distributions is used.
 
 If you prefer to build your own image, you can also use the official image and PyPI packages to test
 Provider distributions. This is especially helpful when you want to test integrations, but you need to install
-additional tools. Below is an example Dockerfile, which installs providers for Google/
+additional tools. Below is an example Dockerfile, which installs providers for Google. Please note, these 
+version numbers are arbitrary. You'll need to substitute the proper version numbers when running this
+yourself.
 
 ```dockerfile
 FROM apache/airflow:3.1.3
