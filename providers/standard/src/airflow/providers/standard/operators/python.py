@@ -490,7 +490,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
 
-    def _get_bundle_path_from_context(self, context: Context) -> Path | None:
+    def _get_bundle_path_from_context(self, context: Context) -> str | None:
         """
         Extract bundle_path from the task instance's bundle_instance.
 
@@ -502,13 +502,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
         # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
         # that contains the bundle information including its path
-        ti = context.get("ti")
-        if ti and hasattr(ti, "bundle_instance"):
-            bundle_instance = ti.bundle_instance
-            if bundle_instance and hasattr(bundle_instance, "path"):
-                return Path(bundle_instance.path)
-
-        return None
+        return context["ti"].bundle_instance.path
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -587,17 +581,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             if self.env_vars:
                 env_vars.update(self.env_vars)
 
-            # Add bundle_path to PYTHONPATH for subprocess to import DAG bundle modules
-            if hasattr(self, "_bundle_path") and self._bundle_path:
-                bundle_path_str = str(self._bundle_path)
-                existing_pythonpath = env_vars.get("PYTHONPATH", "")
-                path_separator = ";" if os.name == "nt" else ":"
-
-                if existing_pythonpath:
-                    # Prepend bundle_path to existing PYTHONPATH
-                    env_vars["PYTHONPATH"] = f"{bundle_path_str}{path_separator}{existing_pythonpath}"
-                else:
-                    env_vars["PYTHONPATH"] = bundle_path_str
+            # Add bundle_path to PYTHONPATH for subprocess to import Dag bundle modules
+            existing_pythonpath = env_vars.get("PYTHONPATH", "")
+            if existing_pythonpath:
+                # Append bundle_path after existing PYTHONPATH
+                env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{self._bundle_path}"
+            else:
+                env_vars["PYTHONPATH"] = self._bundle_path
 
             try:
                 cmd: list[str] = [
