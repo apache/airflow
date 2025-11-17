@@ -29,6 +29,7 @@
 - [Prepare Regular Provider distributions (RC)](#prepare-regular-provider-distributions-rc)
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
+  - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
   - [Apply incremental changes and merge the PR](#apply-incremental-changes-and-merge-the-pr)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload)
@@ -220,6 +221,19 @@ The tool determines the new version of provider as follows:
 * increased patch-level for bugfix-only and doc-only changes
 * increased minor version if new features are added
 * increased major version if breaking changes are added
+
+## Update versions of dependent providers to the next version
+
+Sometimes when contributors want to use next version of a dependent provider, instead of
+doing it immediately in the code they can add a comment ``# use next version``
+to the line of ``pyproject.toml`` file of the provider that refers to the provider, which next version
+should be used. This comment will be picked up by the``update-providers-next-version`` command and the
+version of the dependent provider will be updated to the next version and comment will be
+removed.
+
+```shell script
+breeze release-management update-providers-next-version
+```
 
 ## Apply incremental changes and merge the PR
 
