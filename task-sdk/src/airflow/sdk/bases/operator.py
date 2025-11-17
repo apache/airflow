@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -87,6 +88,7 @@ if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
@@ -97,7 +99,6 @@ if TYPE_CHECKING:
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -1050,7 +1051,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
             )
         validate_key(self.task_id)
 

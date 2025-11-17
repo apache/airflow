@@ -104,6 +104,9 @@ jobs:
           make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Set current date as RELEASE_DATE variable"
+        id: date
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers

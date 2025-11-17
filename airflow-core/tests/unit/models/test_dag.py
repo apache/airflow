@@ -1188,7 +1188,7 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
-    @pytest.mark.parametrize(["partition_key"], [[None], ["my-key"], [123]])
+    @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
         with dag_maker("test_create_dagrun_partition_key"):
             ...

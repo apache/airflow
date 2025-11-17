@@ -90,6 +90,11 @@
     "githubRepo": "Repositório GitHub",
     "restApiReference": "Referência da API REST"
   },
+  "download": {
+    "download": "Baixar",
+    "hotkey": "d",
+    "tooltip": "Pressione {{hotkey}} para baixar os logs"
+  },
   "duration": "Duração",
   "endDate": "Data Final",
   "error": {
@@ -113,6 +118,8 @@
   },
   "filter": "Filtro",
   "filters": {
+    "durationFrom": "Duração De",
+    "durationTo": "Duração Até",
     "logicalDateFrom": "Data Lógica De",
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",

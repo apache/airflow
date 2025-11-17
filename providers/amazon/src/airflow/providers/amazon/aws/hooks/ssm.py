@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet, is_arg_set
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -71,9 +71,9 @@ class SsmHook(AwsBaseHook):
                 mask_secret(value)
             return value
         except self.conn.exceptions.ParameterNotFound:
-            if isinstance(default, ArgNotSet):
-                raise
-            return default
+            if is_arg_set(default):
+                return default
+            raise
 
     def get_command_invocation(self, command_id: str, instance_id: str) -> dict:
         """
