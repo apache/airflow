@@ -24,6 +24,7 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetOrTimeSchedule",
     "AssetWatcher",
     "BaseHook",
     "BaseNotifier",
@@ -32,16 +33,23 @@ __all__ = [
     "BaseSensorOperator",
     "Connection",
     "Context",
+    "CronDataIntervalTimetable",
+    "CronTriggerTimetable",
     "DAG",
     "DagRunState",
+    "DeltaDataIntervalTimetable",
+    "DeltaTriggerTimetable",
     "EdgeModifier",
+    "EventsTimetable",
     "Label",
     "Metadata",
+    "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
+    "Timetable",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -81,6 +89,18 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
+    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.base import Timetable
+    from airflow.sdk.definitions.timetables.events import EventsTimetable
+    from airflow.sdk.definitions.timetables.interval import (
+        CronDataIntervalTimetable,
+        DeltaDataIntervalTimetable,
+    )
+    from airflow.sdk.definitions.timetables.trigger import (
+        CronTriggerTimetable,
+        DeltaTriggerTimetable,
+        MultipleCronTriggerTimetable,
+    )
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
@@ -90,6 +110,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
+    "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
@@ -98,17 +119,24 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
+    "CronDataIntervalTimetable": ".sdk.definitions.timetables.interval",
+    "CronTriggerTimetable": ".sdk.definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DeltaDataIntervalTimetable": ".sdk.definitions.timetables.interval",
+    "DeltaTriggerTimetable": ".sdk.definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
+    "EventsTimetable": ".definitions.timetables.events",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MultipleCronTriggerTimetable": ".sdk.definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
+    "Timetable": ".definitions.timetables.base",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",

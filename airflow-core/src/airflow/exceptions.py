@@ -34,8 +34,9 @@ try:
     from airflow.sdk.exceptions import (
         AirflowException,
         AirflowNotFoundException,
-        AirflowRescheduleException,
-        TaskNotFound,
+        AirflowRescheduleException as AirflowRescheduleException,
+        AirflowTimetableInvalid as AirflowTimetableInvalid,
+        TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
     # When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed.
@@ -43,17 +44,14 @@ except ModuleNotFoundError:
     class AirflowException(Exception):  # type: ignore[no-redef]
         """Base exception for Airflow errors."""
 
-        pass
-
     class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
         """Raise when a requested object is not found."""
 
-        pass
+    class AirflowTimetableInvalid(AirflowException):  # type: ignore[no-redef]
+        """Raise when a DAG has an invalid timetable."""
 
     class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
-
-        pass
 
     class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
         """
@@ -118,10 +116,6 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 class AirflowClusterPolicyError(AirflowException):
     """Raise for a Cluster Policy other than AirflowClusterPolicyViolation or AirflowClusterPolicySkipDag."""
-
-
-class AirflowTimetableInvalid(AirflowException):
-    """Raise when a DAG has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
