@@ -79,7 +79,7 @@ def test_get_retry_after_seconds_with_retry_after_header():
     assert wait == 15
 
 
-@pytest.mark.parametrize("attempt_number, expected_wait", [(1, 1), (4, 8)])
+@pytest.mark.parametrize(("attempt_number", "expected_wait"), [(1, 1), (4, 8)])
 def test_get_retry_after_seconds_without_retry_after_header(attempt_number, expected_wait):
     exc = ApiException(status=409)
     retry_state = DummyRetryState(exception=exc)
