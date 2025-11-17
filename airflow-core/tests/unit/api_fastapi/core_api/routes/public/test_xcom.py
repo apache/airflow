@@ -165,9 +165,9 @@ class TestGetXComEntry(TestXComEndpoint):
     def test_should_respond_200_native_with_slash_key(self, test_client):
         slash_key = "folder/sub/value"
         self._create_xcom(slash_key, TEST_XCOM_VALUE)
-        encoded_key = quote(slash_key, safe="")
+        # Use raw slash_key directly - FastAPI with :path converter handles it
         response = test_client.get(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{encoded_key}"
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
         )
         assert response.status_code == 200
         current_data = response.json()

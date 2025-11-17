@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
-from urllib.parse import quote
 
 import pandas as pd
 import pytest
@@ -2115,10 +2114,10 @@ class TestRuntimeTaskInstance:
         pulled_value = runtime_ti.xcom_pull(key="some/key/with/slash", task_ids="push_task")
         assert pulled_value == "slash_value"
 
-        expected_key = quote("some/key/with/slash", safe="")
+        # Key should NOT be quoted here - client API will handle encoding
         mock_supervisor_comms.send.assert_any_call(
             GetXComSequenceSlice(
-                key=expected_key,
+                key="some/key/with/slash",
                 dag_id="test_dag",
                 run_id="test_run",
                 task_id="push_task",
