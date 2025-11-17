@@ -23,10 +23,13 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import pendulum
+import tenacity
 from kubernetes.client.rest import ApiException
 from slugify import slugify
+from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 
 if TYPE_CHECKING:
@@ -37,6 +40,65 @@ log = logging.getLogger(__name__)
 alphanum_lower = string.ascii_lowercase + string.digits
 
 POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value minus 1.
+
+
+class PodLaunchFailedException(AirflowException):
+    """When pod launching fails in KubernetesPodOperator."""
+
+
+class KubernetesApiException(AirflowException):
+    """When communication with kubernetes API fails."""
+
+
+API_RETRIES = conf.getint("workers", "api_retries", fallback=5)
+API_RETRY_WAIT_MIN = conf.getfloat("workers", "api_retry_wait_min", fallback=1)
+API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
+
+_default_wait = tenacity.wait_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
+
+
+def _should_retry_api(exc: BaseException) -> bool:
+    # Retry on selected ApiException status codes, plus plain HTTP/timeout errors
+    if isinstance(exc, ApiException):
+        return exc.status in TRANSIENT_STATUS_CODES
+    if isinstance(exc, (HTTPError, TimeoutError)):
+        return True
+    if isinstance(exc, KubernetesApiException):
+        return True
+    return False
+
+
+class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
+    """Wait strategy that honors Retry-After header on 429, else falls back to exponential backoff."""
+
+    def __call__(self, retry_state):
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        if isinstance(exc, ApiException) and exc.status == 429:
+            retry_after = (exc.headers or {}).get("Retry-After")
+            if retry_after:
+                try:
+                    return float(int(retry_after))
+                except ValueError:
+                    pass
+        # Inline exponential fallback
+        return _default_wait(retry_state)
+
+
+def generic_api_retry(func):
+    """
+    Retry to Kubernetes API calls.
+
+    - Retries only transient ApiException status codes.
+    - Honors Retry-After on 429.
+    """
+    return tenacity.retry(
+        stop=tenacity.stop_after_attempt(API_RETRIES),
+        wait=WaitRetryAfterOrExponential(),
+        retry=tenacity.retry_if_exception(_should_retry_api),
+        reraise=True,
+    )(func)
 
 
 def rand_str(num):

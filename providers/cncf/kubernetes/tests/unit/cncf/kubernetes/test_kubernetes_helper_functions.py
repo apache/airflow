@@ -18,12 +18,42 @@
 from __future__ import annotations
 
 import re
+from unittest import mock
 
 import pytest
+from kubernetes.client.rest import ApiException
 
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    WaitRetryAfterOrExponential,
+    create_unique_id,
+)
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+
+
+class DummyRetryState:
+    def __init__(self, exception=None):
+        # self.attempt_number = 1
+        self.outcome = mock.Mock() if exception is not None else None
+        if self.outcome:
+            self.outcome.exception = mock.Mock(return_value=exception)
+
+
+class TestWaitRetryAfterOrExponential:
+    def test_call_with_retry_after_header(self):
+        exc = ApiException(status=429)
+        exc.headers = {"Retry-After": "15"}
+        retry_state = DummyRetryState(exception=exc)
+        wait = WaitRetryAfterOrExponential()(retry_state)
+        assert wait == 15
+
+    @pytest.mark.parametrize(("attempt_number", "expected_wait"), [(1, 1), (4, 8)])
+    def test_call_without_retry_after_header(self, attempt_number, expected_wait):
+        exc = ApiException(status=409)
+        retry_state = DummyRetryState(exception=exc)
+        retry_state.attempt_number = attempt_number
+        wait = WaitRetryAfterOrExponential()(retry_state)
+        assert wait == expected_wait
 
 
 class TestCreateUniqueId:
