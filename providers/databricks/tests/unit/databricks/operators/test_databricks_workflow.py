@@ -237,7 +237,6 @@ def test_task_group_exception_super_exit():
                 ):
                     EmptyOperator(task_id="task1")
 
-    # Assert that super().__exit__ was called even with an exception
     mock_super_exit.assert_called_once()
 
 
