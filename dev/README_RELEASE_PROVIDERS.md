@@ -1106,7 +1106,7 @@ downloaded from the SVN).
 
 ### Installing in your local virtualenv
 
-You have to make sure you have Airflow 2* installed in your PIP virtualenv
+You have to make sure you have Airflow 3* installed in your PIP virtualenv
 (the version you want to install providers with).
 
 ```shell
@@ -1116,7 +1116,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.10.3 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1133,12 +1133,13 @@ Provider distributions is used.
 
 If you prefer to build your own image, you can also use the official image and PyPI packages to test
 Provider distributions. This is especially helpful when you want to test integrations, but you need to install
-additional tools. Below is an example Dockerfile, which installs providers for Google/
+additional tools. Below is an example Dockerfile, which installs providers for Google. Please note, these
+version numbers are arbitrary. You'll need to substitute the proper version numbers when running this
+yourself.
 
 ```dockerfile
-FROM apache/airflow:2.2.3
-
-RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
+FROM apache/airflow:3.1.3
+RUN pip install  --user apache-airflow-providers-google==18.1.0.rc1
 
 USER ${AIRFLOW_UID}
 ```
