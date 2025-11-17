@@ -1880,8 +1880,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             return True
 
         # for const fields, we should always be excluded when False, regardless of client_defaults
-        const_fields = cls.get_operator_const_fields()
-        if attrname in const_fields and var is False:
+        # Use class-level cache for optimisation
+        if not hasattr(cls, "_const_fields"):
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
             return True
 
         schema_defaults = cls.get_schema_defaults("operator")
