@@ -26,7 +26,7 @@ import pendulum
 import tenacity
 from kubernetes.client.rest import ApiException
 from slugify import slugify
-from urllib3.exceptions import HTTPError, TimeoutError
+from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -63,7 +63,7 @@ def _should_retry_api(exc: BaseException) -> bool:
     # Retry on selected ApiException status codes, plus plain HTTP/timeout errors
     if isinstance(exc, ApiException):
         return exc.status in TRANSIENT_STATUS_CODES
-    if isinstance(exc, (HTTPError, TimeoutError)):
+    if isinstance(exc, HTTPError):
         return True
     if isinstance(exc, KubernetesApiException):
         return True
