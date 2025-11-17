@@ -15,7 +15,7 @@
   "requiredActionCount_other": "Vereiste acties ({{count}})",
   "requiredActionState": "Vereiste actie status",
   "response": {
-    "created": "Reactie aangemaakt op ",
+    "created": "Reactie aangemaakt op",
     "error": "Reactie mislukt",
     "optionsDescription": "Kies je opties voor deze Task Instance",
     "optionsLabel": "Opties",
