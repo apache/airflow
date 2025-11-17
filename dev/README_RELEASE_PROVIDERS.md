@@ -1211,6 +1211,12 @@ example `git checkout providers/2025-10-31`
 Note you probably will see message `You are in 'detached HEAD' state.`
 This is expected, the RC tag is most likely behind the main branch.
 
+* Remove source artifact:
+
+```shell script
+rm dist/apache_airflow_providers-${RELEASE_DATE}-source.tar.gz
+```
+
 * Verify the artifacts that would be uploaded:
 
 ```shell script
@@ -1244,13 +1250,6 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 breeze release-management tag-providers
 ```
 
-The command should output all the tags it created. At the end it should also print the general tag
-applied for this provider's release wave with the date of release preparation in the format of:
-
-```
-providers/2025-11-03
-```
-
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
@@ -1267,15 +1266,31 @@ You usually use the `breeze` command to publish the documentation. The command d
 2. Triggers workflow in apache/airflow-site to refresh
 3. Triggers S3 to GitHub Sync
 
+First - unset GITHUB_TOKEN if you have it set, this workflows reads token from your github repository
+configuration if you login with `gh`, do it only once - you do not have repeat it afterwards.
+
 ```shell script
-  unset GITHUB_TOKEN
+unset GITHUB_TOKEN
+brew install gh
+gh auth login
+```
+
+Run workflows:
+
+```shell script
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers
+```
+
+If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
+with space separated list of excluded providers.
+
+```shell script
+  breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers --exclude-docs "apprise slack"
 ```
 
 Or if you just want to publish a few selected providers, you can run:
 
 ```shell script
-  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live PACKAGE1 PACKAGE2 ..
 ```
 
@@ -1289,6 +1304,8 @@ not be needed unless there is some problem with workflow automation above)
 
 ## Update providers metadata
 
+Create PR and open it to be merged:
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
@@ -1299,10 +1316,8 @@ git checkout -b "${branch}"
 breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
 git add -p .
 git commit -m "Update providers metadata ${current_date}"
-git push --set-upstream origin "${branch}"
+gh pr create --title "Update providers metadata ${current_date}" --web
 ```
-
-Create PR and get it merged
 
 ## Notify developers of release
 
@@ -1324,15 +1339,16 @@ cat <<EOF
 Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages prepared on ${RELEASE_DATE} were just released.
+
 Full list of PyPI packages released is added at the end of the message.
 
 The source release, as well as the binary releases, are available here:
 
-https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources.html
 
-You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi.html
 
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
+The documentation index is available at https://airflow.apache.org/docs/ and documentation for individual provider versions is linked directly from PyPI.
 
 ----
 
@@ -1384,7 +1400,6 @@ Example for special cases:
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
@@ -1396,7 +1411,9 @@ If you don't have access to the account ask a PMC member to post.
 
 ## Add release data to Apache Committee Report Helper
 
-Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+You should get email about it to your account that should urge you to add it, but in
+case you don't, you can add it manually:
+add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Close the testing status issue
 
