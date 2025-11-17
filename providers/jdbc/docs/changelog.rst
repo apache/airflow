@@ -74,8 +74,6 @@ Doc-only
    * ``Add rudimentary support for psycopg3 (#52976)``
    * ``Switch pre-commit to prek (#54258)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 5.2.2
@@ -201,8 +199,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
 
@@ -419,7 +415,8 @@ To configure driver parameters (driver path and driver class), you can use the f
 
 * ``Restrict direct usage of driver params via extras for JDBC connection (#31849)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Improve docstrings in providers (#31681)``
    * ``Add D400 pydocstyle check - Providers (#31427)``
    * ``Add note about dropping Python 3.7 for providers (#32015)``
@@ -487,7 +484,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 3.2.0

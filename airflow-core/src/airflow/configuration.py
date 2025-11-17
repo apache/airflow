@@ -28,9 +28,8 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from configparser import ConfigParser
-from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
 from re import Pattern
@@ -328,31 +327,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     upgraded_values: dict[tuple[str, str], str]
     """Mapping of (section,option) to the old value that was upgraded"""
-
-    @contextmanager
-    def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
-        """
-        Make sure configuration is loaded with or without providers.
-
-        This happens regardless if the provider configuration has been loaded before or not.
-        Restores configuration to the state before entering the context.
-
-        :param with_providers: whether providers should be loaded
-        """
-        reload_providers_when_leaving = False
-        if with_providers and not self._providers_configuration_loaded:
-            # make sure providers are initialized
-            from airflow.providers_manager import ProvidersManager
-
-            # run internal method to initialize providers configuration in ordered to not trigger the
-            # initialize_providers_configuration cache (because we will be unloading it now
-            ProvidersManager()._initialize_providers_configuration()
-        elif not with_providers and self._providers_configuration_loaded:
-            reload_providers_when_leaving = True
-            self.restore_core_default_configuration()
-        yield
-        if reload_providers_when_leaving:
-            self.load_providers_configuration()
 
     def write_custom_config(
         self,

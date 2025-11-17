@@ -30,7 +30,7 @@ import shlex
 import subprocess
 import sys
 import warnings
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from enum import Enum
@@ -1648,3 +1648,40 @@ class AirflowConfigParser(ConfigParser):
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
+
+    @contextmanager
+    def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
+        """
+        Make sure configuration is loaded with or without providers.
+
+        This happens regardless if the provider configuration has been loaded before or not.
+        Restores configuration to the state before entering the context.
+
+        :param with_providers: whether providers should be loaded
+        """
+        needs_reload = False
+        if with_providers:
+            self._ensure_providers_config_loaded()
+        else:
+            needs_reload = self._ensure_providers_config_unloaded()
+        yield
+        if needs_reload:
+            self._reload_provider_configs()
+
+    def _ensure_providers_config_loaded(self) -> None:
+        """Ensure providers configurations are loaded."""
+        if not self._providers_configuration_loaded:
+            from airflow.providers_manager import ProvidersManager
+
+            ProvidersManager()._initialize_providers_configuration()
+
+    def _ensure_providers_config_unloaded(self) -> bool:
+        """Ensure providers configurations are unloaded temporarily to load core configs. Returns True if providers get unloaded."""
+        if self._providers_configuration_loaded:
+            self.restore_core_default_configuration()
+            return True
+        return False
+
+    def _reload_provider_configs(self) -> None:
+        """Reload providers configuration."""
+        self.load_providers_configuration()

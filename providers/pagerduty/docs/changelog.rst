@@ -116,7 +116,8 @@ Misc
 
 * ``Bump min Airflow version in providers to 2.10 (#49843)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Update description of provider.yaml dependencies (#50231)``
    * ``Avoid committing history for providers (#49907)``
    * ``Replace chicken-egg providers with automated use of unreleased packages (#49799)``
@@ -282,7 +283,8 @@ Bug Fixes
 
 * ``Fix stacklevel in warnings.warn into the providers (#36831)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
    * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
    * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``

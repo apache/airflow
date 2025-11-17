@@ -27,7 +27,6 @@ import pendulum
 import pytest
 import time_machine
 from kubernetes.client.rest import ApiException
-from tenacity import wait_none
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
@@ -37,6 +36,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLogsConsumer,
     PodManager,
     PodPhase,
+    get_retry_after_seconds,
     parse_log_line,
 )
 from airflow.utils.timezone import utc
@@ -45,6 +45,10 @@ from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallbac
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+
+
+def wait_none(retry_state):
+    return 0
 
 
 def test_parse_log_line():
@@ -59,6 +63,31 @@ def test_parse_log_line():
     assert line == log_message
 
 
+class DummyRetryState:
+    def __init__(self, exception=None):
+        # self.attempt_number = 1
+        self.outcome = mock.Mock() if exception is not None else None
+        if self.outcome:
+            self.outcome.exception = mock.Mock(return_value=exception)
+
+
+def test_get_retry_after_seconds_with_retry_after_header():
+    exc = ApiException(status=429)
+    exc.headers = {"Retry-After": "15"}
+    retry_state = DummyRetryState(exception=exc)
+    wait = get_retry_after_seconds(retry_state)
+    assert wait == 15
+
+
+@pytest.mark.parametrize(("attempt_number", "expected_wait"), [(1, 1), (4, 8)])
+def test_get_retry_after_seconds_without_retry_after_header(attempt_number, expected_wait):
+    exc = ApiException(status=409)
+    retry_state = DummyRetryState(exception=exc)
+    retry_state.attempt_number = attempt_number
+    wait = get_retry_after_seconds(retry_state)
+    assert wait == expected_wait
+
+
 class TestPodManager:
     def setup_method(self):
         self.mock_kube_client = mock.Mock()
@@ -66,23 +95,6 @@ class TestPodManager:
             kube_client=self.mock_kube_client,
             callbacks=[MockKubernetesPodOperatorCallback],
         )
-        # List of PodManager methods that may use tenacity retry
-        tenacity_methods = [
-            "await_pod_start",
-            "read_pod_logs",
-            "create_pod",
-            "get_init_container_names",
-            "get_container_names",
-            "read_pod_events",
-            "read_pod",
-            "extract_xcom_json",
-            "extract_xcom_kill",
-        ]
-        # Patch tenacity retry wait for all relevant methods to disable waiting in tests
-        for method_name in tenacity_methods:
-            method = getattr(self.pod_manager, method_name, None)
-            if method and hasattr(method, "retry"):
-                method.retry.wait = wait_none()
 
     def test_read_pod_logs_successfully_returns_logs(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -91,6 +103,7 @@ class TestPodManager:
         assert isinstance(logs, PodLogsConsumer)
         assert logs.response == mock.sentinel.logs
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_logs_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
@@ -136,6 +149,7 @@ class TestPodManager:
             self.pod_manager.fetch_container_logs(mock.MagicMock(), "container-name", follow=True)
             assert "[container-name] None" not in (record.message for record in caplog.records)
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
@@ -228,6 +242,7 @@ class TestPodManager:
         events = self.pod_manager.read_pod_events(mock.sentinel)
         assert mock.sentinel.events == events
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_events_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.side_effect = [
@@ -249,9 +264,12 @@ class TestPodManager:
             ]
         )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_events_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.side_effect = [
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
@@ -265,6 +283,7 @@ class TestPodManager:
         pod_info = self.pod_manager.read_pod(mock.sentinel)
         assert mock.sentinel.pod_info == pod_info
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod.side_effect = [
@@ -297,6 +316,7 @@ class TestPodManager:
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock_response
         self.pod_manager.fetch_container_logs(mock.sentinel, "base")
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_monitor_pod_logs_failures_non_fatal(self):
         mock.sentinel.metadata = mock.MagicMock()
         running_status = mock.MagicMock()
@@ -320,9 +340,12 @@ class TestPodManager:
 
         self.pod_manager.fetch_container_logs(mock.sentinel, "base")
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     def test_read_pod_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod.side_effect = [
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
@@ -363,6 +386,7 @@ class TestPodManager:
             ]
         )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_fetch_container_logs_failures(self, mock_container_is_running):
         MockWrapper.reset()
@@ -415,21 +439,25 @@ class TestPodManager:
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
 
+    @pytest.mark.parametrize("status", [409, 429])
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_retries_on_409_error(self, mock_run_pod_async):
+    def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, status):
         mock_run_pod_async.side_effect = [
-            ApiException(status=409),
+            ApiException(status=status),
             mock.MagicMock(),
         ]
         self.pod_manager.create_pod(mock.sentinel)
         assert mock_run_pod_async.call_count == 2
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_fails_on_other_exception(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [ApiException(status=504)]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_retries_three_times(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [
@@ -437,11 +465,13 @@ class TestPodManager:
             ApiException(status=409),
             ApiException(status=409),
             ApiException(status=409),
+            ApiException(status=409),
+            ApiException(status=409),
         ]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
-        assert mock_run_pod_async.call_count == 3
+        assert mock_run_pod_async.call_count == 5
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
@@ -649,6 +679,7 @@ class TestPodManager:
         assert ret == xcom_json
         assert mock_exec_xcom_kill.call_count == 1
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
     def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_kubernetes_stream):
@@ -677,6 +708,7 @@ class TestPodManager:
         assert ret == xcom_result
         assert mock_exec_xcom_kill.call_count == 1
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
     def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_kubernetes_stream):
@@ -690,6 +722,7 @@ class TestPodManager:
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_await_xcom_sidecar_container_timeout(
@@ -740,18 +773,6 @@ class TestAsyncPodManager:
             async_hook=self.mock_async_hook,
             callbacks=[],
         )
-        # List of PodManager methods that may use tenacity retry
-        tenacity_methods = [
-            "await_pod_start",
-            "fetch_container_logs_before_current_sec",
-            "read_pod_events",
-            "read_pod",
-        ]
-        # Patch tenacity retry wait for all relevant methods to disable waiting in tests
-        for method_name in tenacity_methods:
-            method = getattr(self.async_pod_manager, method_name, None)
-            if method and hasattr(method, "retry"):
-                method.retry.wait = wait_none()
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
@@ -951,6 +972,7 @@ class TestAsyncPodManager:
                     unexpected_call = mock.call("[%s] %s", container_name, not_expected)
                     assert unexpected_call not in mock_log_info.mock_calls
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_retry_after_seconds", wait_none)
     @pytest.mark.asyncio
     async def test_fetch_container_logs_before_current_sec_error_handling(self):
         pod = mock.MagicMock()
