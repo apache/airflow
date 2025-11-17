@@ -30,6 +30,8 @@ Airflow UI
 Make sure you are using recent versions of ``pnpm>=9`` and ``node>=20``. ``breeze start-airflow`` will build the UI automatically.
 Adding the ``--dev-mode`` flag will automatically run the vite dev server for hot reloading the UI during local development.
 
+In certain WSL environments, you will need to set ``CHOKIDAR_USEPOLLING=true`` in your environment variables for hot reloading to work.
+
 pnpm commands
 -------------
 

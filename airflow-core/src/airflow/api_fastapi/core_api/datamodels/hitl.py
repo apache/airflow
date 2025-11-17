@@ -58,7 +58,7 @@ class BaseHITLDetail(BaseModel):
     body: str | None = None
     defaults: list[str] | None = None
     multiple: bool = False
-    params: dict[str, Any] = Field(default_factory=dict)
+    params: Mapping = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
     created_at: datetime
 
@@ -74,7 +74,20 @@ class BaseHITLDetail(BaseModel):
     @classmethod
     def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
         """Convert params attribute to dict representation."""
-        return {k: v.dump() if getattr(v, "dump", None) else v for k, v in params.items()}
+        return {
+            key: value
+            if BaseHITLDetail._is_param(value)
+            else {
+                "value": value,
+                "description": None,
+                "schema": {},
+            }
+            for key, value in params.items()
+        }
+
+    @staticmethod
+    def _is_param(value: Any) -> bool:
+        return isinstance(value, dict) and all(key in value for key in ("description", "schema", "value"))
 
 
 class HITLDetail(BaseHITLDetail):

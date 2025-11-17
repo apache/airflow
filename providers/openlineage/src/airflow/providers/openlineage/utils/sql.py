@@ -232,15 +232,15 @@ def create_filter_clauses(
                 [name.upper() if uppercase_names else name for name in tables]
             )
             if schema:
-                schema = schema.upper() if uppercase_names else schema
+                schema_upper = schema.upper() if uppercase_names else schema
                 filter_clause = and_(
-                    information_schema_table.c[table_schema_column_name] == schema, filter_clause
+                    information_schema_table.c[table_schema_column_name] == schema_upper, filter_clause
                 )
             schema_level_clauses.append(filter_clause)
         if db and table_database_column_name:
-            db = db.upper() if uppercase_names else db
+            db_upper = db.upper() if uppercase_names else db
             filter_clause = and_(
-                information_schema_table.c[table_database_column_name] == db, or_(*schema_level_clauses)
+                information_schema_table.c[table_database_column_name] == db_upper, or_(*schema_level_clauses)
             )
             filter_clauses.append(filter_clause)
         else:

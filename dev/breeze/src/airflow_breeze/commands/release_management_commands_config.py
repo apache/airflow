@@ -247,20 +247,37 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management prepare-provider-documentation": [
         {
-            "name": "Provider documentation preparation flags",
+            "name": "Documentation generation mode",
             "options": [
-                "--base-branch",
-                "--github-repository",
-                "--include-not-ready-providers",
-                "--include-removed-providers",
-                "--non-interactive",
+                "--release-date",
+                "--incremental-update",
                 "--only-min-version-update",
                 "--reapply-templates-only",
+                "--non-interactive",
+            ],
+        },
+        {
+            "name": "Select non-regular providers",
+            "options": [
+                "--include-not-ready-providers",
+                "--include-removed-providers",
+            ],
+        },
+        {
+            "name": "Skip steps",
+            "options": [
                 "--skip-git-fetch",
                 "--skip-changelog",
                 "--skip-readme",
             ],
-        }
+        },
+        {
+            "name": "Advanced options",
+            "options": [
+                "--base-branch",
+                "--github-repository",
+            ],
+        },
     ],
     "breeze release-management prepare-python-client": [
         {
@@ -393,7 +410,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--github-token",
                 "--only-available-in-dist",
-                "--no-include-browser-link",
             ],
         }
     ],
