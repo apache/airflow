@@ -1708,7 +1708,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
-    @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_const_fields(cls) -> set[str]:
         if (schema_loader := cls._json_schema) is None:
             return set()
