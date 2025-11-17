@@ -1904,11 +1904,11 @@ export type ExtraMenuItem = {
  * Current User (me) response serializer for FAB auth.
  */
 export type FabAuthenticatedMeResponse = {
-    id: number;
-    name: string;
-    full_name: string;
-    username: string;
-    email: string;
+    id: number | string | null;
+    first_name: string | null;
+    last_name: string | null;
+    username: string | null;
+    email: string | null;
     roles?: Array<(string)> | null;
 };
 

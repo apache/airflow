@@ -18,16 +18,30 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class BaseUser:
     """User model interface."""
 
+    id: int | str | None
+    first_name: str | None
+    last_name: str | None
     username: str | None
     role: str | None
+    email: str | None
+    active: bool | None
+    roles: list[Any] | None
 
     @abstractmethod
-    def get_id(self) -> str: ...
+    def get_id(self) -> str:
+        """Get user ID."""
+        ...
 
     @abstractmethod
-    def get_name(self) -> str: ...
+    def get_name(self) -> str:
+        """Get user name."""
+        ...

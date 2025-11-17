@@ -7643,23 +7643,61 @@ export const $ExtraMenuItem = {
 export const $FabAuthenticatedMeResponse = {
     properties: {
         id: {
-            type: 'integer',
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Id'
         },
-        name: {
-            type: 'string',
-            title: 'Name'
+        first_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'First Name'
         },
-        full_name: {
-            type: 'string',
-            title: 'Full Name'
+        last_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Name'
         },
         username: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Username'
         },
         email: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Email'
         },
         roles: {
@@ -7678,7 +7716,7 @@ export const $FabAuthenticatedMeResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'name', 'full_name', 'username', 'email'],
+    required: ['id', 'first_name', 'last_name', 'username', 'email'],
     title: 'FabAuthenticatedMeResponse',
     description: 'Current User (me) response serializer for FAB auth.'
 } as const;

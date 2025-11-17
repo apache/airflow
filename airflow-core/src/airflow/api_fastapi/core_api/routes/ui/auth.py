@@ -55,11 +55,11 @@ def get_current_user(
             username=user.username,
             role=user.role,
         )
-    if isinstance(auth_manager, FabAuthManager) and user.active:
+    if isinstance(auth_manager, FabAuthManager):
         return FabAuthenticatedMeResponse(
-            id=user.get_id(),
-            name=user.get_name(),
-            full_name=user.get_full_name(),
+            id=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
             username=user.username,
             email=user.email,
             roles=[role.name for role in user.roles] if user.roles else None,

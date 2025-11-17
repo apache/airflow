@@ -38,9 +38,9 @@ class SimpleAuthenticatedMeResponse(BaseModel):
 class FabAuthenticatedMeResponse(BaseModel):
     """Current User (me) response serializer for FAB auth."""
 
-    id: int
-    name: str
-    full_name: str
-    username: str
-    email: str
+    id: int | str | None
+    first_name: str | str | None
+    last_name: str | str | None
+    username: str | None
+    email: str | None
     roles: list[str] | None = None

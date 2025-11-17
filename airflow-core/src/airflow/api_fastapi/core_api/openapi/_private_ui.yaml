@@ -1844,19 +1844,30 @@ components:
     FabAuthenticatedMeResponse:
       properties:
         id:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: string
+          - type: 'null'
           title: Id
-        name:
-          type: string
-          title: Name
-        full_name:
-          type: string
-          title: Full Name
+        first_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Name
         username:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Username
         email:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Email
         roles:
           anyOf:
@@ -1868,8 +1879,8 @@ components:
       type: object
       required:
       - id
-      - name
-      - full_name
+      - first_name
+      - last_name
       - username
       - email
       title: FabAuthenticatedMeResponse
