@@ -88,6 +88,7 @@ if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
@@ -98,7 +99,6 @@ if TYPE_CHECKING:
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
