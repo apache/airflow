@@ -1649,6 +1649,77 @@ class AirflowConfigParser(ConfigParser):
         if needs_separation:
             file.write("\n")
 
+    def write(  # type: ignore[override]
+        self,
+        file: IO[str],
+        section: str | None = None,
+        include_examples: bool = True,
+        include_descriptions: bool = True,
+        include_sources: bool = True,
+        include_env_vars: bool = True,
+        include_providers: bool = True,
+        comment_out_everything: bool = False,
+        hide_sensitive_values: bool = False,
+        extra_spacing: bool = True,
+        only_defaults: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Write configuration with comments and examples to a file.
+
+        :param file: file to write to
+        :param section: section of the config to write, defaults to all sections
+        :param include_examples: Include examples in the output
+        :param include_descriptions: Include descriptions in the output
+        :param include_sources: Include the source of each config option
+        :param include_env_vars: Include environment variables corresponding to each config option
+        :param include_providers: Include providers configuration
+        :param comment_out_everything: Comment out all values
+        :param hide_sensitive_values: Include sensitive values in the output
+        :param extra_spacing: Add extra spacing before examples and after variables
+        :param only_defaults: Only include default values when writing the config, not the actual values
+        """
+        sources_dict = {}
+        if include_sources:
+            sources_dict = self.as_dict(display_source=True)
+        if self._default_values is None:
+            raise RuntimeError("Cannot write default config, no default config set")
+        if self.configuration_description is None:
+            raise RuntimeError("Cannot write default config, no default configuration description set")
+        with self.make_sure_configuration_loaded(with_providers=include_providers):
+            for section_to_write in self.get_sections_including_defaults():
+                section_config_description = self.configuration_description.get(section_to_write, {})
+                if section_to_write != section and section is not None:
+                    continue
+                if self._default_values.has_section(section_to_write) or self.has_section(section_to_write):
+                    self._write_section_header(
+                        file, include_descriptions, section_config_description, section_to_write
+                    )
+                    for option in self.get_options_including_defaults(section_to_write):
+                        should_continue, needs_separation = self._write_option_header(
+                            file=file,
+                            option=option,
+                            extra_spacing=extra_spacing,
+                            include_descriptions=include_descriptions,
+                            include_env_vars=include_env_vars,
+                            include_examples=include_examples,
+                            include_sources=include_sources,
+                            section_config_description=section_config_description,
+                            section_to_write=section_to_write,
+                            sources_dict=sources_dict,
+                        )
+                        self._write_value(
+                            file=file,
+                            option=option,
+                            comment_out_everything=comment_out_everything,
+                            needs_separation=needs_separation,
+                            only_defaults=only_defaults,
+                            section_to_write=section_to_write,
+                        )
+                    if include_descriptions and not needs_separation:
+                        # extra separation between sections in case last option did not need it
+                        file.write("\n")
+
     @contextmanager
     def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
         """
@@ -1670,18 +1741,12 @@ class AirflowConfigParser(ConfigParser):
 
     def _ensure_providers_config_loaded(self) -> None:
         """Ensure providers configurations are loaded."""
-        if not self._providers_configuration_loaded:
-            from airflow.providers_manager import ProvidersManager
-
-            ProvidersManager()._initialize_providers_configuration()
+        raise NotImplementedError("Subclasses must implement _ensure_providers_config_loaded method")
 
     def _ensure_providers_config_unloaded(self) -> bool:
         """Ensure providers configurations are unloaded temporarily to load core configs. Returns True if providers get unloaded."""
-        if self._providers_configuration_loaded:
-            self.restore_core_default_configuration()
-            return True
-        return False
+        raise NotImplementedError("Subclasses must implement _ensure_providers_config_unloaded method")
 
     def _reload_provider_configs(self) -> None:
         """Reload providers configuration."""
-        self.load_providers_configuration()
+        raise NotImplementedError("Subclasses must implement _reload_provider_configs method")
