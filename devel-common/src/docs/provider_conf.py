@@ -230,6 +230,11 @@ config_descriptions = retrieve_configuration_description(
 configs, deprecated_options = get_configs_and_deprecations(
     parse_version(PACKAGE_VERSION), config_descriptions
 )
+
+PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_REPO_ROOT_PATH / "providers" / ".last_release_date.txt"
+
+PROVIDERS_RELEASE_DATE = PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
+
 jinja_contexts = {
     "config_ctx": {
         "configs": configs,
@@ -242,6 +247,7 @@ jinja_contexts = {
         "package_name": PACKAGE_NAME,
         "package_name_underscores": PACKAGE_NAME.replace("-", "_"),
         "package_version": PACKAGE_VERSION,
+        "providers_release_date": PROVIDERS_RELEASE_DATE,
     },
 }
 
