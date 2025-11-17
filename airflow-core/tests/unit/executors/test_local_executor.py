@@ -182,7 +182,7 @@ class TestLocalExecutor:
         for killed_pid in worker_pid:
             # killing the worker process
             proc = mock.MagicMock()
-            proc.is_alive.return_value = True
+            proc.is_alive.return_value = False
 
             executor.workers[killed_pid] = proc
 
