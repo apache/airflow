@@ -91,7 +91,8 @@
     "defaultMessage": "Ocurrió un error inesperado",
     "home": "Inicio",
     "notFound": "Página no encontrada",
-    "title": "Error"
+    "title": "Error",
+    "authenticating": "Autenticando…"
   },
   "expand": {
     "collapse": "Colapsar",

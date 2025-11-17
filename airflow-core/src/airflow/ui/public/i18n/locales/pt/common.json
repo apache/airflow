@@ -97,7 +97,8 @@
     "defaultMessage": "Ocorreu um erro inesperado",
     "home": "Início",
     "notFound": "Página Não Encontrada",
-    "title": "Erro"
+    "title": "Erro",
+    "authenticating": "Autenticando…"
   },
   "expand": {
     "collapse": "Recolher",

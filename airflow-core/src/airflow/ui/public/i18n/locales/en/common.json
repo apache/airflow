@@ -90,7 +90,8 @@
     "defaultMessage": "An unexpected error occurred",
     "home": "Home",
     "notFound": "Page Not Found",
-    "title": "Error"
+    "title": "Error",
+    "authenticating": "Authenticating..."
   },
   "expand": {
     "collapse": "Collapse",

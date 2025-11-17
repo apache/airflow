@@ -90,7 +90,8 @@
     "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
     "home": "Start",
     "notFound": "Seite nicht gefunden",
-    "title": "Fehler"
+    "title": "Fehler",
+    "authenticating": "Authentifizierung…"
   },
   "expand": {
     "collapse": "Einklappen",

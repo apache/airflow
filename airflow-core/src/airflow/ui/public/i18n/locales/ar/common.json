@@ -109,7 +109,8 @@
     "defaultMessage": "حدث خطأ غير متوقع",
     "home": "الصفحة الرئيسية",
     "notFound": "غير موجود",
-    "title": "خطأ"
+    "title": "خطأ",
+    "authenticating": "جاري المصادقة…"
   },
   "expand": {
     "collapse": "طي",

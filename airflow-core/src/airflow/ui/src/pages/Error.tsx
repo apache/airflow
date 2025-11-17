@@ -44,7 +44,7 @@ export const ErrorPage = () => {
           <VStack gap={8} textAlign="center">
             <AirflowPin height="50px" width="50px" />
             <Spinner size="xl" color="blue.500" />
-            <Text>Authenticating...</Text>
+            <Text>{translate("error.authenticating")}</Text>
           </VStack>
         </Container>
       </Box>

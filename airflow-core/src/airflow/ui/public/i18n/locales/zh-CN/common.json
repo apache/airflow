@@ -85,7 +85,8 @@
     "defaultMessage": "发生未预期的错误",
     "home": "首页",
     "notFound": "找不到页面",
-    "title": "错误"
+    "title": "错误",
+    "authenticating": "正在身份验证…"
   },
   "expand": {
     "collapse": "收起",

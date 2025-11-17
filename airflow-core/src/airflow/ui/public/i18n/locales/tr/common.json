@@ -85,7 +85,8 @@
     "defaultMessage": "Beklenmeyen bir hata oluştu",
     "home": "Ana Sayfa",
     "notFound": "Sayfa Bulunamadı",
-    "title": "Hata"
+    "title": "Hata",
+    "authenticating": "Kimlik doğrulanıyor…"
   },
   "expand": {
     "collapse": "Daralt",
