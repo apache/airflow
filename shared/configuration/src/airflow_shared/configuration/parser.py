@@ -1605,17 +1605,7 @@ class AirflowConfigParser(ConfigParser):
         needs_separation: bool,
         only_defaults: bool,
         section_to_write: str,
-    ) -> None:
-        """
-        Write configuration value to file.
-
-        :param file: File to write to
-        :param option: Option name
-        :param comment_out_everything: If True, comment out the value
-        :param needs_separation: If True, add blank line after value
-        :param only_defaults: If True, write only default value, not actual value
-        :param section_to_write: Section name
-        """
+    ):
         if self._default_values is None:
             default_value = None
         else:
@@ -1632,6 +1622,14 @@ class AirflowConfigParser(ConfigParser):
                 value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
+                if "\n" in value:
+                    try:
+                        value = json.dumps(json.loads(value), indent=4)
+                        value = value.replace(
+                            "\n", "\n    "
+                        )  # indent multi-line JSON to satisfy configparser format
+                    except JSONDecodeError:
+                        pass
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
