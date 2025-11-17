@@ -72,7 +72,7 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.9
+Release: 0.1.0
 
 Provider package
 ----------------
@@ -125,5 +125,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-git 0.0.9 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9.tar.gz.sha512>`__)
-* `The apache-airflow-providers-git 0.0.9 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.0.9-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-git 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-git 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.0-py3-none-any.whl.sha512>`__)

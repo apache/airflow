@@ -617,7 +617,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
+        Current default is `delete_pod`, but this will be changed in the next major release of this provider.
     :param deferrable: Run operator in the deferrable mode.
     """
 
