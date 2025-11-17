@@ -83,8 +83,6 @@ def test_variable_set(sdk_client):
     Expected: OKResponse with ok=True
     Endpoint: PUT /execution/variables/{key}
     """
-    console.print("[yellow]TODO: Setting variable...")
-
     response = sdk_client.variables.set("test_variable_key", "test_variable_value")
 
     console.print(" Variable Set Response ".center(72, "="))
@@ -107,6 +105,12 @@ def test_variable_delete(sdk_client):
     """
     console.print("[yellow]Deleting variable...")
 
+    # When using the test_variable_key, we noticed an issue where it appears that the variable that was
+    # being set/deleted was still available when retrieved later. Per @amoghrajesh, in Docker Compose [we've]
+    # defined an environment variable for test_variable_key and secrets backends are read-only, so when [our]
+    # test calls Variable.set(), the value is written to the database — and when you delete it, Airflow
+    # correctly removes it from the DB... However, a calling Variable.get() once the Variable had been
+    # deleted pointed to the Secrets Backend, which still had that key available.
     key: str = "test_variable_delete_key"
 
     # First, set the variable
