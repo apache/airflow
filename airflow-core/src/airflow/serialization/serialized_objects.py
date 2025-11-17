@@ -1237,6 +1237,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1709,6 +1711,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     @classmethod
     def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
         if (schema_loader := cls._json_schema) is None:
             return set()
 
@@ -1880,7 +1883,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         # for const fields, we should always be excluded when False, regardless of client_defaults
         # Use class-level cache for optimisation
-        if not hasattr(cls, "_const_fields"):
+        if cls._const_fields is None:
             cls._const_fields = cls.get_operator_const_fields()
         if attrname in cls._const_fields and var is False:
             return True
