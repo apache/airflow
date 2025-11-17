@@ -498,20 +498,32 @@ class AirflowConfigParser(ConfigParser):
 
         :param with_providers: whether providers should be loaded
         """
-        reload_providers_when_leaving = False
-        if with_providers and not self._providers_configuration_loaded:
-            # make sure providers are initialized
+        needs_reload = False
+        if with_providers:
+            self._ensure_providers_config_loaded()
+        else:
+            needs_reload = self._ensure_providers_config_unloaded()
+        yield
+        if needs_reload:
+            self._reload_provider_configs()
+
+    def _ensure_providers_config_loaded(self) -> None:
+        """Ensure providers configurations are loaded."""
+        if not self._providers_configuration_loaded:
             from airflow.providers_manager import ProvidersManager
 
-            # run internal method to initialize providers configuration in ordered to not trigger the
-            # initialize_providers_configuration cache (because we will be unloading it now
             ProvidersManager()._initialize_providers_configuration()
-        elif not with_providers and self._providers_configuration_loaded:
-            reload_providers_when_leaving = True
+
+    def _ensure_providers_config_unloaded(self) -> bool:
+        """Ensure providers configurations are unloaded temporarily to load core configs. Returns True if providers get unloaded."""
+        if self._providers_configuration_loaded:
             self.restore_core_default_configuration()
-        yield
-        if reload_providers_when_leaving:
-            self.load_providers_configuration()
+            return True
+        return False
+
+    def _reload_provider_configs(self) -> None:
+        """Reload providers configuration."""
+        self.load_providers_configuration()
 
     @staticmethod
     def _write_section_header(

@@ -1734,7 +1734,7 @@ class TaskResponse(BaseModel):
     pool_slots: Annotated[float | None, Field(title="Pool Slots")] = None
     execution_timeout: TimeDelta | None = None
     retry_delay: TimeDelta | None = None
-    retry_exponential_backoff: Annotated[bool, Field(title="Retry Exponential Backoff")]
+    retry_exponential_backoff: Annotated[float, Field(title="Retry Exponential Backoff")]
     priority_weight: Annotated[float | None, Field(title="Priority Weight")] = None
     weight_rule: Annotated[str | None, Field(title="Weight Rule")] = None
     ui_color: Annotated[str | None, Field(title="Ui Color")] = None
