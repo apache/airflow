@@ -140,6 +140,9 @@ codegen = [
     "datamodel-code-generator[http]==0.33.0",
     "apache-airflow-devel-common"
 ]
+binary = [
+    "pyinstaller"
+]
 
 # uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
 [tool.datamodel-codegen]
