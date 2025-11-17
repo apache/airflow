@@ -106,10 +106,7 @@ export const Dag = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header
-          dag={dag}
-          latestRunInfo={latestRun ?? undefined}
-        />
+        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
       </DetailsLayout>
     </ReactFlowProvider>
   );
