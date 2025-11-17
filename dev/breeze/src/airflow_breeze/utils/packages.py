@@ -1232,7 +1232,7 @@ def _update_dependency_line_with_new_version(
     updated_line = line.replace(old_constraint, new_constraint)
 
     # Remove the "# use next version" comment after upgrading
-    updated_line = updated_line.replace(", # use next version", "").replace(" # use next version", "")
+    updated_line = updated_line.replace(" # use next version", "")
 
     # Track the update
     provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
