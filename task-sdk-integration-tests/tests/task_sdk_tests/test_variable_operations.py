@@ -107,11 +107,13 @@ def test_variable_delete(sdk_client):
     """
     console.print("[yellow]Deleting variable...")
 
+    key: str = "test_variable_delete_key"
+
     # First, set the variable
-    sdk_client.variables.set("test_variable_key", "test_variable_value")
+    sdk_client.variables.set(key, "test_variable_value")
 
     # Now, delete the variable
-    response = sdk_client.variables.delete("test_variable_key")
+    response = sdk_client.variables.delete(key)
 
     console.print(" Variable Delete Response ".center(72, "="))
     console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
@@ -122,9 +124,13 @@ def test_variable_delete(sdk_client):
     assert response.ok is True
 
     # Validate that the Variable has in fact been deleted
-    get_response = sdk_client.variables.get("test_variable_key")
+    get_response = sdk_client.variables.get(key)
 
-    # TODO: Add console.print(...) statements
+    console.print(" Variable Get After Delete ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(get_response).__name__}")
+    console.print(f"[bright_blue]Error Type:[/] {get_response.error}")
+    console.print(f"[bright_blue]Detail:[/] {get_response.detail}")
+    console.print("=" * 72)
 
     assert isinstance(get_response, ErrorResponse)
     assert str(get_response.error).find("VARIABLE_NOT_FOUND") != -1
