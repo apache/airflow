@@ -20,8 +20,8 @@
       "previousYear": "Önceki yıl"
     },
     "noData": "Veri yok",
-    "noRuns": "Çalıştırma yok",
     "noFailedRuns": "Başarısız çalışma yok",
+    "noRuns": "Çalıştırma yok",
     "totalRuns": "Bütün Çalıştırmalar",
     "week": "Hafta {{weekNumber}}",
     "weekdays": {
