@@ -23,6 +23,7 @@ import logging
 import os
 import pathlib
 from configparser import ConfigParser
+from io import StringIO
 from typing import Any
 
 from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
@@ -143,6 +144,36 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         """
         return None
 
+    def load_test_config(self):
+        """
+        Use the test configuration instead of Airflow defaults.
+
+        Unit tests load values from `unit_tests.cfg` to ensure consistent behavior. Realistically we should
+        not have this needed but this is temporary to help fix the tests that use dag_maker and rely on few
+        confs.
+
+        The SDK does not expand template variables (FERNET_KEY, JWT_SECRET_KEY, etc.) because it does not use
+        the config fields that require expansion.
+        """
+        unit_test_config_file = (
+            pathlib.Path(__file__).parent.parent.parent.parent.parent
+            / "airflow-core"
+            / "src"
+            / "airflow"
+            / "config_templates"
+            / "unit_tests.cfg"
+        )
+        unit_test_config = unit_test_config_file.read_text()
+        self.remove_all_read_configurations()
+        with StringIO(unit_test_config) as test_config_file:
+            self.read_file(test_config_file)
+        log.info("Unit test configuration loaded from 'unit_tests.cfg'")
+
+    def remove_all_read_configurations(self):
+        """Remove all read configurations, leaving only default values in the config."""
+        for section in self.sections():
+            self.remove_section(section)
+
 
 def initialize_config() -> AirflowSDKConfigParser:
     """
@@ -150,7 +181,10 @@ def initialize_config() -> AirflowSDKConfigParser:
 
     Called automatically when SDK is imported.
     """
-    return AirflowSDKConfigParser()
+    airflow_config_parser = AirflowSDKConfigParser()
+    if airflow_config_parser.getboolean("core", "unit_test_mode", fallback=False):
+        airflow_config_parser.load_test_config()
+    return airflow_config_parser
 
 
 conf: AirflowSDKConfigParser = initialize_config()
