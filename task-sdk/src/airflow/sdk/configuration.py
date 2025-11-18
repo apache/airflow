@@ -166,6 +166,9 @@ def get_custom_secret_backend(worker_mode: bool = False):
     This is a convenience function that calls conf._get_custom_secret_backend().
     Uses SDK's conf instead of Core's conf.
     """
+    # Lazy import to trigger __getattr__ and lazy initialization
+    from airflow.sdk.configuration import conf
+
     return conf._get_custom_secret_backend(worker_mode=worker_mode)
 
 
@@ -234,4 +237,9 @@ def initialize_config() -> AirflowSDKConfigParser:
     return airflow_config_parser
 
 
-conf: AirflowSDKConfigParser = initialize_config()
+def __getattr__(name: str):
+    if name == "conf":
+        val = initialize_config()
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
