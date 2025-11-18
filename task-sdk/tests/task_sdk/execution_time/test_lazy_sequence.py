@@ -36,7 +36,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars
 
 
 @pytest.fixture
@@ -119,7 +119,7 @@ def test_getitem_index(mock_supervisor_comms, lazy_sequence):
     )
 
 
-@conf_vars({("core", "xcom_backend"): "task_sdk.execution_time.test_lazy_sequence.CustomXCom"})
+@task_sdk_conf_vars({("core", "xcom_backend"): "task_sdk.execution_time.test_lazy_sequence.CustomXCom"})
 def test_getitem_calls_correct_deserialise(monkeypatch, mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root="some-value")
 

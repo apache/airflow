@@ -1173,9 +1173,9 @@ class DAG:
         from contextlib import ExitStack
 
         from airflow import settings
-        from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
+        from airflow.sdk.configuration import secrets_backend_list
         from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.types import DagRunTriggeredByType, DagRunType

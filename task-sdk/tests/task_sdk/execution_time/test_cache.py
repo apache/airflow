@@ -23,7 +23,7 @@ import pytest
 
 from airflow.sdk import SecretCache
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars
 
 
 def test_cache_disabled_by_default():
@@ -36,7 +36,7 @@ def test_cache_disabled_by_default():
 
 class TestSecretCache:
     @staticmethod
-    @conf_vars({("secrets", "use_cache"): "true"})
+    @task_sdk_conf_vars({("secrets", "use_cache"): "true"})
     def setup_method() -> None:
         SecretCache.init()
 
@@ -107,7 +107,7 @@ class TestSecretCache:
         with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("key")
 
-    @conf_vars({("secrets", "use_cache"): "0"})
+    @task_sdk_conf_vars({("secrets", "use_cache"): "0"})
     def test_disabled(self):
         # do init to have it read config
         SecretCache.reset()

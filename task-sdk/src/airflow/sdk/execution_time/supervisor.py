@@ -1868,7 +1868,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """
     import os
 
-    from airflow.configuration import ensure_secrets_loaded
+    from airflow.sdk.configuration import ensure_secrets_loaded
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)

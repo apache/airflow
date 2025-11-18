@@ -34,7 +34,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars
 
 LOGICAL_DATE = timezone.utcnow()
 SCHEDULE_INTERVAL = datetime.timedelta(days=1)
@@ -127,7 +127,7 @@ class TestSentryHook:
 
     @pytest.fixture
     def sentry(self, mock_sentry_sdk):
-        with conf_vars(
+        with task_sdk_conf_vars(
             {
                 ("sentry", "sentry_on"): "True",
                 ("sentry", "default_integrations"): "False",
@@ -143,7 +143,7 @@ class TestSentryHook:
 
     @pytest.fixture
     def sentry_custom_transport(self, mock_sentry_sdk):
-        with conf_vars(
+        with task_sdk_conf_vars(
             {
                 ("sentry", "sentry_on"): "True",
                 ("sentry", "default_integrations"): "False",
@@ -162,7 +162,7 @@ class TestSentryHook:
         """
         Minimum sentry config
         """
-        with conf_vars({("sentry", "sentry_on"): "True"}):
+        with task_sdk_conf_vars({("sentry", "sentry_on"): "True"}):
             from airflow.sdk.execution_time import sentry
 
             importlib.reload(sentry)

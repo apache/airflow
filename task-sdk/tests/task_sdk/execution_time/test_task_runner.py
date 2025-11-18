@@ -126,7 +126,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
@@ -2414,7 +2414,7 @@ class TestEmailNotifications:
         context = runtime_ti.get_template_context()
         log = mock.MagicMock()
 
-        with conf_vars({("email", "from_email"): self.FROM}):
+        with task_sdk_conf_vars({("email", "from_email"): self.FROM}):
             with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
                 state, _, error = run(runtime_ti, context, log)
                 finalize(runtime_ti, state, context, log, error)
@@ -2472,7 +2472,7 @@ class TestEmailNotifications:
         context = runtime_ti.get_template_context()
         log = mock.MagicMock()
 
-        with conf_vars({("email", "from_email"): self.FROM}):
+        with task_sdk_conf_vars({("email", "from_email"): self.FROM}):
             with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
                 state, _, error = run(runtime_ti, context, log)
                 finalize(runtime_ti, state, context, log, error)
@@ -2515,7 +2515,7 @@ class TestEmailNotifications:
         context = runtime_ti.get_template_context()
         log = mock.MagicMock()
 
-        with conf_vars(
+        with task_sdk_conf_vars(
             {
                 ("email", "subject_template"): str(subject_template),
                 ("email", "html_content_template"): str(html_template),
@@ -3111,7 +3111,7 @@ class TestTaskRunnerCallsCallbacks:
         task = BaseOperator(task_id="test_task")
         runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
 
-        with patch("airflow.configuration.conf.get", return_value=base_url):
+        with patch("airflow.sdk.configuration.conf.get", return_value=base_url):
             log_url = runtime_ti.log_url
             assert log_url == expected_url
 

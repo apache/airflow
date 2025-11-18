@@ -23,14 +23,14 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
+from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import task_sdk_conf_vars
 
 
 class TestConnections:
@@ -231,7 +231,7 @@ class TestConnectionsFromSecrets:
         path = tmp_path / "conn.env"
         path.write_text("CONN_A=mysql://host_a")
 
-        with conf_vars(
+        with task_sdk_conf_vars(
             {
                 (
                     "workers",
@@ -251,7 +251,7 @@ class TestConnectionsFromSecrets:
         Connection.get("something")
         mock_env_get.assert_called_once_with(conn_id="something")
 
-    @conf_vars(
+    @task_sdk_conf_vars(
         {
             ("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
             ("workers", "secrets_backend_kwargs"): '{"connections_file_path": "/files/conn.json"}',
