@@ -28,7 +28,7 @@ from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import task_sdk_conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestVariables:
@@ -96,7 +96,7 @@ class TestVariableFromSecrets:
         path = tmp_path / "var.env"
         path.write_text("VAR_A=some_value")
 
-        with task_sdk_conf_vars(
+        with conf_vars(
             {
                 (
                     "workers",
@@ -117,7 +117,7 @@ class TestVariableFromSecrets:
         data = {"VAR_A": jsonified_dict_data}
         path.write_text(json.dumps(data, indent=4))
 
-        with task_sdk_conf_vars(
+        with conf_vars(
             {
                 (
                     "workers",
@@ -139,7 +139,7 @@ class TestVariableFromSecrets:
         data = {"secret": "super-secret"}
         path.write_text(json.dumps(data, indent=4))
 
-        with task_sdk_conf_vars(
+        with conf_vars(
             {
                 (
                     "workers",
@@ -160,7 +160,7 @@ class TestVariableFromSecrets:
         Variable.get(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
 
-    @task_sdk_conf_vars(
+    @conf_vars(
         {
             ("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
             ("workers", "secrets_backend_kwargs"): '{"variables_file_path": "/files/var.json"}',

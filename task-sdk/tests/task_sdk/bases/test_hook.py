@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
-from tests_common.test_utils.config import task_sdk_conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestBaseHook:
@@ -101,7 +101,7 @@ class TestBaseHook:
         path = tmp_path / "conn.env"
         path.write_text("CONN_A=mysql://host_a")
 
-        with task_sdk_conf_vars(
+        with conf_vars(
             {
                 ("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 ("secrets", "backend_kwargs"): f'{{"connections_file_path": "{path}"}}',

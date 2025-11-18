@@ -31,14 +31,14 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 
-from tests_common.test_utils.config import task_sdk_conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestConnectionCacheIntegration:
     """Test the integration of SecretCache with connection access."""
 
     @staticmethod
-    @task_sdk_conf_vars({("secrets", "use_cache"): "true"})
+    @conf_vars({("secrets", "use_cache"): "true"})
     def setup_method():
         SecretCache.reset()
         SecretCache.init()
@@ -146,7 +146,7 @@ class TestVariableCacheIntegration:
     """Test the integration of SecretCache with variable access."""
 
     @staticmethod
-    @task_sdk_conf_vars({("secrets", "use_cache"): "true"})
+    @conf_vars({("secrets", "use_cache"): "true"})
     def setup_method():
         SecretCache.reset()
         SecretCache.init()
@@ -242,7 +242,7 @@ class TestAsyncConnectionCache:
     """Test the integration of SecretCache with async connection access."""
 
     @staticmethod
-    @task_sdk_conf_vars({("secrets", "use_cache"): "true"})
+    @conf_vars({("secrets", "use_cache"): "true"})
     def setup_method():
         SecretCache.reset()
         SecretCache.init()
@@ -302,7 +302,7 @@ class TestCacheDisabled:
     """Test behavior when cache is disabled."""
 
     @staticmethod
-    @task_sdk_conf_vars({("secrets", "use_cache"): "false"})
+    @conf_vars({("secrets", "use_cache"): "false"})
     def setup_method():
         SecretCache.reset()
         SecretCache.init()

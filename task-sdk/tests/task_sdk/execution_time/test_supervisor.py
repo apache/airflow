@@ -139,7 +139,7 @@ from airflow.sdk.execution_time.supervisor import (
 )
 from airflow.sdk.execution_time.task_runner import run
 
-from tests_common.test_utils.config import conf_vars, task_sdk_conf_vars
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     import kgb
@@ -2665,7 +2665,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             ("logging", "remote_log_conn_id"): remote_conn,
         }
     ):
-        with task_sdk_conf_vars(
+        with conf_vars(
             {
                 ("logging", "remote_log_conn_id"): remote_conn,
             }
