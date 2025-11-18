@@ -27,6 +27,7 @@ dependencies = [
     "packaging>=25.0",
     "typing-extensions>=4.14.1",
     "pendulum>=3.1.0",
+    "methodtools>=0.4.7",
 ]
 
 [dependency-groups]
