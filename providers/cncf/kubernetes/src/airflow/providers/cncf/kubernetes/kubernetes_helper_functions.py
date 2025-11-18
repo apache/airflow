@@ -60,14 +60,10 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 
 
 def _should_retry_api(exc: BaseException) -> bool:
-    # Retry on selected ApiException status codes, plus plain HTTP/timeout errors
+    """Retry on selected ApiException status codes, plus plain HTTP/timeout errors."""
     if isinstance(exc, ApiException):
         return exc.status in TRANSIENT_STATUS_CODES
-    if isinstance(exc, HTTPError):
-        return True
-    if isinstance(exc, KubernetesApiException):
-        return True
-    return False
+    return isinstance(exc, (HTTPError, KubernetesApiException))
 
 
 class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
