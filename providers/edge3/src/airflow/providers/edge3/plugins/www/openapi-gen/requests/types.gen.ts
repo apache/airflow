@@ -466,6 +466,10 @@ export type HealthResponse = {
     [key: string]: (string);
 };
 
+export type WorkerData = {
+    workerNamePattern?: string | null;
+};
+
 export type WorkerResponse = WorkerCollectionResponse;
 
 export type JobsResponse = JobCollectionResponse;
@@ -690,11 +694,16 @@ export type $OpenApiTs = {
     };
     '/edge_worker/ui/worker': {
         get: {
+            req: WorkerData;
             res: {
                 /**
                  * Successful Response
                  */
                 200: WorkerCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };
