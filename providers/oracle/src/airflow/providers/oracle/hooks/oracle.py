@@ -153,7 +153,7 @@ class OracleHook(DbApiHook):
         :param wallet_password: the password to use to decrypt the wallet, if it is encrypted. 
             For Oracle Autonomous Database this is the password created when downloading the wallet.
         :param ssl_server_cert_dn: Specify the distinguished name (DN) which should be matched 
-            with the server. This value is ignored if the ssl_server_dn_match parameter is not 
+            with the server. This value is ignored if the ``ssl_server_dn_match`` parameter is not
             set to the value True.
         :param ssl_server_dn_match: Specify whether the server certificate distinguished name 
             (DN) should be matched in addition to the regular certificate verification that is performed.
@@ -263,7 +263,14 @@ class OracleHook(DbApiHook):
         if expire_time:
             conn_config["expire_time"] = expire_time
 
-        for name in ["wallet_location", "wallet_password", "ssl_server_cert_dn", "ssl_server_dn_match", "cclass", "pool_name"]:
+        for name in [
+            "wallet_location",
+            "wallet_password",
+            "ssl_server_cert_dn",
+            "ssl_server_dn_match",
+            "cclass",
+            "pool_name",
+        ]:
             value = conn.extra_dejson.get(name)
             if value is not None:
                 conn_config[name] = value

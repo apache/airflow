@@ -312,7 +312,7 @@ class TestOracleHookConn:
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_with_various_params(self, mock_connect):
         """Verify wallet/SSL, connection class, and pool parameters
-         are passed to oracledb.connect."""
+        are passed to oracledb.connect."""
         params = {
             "wallet_location": "/tmp/wallet",
             "wallet_password": "secret",
