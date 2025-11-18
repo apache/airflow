@@ -2995,6 +2995,39 @@ def generate_providers_metadata(
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
+@release_management.command(
+    name="update-providers-next-version",
+    help="Update provider versions marked with '# use next version' comment.",
+)
+@option_verbose
+def update_providers_next_version():
+    """
+    Scan all provider pyproject.toml files for dependencies with "# use next version" comment
+    and update them to use the current version from the referenced provider's pyproject.toml.
+    """
+    from airflow_breeze.utils.packages import update_providers_with_next_version_comment
+
+    get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
+
+    updates_made = update_providers_with_next_version_comment()
+
+    if updates_made:
+        get_console().print("\n[success]Summary of updates:[/]")
+        for provider_id, dependencies in updates_made.items():
+            get_console().print(f"\n[info]Provider: {provider_id}[/]")
+            for dep_name, dep_info in dependencies.items():
+                get_console().print(f"  • {dep_name}: {dep_info['old_version']} → {dep_info['new_version']}")
+        get_console().print(
+            f"\n[success]Updated {len(updates_made)} provider(s) with "
+            f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
+        )
+    else:
+        get_console().print(
+            "\n[info]No updates needed. All providers with '# use next version' "
+            "comments are already using the latest versions.[/]"
+        )
+
+
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
     run_command(["git", "fetch", remote_name], cwd=constraints_repo)
 

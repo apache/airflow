@@ -29,6 +29,7 @@
 - [Prepare Regular Provider distributions (RC)](#prepare-regular-provider-distributions-rc)
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
+  - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
   - [Apply incremental changes and merge the PR](#apply-incremental-changes-and-merge-the-pr)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
   - [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload)
@@ -220,6 +221,19 @@ The tool determines the new version of provider as follows:
 * increased patch-level for bugfix-only and doc-only changes
 * increased minor version if new features are added
 * increased major version if breaking changes are added
+
+## Update versions of dependent providers to the next version
+
+Sometimes when contributors want to use next version of a dependent provider, instead of
+doing it immediately in the code they can add a comment ``# use next version``
+to the line of ``pyproject.toml`` file of the provider that refers to the provider, which next version
+should be used. This comment will be picked up by the``update-providers-next-version`` command and the
+version of the dependent provider will be updated to the next version and comment will be
+removed.
+
+```shell script
+breeze release-management update-providers-next-version
+```
 
 ## Apply incremental changes and merge the PR
 
@@ -988,7 +1002,7 @@ downloaded from the SVN).
 
 ### Installing in your local virtualenv
 
-You have to make sure you have Airflow 2* installed in your PIP virtualenv
+You have to make sure you have Airflow 3* installed in your PIP virtualenv
 (the version you want to install providers with).
 
 ```shell
@@ -998,7 +1012,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.10.3 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1015,12 +1029,13 @@ Provider distributions is used.
 
 If you prefer to build your own image, you can also use the official image and PyPI packages to test
 Provider distributions. This is especially helpful when you want to test integrations, but you need to install
-additional tools. Below is an example Dockerfile, which installs providers for Google/
+additional tools. Below is an example Dockerfile, which installs providers for Google. Please note, these
+version numbers are arbitrary. You'll need to substitute the proper version numbers when running this
+yourself.
 
 ```dockerfile
-FROM apache/airflow:2.2.3
-
-RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
+FROM apache/airflow:3.1.3
+RUN pip install  --user apache-airflow-providers-google==18.1.0.rc1
 
 USER ${AIRFLOW_UID}
 ```
@@ -1210,6 +1225,12 @@ example `git checkout providers/2025-10-31`
 Note you probably will see message `You are in 'detached HEAD' state.`
 This is expected, the RC tag is most likely behind the main branch.
 
+* Remove source artifact:
+
+```shell script
+rm dist/apache_airflow_providers-${RELEASE_DATE}-source.tar.gz
+```
+
 * Verify the artifacts that would be uploaded:
 
 ```shell script
@@ -1243,13 +1264,6 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 breeze release-management tag-providers
 ```
 
-The command should output all the tags it created. At the end it should also print the general tag
-applied for this provider's release wave with the date of release preparation in the format of:
-
-```
-providers/2025-11-03
-```
-
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
@@ -1266,15 +1280,31 @@ You usually use the `breeze` command to publish the documentation. The command d
 2. Triggers workflow in apache/airflow-site to refresh
 3. Triggers S3 to GitHub Sync
 
+First - unset GITHUB_TOKEN if you have it set, this workflows reads token from your github repository
+configuration if you login with `gh`, do it only once - you do not have repeat it afterwards.
+
 ```shell script
-  unset GITHUB_TOKEN
+unset GITHUB_TOKEN
+brew install gh
+gh auth login
+```
+
+Run workflows:
+
+```shell script
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers
+```
+
+If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
+with space separated list of excluded providers.
+
+```shell script
+  breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers --exclude-docs "apprise slack"
 ```
 
 Or if you just want to publish a few selected providers, you can run:
 
 ```shell script
-  unset GITHUB_TOKEN
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live PACKAGE1 PACKAGE2 ..
 ```
 
@@ -1288,6 +1318,8 @@ not be needed unless there is some problem with workflow automation above)
 
 ## Update providers metadata
 
+Create PR and open it to be merged:
+
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git checkout main
@@ -1298,10 +1330,8 @@ git checkout -b "${branch}"
 breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
 git add -p .
 git commit -m "Update providers metadata ${current_date}"
-git push --set-upstream origin "${branch}"
+gh pr create --title "Update providers metadata ${current_date}" --web
 ```
-
-Create PR and get it merged
 
 ## Notify developers of release
 
@@ -1323,15 +1353,16 @@ cat <<EOF
 Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages prepared on ${RELEASE_DATE} were just released.
+
 Full list of PyPI packages released is added at the end of the message.
 
 The source release, as well as the binary releases, are available here:
 
-https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources.html
 
-You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi.html
 
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
+The documentation index is available at https://airflow.apache.org/docs/ and documentation for individual provider versions is linked directly from PyPI.
 
 ----
 
@@ -1383,7 +1414,6 @@ Example for special cases:
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
@@ -1395,7 +1425,9 @@ If you don't have access to the account ask a PMC member to post.
 
 ## Add release data to Apache Committee Report Helper
 
-Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+You should get email about it to your account that should urge you to add it, but in
+case you don't, you can add it manually:
+add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
 
 ## Close the testing status issue
 
