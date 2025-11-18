@@ -30,7 +30,11 @@ from re import Pattern
 from typing import cast
 
 from airflow.configuration import conf
-from airflow.exceptions import InvalidStatsNameException
+
+try:
+    from airflow_shared.observability.exceptions import InvalidStatsNameException
+except ModuleNotFoundError:
+    from airflow._shared.observability.exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)
 
