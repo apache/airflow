@@ -430,7 +430,7 @@ def update_dag_parsing_results_in_db(
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
         _update_import_errors(
-            files_parsed=files_parsed or {},
+            files_parsed=files_parsed if files_parsed else {},
             bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
