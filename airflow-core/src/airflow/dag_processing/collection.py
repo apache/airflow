@@ -429,17 +429,8 @@ def update_dag_parsing_results_in_db(
             import_errors.update(serialize_errors)
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
-        if files_parsed is not None:
-            all_files_parsed = files_parsed
-        else:
-            # Fallback: infer from dags and import_errors
-            all_files_parsed = {
-                (bundle_name, dag.relative_fileloc) for dag in dags if dag.relative_fileloc is not None
-            }
-            all_files_parsed.update(import_errors.keys())
-
         _update_import_errors(
-            files_parsed=all_files_parsed,
+            files_parsed=files_parsed,
             bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,

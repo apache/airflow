@@ -492,7 +492,9 @@ class TestUpdateDagParsingResults:
         mock_full_path.return_value = "abc.py"
 
         import_errors = {}
-        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
+        update_dag_parsing_results_in_db(
+            "testing", None, [dag], import_errors, None, set(), session, files_parsed={("testing", "abc.py")}
+        )
         assert "SerializationError" in caplog.text
 
         # Should have been edited in place
@@ -656,6 +658,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={("testing", "abc.py")},
         )
 
         import_error = (
@@ -714,6 +717,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={(bundle_name, "abc.py")},
         )
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
@@ -758,6 +762,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={(bundle_name, "abc.py")},
         )
         dag_model = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is True
@@ -778,9 +783,6 @@ class TestUpdateDagParsingResults:
     def test_clear_import_error_for_file_without_dags(self, testing_dag_bundle, session):
         """
         Test that import errors are cleared for files that were parsed but no longer contain DAGs.
-
-        This tests the fix for the issue where import errors persisted for files that were
-        successfully parsed but no longer contained any DAGs.
         """
         bundle_name = "testing"
         filename = "no_dags.py"
