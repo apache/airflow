@@ -331,9 +331,12 @@ class TestFileTaskLogHandler:
             mock_get_task_log.assert_called_once()
 
             if executor_name is None:
-                mock_get_default_executor.assert_called_once()
-                # will be called in `ExecutorLoader.get_default_executor` method
-                mock_load_executor.assert_called_once_with(default_executor_name)
+                # After the fix to populate executor field for tasks without explicit executor,
+                # ti.executor will contain the default executor name instead of None.
+                # So load_executor is called directly with the default executor name,
+                # and get_default_executor is not called.
+                mock_get_default_executor.assert_not_called()
+                mock_load_executor.assert_called_once_with(default_executor_name.alias)
             else:
                 mock_get_default_executor.assert_not_called()
                 mock_load_executor.assert_called_once_with(executor_name)

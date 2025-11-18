@@ -197,7 +197,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "id": mock.ANY,
@@ -293,7 +293,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "note": None,
             "rendered_map_index": None,
@@ -346,7 +346,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "id": mock.ANY,
@@ -399,7 +399,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "id": mock.ANY,
@@ -447,7 +447,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "id": mock.ANY,
@@ -558,7 +558,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "logical_date": "2020-01-01T00:00:00Z",
-                "executor": None,
+                "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                 "executor_config": "{}",
                 "hostname": "",
                 "id": mock.ANY,
@@ -1978,7 +1978,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2016,7 +2016,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2085,7 +2085,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_display_name": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
-                "executor": None,
+                "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
@@ -2150,7 +2150,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2189,7 +2189,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2245,7 +2245,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "test_hitl_dag",
             "duration": None,
             "end_date": mock.ANY,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2349,7 +2349,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "dag_version": {
                 "id": mock.ANY,
@@ -2404,7 +2404,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "dag_version": {
                 "id": mock.ANY,
@@ -3060,7 +3060,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "task_id": "print_the_context",
                 "duration": mock.ANY,
                 "end_date": mock.ANY,
-                "executor": None,
+                "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                 "executor_config": "{}",
                 "hostname": "",
                 "id": mock.ANY,
@@ -3433,7 +3433,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -3462,7 +3462,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -3524,7 +3524,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "dag_display_name": "test_hitl_dag",
                     "duration": None,
                     "end_date": mock.ANY,
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -3600,7 +3600,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -3667,69 +3667,72 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 response.json()["total_entries"] == 2
             )  # the mapped task was cleared. So both the task instance and its history
             assert len(response.json()["task_instances"]) == 2
-            assert response.json() == {
-                "task_instances": [
-                    {
-                        "dag_id": "example_python_operator",
-                        "dag_display_name": "example_python_operator",
-                        "duration": 10000.0,
-                        "end_date": "2020-01-03T00:00:00Z",
-                        "executor": None,
-                        "executor_config": "{}",
-                        "hostname": "",
-                        "map_index": map_index,
-                        "max_tries": 0,
-                        "operator": "PythonOperator",
-                        "operator_name": "PythonOperator",
-                        "pid": 100,
-                        "pool": "default_pool",
-                        "pool_slots": 1,
-                        "priority_weight": 9,
-                        "queue": "default_queue",
-                        "queued_when": None,
-                        "scheduled_when": None,
-                        "start_date": "2020-01-02T00:00:00Z",
-                        "state": "failed",
-                        "task_id": "print_the_context",
-                        "task_display_name": "print_the_context",
-                        "try_number": 1,
-                        "unixname": getuser(),
-                        "dag_run_id": "TEST_DAG_RUN_ID",
-                        "dag_version": mock.ANY,
-                        "hitl_detail": None,
-                    },
-                    {
-                        "dag_id": "example_python_operator",
-                        "dag_display_name": "example_python_operator",
-                        "duration": 10000.0,
-                        "end_date": "2020-01-03T00:00:00Z",
-                        "executor": None,
-                        "executor_config": "{}",
-                        "hostname": "",
-                        "map_index": map_index,
-                        "max_tries": 1,
-                        "operator": "PythonOperator",
-                        "operator_name": "PythonOperator",
-                        "pid": 100,
-                        "pool": "default_pool",
-                        "pool_slots": 1,
-                        "priority_weight": 9,
-                        "queue": "default_queue",
-                        "queued_when": None,
-                        "scheduled_when": None,
-                        "start_date": "2020-01-02T00:00:00Z",
-                        "state": None,
-                        "task_id": "print_the_context",
-                        "task_display_name": "print_the_context",
-                        "try_number": 2,
-                        "unixname": getuser(),
-                        "dag_run_id": "TEST_DAG_RUN_ID",
-                        "dag_version": mock.ANY,
-                        "hitl_detail": None,
-                    },
-                ],
-                "total_entries": 2,
-            }
+            assert (
+                response.json()
+                == {
+                    "task_instances": [
+                        {
+                            "dag_id": "example_python_operator",
+                            "dag_display_name": "example_python_operator",
+                            "duration": 10000.0,
+                            "end_date": "2020-01-03T00:00:00Z",
+                            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
+                            "executor_config": "{}",
+                            "hostname": "",
+                            "map_index": map_index,
+                            "max_tries": 0,
+                            "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
+                            "pid": 100,
+                            "pool": "default_pool",
+                            "pool_slots": 1,
+                            "priority_weight": 9,
+                            "queue": "default_queue",
+                            "queued_when": None,
+                            "scheduled_when": None,
+                            "start_date": "2020-01-02T00:00:00Z",
+                            "state": "failed",
+                            "task_id": "print_the_context",
+                            "task_display_name": "print_the_context",
+                            "try_number": 1,
+                            "unixname": getuser(),
+                            "dag_run_id": "TEST_DAG_RUN_ID",
+                            "dag_version": mock.ANY,
+                            "hitl_detail": None,
+                        },
+                        {
+                            "dag_id": "example_python_operator",
+                            "dag_display_name": "example_python_operator",
+                            "duration": 10000.0,
+                            "end_date": "2020-01-03T00:00:00Z",
+                            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
+                            "executor_config": "{}",
+                            "hostname": "",
+                            "map_index": map_index,
+                            "max_tries": 1,
+                            "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
+                            "pid": 100,
+                            "pool": "default_pool",
+                            "pool_slots": 1,
+                            "priority_weight": 9,
+                            "queue": "default_queue",
+                            "queued_when": None,
+                            "scheduled_when": None,
+                            "start_date": "2020-01-02T00:00:00Z",
+                            "state": None,
+                            "task_id": "print_the_context",
+                            "task_display_name": "print_the_context",
+                            "try_number": 2,
+                            "unixname": getuser(),
+                            "dag_run_id": "TEST_DAG_RUN_ID",
+                            "dag_version": mock.ANY,
+                            "hitl_detail": None,
+                        },
+                    ],
+                    "total_entries": 2,
+                }
+            )
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
@@ -3785,7 +3788,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "dag_version": {
                 "id": mock.ANY,
@@ -3841,7 +3844,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "pid": None,
-            "executor": None,
+            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
             "executor_config": "{}",
             "dag_version": {
                 "id": mock.ANY,
@@ -3929,7 +3932,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "task_id": self.TASK_ID,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "id": mock.ANY,
@@ -4194,7 +4197,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "task_id": "print_the_context",
                             "duration": 10000.0,
                             "end_date": "2020-01-03T00:00:00Z",
-                            "executor": None,
+                            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                             "executor_config": "{}",
                             "hostname": "",
                             "id": mock.ANY,
@@ -4311,7 +4314,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "logical_date": "2020-01-01T00:00:00Z",
                     "id": mock.ANY,
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -4363,7 +4366,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "logical_date": "2020-01-01T00:00:00Z",
                     "id": mock.ANY,
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
@@ -4424,47 +4427,50 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             assert response.status_code == 200, response.text
             response_data = response.json()
 
-            assert response_data == {
-                "task_instances": [
-                    {
-                        "dag_id": self.DAG_ID,
-                        "dag_display_name": self.DAG_DISPLAY_NAME,
-                        "dag_version": mock.ANY,
-                        "duration": 10000.0,
-                        "end_date": "2020-01-03T00:00:00Z",
-                        "logical_date": "2020-01-01T00:00:00Z",
-                        "id": mock.ANY,
-                        "executor": None,
-                        "executor_config": "{}",
-                        "hostname": "",
-                        "map_index": map_index,
-                        "max_tries": 0,
-                        "note": new_note_value,
-                        "operator": "PythonOperator",
-                        "operator_name": "PythonOperator",
-                        "pid": 100,
-                        "pool": "default_pool",
-                        "pool_slots": 1,
-                        "priority_weight": 9,
-                        "queue": "default_queue",
-                        "queued_when": None,
-                        "scheduled_when": None,
-                        "start_date": "2020-01-02T00:00:00Z",
-                        "state": "running",
-                        "task_id": self.TASK_ID,
-                        "task_display_name": self.TASK_ID,
-                        "try_number": 0,
-                        "unixname": getuser(),
-                        "dag_run_id": self.RUN_ID,
-                        "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
-                        "rendered_map_index": str(map_index),
-                        "run_after": "2020-01-01T00:00:00Z",
-                        "trigger": None,
-                        "triggerer_job": None,
-                    }
-                ],
-                "total_entries": 1,
-            }
+            assert (
+                response_data
+                == {
+                    "task_instances": [
+                        {
+                            "dag_id": self.DAG_ID,
+                            "dag_display_name": self.DAG_DISPLAY_NAME,
+                            "dag_version": mock.ANY,
+                            "duration": 10000.0,
+                            "end_date": "2020-01-03T00:00:00Z",
+                            "logical_date": "2020-01-01T00:00:00Z",
+                            "id": mock.ANY,
+                            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
+                            "executor_config": "{}",
+                            "hostname": "",
+                            "map_index": map_index,
+                            "max_tries": 0,
+                            "note": new_note_value,
+                            "operator": "PythonOperator",
+                            "operator_name": "PythonOperator",
+                            "pid": 100,
+                            "pool": "default_pool",
+                            "pool_slots": 1,
+                            "priority_weight": 9,
+                            "queue": "default_queue",
+                            "queued_when": None,
+                            "scheduled_when": None,
+                            "start_date": "2020-01-02T00:00:00Z",
+                            "state": "running",
+                            "task_id": self.TASK_ID,
+                            "task_display_name": self.TASK_ID,
+                            "try_number": 0,
+                            "unixname": getuser(),
+                            "dag_run_id": self.RUN_ID,
+                            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                            "rendered_map_index": str(map_index),
+                            "run_after": "2020-01-01T00:00:00Z",
+                            "trigger": None,
+                            "triggerer_job": None,
+                        }
+                    ],
+                    "total_entries": 1,
+                }
+            )
 
             _check_task_instance_note(
                 session,
@@ -4506,7 +4512,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "end_date": "2020-01-03T00:00:00Z",
                 "logical_date": "2020-01-01T00:00:00Z",
                 "id": mock.ANY,
-                "executor": None,
+                "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
@@ -4613,7 +4619,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "task_id": self.TASK_ID,
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
-                    "executor": None,
+                    "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                     "executor_config": "{}",
                     "hostname": "",
                     "id": mock.ANY,
@@ -4890,7 +4896,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "task_id": "print_the_context",
                             "duration": 10000.0,
                             "end_date": "2020-01-03T00:00:00Z",
-                            "executor": None,
+                            "executor": mock.ANY,  # Tasks without explicit executor now get default executor populated
                             "executor_config": "{}",
                             "hostname": "",
                             "id": mock.ANY,
