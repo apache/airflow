@@ -270,8 +270,7 @@ class AssetManager(LoggingMixin):
             partition_key=partition_key,
             session=session,
         )
-        for d in partition_dags:
-            dags_to_queue.remove(d)  # don't double process
+        dags_to_queue = dags_to_queue.difference(partition_dags)  # don't double process
 
         if not dags_to_queue:
             return None
