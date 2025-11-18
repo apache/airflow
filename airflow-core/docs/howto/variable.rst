@@ -78,7 +78,10 @@ If you want variables to appear in the UI for visibility or editing, define them
 Exporting variables to file
 ---------------------------
 
-You can export to file variables stored in the database (e.g. for migrating variables from one environment to another). See :ref:`Exporting Variables <cli-export-variables>` for usage.
+You can export variables stored in the database (e.g. for migrating variables from one environment to another) using the local CLI. Run ``airflow variables export`` on the Airflow server. See :doc:`/cli-and-env-variables-ref` for complete command reference.
+
+.. note::
+   Variable export is only available via local CLI for security reasons. The UI/API cannot export sensitive values to maintain the Airflow 3 security model. See :doc:`/security/security_model` for details.
 
 Securing Variables
 ------------------
