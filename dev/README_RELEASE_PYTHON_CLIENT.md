@@ -119,7 +119,7 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/cor
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 rm dist/*
-breeze release-management prepare-python-client --distribution-format both --python-client-repo "${CLIENT_REPO_ROOT}"
+breeze release-management prepare-python-client --distribution-format both --python-client-repo "${CLIENT_REPO_ROOT}" --version-suffix ""
 ```
 
 - This should generate both sdist and .whl package in `dist` folder of the Airflow repository. It should
@@ -170,10 +170,12 @@ popd
 
 ```shell script
 # First clone the repo somewhere if you have not done it yet
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
 # Create new folder for the release
-cd airflow-dev/clients/python
+cd asf-dist/dev/airflow/clients/python
+
 svn mkdir ${VERSION}${VERSION_SUFFIX}
 
 # Move the artifacts to svn folder & commit
@@ -332,7 +334,7 @@ VERSION=X.Y.Zrc1
 git checkout python-client/${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-python-client --distribution-format both
+breeze release-management prepare-python-client --distribution-format both --version-suffix ""
 ```
 
 The last - build step - by default will use Dockerized build and building of Python client packages
@@ -340,7 +342,7 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-python-client --distribution-format both --use-local-hatch
+breeze release-management prepare-python-client --distribution-format both --use-local-hatch --version-suffix ""
 ```
 
 This is generally faster and requires less resources/network bandwidth.
