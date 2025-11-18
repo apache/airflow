@@ -153,8 +153,13 @@ def get_merged_defaults(
     task_group: TaskGroup | None,
     task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
+    *,
+    exclude_dag_level_params: bool = False,
 ) -> tuple[dict, ParamsDict]:
-    args, params = _get_parent_defaults(dag, task_group)
+    args, params = _get_parent_defaults(
+        dag if exclude_dag_level_params is False else None,
+        task_group,
+    )
     if task_params:
         if not isinstance(task_params, collections.abc.Mapping):
             raise TypeError(f"params must be a mapping, got {type(task_params)}")
@@ -295,6 +300,7 @@ if TYPE_CHECKING:
         task_display_name: str | None = ...,
         logger_name: str | None = ...,
         allow_nested_operators: bool = True,
+        exclude_dag_level_params: bool = False,
         **kwargs,
     ) -> OperatorPartial: ...
 else:
@@ -306,6 +312,7 @@ else:
         dag: DAG | None = None,
         task_group: TaskGroup | None = None,
         params: collections.abc.MutableMapping | None = None,
+        exclude_dag_level_params: bool = False,
         **kwargs,
     ):
         from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
@@ -324,6 +331,7 @@ else:
             task_group=task_group,
             task_params=params,
             task_default_args=kwargs.pop("default_args", None),
+            exclude_dag_level_params=exclude_dag_level_params,
         )
 
         # Create partial_kwargs from args and kwargs
@@ -492,8 +500,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             default_args, merged_params = get_merged_defaults(
                 dag=dag,
                 task_group=task_group,
-                task_params=kwargs.pop("params", None),
+                task_params=kwargs.get("params", None),
                 task_default_args=kwargs.pop("default_args", None),
+                exclude_dag_level_params=kwargs.get("exclude_dag_level_params", False),
             )
 
             for arg in sig_cache.parameters:
@@ -598,6 +607,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "allow_nested_operators": bool,
     "start_date": datetime,
     "end_date": datetime,
+    "exclude_dag_level_params": bool,
 }
 
 
@@ -1033,6 +1043,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        exclude_dag_level_params: bool = False,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1140,6 +1151,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.resources = resources
 
         self.params = ParamsDict(params)
+        self.exclude_dag_level_params = exclude_dag_level_params
 
         self.priority_weight = priority_weight
         self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)

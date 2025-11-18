@@ -443,6 +443,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             task_group=task_group,
             task_params=task_kwargs.pop("params", None),
             task_default_args=task_kwargs.pop("default_args", None),
+            exclude_dag_level_params=task_kwargs.get("exclude_dag_level_params", False),
         )
         partial_kwargs: dict[str, Any] = {
             "is_setup": self.is_setup,

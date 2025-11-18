@@ -305,6 +305,7 @@ class MappedOperator(AbstractOperator):
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
     _needs_expansion: bool = True
+    exclude_dag_level_params: bool = False
 
     dag: DAG | None
     task_group: TaskGroup | None

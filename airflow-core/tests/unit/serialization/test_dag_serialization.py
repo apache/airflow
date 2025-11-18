@@ -231,6 +231,7 @@ serialized_simple_dag_ground_truth = {
                         },
                     },
                     "doc_md": "### Task Tutorial Documentation",
+                    "exclude_dag_level_params": False,
                     "_needs_expansion": False,
                     "inlets": [
                         {
@@ -272,6 +273,7 @@ serialized_simple_dag_ground_truth = {
                     "task_type": "CustomOperator",
                     "_operator_name": "@custom",
                     "_task_module": "tests_common.test_utils.mock_operators",
+                    "exclude_dag_level_params": False,
                     "_needs_expansion": False,
                 },
             },
@@ -561,7 +563,8 @@ class TestStringifiedDAGs:
     )
     @pytest.mark.usefixtures("timetable_plugin")
     def test_dag_serialization_to_timetable(self, timetable, serialized_timetable):
-        """Verify a timetable-backed DAG is serialized correctly."""
+        """Verify a timetable-backed Dag is serialized correctly."""
+        breakpoint()
         dag = get_timetable_based_simple_dag(timetable)
         serialized_dag = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(serialized_dag)
@@ -1504,6 +1507,7 @@ class TestStringifiedDAGs:
             "email": None,
             "email_on_failure": True,
             "email_on_retry": True,
+            "exclude_dag_level_params": False,
             "execution_timeout": None,
             "executor": None,
             "executor_config": {},
