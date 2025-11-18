@@ -17,6 +17,12 @@
 
 from __future__ import annotations
 
+try:
+    # prevents import errors in certain provider tests
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+except ImportError:
+    FabAuthManager = None
+
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -26,7 +32,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     SimpleAuthenticatedMeResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 auth_router = AirflowRouter(tags=["Auth Links"])
 
