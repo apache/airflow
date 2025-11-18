@@ -58,7 +58,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
-  RUN_ID: RUN_ID_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
@@ -252,7 +252,7 @@ export const TaskInstances = () => {
   const queueNamePattern = searchParams.get(QUEUE_NAME_PATTERN_PARAM);
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const filteredRunId = searchParams.get(RUN_ID_PARAM);
+  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const taskDisplayNamePattern = searchParams.get(NAME_PATTERN_PARAM);
 
@@ -262,7 +262,7 @@ export const TaskInstances = () => {
     {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
-      dagRunId: runId ?? filteredRunId ?? "~",
+      dagRunId: runId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
@@ -275,6 +275,7 @@ export const TaskInstances = () => {
       orderBy,
       poolNamePattern: poolNamePattern ?? undefined,
       queueNamePattern: queueNamePattern ?? undefined,
+      runIdPattern: filteredRunId ?? undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,

@@ -37,7 +37,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
-  RUN_ID: RUN_ID_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
@@ -64,7 +64,7 @@ export const TaskInstancesFilter = () => {
     ];
 
     if (runId === undefined) {
-      keys.unshift(RUN_ID_PARAM as FilterableSearchParamsKeys);
+      keys.unshift(RUN_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
     }
 
     if (dagId === undefined) {
