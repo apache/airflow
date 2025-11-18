@@ -233,17 +233,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             ("airflow.cfg", self),
         ]
 
-    def _raise_config_exception(self, message: str) -> None:
-        """
-        Override to raise core's AirflowConfigException instead of shared one.
-
-        This ensures that exceptions raised by shared parser methods are catchable
-        by exception handlers that users would catch for conf usually.
-        """
-        from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
-
-        raise CoreAirflowConfigException(message)
-
     def _get_option_from_provider_fallbacks(
         self,
         deprecated_key: str | None,

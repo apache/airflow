@@ -161,17 +161,6 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of new section -> (old section, since_version).
     deprecated_sections: dict[str, tuple[str, str]] = {}
 
-    def _raise_config_exception(self, message: str) -> None:
-        """
-        Raise an AirflowConfigException.
-
-        This is a stub called by the shared parser's methods when configuration errors occur.
-        Subclasses can override this to raise their own exception type.
-
-        :param message: Exception message
-        """
-        raise AirflowConfigException(message)
-
     @property
     def _lookup_sequence(self) -> list[Callable]:
         """
@@ -405,7 +394,7 @@ class AirflowConfigParser(ConfigParser):
                 return None
             return secrets_client.get_config(config_key)
         except Exception as e:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 "Cannot retrieve config from alternative secrets backend. "
                 "Make sure it is configured properly and that the Backend "
                 "is accessible.\n"
@@ -788,7 +777,7 @@ class AirflowConfigParser(ConfigParser):
                 except AirflowConfigException as e:
                     raise e
                 except Exception as e:
-                    raise self._raise_config_exception(
+                    raise AirflowConfigException(
                         f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
                         f" Please check the {fallback_key} value."
                     ) from e
@@ -1036,7 +1025,7 @@ class AirflowConfigParser(ConfigParser):
         if not suppress_warnings:
             log.warning("section/key [%s/%s] not found in config", section, key)
 
-        raise self._raise_config_exception(f"section/key [{section}/{key}] not found in config")
+        raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
     def getboolean(self, section: str, key: str, **kwargs) -> bool:  # type: ignore[override]
         """Get config value as boolean."""
@@ -1047,7 +1036,7 @@ class AirflowConfigParser(ConfigParser):
             return True
         if val in ("f", "false", "0"):
             return False
-        raise self._raise_config_exception(
+        raise AirflowConfigException(
             f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
             f'Current value: "{val}".'
         )
@@ -1056,14 +1045,14 @@ class AirflowConfigParser(ConfigParser):
         """Get config value as integer."""
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f"Failed to convert value None to int. "
                 f'Please check "{key}" key in "{section}" section is set.'
             )
         try:
             return int(val)
         except ValueError:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
@@ -1072,14 +1061,14 @@ class AirflowConfigParser(ConfigParser):
         """Get config value as float."""
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f"Failed to convert value None to float. "
                 f'Please check "{key}" key in "{section}" section is set.'
             )
         try:
             return float(val)
         except ValueError:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'Failed to convert value to float. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
@@ -1090,14 +1079,14 @@ class AirflowConfigParser(ConfigParser):
         if val is None:
             if "fallback" in kwargs:
                 return kwargs["fallback"]
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f"Failed to convert value None to list. "
                 f'Please check "{key}" key in "{section}" section is set.'
             )
         try:
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'Failed to parse value to a list. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}".'
             )
@@ -1110,7 +1099,7 @@ class AirflowConfigParser(ConfigParser):
         enum_names = [enum_item.name for enum_item in enum_class]
 
         if val is None:
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'Failed to convert value. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{val}" and it must be one of {", ".join(enum_names)}'
             )
@@ -1120,7 +1109,7 @@ class AirflowConfigParser(ConfigParser):
         except KeyError:
             if "fallback" in kwargs and kwargs["fallback"] in enum_names:
                 return enum_class[kwargs["fallback"]]
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'Failed to convert value. Please check "{key}" key in "{section}" section. '
                 f"the value must be one of {', '.join(enum_names)}"
             )
@@ -1165,7 +1154,7 @@ class AirflowConfigParser(ConfigParser):
             return import_string(full_qualified_path)
         except ImportError as e:
             log.warning(e)
-            raise self._raise_config_exception(
+            raise AirflowConfigException(
                 f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
                 f'Current value: "{full_qualified_path}".'
             )
@@ -1189,7 +1178,7 @@ class AirflowConfigParser(ConfigParser):
         try:
             return json.loads(data)
         except JSONDecodeError as e:
-            raise self._raise_config_exception(f"Unable to parse [{section}] {key!r} as valid json") from e
+            raise AirflowConfigException(f"Unable to parse [{section}] {key!r} as valid json") from e
 
     def gettimedelta(
         self, section: str, key: str, fallback: Any = None, **kwargs
@@ -1212,7 +1201,7 @@ class AirflowConfigParser(ConfigParser):
             try:
                 int_val = int(val)
             except ValueError:
-                raise self._raise_config_exception(
+                raise AirflowConfigException(
                     f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
                     f'Current value: "{val}".'
                 )
@@ -1220,7 +1209,7 @@ class AirflowConfigParser(ConfigParser):
             try:
                 return datetime.timedelta(seconds=int_val)
             except OverflowError as err:
-                raise self._raise_config_exception(
+                raise AirflowConfigException(
                     f"Failed to convert value to timedelta in `seconds`. "
                     f"{err}. "
                     f'Please check "{key}" key in "{section}" section. Current value: "{val}".'
