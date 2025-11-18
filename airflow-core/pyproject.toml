@@ -34,7 +34,8 @@ build-backend = "hatchling.build"
 name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
@@ -55,7 +56,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -208,6 +208,7 @@ path = "src/airflow/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = [
     "src/airflow",
+    "LICENSE",
     "NOTICE"
 ]
 exclude = [

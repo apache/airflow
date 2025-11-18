@@ -54,7 +54,7 @@ class TestLogin:
         self.dummy_token = "DUMMY_TOKEN"
 
     @pytest.mark.parametrize(
-        "auth_type, method",
+        ("auth_type", "method"),
         [
             [AUTH_DB, "auth_user_db"],
             [AUTH_LDAP, "auth_user_ldap"],
@@ -79,7 +79,7 @@ class TestLogin:
         auth_manager.generate_jwt.assert_called_once_with(user=user, expiration_time_in_seconds=ANY)
 
     @pytest.mark.parametrize(
-        "auth_type, methods",
+        ("auth_type", "methods"),
         [
             [AUTH_DB, ["auth_user_db"]],
             [AUTH_LDAP, ["auth_user_ldap", "auth_user_db"]],

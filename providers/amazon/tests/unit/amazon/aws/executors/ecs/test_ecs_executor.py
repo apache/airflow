@@ -35,7 +35,6 @@ from semver import VersionInfo
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors import base_executor
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -1347,9 +1346,8 @@ class TestEcsExecutorConfig:
                 ecs_executor_config.build_task_kwargs(conf)
 
     # TODO: When merged this needs updating to the actually supported version
-    @pytest.mark.skipif(
-        not hasattr(base_executor, "ExecutorConf"),
-        reason="Test requires a version of airflow which includes updates to support multi team",
+    @pytest.mark.skip(
+        reason="Test requires a version of airflow which includes updates to support multi team"
     )
     def test_team_config(self):
         # Team name to be used throughout

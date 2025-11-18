@@ -65,7 +65,7 @@ class TaskResponse(BaseModel):
     pool_slots: float | None
     execution_timeout: TimeDeltaWithValidation | None
     retry_delay: TimeDeltaWithValidation | None
-    retry_exponential_backoff: bool
+    retry_exponential_backoff: float
     priority_weight: float | None
     weight_rule: str | None
     ui_color: str | None

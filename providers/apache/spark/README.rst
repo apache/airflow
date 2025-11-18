@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-spark``
 
-Release: ``5.3.3``
+Release: ``5.3.4``
 
 
 `Apache Spark <https://spark.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.spark`` provider. All classes for this p
 are in ``airflow.providers.apache.spark`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.4/>`_.
 
 Installation
 ------------
@@ -90,4 +90,4 @@ Extra                Dependencies
 ===================  ===================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.4/changelog.html>`_.
