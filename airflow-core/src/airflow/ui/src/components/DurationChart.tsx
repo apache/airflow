@@ -57,7 +57,16 @@ const average = (ctx: PartialEventContext, index: number) => {
 
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
-const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
+const getDuration = (start: string, end: string | null) => {
+  const startDate = dayjs(start);
+  const endDate = end === null ? dayjs() : dayjs(end);
+
+  if (!startDate.isValid() || !endDate.isValid()) {
+    return 0;
+  }
+
+  return dayjs.duration(endDate.diff(startDate)).asSeconds();
+};
 
 export const DurationChart = ({
   entries,
