@@ -2875,10 +2875,10 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
-# This runs as a CronJob to cleanup database.
+# This runs as a CronJob to cleanup database for old entries.
 databaseCleanup:
   enabled: false
-  # Run every week minutes on Sunday at midnight (templated).
+  # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).
   command:
