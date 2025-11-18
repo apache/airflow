@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import functools
 import itertools
+import json
 import logging
 import os
 import sys
@@ -1171,23 +1172,32 @@ class DAG:
         import re
         import time
         from contextlib import ExitStack
+        from unittest.mock import patch
 
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
-        from airflow.sdk.configuration import secrets_backend_list
-        from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         exit_stack = ExitStack()
 
         if conn_file_path or variable_file_path:
-            local_secrets = LocalFilesystemBackend(
-                variables_file_path=variable_file_path, connections_file_path=conn_file_path
+            backend_kwargs = {}
+            if conn_file_path:
+                backend_kwargs["connections_file_path"] = conn_file_path
+            if variable_file_path:
+                backend_kwargs["variables_file_path"] = variable_file_path
+
+            exit_stack.enter_context(
+                patch.dict(
+                    os.environ,
+                    {
+                        "AIRFLOW__SECRETS__BACKEND": "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                        "AIRFLOW__SECRETS__BACKEND_KWARGS": json.dumps(backend_kwargs),
+                    },
+                )
             )
-            secrets_backend_list.insert(0, local_secrets)
-            exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
         if settings.Session is None:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
