@@ -12,7 +12,8 @@ export const ensureUseLogsServiceLogfilePathData = (queryClient: QueryClient, { 
   tryNumber: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseLogsServiceLogfilePathKeyFn({ authorization, dagId, mapIndex, runId, taskId, tryNumber }), queryFn: () => LogsService.logfilePath({ authorization, dagId, mapIndex, runId, taskId, tryNumber }) });
 export const ensureUseMonitorServiceHealthData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseMonitorServiceHealthKeyFn(), queryFn: () => MonitorService.health() });
-export const ensureUseUiServiceWorkerData = (queryClient: QueryClient, { workerNamePattern }: {
+export const ensureUseUiServiceWorkerData = (queryClient: QueryClient, { queueNamePattern, workerNamePattern }: {
+  queueNamePattern?: string;
   workerNamePattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseUiServiceWorkerKeyFn({ workerNamePattern }), queryFn: () => UiService.worker({ workerNamePattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, workerNamePattern }), queryFn: () => UiService.worker({ queueNamePattern, workerNamePattern }) });
 export const ensureUseUiServiceJobsData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseUiServiceJobsKeyFn(), queryFn: () => UiService.jobs() });
