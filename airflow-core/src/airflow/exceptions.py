@@ -38,12 +38,12 @@ if os.environ.get("_AIRFLOW__AS_LIBRARY"):
         from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
     except ImportError:
         # Fallback exception classes when airflow.sdk is not installed
-        class AirflowException(RuntimeError):
+        class AirflowException(RuntimeError):  # type: ignore[no-redef]
             """Base exception for Airflow errors."""
 
             pass
 
-        class AirflowNotFoundException(AirflowException):
+        class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
             """Raise when a requested object is not found."""
 
             pass
