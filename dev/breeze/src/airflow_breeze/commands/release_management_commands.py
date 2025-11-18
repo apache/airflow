@@ -118,6 +118,7 @@ from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_validators import validate_release_date
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.constraints_version_check import constraints_version_check
@@ -156,6 +157,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
@@ -816,6 +818,15 @@ def provider_action_summary(description: str, message_type: MessageType, package
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
+@click.option(
+    "--release-date",
+    required=True,
+    type=str,
+    callback=validate_release_date,
+    envvar="RELEASE_DATE",
+    help="Planned release date for the providers release in format "
+    "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
+)
 @option_verbose
 @option_answer
 @option_dry_run
@@ -832,6 +843,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
+    release_date: str,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -952,6 +964,7 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
     if incremental_update:
         get_console().print(r"\[warning] Generated changes:")
         run_command(["git", "diff"])
@@ -2980,6 +2993,39 @@ def generate_providers_metadata(
             metadata_dict[package_id] = result
 
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
+
+
+@release_management.command(
+    name="update-providers-next-version",
+    help="Update provider versions marked with '# use next version' comment.",
+)
+@option_verbose
+def update_providers_next_version():
+    """
+    Scan all provider pyproject.toml files for dependencies with "# use next version" comment
+    and update them to use the current version from the referenced provider's pyproject.toml.
+    """
+    from airflow_breeze.utils.packages import update_providers_with_next_version_comment
+
+    get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
+
+    updates_made = update_providers_with_next_version_comment()
+
+    if updates_made:
+        get_console().print("\n[success]Summary of updates:[/]")
+        for provider_id, dependencies in updates_made.items():
+            get_console().print(f"\n[info]Provider: {provider_id}[/]")
+            for dep_name, dep_info in dependencies.items():
+                get_console().print(f"  • {dep_name}: {dep_info['old_version']} → {dep_info['new_version']}")
+        get_console().print(
+            f"\n[success]Updated {len(updates_made)} provider(s) with "
+            f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
+        )
+    else:
+        get_console().print(
+            "\n[info]No updates needed. All providers with '# use next version' "
+            "comments are already using the latest versions.[/]"
+        )
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
