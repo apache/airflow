@@ -114,8 +114,8 @@ class AirflowConfigParser(ConfigParser):
     Base configuration parser with pure parsing logic.
 
     This class provides the core parsing methods that work with:
-    - configuration_description: dict describing config options (set by subclasses)
-    - _default_values: ConfigParser with default values (set by subclasses)
+    - configuration_description: dict describing config options (required in __init__)
+    - _default_values: ConfigParser with default values (required in __init__)
     - deprecated_options: class attribute mapping new -> old options
     - deprecated_sections: class attribute mapping new -> old sections
     """
@@ -240,20 +240,23 @@ class AirflowConfigParser(ConfigParser):
             stacklevel=3,
         )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        configuration_description: dict[str, dict[str, Any]],
+        _default_values: ConfigParser,
+        *args,
+        **kwargs,
+    ):
         """
         Initialize the parser.
 
-        Subclasses should call super().__init__() and then set:
-        - self.configuration_description
-        - self._default_values
-        - self._suppress_future_warnings (default False)
+        :param configuration_description: Description of configuration options
+        :param _default_values: ConfigParser with default values
         """
         super().__init__(*args, **kwargs)
-        # These should be set by subclasses:
-        self.configuration_description: dict[str, dict[str, Any]] | None = None
-        self._default_values: ConfigParser | None = None
-        self._suppress_future_warnings: bool = False
+        self.configuration_description = configuration_description
+        self._default_values = _default_values
+        self._suppress_future_warnings = False
         self.upgraded_values = {}
 
     @functools.cached_property
@@ -271,12 +274,10 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> set[tuple[str, str]]:
         """Get set of sensitive config values that should be masked."""
-        if self.configuration_description is None:
-            return set()
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
-            for k, item in s_c.get("options", {}).items()  # type: ignore[union-attr]
+            for k, item in s_c.get("options", {}).items()
         }
         sensitive = {
             (section.lower(), key.lower())
@@ -938,11 +939,7 @@ class AirflowConfigParser(ConfigParser):
         if not lookup_from_deprecated:
             return section, key, deprecated_section, deprecated_key, warning_emitted
 
-        option_description = (
-            self.configuration_description.get(section, {}).get("options", {}).get(key, {})  # type: ignore[union-attr]
-            if self.configuration_description
-            else {}
-        )
+        option_description = self.configuration_description.get(section, {}).get("options", {}).get(key, {})
         if option_description.get("deprecated"):
             deprecation_reason = option_description.get("deprecation_reason", "")
             warnings.warn(
@@ -1271,9 +1268,7 @@ class AirflowConfigParser(ConfigParser):
         :return: list of section names
         """
         sections_from_config = self.sections()
-        sections_from_description = (
-            list(self.configuration_description.keys()) if self.configuration_description else []
-        )
+        sections_from_description = list(self.configuration_description.keys())
         return list(dict.fromkeys(itertools.chain(sections_from_description, sections_from_config)))
 
     def get_options_including_defaults(self, section: str) -> list[str]:
@@ -1286,10 +1281,8 @@ class AirflowConfigParser(ConfigParser):
         :return: list of option names for the section given
         """
         my_own_options = self.options(section) if self.has_section(section) else []
-        all_options_from_defaults = (
-            list(self.configuration_description.get(section, {}).get("options", {}).keys())
-            if self.configuration_description
-            else []
+        all_options_from_defaults = list(
+            self.configuration_description.get(section, {}).get("options", {}).keys()
         )
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
@@ -1347,7 +1340,7 @@ class AirflowConfigParser(ConfigParser):
         if super().has_option(section, option):
             super().remove_option(section, option)
 
-        if self._default_values and self.get_default_value(section, option) is not None and remove_default:
+        if self.get_default_value(section, option) is not None and remove_default:
             self._default_values.remove_option(section, option)
 
     def optionxform(self, optionstr: str) -> str:
@@ -1430,7 +1423,7 @@ class AirflowConfigParser(ConfigParser):
         self._replace_config_with_display_sources(
             config_sources,
             configs,
-            self.configuration_description if self.configuration_description else {},
+            self.configuration_description,
             display_source,
             raw,
             self.deprecated_options,
@@ -1533,8 +1526,6 @@ class AirflowConfigParser(ConfigParser):
         :param key: key in the section
         :return: True if the value is templated
         """
-        if self.configuration_description is None:
-            return False
         return _is_template(self.configuration_description, section, key)
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
@@ -1606,10 +1597,7 @@ class AirflowConfigParser(ConfigParser):
         only_defaults: bool,
         section_to_write: str,
     ):
-        if self._default_values is None:
-            default_value = None
-        else:
-            default_value = self.get_default_value(section_to_write, option, raw=True)
+        default_value = self.get_default_value(section_to_write, option, raw=True)
         if only_defaults:
             value = default_value
         else:
@@ -1667,10 +1655,6 @@ class AirflowConfigParser(ConfigParser):
         sources_dict = {}
         if include_sources:
             sources_dict = self.as_dict(display_source=True)
-        if self._default_values is None:
-            raise RuntimeError("Cannot write default config, no default config set")
-        if self.configuration_description is None:
-            raise RuntimeError("Cannot write default config, no default configuration description set")
         with self.make_sure_configuration_loaded(with_providers=include_providers):
             for section_to_write in self.get_sections_including_defaults():
                 section_config_description = self.configuration_description.get(section_to_write, {})

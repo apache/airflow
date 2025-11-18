@@ -38,8 +38,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     """Test parser that extends shared parser for testing."""
 
     def __init__(self, default_config: str | None = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.configuration_description = {
+        configuration_description = {
             "test": {
                 "options": {
                     "key1": {"default": "default_value"},
@@ -47,10 +46,13 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 }
             }
         }
-        self._default_values = ConfigParser()
-        self._default_values.add_section("test")
-        self._default_values.set("test", "key1", "default_value")
-        self._default_values.set("test", "key2", "123")
+        _default_values = ConfigParser()
+        _default_values.add_section("test")
+        _default_values.set("test", "key1", "default_value")
+        _default_values.set("test", "key2", "123")
+        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        self.configuration_description = configuration_description
+        self._default_values = _default_values
         self._suppress_future_warnings = False
 
         if default_config is not None:

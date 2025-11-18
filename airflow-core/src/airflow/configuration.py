@@ -186,24 +186,22 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     :param configuration_description: description of configuration to use
     """
 
-    # Override base class type annotations - core always sets these in __init__
-    configuration_description: dict[str, dict[str, Any]]
-    _default_values: ConfigParser
-
     def __init__(
         self,
         default_config: str | None = None,
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-        self.configuration_description = retrieve_configuration_description(include_providers=False)
+        configuration_description = retrieve_configuration_description(include_providers=False)
         # For those who would like to use a different data structure to keep defaults:
         # We have to keep the default values in a ConfigParser rather than in any other
         # data structure, because the values we have might contain %% which are ConfigParser
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
-        self._default_values = create_default_config_parser(self.configuration_description)
+        _default_values = create_default_config_parser(configuration_description)
+        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        self.configuration_description = configuration_description
+        self._default_values = _default_values
         self._provider_config_fallback_default_values = create_provider_config_fallback_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
