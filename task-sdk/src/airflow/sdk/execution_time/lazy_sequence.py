@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
 import structlog
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 from airflow.configuration import conf
 
@@ -39,16 +40,23 @@ T = TypeVar("T")
 # ``XCom.deserialize_value``. We don't want to wrap the API values in a nested
 # {"value": value} dict since it wastes bandwidth.
 _XComWrapper = collections.namedtuple("_XComWrapper", "value")
-lazy_xcom_prefetch_size = conf.getint("core", "lazy_xcom_prefetch_size", fallback=cpu_count() or 1)
 log = structlog.get_logger(logger_name=__name__)
 
 
+def _deque_factory() -> deque:
+    return deque(maxlen=conf.getint("core", "parallelism", fallback=cpu_count()))
+
+
 @attrs.define
-class LazyXComIterator(Iterator[T]):
+class LazyXComIterator(LoggingMixin, Iterator[T]):
     seq: LazyXComSequence[T]
     index: int = 0
     dir: Literal[1, -1] = 1
-    _buffer: deque[T] = attrs.field(factory=deque, init=False)
+    _buffer: deque[T] = attrs.field(factory=_deque_factory, init=False)
+
+    @property
+    def prefetch_size(self) -> int:
+        return self._buffer.maxlen
 
     def __next__(self) -> T:
         if self.index < 0:
@@ -57,13 +65,17 @@ class LazyXComIterator(Iterator[T]):
 
         # If the buffer is empty, fetch the next chunk
         if not self._buffer:
-            chunk = list(self.seq[self.index : self.index + lazy_xcom_prefetch_size])
+            chunk = list(self.seq[self.index : self.index + self.prefetch_size])
             if not chunk:
                 raise StopIteration()
             self._buffer.extend(chunk)
+            self.log.debug("Buffered %s XCom's", len(self._buffer))
 
         val = self._buffer.popleft()
         self.index += self.dir
+        self.log.debug(
+            "Popped buffered XCom for index %s: %s", self.index, val
+        )
         return val
 
     def __iter__(self) -> Iterator[T]:
