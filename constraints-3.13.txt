@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-17T21:50:16.679602
+# This constraints file was automatically generated on 2025-11-18T04:00:54.921764
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -346,7 +346,7 @@ googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.2.1
 greenlet==3.2.4
-gremlinpython==3.7.5
+gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -448,7 +448,7 @@ neo4j==6.0.3
 nest-asyncio==1.6.0
 numpy==2.3.5
 oauthlib==3.3.1
-openai==2.8.0
+openai==2.8.1
 openlineage-integration-common==1.40.0
 openlineage-python==1.40.0
 openlineage_sql==1.40.0
