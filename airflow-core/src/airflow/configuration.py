@@ -223,14 +223,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     @property
     def _lookup_sequence(self) -> list[Callable]:
         """Overring _lookup_sequence from shared base class to add provider fallbacks."""
-        return [
-            self._get_environment_variables,
-            self._get_option_from_config_file,
-            self._get_option_from_commands,
-            self._get_option_from_secrets,
-            self._get_option_from_defaults,
-            self._get_option_from_provider_fallbacks,
-        ]
+        return super()._lookup_sequence + [self._get_option_from_provider_fallbacks]
 
     def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
         """Override the base method to add provider fallbacks."""
@@ -280,11 +273,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
-
-    # Deprecated options and sections are now defined in the shared base class.
-    # sensitive_config_values is also provided by the shared base class as a cached property.
-    # The inversed_deprecated_options and inversed_deprecated_sections are also
-    # provided by the shared base class as cached properties.
 
     # A mapping of old default values that we want to change and warn the user
     # about. Mapping of section -> setting -> { old, replace }
@@ -517,14 +505,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 continue
             mask_secret_core(value)
             mask_secret_sdk(value)
-
-    # All parsing methods are now provided by the shared base class.
-    # This includes: get, getboolean, getint, getfloat, getlist, getenum, getenumlist,
-    # getjson, gettimedelta, getimport, get_mandatory_value, get_mandatory_list_value,
-    # has_option, set, remove_option, and helper methods like _get_option_from_*.
-    # The shared base class's getimport() correctly uses self.get() instead of conf.get().
-
-    # has_option, set, and remove_option are now provided by the shared base class.
 
     def load_test_config(self):
         """

@@ -126,23 +126,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         if default_config is not None:
             self._update_defaults_from_string(default_config)
 
-    def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
-        """
-        Get provider config fallback default values.
-
-        SDK doesn't load providers in Phase 1, so always return None.
-        """
-        return None
-
-    def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
-        """
-        Get Config option values from Secret Backend.
-
-        SDK doesn't have secrets backend integration in Phase 1.
-        Workers can access secrets via the Execution API if needed.
-        """
-        return None
-
     def load_test_config(self):
         """
         Use the test configuration instead of Airflow defaults.
