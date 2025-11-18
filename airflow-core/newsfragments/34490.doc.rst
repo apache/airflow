@@ -1,0 +1,1 @@
+Added missing release note for an unintended behavior change in ``DAG.test()`` related to exception handling. The behavior was modified without a documented changelog entry, and has now been acknowledged for clarity and traceability. (`#34490 <https://github.com/apache/airflow/issues/34490>`_)
