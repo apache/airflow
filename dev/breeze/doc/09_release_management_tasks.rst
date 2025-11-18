@@ -381,6 +381,23 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Updating provider next version
+""""""""""""""""""""""""""""""
+
+You can use Breeze to update references to other providers automatically to the
+next version of dependent providers, when they are commented with ``# use next version``.
+
+The below example perform the upgrade.
+
+.. code-block:: bash
+
+     breeze release-management update-providers-next-version
+
+
+.. image:: ./images/output_release-management_update-providers-next-version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_update-providers-next-version.svg
+  :alt: Breeze update-providers-next-version
+
 Preparing providers
 """""""""""""""""""
 
