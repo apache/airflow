@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
@@ -53,7 +53,6 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
-    from sqlalchemy.sql.selectable import ExecutableReturnsRows
 
 
 XCOM_RETURN_KEY = "return_value"
@@ -209,13 +208,13 @@ class XComModel(TaskInstanceDependencies):
                 "this message. See Dynamic Task Mapping documentation for "
                 "more information about lazy proxy objects."
             )
-            value_desc = "return value" if key == XCOM_RETURN_KEY else f"value {key}"
             log.warning(
                 warning_message,
-                value_desc,
+                "return value" if key == XCOM_RETURN_KEY else "value %s",
                 task_id,
                 dag_id,
                 run_id,
+                key,
             )
             value = list(value)
 
@@ -299,19 +298,19 @@ class XComModel(TaskInstanceDependencies):
         if key:
             query = query.where(XComModel.key == key)
 
-        if is_container(task_ids) and task_ids is not None:
+        if is_container(task_ids):
             query = query.where(cls.task_id.in_(task_ids))
         elif task_ids is not None:
             query = query.where(cls.task_id == task_ids)
 
-        if is_container(dag_ids) and dag_ids is not None:
+        if is_container(dag_ids):
             query = query.where(cls.dag_id.in_(dag_ids))
         elif dag_ids is not None:
             query = query.where(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
             query = query.where(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
-        elif map_indexes is not None and is_container(map_indexes):
+        elif is_container(map_indexes):
             query = query.where(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
             query = query.where(cls.map_index == map_indexes)
@@ -402,8 +401,8 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select | ExecutableReturnsRows:
-        return select(XComModel.value).from_statement(stmt)
+    def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
+        return cast("Select[tuple[Any]]", select(XComModel.value).from_statement(stmt))
 
     @staticmethod
     def _process_row(row: Row) -> Any:
