@@ -58,7 +58,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
 
-  const filterRoot = searchParams.get("root") || undefined;
+  const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
 
