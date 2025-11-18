@@ -19,18 +19,18 @@
 
 # v3.1.3
 
-## Major changes:
+## New Features:
 
 - Add query limit protection to prevent excessive database queries in DAG runs list endpoints ([#57450](https://github.com/apache/airflow/pull/57450))
 - Change `extra` field type to `dict[str, JsonValue]` for Asset, AssetAlias, and AssetEvent models ([#57352](https://github.com/apache/airflow/pull/57352))
 - Add `task_display_name` alias field to EventLogResponse for better task identification ([#55160](https://github.com/apache/airflow/pull/55160))
 - Add `is_favorite` field to DAGs list API to support user-specific DAG favorites ([#56341](https://github.com/apache/airflow/pull/56341))
-- Remove deprecated `dagReports` API endpoint ([#56609](https://github.com/apache/airflow/pull/56609))
 
 ## Improvements:
 
 - Enhance API documentation for sorting functionality ([#56617](https://github.com/apache/airflow/pull/56617))
 - Improve API documentation for the `order_by` query parameter ([#55988](https://github.com/apache/airflow/pull/55988))
+- Remove deprecated `dagReports` API endpoint ([#56609](https://github.com/apache/airflow/pull/56609))
 
 ## Bug Fixes:
 
