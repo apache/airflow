@@ -70,7 +70,7 @@
     "globals": "^16.5.0",
     "happy-dom": "^20.0.10",
     "prettier": "^3.5.3",
-    "typescript": "~5.8.3",
+    "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.2",
     "vite-plugin-css-injected-by-js": "^3.5.2",
