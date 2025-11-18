@@ -463,7 +463,8 @@ key1 = default_value
         assert value == "new_value"
 
     @pytest.mark.parametrize(
-        ("deprecated_options_dict", "kwargs", "new_section_expected_value", "old_section_expected_value")[
+        ("deprecated_options_dict", "kwargs", "new_section_expected_value", "old_section_expected_value"),
+        [
             pytest.param(
                 {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
                 {"fallback": None},
