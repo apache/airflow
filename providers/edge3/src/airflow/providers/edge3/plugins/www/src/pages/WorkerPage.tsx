@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Link, List, Table, Text } from "@chakra-ui/react";
+import { Box, Code, HStack, Link, List, Table, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { useUiServiceWorker } from "openapi/queries";
 import { LuExternalLink } from "react-icons/lu";
@@ -31,9 +31,13 @@ import { autoRefreshInterval } from "src/utils";
 
 export const WorkerPage = () => {
   const [workerNamePattern, setWorkerNamePattern] = useState("");
+  const [queueNamePattern, setQueueNamePattern] = useState("");
 
   const { data, error, refetch } = useUiServiceWorker(
-    { workerNamePattern: workerNamePattern || undefined },
+    {
+      workerNamePattern: workerNamePattern || undefined,
+      queueNamePattern: queueNamePattern || undefined,
+    },
     undefined,
     {
       enabled: true,
@@ -41,8 +45,12 @@ export const WorkerPage = () => {
     },
   );
 
-  const handleSearchChange = (value: string) => {
+  const handleWorkerSearchChange = (value: string) => {
     setWorkerNamePattern(value);
+  };
+
+  const handleQueueSearchChange = (value: string) => {
+    setQueueNamePattern(value);
   };
 
   // TODO to make it proper
@@ -55,16 +63,24 @@ export const WorkerPage = () => {
 
   return (
     <Box p={2}>
-      <Box mb={4}>
+      <HStack gap={4} mb={4}>
         <SearchBar
           buttonProps={{ disabled: true }}
           defaultValue={workerNamePattern}
           hideAdvanced
           hotkeyDisabled
-          onChange={handleSearchChange}
+          onChange={handleWorkerSearchChange}
           placeHolder="Search workers"
         />
-      </Box>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={queueNamePattern}
+          hideAdvanced
+          hotkeyDisabled
+          onChange={handleQueueSearchChange}
+          placeHolder="Search queues"
+        />
+      </HStack>
       {error ? (
         <ErrorAlert error={error} />
       ) : !data ? (
