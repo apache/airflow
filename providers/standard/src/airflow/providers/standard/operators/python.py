@@ -502,7 +502,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
         # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
         # that contains the bundle information including its path
-        return context["ti"].bundle_instance.path
+        ti = context["ti"]
+        if bundle_instance := getattr(ti, "bundle_instance", None):
+            return bundle_instance.path
+
+        return None
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -582,12 +586,14 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 env_vars.update(self.env_vars)
 
             # Add bundle_path to PYTHONPATH for subprocess to import Dag bundle modules
-            existing_pythonpath = env_vars.get("PYTHONPATH", "")
-            if existing_pythonpath:
-                # Append bundle_path after existing PYTHONPATH
-                env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{self._bundle_path}"
-            else:
-                env_vars["PYTHONPATH"] = self._bundle_path
+            if self._bundle_path:
+                bundle_path = self._bundle_path
+                existing_pythonpath = env_vars.get("PYTHONPATH", "")
+                if existing_pythonpath:
+                    # Append bundle_path after existing PYTHONPATH
+                    env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{bundle_path}"
+                else:
+                    env_vars["PYTHONPATH"] = bundle_path
 
             try:
                 cmd: list[str] = [
