@@ -6137,7 +6137,7 @@ export const $TaskResponse = {
             ]
         },
         retry_exponential_backoff: {
-            type: 'boolean',
+            type: 'number',
             title: 'Retry Exponential Backoff'
         },
         priority_weight: {
