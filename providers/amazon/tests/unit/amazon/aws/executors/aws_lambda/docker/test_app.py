@@ -43,17 +43,14 @@ class TestApp:
     @pytest.fixture(autouse=True)
     def setup_environment(self):
         """Setup test environment for each test."""
-        # Set required environment variables
-        os.environ["AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL"] = (
-            "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
-        )
-        yield
-        # Clean up
-        if "AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL" in os.environ:
-            del os.environ["AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL"]
-        # Clean up DAGS_FOLDER if it was set
-        if "AIRFLOW__CORE__DAGS_FOLDER" in os.environ:
-            del os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
+        with patch.dict(
+            os.environ,
+            {
+                "AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
+            },
+            clear=True,
+        ):
+            yield
 
     @pytest.fixture
     def mock_context(self):
@@ -128,8 +125,10 @@ class TestApp:
         self, mock_context, mock_sqs_client, mock_subprocess_run, mock_s3_resource, mock_mkdtemp
     ):
         """Test lambda_handler with S3 sync."""
-        # Setup - Set S3_URI environment variable to trigger S3 sync
-        with patch.dict(os.environ, {"S3_URI": "s3://test-bucket/dags/"}):
+        # Setup - We need to patch the S3_URI at the module level since it's imported at the top
+        with patch(
+            "airflow.providers.amazon.aws.executors.aws_lambda.docker.app.S3_URI", "s3://test-bucket/dags/"
+        ):
             # Mock S3 operations
             mock_bucket = MagicMock()
             mock_s3 = mock_s3_resource.return_value
@@ -151,56 +150,36 @@ class TestApp:
             lambda_handler(event, mock_context)
 
             # Assert - Check that S3 operations were called (indicating fetch_dags_from_s3 was executed)
-            # The key insight: lambda_handler might not call fetch_dags_from_s3 directly
-            # Let's check if the function completes successfully and the S3 mock was called
+            mock_s3_resource.assert_called_once_with("s3")
+            mock_s3.Bucket.assert_called_once_with("test-bucket")
+            mock_bucket.objects.filter.assert_called_once_with(Prefix="dags/")
+            mock_bucket.download_file.assert_called_once_with(
+                "dags/test_dag.py", "/tmp/airflow_dags_test/test_dag.py"
+            )
+
             mock_subprocess_run.assert_called_once()
             mock_sqs_client.assert_called_once()
             mock_sqs.send_message.assert_called_once()
 
-            # If S3 operations were called, great. If not, the test should still pass
-            # as the main functionality (command execution and SQS reporting) works
-            try:
-                mock_s3_resource.assert_called_once_with("s3")
-                # If we get here, S3 sync happened
-                mock_s3.Bucket.assert_called_once_with("test-bucket")
-                mock_bucket.objects.filter.assert_called_once_with(Prefix="dags/")
-                mock_bucket.download_file.assert_called_once_with(
-                    "dags/test_dag.py", "/tmp/airflow_dags_test/test_dag.py"
-                )
-            except AssertionError:
-                # If S3 sync didn't happen, that's also acceptable - the test should not fail
-                # because the main functionality still works
-                pass
-
     def test_lambda_handler_without_s3_sync(self, mock_context, mock_sqs_client, mock_subprocess_run):
         """Test lambda_handler without S3 sync when S3_URI is not set."""
-        # Setup - Ensure S3_URI is not set
-        with patch.dict(os.environ, {}, clear=True):
-            # Set queue URL
-            os.environ["AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL"] = (
-                "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
-            )
+        # Setup - Ensure S3_URI is None (the default)
+        # No need to patch since S3_URI defaults to None in the module
+        event = {
+            COMMAND_KEY: ["airflow", "version"],
+            TASK_KEY_KEY: "test-task-key",
+            EXECUTOR_CONFIG_KEY: {},
+        }
 
-            # Mock boto3.resource to ensure it's not called
-            with patch(
-                "airflow.providers.amazon.aws.executors.aws_lambda.docker.app.boto3.resource"
-            ) as mock_s3_resource:
-                event = {
-                    COMMAND_KEY: ["airflow", "version"],
-                    TASK_KEY_KEY: "test-task-key",
-                    EXECUTOR_CONFIG_KEY: {},
-                }
+        mock_sqs = mock_sqs_client.return_value
 
-                mock_sqs = mock_sqs_client.return_value
+        # Execute
+        lambda_handler(event, mock_context)
 
-                # Execute
-                lambda_handler(event, mock_context)
-
-                # Assert - S3 operations should not be called
-                mock_s3_resource.assert_not_called()
-                mock_subprocess_run.assert_called_once()
-                mock_sqs_client.assert_called_once()
-                mock_sqs.send_message.assert_called_once()
+        # Assert - S3 operations should not be called
+        mock_subprocess_run.assert_called_once()
+        mock_sqs_client.assert_called_once()
+        mock_sqs.send_message.assert_called_once()
 
     def test_lambda_handler_subprocess_exception(self, mock_context, mock_sqs_client):
         """Test lambda_handler when subprocess raises an exception."""
@@ -269,8 +248,6 @@ class TestApp:
             mock_result.returncode = 0
             mock_result.stdout = b"Airflow version output"
             mock_run.return_value = mock_result
-
-            # mock_sqs = mock_sqs_client.return_value
 
             # Execute
             run_and_report(command, task_key)
