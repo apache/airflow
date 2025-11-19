@@ -1172,3 +1172,156 @@ def apply_version_suffix_to_non_provider_pyproject_tomls(
         for pyproject_toml_path, original_content in zip(pyproject_toml_paths, original_contents):
             get_console().print(f"[info]Restoring original content of {pyproject_toml_path}.\n")
             pyproject_toml_path.write_text(original_content)
+
+
+def _get_provider_version_from_package_name(provider_package_name: str) -> str | None:
+    """
+    Get the current version of a provider from its pyproject.toml.
+
+    Args:
+        provider_package_name: The full package name (e.g., "apache-airflow-providers-common-compat")
+
+    Returns:
+        The version string if found, None otherwise
+    """
+    # Convert package name to provider path
+    # apache-airflow-providers-common-compat -> common/compat
+    provider_id = provider_package_name.replace("apache-airflow-providers-", "").replace("-", "/")
+    provider_pyproject = AIRFLOW_PROVIDERS_ROOT_PATH / provider_id / "pyproject.toml"
+
+    if not provider_pyproject.exists():
+        get_console().print(f"[warning]Provider pyproject.toml not found: {provider_pyproject}")
+        return None
+
+    provider_toml = load_pyproject_toml(provider_pyproject)
+    provider_version = provider_toml.get("project", {}).get("version")
+
+    if not provider_version:
+        get_console().print(
+            f"[warning]Could not find version for {provider_package_name} in {provider_pyproject}"
+        )
+        return None
+
+    return provider_version
+
+
+def _update_dependency_line_with_new_version(
+    line: str,
+    provider_package_name: str,
+    current_min_version: str,
+    new_version: str,
+    pyproject_file: Path,
+    updates_made: dict[str, dict[str, Any]],
+) -> tuple[str, bool]:
+    """
+    Update a dependency line with a new version and track the change.
+
+    Returns:
+        Tuple of (updated_line, was_modified)
+    """
+    if new_version == current_min_version:
+        get_console().print(
+            f"[dim]Skipping {provider_package_name} in {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}: "
+            f"already at version {new_version}"
+        )
+        return line, False
+
+    # Replace the version in the line
+    old_constraint = f'"{provider_package_name}>={current_min_version}"'
+    new_constraint = f'"{provider_package_name}>={new_version}"'
+    updated_line = line.replace(old_constraint, new_constraint)
+
+    # Remove the "# use next version" comment after upgrading
+    updated_line = updated_line.replace(" # use next version", "")
+
+    # Track the update
+    provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+    provider_key = str(provider_id_short)
+
+    if provider_key not in updates_made:
+        updates_made[provider_key] = {}
+
+    updates_made[provider_key][provider_package_name] = {
+        "old_version": current_min_version,
+        "new_version": new_version,
+        "file": str(pyproject_file),
+    }
+
+    get_console().print(
+        f"[info]Updating {provider_package_name} in {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}: "
+        f"{current_min_version} -> {new_version} (comment removed)"
+    )
+
+    return updated_line, True
+
+
+def _process_line_with_next_version_comment(
+    line: str, pyproject_file: Path, updates_made: dict[str, dict[str, Any]]
+) -> tuple[str, bool]:
+    """
+    Process a line that contains the "# use next version" comment.
+
+    Returns:
+        Tuple of (processed_line, was_modified)
+    """
+    # Extract the provider package name and current version constraint
+    # Format is typically: "apache-airflow-providers-xxx>=version", # use next version
+    match = re.search(r'"(apache-airflow-providers-[^">=<]+)>=([^",]+)"', line)
+
+    if not match:
+        # Comment found but couldn't parse the line
+        return line, False
+
+    provider_package_name = match.group(1)
+    current_min_version = match.group(2)
+
+    # Get the current version from the referenced provider
+    provider_version = _get_provider_version_from_package_name(provider_package_name)
+
+    if not provider_version:
+        return line, False
+
+    # Update the line with the new version
+    return _update_dependency_line_with_new_version(
+        line, provider_package_name, current_min_version, provider_version, pyproject_file, updates_made
+    )
+
+
+def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
+    """
+    Scan all provider pyproject.toml files for "# use next version" comments and update the version
+    of the referenced provider to the current version from that provider's pyproject.toml.
+
+    Returns a dictionary with information about updated providers.
+    """
+    updates_made: dict[str, dict[str, Any]] = {}
+
+    # Find all provider pyproject.toml files
+    provider_pyproject_files = list(AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/pyproject.toml"))
+
+    for pyproject_file in provider_pyproject_files:
+        content = pyproject_file.read_text()
+        lines = content.split("\n")
+        updated_lines = []
+        file_modified = False
+
+        for line in lines:
+            # Check if line contains "# use next version" comment (but not the dependencies declaration line)
+            if "# use next version" in line and "dependencies = [" not in line:
+                processed_line, was_modified = _process_line_with_next_version_comment(
+                    line, pyproject_file, updates_made
+                )
+                updated_lines.append(processed_line)
+                file_modified = file_modified or was_modified
+            else:
+                updated_lines.append(line)
+
+        # Write back if modified
+        if file_modified:
+            new_content = "\n".join(updated_lines)
+            pyproject_file.write_text(new_content)
+            get_console().print(
+                f"[success]Updated {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}\n"
+            )
+
+    return updates_made

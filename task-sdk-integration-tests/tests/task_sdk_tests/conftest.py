@@ -43,6 +43,8 @@ from task_sdk_tests.constants import (
     TASK_SDK_INTEGRATION_LOCAL_DOCKER_COMPOSE_FILE_PATH,
 )
 
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
 
 def print_diagnostics(compose, compose_version, docker_version):
     """Print diagnostic information when test fails."""
@@ -126,6 +128,12 @@ def docker_compose_setup(tmp_path_factory):
         print(f"AIRFLOW_IMAGE_NAME={DOCKER_IMAGE}", file=f)
         print(f"AIRFLOW_UID={os.getuid()}", file=f)
         print(f"HOST_OS={platform.system().lower()}", file=f)
+        #
+        # Please Do not use this Fernet key in any deployments! Please generate your own key.
+        # This is specifically generated for integration tests and not as default.
+        #
+        print(f"FERNET_KEY={generate_fernet_key_string()}", file=f)
+
     docker_compose_files = [TASK_SDK_INTEGRATION_DOCKER_COMPOSE_FILE_PATH.as_posix()]
     log_level = "debug" if debugging_on else "info"
     if mount_volumes:

@@ -38,7 +38,8 @@ dependencies = [
     "ruff==0.14.5",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
-    "time-machine>=2.15.0",
+    # limited due to changes needed https://github.com/apache/airflow/issues/58470
+    "time-machine>=2.19.0, <3.0.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
     "python-on-whales>=0.70.0",

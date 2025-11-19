@@ -34,7 +34,7 @@ pytestmark = pytest.mark.db_test
 
 class TestNotInRetryPeriodDep:
     def _get_task_instance(self, state, end_date=None, retry_delay=timedelta(minutes=15)):
-        task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False)
+        task = Mock(retry_delay=retry_delay, retry_exponential_backoff=0)
         ti = TaskInstance(task=task, state=state, dag_version_id=mock.MagicMock())
         ti.end_date = end_date
         return ti

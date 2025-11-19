@@ -18,6 +18,7 @@
  */
 import { Box, Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
@@ -111,6 +112,8 @@ export const AssetsList = () => {
     orderBy,
   });
 
+  const columns = useMemo(() => createColumns(translate), [translate]);
+
   const handleSearchChange = (value: string) => {
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
@@ -140,7 +143,7 @@ export const AssetsList = () => {
       </VStack>
       <Box overflow="auto">
         <DataTable
-          columns={createColumns(translate)}
+          columns={columns}
           data={data?.assets ?? []}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}

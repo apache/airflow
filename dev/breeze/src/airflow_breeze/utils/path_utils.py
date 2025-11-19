@@ -249,6 +249,7 @@ AIRFLOW_UI_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 # Do not delete it - it is used for old commit retrieval from providers
 AIRFLOW_ORIGINAL_PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "airflow" / "providers"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / ".last_release_date.txt"
 AIRFLOW_DIST_PATH = AIRFLOW_ROOT_PATH / "dist"
 
 TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"

@@ -39,11 +39,12 @@ Misc
 ~~~~
 
 * ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Add 'use-next-version' comment in providers that will need rc2 (#58390)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Delete all unnecessary LICENSE Files (#58191)``
-
+   * ``Update documentation for providers 14 Nov 2025 (#58284)``
 
 2.1.3
 .....

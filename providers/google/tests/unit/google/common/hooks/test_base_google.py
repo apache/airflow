@@ -1037,3 +1037,30 @@ class TestGoogleBaseAsyncHook:
         token = await instance.get_token()
         assert await token.get_project() == "CONN_PROJECT_ID"
         assert await token.get() == "IMPERSONATED_ACCESS_TOKEN"
+
+
+class TestGetFieldWithFalseValues:
+    """Test get_field function and _get_field method handle False and other falsy values correctly."""
+
+    def test_get_field_returns_false_not_none(self):
+        """Test that get_field correctly returns False instead of None."""
+        extras = {"use_legacy_sql": False}
+        result = hook.get_field(extras, "use_legacy_sql")
+        assert result is False
+
+    def test_get_field_returns_false_with_prefixed_name(self):
+        """Test that get_field correctly returns False with prefixed field name."""
+        extras = {"extra__google_cloud_platform__use_legacy_sql": False}
+        result = hook.get_field(extras, "use_legacy_sql")
+        assert result is False
+
+    @mock.patch("airflow.providers.common.compat.sdk.BaseHook.get_connection")
+    def test_hook_get_field_returns_false_not_default(self, mock_get_connection):
+        """Test that _get_field correctly returns False instead of default value."""
+        mock_connection = mock.MagicMock()
+        mock_connection.extra_dejson = {"use_legacy_sql": False}
+        mock_get_connection.return_value = mock_connection
+
+        hook_instance = hook.GoogleBaseHook(gcp_conn_id="test_conn")
+        result = hook_instance._get_field("use_legacy_sql", default=True)
+        assert result is False

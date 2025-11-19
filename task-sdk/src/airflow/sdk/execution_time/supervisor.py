@@ -133,12 +133,12 @@ except ImportError:
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
+    from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
-    from airflow.typing_compat import Self
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -1171,10 +1171,12 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
 
-        # Any negative exit code indicates a signal kill
-        # We consider all signal kills as potentially retryable
-        # since they're often transient issues that could succeed on retry
-        if self._exit_code < 0 and self._should_retry:
+        # Any non zero exit code indicates a failure
+        # If retries are configured, mark as UP_FOR_RETRY
+        # Negative exit codes indicate signal kills (often transient)
+        # Positive exit codes can also be transient failures like network issues in a task communicating to
+        # external services
+        if self._exit_code != 0 and self._should_retry:
             return TaskInstanceState.UP_FOR_RETRY
 
         return TaskInstanceState.FAILED

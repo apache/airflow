@@ -59,6 +59,7 @@
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
     "lastSchedulingDecision": "最後排程決策",
+    "partitionKey": "資產分割鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",

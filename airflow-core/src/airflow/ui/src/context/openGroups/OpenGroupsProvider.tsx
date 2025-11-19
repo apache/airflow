@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, useEffect, type PropsWithChildren } from "react";
+import { useCallback, useMemo, useEffect, useRef, type PropsWithChildren } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -35,6 +35,13 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const allGroupsKey = `${dagId}/all-groups`;
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
   const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
+
+  // use a ref to track the current allGroupIds without causing re-renders
+  const allGroupIdsRef = useRef(allGroupIds);
+
+  useEffect(() => {
+    allGroupIdsRef.current = allGroupIds;
+  }, [allGroupIds]);
 
   // For Graph view support: dependencies + selected version
   const selectedVersion = useSelectedVersion();
@@ -55,10 +62,10 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   useEffect(() => {
     const observedGroupIds = flattenGraphNodes(structure.nodes).allGroupIds;
 
-    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIds)) {
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [structure.nodes, allGroupIds, setAllGroupIds]);
+  }, [structure.nodes, setAllGroupIds]);
 
   const debouncedSetOpenGroupIds = useDebouncedCallback(
     (newGroupIds: Array<string>) => {

@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from pydantic.types import JsonValue
+    from typing_extensions import Self
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
@@ -64,7 +65,6 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
-    from airflow.typing_compat import Self
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."

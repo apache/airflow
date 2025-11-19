@@ -43,7 +43,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_documentation,
     get_dag_parent_run_facet,
     get_job_name,
-    get_root_information_from_dagrun_conf,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
@@ -229,7 +228,7 @@ class OpenLineageListener:
                     **get_task_parent_run_facet(
                         parent_run_id=parent_run_id,
                         parent_job_name=dag.dag_id,
-                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                        dr_conf=getattr(dagrun, "conf", {}),
                     ),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
@@ -360,7 +359,7 @@ class OpenLineageListener:
                     **get_task_parent_run_facet(
                         parent_run_id=parent_run_id,
                         parent_job_name=dag.dag_id,
-                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                        dr_conf=getattr(dagrun, "conf", {}),
                     ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
@@ -502,7 +501,7 @@ class OpenLineageListener:
                     **get_task_parent_run_facet(
                         parent_run_id=parent_run_id,
                         parent_job_name=dag.dag_id,
-                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                        dr_conf=getattr(dagrun, "conf", {}),
                     ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
@@ -557,7 +556,7 @@ class OpenLineageListener:
                     **get_task_parent_run_facet(
                         parent_run_id=parent_run_id,
                         parent_job_name=ti.dag_id,
-                        **get_root_information_from_dagrun_conf(getattr(dagrun, "conf", {})),
+                        dr_conf=getattr(dagrun, "conf", {}),
                     ),
                     **get_airflow_debug_facet(),
                 },

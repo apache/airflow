@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
     from pydantic.types import JsonValue
+    from typing_extensions import Self
 
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
     from airflow.sdk.bases.decorator import _TaskDecorator
@@ -38,7 +39,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
-    from airflow.typing_compat import Self
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:

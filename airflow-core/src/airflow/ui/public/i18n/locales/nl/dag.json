@@ -10,6 +10,7 @@
     "hourly": "Uurlijks",
     "legend": {
       "less": "Minder",
+      "mixed": "Gemengd",
       "more": "Meer"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Vorig jaar"
     },
     "noData": "Geen gegevens beschikbaar",
+    "noFailedRuns": "Geen mislukte runs",
     "noRuns": "Geen runs",
     "totalRuns": "Totaal aantal runs",
     "week": "Week {{weekNumber}}",

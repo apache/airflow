@@ -1,4 +1,8 @@
 {
+  "additional_data": "Zusätzliche Daten",
+  "asset_many": "Datensets (Assets)",
+  "asset_one": "Datenset (Asset)",
+  "asset_other": "Datensets (Assets)",
   "consumingDags": "Konsumierende Dags",
   "createEvent": {
     "button": "Ereignis erstellen",

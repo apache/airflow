@@ -297,7 +297,11 @@ class TestKubernetesPodTrigger:
 
         mock_datetime.timedelta = datetime.timedelta
         mock_datetime.timezone = datetime.timezone
-        mock_fetch_container_logs_before_current_sec.return_value = DateTime(2022, 1, 1)
+
+        async def async_datetime_return(*args, **kwargs):
+            return DateTime(2022, 1, 1)
+
+        mock_fetch_container_logs_before_current_sec.side_effect = async_datetime_return
         define_container_state.side_effect = ["running", "running", "terminated"]
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,

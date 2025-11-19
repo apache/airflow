@@ -159,6 +159,7 @@ def upload_to_pypi(version, task_sdk_version=None):
         )
 
     if task_sdk_version and confirm_action("Upload Task SDK packages to PyPI?"):
+        os.chdir(f"../task-sdk/{task_sdk_version}")
         run_command(
             [
                 "twine",
@@ -325,6 +326,7 @@ def airflow_release(release_candidate, previous_release, task_sdk_release_candid
     # Create the version directory
     create_version_dir(version, task_sdk_version)
     svn_release_version_dir = f"{svn_release_repo}/{version}"
+    svn_release_task_sdk_version_dir = f"{svn_release_repo}/task-sdk/{task_sdk_version}"
     console_print("SVN Release version dir:", svn_release_version_dir)
 
     # Change directory to the version directory
@@ -352,6 +354,11 @@ def airflow_release(release_candidate, previous_release, task_sdk_release_candid
     if os.path.exists(svn_release_version_dir):
         os.chdir(svn_release_version_dir)
     verify_pypi_package(version)
+    if os.path.exists(svn_release_task_sdk_version_dir):
+        os.chdir(svn_release_task_sdk_version_dir)
+        console_print("Task SDK release dir:", svn_release_task_sdk_version_dir)
+        verify_pypi_package(task_sdk_version)
+        os.chdir(svn_release_version_dir)
 
     # Upload to pypi
     upload_to_pypi(version, task_sdk_version)

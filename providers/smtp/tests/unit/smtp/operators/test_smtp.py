@@ -79,5 +79,17 @@ class TestEmailOperator:
     def test_assert_templated_fields(self):
         """Test expected templated fields."""
         operator = EmailOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
-        template_fields = ("to", "from_email", "subject", "html_content", "files", "cc", "bcc")
+        template_fields = (
+            "to",
+            "subject",
+            "html_content",
+            "from_email",
+            "files",
+            "cc",
+            "bcc",
+            "mime_subtype",
+            "mime_charset",
+            "conn_id",
+            "custom_headers",
+        )
         assert operator.template_fields == template_fields
