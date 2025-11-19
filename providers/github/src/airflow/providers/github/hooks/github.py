@@ -59,7 +59,7 @@ class GithubHook(BaseHook):
         if access_token:
             auth: Auth.Auth = Auth.Token(access_token)
         elif extras:
-            if (key_path := extras.get("key_path")):
+            if key_path := extras.get("key_path"):
                 if not key_path.endswith(".pem"):
                     raise RuntimeError("Unrecognised key file")
                 with open(key_path) as key_file:

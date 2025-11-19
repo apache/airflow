@@ -51,17 +51,16 @@ You can authenticate using a GitHub App installation by setting the extra field 
 - ``installation_id``: The ID of the app installation.
 - ``token_permissions``: A dictionary of permissions. - Properties of permissions - https://docs.github.com/en/rest/apps/apps?apiVersion=2022-11-28#create-an-installation-access-token-for-an-app
 
-
-Example::
+Example "extras" field:
 
 .. code-block:: json
 
     {
-        "key_path": "FAKE_KEY.pem",
-        "app_id": "123456s",
-        "installation_id": 123456789,
-        "token_permissions": {
-            "issues":"write",
-            "contents":"read"
-        }
+      "key_path": "FAKE_KEY.pem",
+      "app_id": "123456s",
+      "installation_id": 123456789,
+      "token_permissions": {
+        "issues":"write",
+        "contents":"read"
+      }
     }
