@@ -88,8 +88,6 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
    * ``Conn docs extra fix (#53942)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 5.3.3
@@ -277,8 +275,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Correct new changelog breaking changes header (#44659)``
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 4.13.3

@@ -63,10 +63,15 @@ from airflow.providers.standard.operators.python import (
 from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, DagRunType
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    NOTSET,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
