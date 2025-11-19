@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-19T02:24:22.203806
+# This constraints file was automatically generated on 2025-11-19T07:50:20.584301
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -82,11 +82,11 @@ alibabacloud-adb20211201==3.5.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.3
 alibabacloud-tea-openapi==0.4.1
+alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_util==0.3.13
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
