@@ -123,7 +123,7 @@ class TestCloudStorageTransferListLink:
         formatted_url = link.format_str.format(project_id=REAL_PROJECT_ID)
 
         assert formatted_url == EXPECTED_LIST_URL
-        assert "console.cloud.google.com" in formatted_url
+        assert formatted_url.startswith("https://console.cloud.google.com/transfer/jobs?project=")
         assert REAL_PROJECT_ID in formatted_url
 
     def test_format_str_with_various_project_ids(self):
@@ -160,7 +160,7 @@ class TestCloudStorageTransferJobLink:
         formatted_url = link.format_str.format(project_id=REAL_PROJECT_ID, transfer_job=REAL_TRANSFER_JOB)
 
         assert formatted_url == EXPECTED_JOB_URL
-        assert "console.cloud.google.com" in formatted_url
+        assert formatted_url.startswith("https://console.cloud.google.com/transfer/jobs/transferJobs%2F")
         assert REAL_PROJECT_ID in formatted_url
         assert REAL_TRANSFER_JOB in formatted_url
 
@@ -197,7 +197,7 @@ class TestCloudStorageTransferDetailsLink:
         )
 
         assert formatted_url == EXPECTED_DETAILS_URL
-        assert "console.cloud.google.com" in formatted_url
+        assert formatted_url.startswith("https://console.cloud.google.com/transfer/jobs/transferJobs%2F")
         assert REAL_PROJECT_ID in formatted_url
         assert "transferJobs" in formatted_url
         assert "9876543210987654321-transferJobs-1234567890123456789" in formatted_url
@@ -444,7 +444,9 @@ class TestIntegrationScenarios:
             url.startswith("https://console.cloud.google.com/transfer")
             for url in [list_url, job_url, details_url]
         )
-        assert REAL_PROJECT_ID in list_url and REAL_PROJECT_ID in job_url and REAL_PROJECT_ID in details_url
+        assert REAL_PROJECT_ID in list_url
+        assert REAL_PROJECT_ID in job_url
+        assert REAL_PROJECT_ID in details_url
         assert REAL_TRANSFER_JOB in job_url
         assert "transferJobs" in details_url
         assert "9876543210987654321-transferJobs-1234567890123456789" in details_url
