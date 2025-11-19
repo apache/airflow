@@ -20,9 +20,10 @@ export const UseMonitorServiceHealthKeyFn = (queryKey?: Array<unknown>) => [useM
 export type UiServiceWorkerDefaultResponse = Awaited<ReturnType<typeof UiService.worker>>;
 export type UiServiceWorkerQueryResult<TData = UiServiceWorkerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useUiServiceWorkerKey = "UiServiceWorker";
-export const UseUiServiceWorkerKeyFn = ({ workerNamePattern }: {
+export const UseUiServiceWorkerKeyFn = ({ queueNamePattern, workerNamePattern }: {
+  queueNamePattern?: string;
   workerNamePattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useUiServiceWorkerKey, ...(queryKey ?? [{ workerNamePattern }])];
+} = {}, queryKey?: Array<unknown>) => [useUiServiceWorkerKey, ...(queryKey ?? [{ queueNamePattern, workerNamePattern }])];
 export type UiServiceJobsDefaultResponse = Awaited<ReturnType<typeof UiService.jobs>>;
 export type UiServiceJobsQueryResult<TData = UiServiceJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useUiServiceJobsKey = "UiServiceJobs";

@@ -565,6 +565,14 @@ paths:
           - type: string
           - type: 'null'
           title: Worker Name Pattern
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue Name Pattern
       responses:
         '200':
           description: Successful Response

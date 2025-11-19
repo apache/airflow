@@ -12,7 +12,8 @@ export const prefetchUseLogsServiceLogfilePath = (queryClient: QueryClient, { au
   tryNumber: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseLogsServiceLogfilePathKeyFn({ authorization, dagId, mapIndex, runId, taskId, tryNumber }), queryFn: () => LogsService.logfilePath({ authorization, dagId, mapIndex, runId, taskId, tryNumber }) });
 export const prefetchUseMonitorServiceHealth = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseMonitorServiceHealthKeyFn(), queryFn: () => MonitorService.health() });
-export const prefetchUseUiServiceWorker = (queryClient: QueryClient, { workerNamePattern }: {
+export const prefetchUseUiServiceWorker = (queryClient: QueryClient, { queueNamePattern, workerNamePattern }: {
+  queueNamePattern?: string;
   workerNamePattern?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseUiServiceWorkerKeyFn({ workerNamePattern }), queryFn: () => UiService.worker({ workerNamePattern }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, workerNamePattern }), queryFn: () => UiService.worker({ queueNamePattern, workerNamePattern }) });
 export const prefetchUseUiServiceJobs = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseUiServiceJobsKeyFn(), queryFn: () => UiService.jobs() });
