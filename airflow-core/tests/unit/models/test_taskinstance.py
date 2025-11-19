@@ -39,7 +39,14 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
 )
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -81,6 +88,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
@@ -138,17 +146,21 @@ class CallbackWrapper:
         self.task_state_in_callback = context["ti"].state
 
 
-class TestTaskInstance:
-    @staticmethod
-    def clean_db():
-        db.clear_db_dags()
-        db.clear_db_pools()
-        db.clear_db_runs()
-        db.clear_rendered_ti_fields()
-        db.clear_db_task_reschedule()
-        db.clear_db_assets()
-        db.clear_db_xcom()
+@pytest.fixture(autouse=True)
+def clean_db():
+    db.clear_db_dags()
+    db.clear_db_pools()
+    db.clear_db_runs()
+    db.clear_rendered_ti_fields()
+    db.clear_db_task_reschedule()
+    db.clear_db_assets()
+    db.clear_db_xcom()
+    db.clear_db_pakl()
+    db.clear_db_apdr()
+    db.clear_db_assets()
 
+
+class TestTaskInstance:
     def setup_method(self):
         self.clean_db()
 
@@ -3252,3 +3264,107 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
         session=session,
     )
     assert result == expected
+
+@pytest.fixture
+def test_asset(session):
+    asset = AssetModel(
+        id=1,
+        name="test_get_asset_by_name",
+        uri="s3://bucket/key",
+        group="asset",
+        extra={"foo": "bar"},
+        created_at=DEFAULT_DATE,
+        updated_at=DEFAULT_DATE,
+    )
+    asset_active = AssetActive.for_asset(asset)
+    session.add_all([asset, asset_active])
+    session.commit()
+
+    yield asset
+
+    session.delete(asset)
+    session.delete(asset_active)
+    session.commit()
+
+
+@pytest.fixture
+def test_asset_events(session):
+    def make_timestamp(day):
+        return datetime(2021, 1, day, tzinfo=timezone.utc)
+
+    common = {
+        "asset_id": 1,
+        "extra": {"foo": "bar"},
+        "source_dag_id": "foo",
+        "source_task_id": "bar",
+        "source_run_id": "custom",
+        "source_map_index": -1,
+        "partition_key": None,
+    }
+
+    events = [AssetEvent(id=i, timestamp=make_timestamp(i), **common) for i in (1, 2, 3)]
+    session.add_all(events)
+    session.commit()
+    yield events
+
+    for event in events:
+        session.delete(event)
+    session.commit()
+
+
+def test_when_dag_run_has_partition_then_asset_does(dag_maker, test_asset, session):
+    with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[test_asset.to_public()])
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[test_asset.to_public().asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    actual_event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert actual_event.partition_key == "abc123"
+    assert not session.scalar(select(PartitionedAssetKeyLog))
+    assert not session.scalar(select(AssetPartitionDagRun))
+
+
+def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dag1_id = dag.dag_id
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="asset_event_listener",
+        schedule=PartitionedAssetTimetable(asset, IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[asset.asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag1_id))
+    assert event.partition_key == "abc123"
+    pakl = session.scalar(select(PartitionedAssetKeyLog))
+    apdr = session.scalar(select(AssetPartitionDagRun))
+    assert pakl.asset_event_id == event.id
+    assert pakl.asset_partition_dag_run_id == apdr.id
+    assert pakl.source_partition_key == "abc123"
+    assert pakl.target_dag_id == "asset_event_listener"

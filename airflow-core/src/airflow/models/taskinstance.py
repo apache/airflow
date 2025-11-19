@@ -1315,6 +1315,8 @@ class TaskInstance(Base, LoggingMixin):
     ) -> None:
         from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 
+        # todo: AIP-76 should we provide an interface to override this?
+        partition_key = ti.dag_run.partition_key
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1362,6 +1364,7 @@ class TaskInstance(Base, LoggingMixin):
                 task_instance=ti,
                 asset=am,
                 extra=asset_event_extras.get(key),
+                partition_key=partition_key,
                 session=session,
             )
 
@@ -1381,6 +1384,7 @@ class TaskInstance(Base, LoggingMixin):
                     task_instance=ti,
                     asset=am,
                     extra=asset_event_extras_by_name.get(nref.name),
+                    partition_key=partition_key,
                     session=session,
                 )
         if asset_uri_refs:
@@ -1399,6 +1403,7 @@ class TaskInstance(Base, LoggingMixin):
                     task_instance=ti,
                     asset=am,
                     extra=asset_event_extras_by_uri.get(uref.uri),
+                    partition_key=partition_key,
                     session=session,
                 )
 
@@ -1433,6 +1438,7 @@ class TaskInstance(Base, LoggingMixin):
                     asset=asset,
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
+                    partition_key=partition_key,
                     session=session,
                 )
                 if event is None:
@@ -1444,6 +1450,7 @@ class TaskInstance(Base, LoggingMixin):
                         asset=asset,
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
+                        partition_key=partition_key,
                         session=session,
                     )
 

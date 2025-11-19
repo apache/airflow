@@ -40,6 +40,7 @@ from airflow.models import (
     Trigger,
     Variable,
 )
+from airflow.models.asset import AssetPartitionDagRun, PartitionedAssetKeyLog
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
@@ -359,6 +360,16 @@ def clear_db_dag_warnings():
 def clear_db_xcom():
     with create_session() as session:
         session.query(XCom).delete()
+
+
+def clear_db_pakl():
+    with create_session() as session:
+        session.query(PartitionedAssetKeyLog).delete()
+
+
+def clear_db_apdr():
+    with create_session() as session:
+        session.query(AssetPartitionDagRun).delete()
 
 
 def clear_db_logs():

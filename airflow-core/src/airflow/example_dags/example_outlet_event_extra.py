@@ -68,6 +68,9 @@ with DAG(
 
     def _asset_with_extra_from_classic_operator_post_execute(context, result):
         context["outlet_events"][asset].extra = {"hi": "bye"}
+        # todo: AIP-76 probably we want to make it so this could be
+        #  AssetEvent, list[AssetEvent], [], or None. And if [] or None,
+        #  then no events would be emitted.
 
     BashOperator(
         task_id="asset_with_extra_from_classic_operator",
