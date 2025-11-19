@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-19T07:49:19.076793
+# This constraints file was automatically generated on 2025-11-19T13:57:57.910302
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -112,6 +112,7 @@ apache-airflow-providers-apache-pig==4.7.4
 apache-airflow-providers-apache-pinot==4.8.4
 apache-airflow-providers-apache-spark==5.3.4
 apache-airflow-providers-apache-tinkerpop==1.0.5
+apache-airflow-providers-apprise==2.2.0
 apache-airflow-providers-arangodb==2.8.4
 apache-airflow-providers-asana==2.10.4
 apache-airflow-providers-atlassian-jira==3.2.1
@@ -174,6 +175,7 @@ apache-airflow-providers-segment==3.8.3
 apache-airflow-providers-sendgrid==4.1.5
 apache-airflow-providers-sftp==5.4.2
 apache-airflow-providers-singularity==3.8.3
+apache-airflow-providers-slack==9.5.0
 apache-airflow-providers-smtp==2.3.2
 apache-airflow-providers-snowflake==6.6.1
 apache-airflow-providers-sqlite==4.1.3
