@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from github import Auth, Github as GithubClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.sdk import BaseHook
 
 
@@ -60,8 +59,7 @@ class GithubHook(BaseHook):
         if access_token:
             auth: Auth.Auth = Auth.Token(access_token)
         elif extras:
-            key_path = extras.get("key_path")
-            if key_path:
+            if (key_path := extras.get("key_path")):
                 if not key_path.endswith(".pem"):
                     raise RuntimeError("Unrecognised key file")
                 with open(key_path) as key_file:
@@ -71,7 +69,7 @@ class GithubHook(BaseHook):
             installation_id = extras.get("installation_id")
             if not isinstance(installation_id, int):
                 raise RuntimeError("The provided installation_id should be integer.")
-            if not isinstance(app_id, str) and not isinstance(app_id, int):
+            if not isinstance(app_id, (str | int)):
                 raise RuntimeError("The provided app_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
 

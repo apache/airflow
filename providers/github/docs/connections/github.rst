@@ -54,6 +54,8 @@ You can authenticate using a GitHub App installation by setting the extra field 
 
 Example::
 
+.. code-block:: json
+
     {
         "key_path": "FAKE_KEY.pem",
         "app_id": "123456s",
