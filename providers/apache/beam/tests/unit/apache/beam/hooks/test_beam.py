@@ -79,7 +79,7 @@ try:
     from airflow._shared.configuration import AirflowConfigException as ConfigException
 except ImportError:
     # Compat for airflow < 3.2, where AirflowConfigException is in airflow.exceptions
-    ConfigException = AirflowException  # type: ignore[assignment]
+    ConfigException = AirflowException  # type: ignore[assignment,misc]
 
 
 class TestBeamHook:
