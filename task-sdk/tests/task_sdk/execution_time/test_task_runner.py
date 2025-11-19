@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
@@ -1848,14 +1848,16 @@ class TestRuntimeTaskInstance:
                 context=context,
                 error=error,
             )
-            mock_xcom_set.assert_called_once_with(
-                key="_link_AirflowLink",
-                value="https://airflow.apache.org",
-                dag_id=runtime_ti.dag_id,
-                task_id=runtime_ti.task_id,
-                run_id=runtime_ti.run_id,
-                map_index=runtime_ti.map_index,
-            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
 
     def test_operator_extra_links_exception_handling(
         self, create_runtime_ti, mock_supervisor_comms, time_machine
@@ -1891,15 +1893,16 @@ class TestRuntimeTaskInstance:
                 state=TaskInstanceState.SUCCESS,
                 context=context,
             )
-            assert mock_xcom_set.call_count == 1
-            mock_xcom_set.assert_called_with(
-                key="_link_AirflowLink",
-                value="https://airflow.apache.org",
-                dag_id=runtime_ti.dag_id,
-                task_id=runtime_ti.task_id,
-                run_id=runtime_ti.run_id,
-                map_index=runtime_ti.map_index,
-            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
 
     @pytest.mark.parametrize(
         ("cmd", "rendered_cmd"),

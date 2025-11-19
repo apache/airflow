@@ -1417,7 +1417,7 @@ def finalize(
             _xcom_push_to_db(ti, key=xcom_key, value=link)
         except Exception:
             log.exception(
-                "Failed to get link for operator extra link",
+                "Failed to push an xcom for task operator extra link",
                 link_name=oe.name,
                 xcom_key=oe.xcom_key,
                 ti=ti,
