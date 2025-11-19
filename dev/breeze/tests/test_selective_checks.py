@@ -2745,3 +2745,169 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             assert "postgres" in result
             assert "trino" not in result
             assert "ydb" not in result
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_no_changes(mock_run_command):
+    """Test that provider dependency bump check passes when no pyproject.toml files are changed."""
+    selective_checks = SelectiveChecks(
+        files=("some_other_file.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_fails_on_provider_version_bump(mock_run_command):
+    """Test that provider dependency bump check fails when provider version is bumped without label."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_with_label(mock_run_command):
+    """Test that provider dependency bump check passes when label is set."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow provider dependency bump",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is True
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_on_non_provider_dependency_changes(mock_run_command):
+    """Test that provider dependency bump check passes when non-provider dependencies change."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.37.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.38.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_command):
+    """Test that provider dependency bump check works for optional-dependencies section."""
+    old_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.0.0",
+]
+"""
+    new_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.2.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump
