@@ -319,7 +319,8 @@ Misc
 
 * ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
 
 4.2.0
@@ -387,7 +388,8 @@ Misc
 
 * ``Control permissibility of driver config in extra from airflow.cfg (#31754)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Improve docstrings in providers (#31681)``
    * ``Add D400 pydocstyle check - Providers (#31427)``
    * ``Add note about dropping Python 3.7 for providers (#32015)``

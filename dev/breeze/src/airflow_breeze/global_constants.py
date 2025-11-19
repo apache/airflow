@@ -221,7 +221,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.9"
+UV_VERSION = "0.9.10"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -243,6 +243,7 @@ class TarBallType(Enum):
     PROVIDERS = "apache_airflow_providers"
     TASK_SDK = "apache_airflow_task_sdk"
     AIRFLOW_CTL = "apache_airflow_ctl"
+    PYTHON_CLIENT = "apache_airflow_python_client"
     HELM_CHART = "helm-chart"
 
 

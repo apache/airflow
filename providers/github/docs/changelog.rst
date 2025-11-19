@@ -177,8 +177,6 @@ Misc
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
    * ``Fix some non-critical pre-commit issues (#41749)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 2.7.0

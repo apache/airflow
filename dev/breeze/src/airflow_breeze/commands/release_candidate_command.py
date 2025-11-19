@@ -332,6 +332,11 @@ def create_tarball_release(
         if not version:
             version = date.strftime(date.today(), "%Y-%m-%d")
             console_print(f"\n[info]Using current date {version} as tarball version\n")
+    elif tarball_type == TarBallType.PYTHON_CLIENT:
+        tag = f"python-client/{version + version_suffix}" if version else "HEAD"
+        if not version:
+            version = date.strftime(date.today(), "%Y-%m-%d")
+            console_print(f"\n[info]Using current date {version} as tarball version\n")
     else:  # pragma: no cover
         console_print(f"[error]Unsupported tarball type: {tarball_type}")
         exit(1)
